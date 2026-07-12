@@ -402,7 +402,13 @@
         friendModalAddBtn.disabled = true;
         friendModalAddBtn.textContent = '···';
         try {
-          await friendModalSearch.flush();
+          // La ricerca vera spesso torna in una manciata di decine di
+          // millisecondi: troppo veloce per accorgersi che il pulsante si
+          // è davvero disabilitato (Fil, 2026-07-13, dopo aver provato dal
+          // telefono: "il + rimane sempre cliccabile"). Un minimo di attesa
+          // visibile (non finta: la ricerca corre comunque in parallelo)
+          // rende chiaro che sta succedendo qualcosa.
+          await Promise.all([friendModalSearch.flush(), new Promise(function (r) { window.setTimeout(r, 450); })]);
         } finally {
           friendModalAddBtn.disabled = false;
           friendModalAddBtn.textContent = originalLabel;
