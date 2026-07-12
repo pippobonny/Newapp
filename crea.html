@@ -119,26 +119,34 @@
           <div class="field-hint">Il link che ricevi dopo aver creato l'evento è unico: chi lo apre sceglie il proprio nome tra questi, poi entra come ospite o con un account.</div>
         </div>
 
-        <div class="field" id="saveAsListField" style="display:none;">
-          <label class="settings-row" style="cursor:pointer; padding:12px 14px; background:var(--card); border-radius:14px; box-shadow:0 2px 8px rgba(58,50,90,0.06);">
-            <input type="checkbox" id="saveAsListCheckbox" style="margin-right:10px; width:16px; height:16px; accent-color: var(--lavender);">
-            <span style="font-size:13px;">Salva anche come lista amici, per riusarla nei prossimi eventi</span>
-          </label>
-        </div>
-
         <div class="field">
           <label>Quante persone servono per confermare</label>
           <select id="eventQuota"></select>
         </div>
 
-        <div class="field">
-          <label class="settings-row" style="cursor:pointer; padding:12px 14px; background:var(--card); border-radius:14px; box-shadow:0 2px 8px rgba(58,50,90,0.06);">
-            <input type="checkbox" id="openInviteCheckbox" style="margin-right:10px; width:16px; height:16px; accent-color: var(--lavender);">
-            <span style="font-size:13px;">Chiunque abbia il link può aggiungersi, anche se non è nella lista qui sopra</span>
+        <div class="form-error" id="step2Error"></div>
+
+        <!-- Le due opzioni extra raggruppate in un'unica bolla leggera, in
+             fondo, invece di due riquadri con ombra sparsi tra i campi veri:
+             si leggono come opzioni secondarie, non interrompono il flusso
+             (Fil, 2026-07-12: "troppi riquadri, mettili in fondo insieme"). -->
+        <div class="option-group">
+          <label class="option-row" id="saveAsListField" style="display:none;">
+            <input type="checkbox" id="saveAsListCheckbox">
+            <span>
+              <span class="option-row-title">Salva come lista amici</span>
+              <span class="option-row-hint">per riusarla nei prossimi eventi</span>
+            </span>
+          </label>
+          <div class="option-divider" id="optionGroupDivider" style="display:none;"></div>
+          <label class="option-row">
+            <input type="checkbox" id="openInviteCheckbox">
+            <span>
+              <span class="option-row-title">Apri il link a tutti</span>
+              <span class="option-row-hint">anche a chi non hai messo tra i nomi qui sopra</span>
+            </span>
           </label>
         </div>
-
-        <div class="form-error" id="step2Error"></div>
 
         <div style="display:flex; gap:10px; margin-bottom:20px;">
           <div class="add-date-btn" id="step2BackBtn" style="flex:0 0 110px; margin-bottom:0; cursor:pointer;">← Indietro</div>
@@ -533,6 +541,7 @@
       var manualNameAddBtn = document.getElementById('manualNameAddBtn');
       var saveAsListField = document.getElementById('saveAsListField');
       var saveAsListCheckbox = document.getElementById('saveAsListCheckbox');
+      var optionGroupDivider = document.getElementById('optionGroupDivider');
       var openInviteCheckbox = document.getElementById('openInviteCheckbox');
       var MANUAL_VALUE = '__manual__';
       var manualNames = []; // { name, accountId } — accountId null finché non scegli un suggerimento
@@ -637,6 +646,7 @@
         var manual = isManualMode();
         manualNamesField.style.display = manual ? '' : 'none';
         saveAsListField.style.display = manual ? '' : 'none';
+        optionGroupDivider.style.display = manual ? '' : 'none';
       }
 
       // finché non tocchi tu stesso il menu "Quante persone servono", resta
@@ -690,12 +700,12 @@
         // DOPO che hai chiuso (cioè toccato) quello della quota, non prima.
         if (n === 2 && window.CiSiamoUI && CiSiamoUI.showOnceHint) {
           function showOpenInviteHint() {
-            CiSiamoUI.showOnceHint('openInvite', openInviteCheckbox.closest('.field'),
+            CiSiamoUI.showOnceHint('openInvite', openInviteCheckbox.closest('.option-group'),
               'Attivalo solo se vuoi che chiunque abbia il link possa aggiungersi da solo, anche se non l\'hai scritto qui sopra. Comodo per eventi aperti a un gruppo largo, ma il link diventa di fatto un accesso libero.',
               openInviteCheckbox, ['focus', 'change']);
           }
           var quotaHintShown = CiSiamoUI.showOnceHint('eventQuota', quotaSelect.closest('.field'),
-            'Quando questo numero di persone conferma la stessa data, l\'evento si fissa lì. Se nessuna data ci arriva dopo che tutti hanno risposto, l\'evento si annulla da solo.',
+            'Quando questo numero di persone conferma la stessa data, quella data diventa quella definitiva dell\'evento (stato "Confermato"). Se nessuna data ci riesce dopo che tutti hanno risposto, l\'evento si annulla da solo.',
             quotaSelect, ['focus', 'change'], showOpenInviteHint);
           if (!quotaHintShown) showOpenInviteHint();
         }
@@ -1228,6 +1238,7 @@
         if (friendListField) friendListField.style.display = 'none';
         updateManualPanelsVisibility();
         if (saveAsListField) saveAsListField.style.display = 'none';
+        if (optionGroupDivider) optionGroupDivider.style.display = 'none';
         renderManualNamesList();
 
         // foto vere per gli invitati già collegati (in modifica, il

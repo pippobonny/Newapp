@@ -764,7 +764,7 @@
           + '<div class="card-top">'
           + '<div>'
           + '<div class="card-title">Quante persone servono</div>'
-          + '<div class="card-date">Quando ' + info.quota + (info.quota === 1 ? ' persona conferma' : ' persone confermano') + ' la stessa data, l\'evento si fissa lì</div>'
+          + '<div class="card-date">Quando ' + info.quota + (info.quota === 1 ? ' persona conferma' : ' persone confermano') + ' la stessa data, quella diventa la data definitiva dell\'evento</div>'
           + '</div>'
           + '<div class="badge ' + info.status + '">' + CiSiamoData.STATUS_LABELS[info.status] + '</div>'
           + '</div>'
@@ -842,7 +842,7 @@
             var label = CiSiamoData.formatDateLabel(
               (event.dateOptions.filter(function (o) { return o.id === optionId; })[0] || {}).dateISO || ''
             );
-            var sure = window.confirm('Confermare "' + label + '"? L\'evento si fissa lì subito, anche se non tutti hanno ancora risposto. Non si può annullare da qui.');
+            var sure = window.confirm('Confermare "' + label + '"? Questa data diventa subito quella definitiva dell\'evento, anche se non tutti hanno ancora risposto. Non si può annullare da qui.');
             if (!sure) return;
 
             var originalText = btn.textContent;

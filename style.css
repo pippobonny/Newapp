@@ -534,6 +534,52 @@ a { text-decoration: none; color: inherit; }
 
 .field-hint a { color: var(--lavender); font-weight: 600; }
 
+/* Opzioni secondarie di un form (es. "salva come lista amici", "apri il
+   link a tutti" in crea.html), raggruppate in un'unica bolla leggera invece
+   di un riquadro con ombra per checkbox: più leggere di un .card vero, non
+   competono visivamente con i campi obbligatori sopra (Fil, 2026-07-12:
+   "troppi riquadri con ombra, mettili insieme in fondo"). */
+.option-group {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 4px 16px;
+  margin-bottom: 16px;
+}
+
+.option-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 0;
+  cursor: pointer;
+}
+
+.option-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: var(--lavender);
+}
+
+.option-row-title {
+  display: block;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.option-row-hint {
+  display: block;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  margin-top: 1px;
+}
+
+.option-divider {
+  height: 1px;
+  background: rgba(58,50,90,0.08);
+}
+
 .field textarea { resize: none; height: 70px; }
 
 /* Anteprima foto evento (crea.html): riquadro rettangolare arrotondato, non
