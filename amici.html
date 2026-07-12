@@ -177,8 +177,9 @@
       // resta per sempre su questo amico (vedi addFriendFromInput più sotto).
       // Cliccare un suggerimento aggiunge subito l'amico (Fil, 2026-07-10),
       // niente più "+" da premere dopo.
+      var friendModalSearch = null;
       if (window.CiSiamoUI && CiSiamoUI.attachAccountSearch) {
-        CiSiamoUI.attachAccountSearch(friendModalInput, function () { addFriendFromInput(); });
+        friendModalSearch = CiSiamoUI.attachAccountSearch(friendModalInput, function () { addFriendFromInput(); });
       }
 
       var currentLists = [];
@@ -389,10 +390,30 @@
         renderLists();
       }
 
-      friendModalAddBtn.addEventListener('click', addFriendFromInput);
+      // Prima di aggiungere aspetta che la ricerca account per il nome
+      // scritto sia finita (Fil, 2026-07-13): scrivendo veloce e premendo
+      // subito Invio/+, senza questa attesa il suggerimento non fa in tempo
+      // ad arrivare e l'amico finisce aggiunto "a vuoto" anche se quella
+      // persona è già registrata. Il pulsante mostra "···" nel frattempo,
+      // di solito per una frazione di secondo.
+      async function triggerAddFriend() {
+        if (!friendModalSearch) { addFriendFromInput(); return; }
+        var originalLabel = friendModalAddBtn.textContent;
+        friendModalAddBtn.disabled = true;
+        friendModalAddBtn.textContent = '···';
+        try {
+          await friendModalSearch.flush();
+        } finally {
+          friendModalAddBtn.disabled = false;
+          friendModalAddBtn.textContent = originalLabel;
+        }
+        addFriendFromInput();
+      }
+
+      friendModalAddBtn.addEventListener('click', triggerAddFriend);
 
       friendModalInput.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') friendModalAddBtn.click();
+        if (e.key === 'Enter') { e.preventDefault(); triggerAddFriend(); }
       });
 
       friendModalList.addEventListener('click', async function (e) {

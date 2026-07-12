@@ -701,7 +701,7 @@
      "libero" come è sempre stato — Fil ha confermato che deve restare
      sempre possibile, per chi non ha ancora un account su Ci siamo. */
   function attachAccountSearch(inputEl, onSelect) {
-    if (!inputEl || !window.CiSiamoData || typeof CiSiamoData.searchAccounts !== 'function') return;
+    if (!inputEl || !window.CiSiamoData || typeof CiSiamoData.searchAccounts !== 'function') return null;
 
     var parent = inputEl.parentElement;
     if (parent && window.getComputedStyle(parent).position === 'static') {
@@ -715,6 +715,7 @@
 
     var debounceTimer = null;
     var lastQuery = '';
+    var lastResults = [];
 
     function clearLink() {
       delete inputEl.dataset.linkedAccountId;
@@ -727,6 +728,41 @@
       dropdown.innerHTML = '';
     }
 
+    function renderResults(results) {
+      lastResults = results || [];
+      if (!lastResults.length) { hideDropdown(); return; }
+
+      dropdown.innerHTML = lastResults.map(function (acc) {
+        var initial = (acc.username.trim().charAt(0) || '?').toUpperCase();
+        var circle = acc.avatarUrl
+          ? '<img src="' + CiSiamoData.escapeHTML(acc.avatarUrl) + '" alt="">'
+          : CiSiamoData.escapeHTML(initial);
+        return ''
+          + '<div class="account-search-item" data-account-id="' + acc.id + '" data-username="' + CiSiamoData.escapeHTML(acc.username) + '" data-avatar-url="' + CiSiamoData.escapeHTML(acc.avatarUrl || '') + '">'
+          + '<div class="account-search-avatar">' + circle + '</div>'
+          + '<div>' + CiSiamoData.escapeHTML(acc.username) + '</div>'
+          + '</div>';
+      }).join('');
+      dropdown.style.display = '';
+    }
+
+    // Interroga il server SUBITO (non aspetta il debounce): usata sia dal
+    // digitare normale sotto, sia da flush() più in basso — chi preme
+    // "+"/Invio prima che il debounce sia scattato non deve mai aspettare
+    // più del necessario (Fil, 2026-07-13).
+    function runSearch(query) {
+      lastQuery = query;
+      var p = CiSiamoData.searchAccounts(query).then(function (results) {
+        if (query !== lastQuery) return lastResults; // superata da una ricerca più recente
+        renderResults(results);
+        return results;
+      }).catch(function () {
+        hideDropdown();
+        return [];
+      });
+      return p;
+    }
+
     inputEl.addEventListener('input', function () {
       if (inputEl.dataset.linkedUsername && inputEl.value !== inputEl.dataset.linkedUsername) {
         clearLink();
@@ -734,28 +770,9 @@
 
       var query = inputEl.value.trim();
       window.clearTimeout(debounceTimer);
-      if (query.length < 2) { hideDropdown(); return; }
+      if (query.length < 2) { hideDropdown(); lastQuery = query; return; }
 
-      debounceTimer = window.setTimeout(function () {
-        lastQuery = query;
-        CiSiamoData.searchAccounts(query).then(function (results) {
-          if (query !== lastQuery) return; // risposta in ritardo, la query è già cambiata
-          if (!results.length) { hideDropdown(); return; }
-
-          dropdown.innerHTML = results.map(function (acc) {
-            var initial = (acc.username.trim().charAt(0) || '?').toUpperCase();
-            var circle = acc.avatarUrl
-              ? '<img src="' + CiSiamoData.escapeHTML(acc.avatarUrl) + '" alt="">'
-              : CiSiamoData.escapeHTML(initial);
-            return ''
-              + '<div class="account-search-item" data-account-id="' + acc.id + '" data-username="' + CiSiamoData.escapeHTML(acc.username) + '" data-avatar-url="' + CiSiamoData.escapeHTML(acc.avatarUrl || '') + '">'
-              + '<div class="account-search-avatar">' + circle + '</div>'
-              + '<div>' + CiSiamoData.escapeHTML(acc.username) + '</div>'
-              + '</div>';
-          }).join('');
-          dropdown.style.display = '';
-        }).catch(function () { hideDropdown(); });
-      }, 250);
+      debounceTimer = window.setTimeout(function () { runSearch(query); }, 250);
     });
 
     // mousedown (non click) per battere il blur dell'input qui sotto, che
@@ -794,6 +811,36 @@
         || parent;
       showOnceHint('accountSearch', hintContainer, 'Cerca per nome utente: se lo trovi e lo scegli, resta collegato per sempre e riceverà notifiche vere invece di un invito generico.', inputEl, ['input', 'blur']);
     });
+
+    /* Da richiamare prima di aggiungere (Invio o "+"): se per il testo
+       attuale la ricerca è ancora ferma nel debounce, la lancia subito e
+       aspetta il risultato — così chi scrive veloce e preme subito Invio
+       non aggiunge mai un nome "a vuoto" quando quella persona è già
+       registrata (Fil, 2026-07-13, dopo aver visto che scrivendo "Filippo"
+       di getto il suggerimento non faceva in tempo a comparire). Se il
+       nome scritto combacia esattamente con un account trovato, lo collega
+       da solo, come un click sul suggerimento. */
+    function flush() {
+      var query = inputEl.value.trim();
+      if (query.length < 2) return Promise.resolve();
+      if (inputEl.dataset.linkedUsername === inputEl.value) return Promise.resolve(); // già collegato, niente da aspettare
+
+      window.clearTimeout(debounceTimer);
+      return runSearch(query).then(function (results) {
+        var exact = (results || []).filter(function (acc) {
+          return acc.username.toLowerCase() === query.toLowerCase();
+        })[0];
+        if (exact) {
+          inputEl.value = exact.username;
+          inputEl.dataset.linkedAccountId = exact.id;
+          inputEl.dataset.linkedUsername = exact.username;
+          inputEl.dataset.linkedAvatarUrl = exact.avatarUrl || '';
+          hideDropdown();
+        }
+      });
+    }
+
+    return { flush: flush };
   }
 
   /* ---------- fumetto informativo "una volta sola" ----------

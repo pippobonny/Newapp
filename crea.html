@@ -539,6 +539,7 @@
       var manualNamesListEl = document.getElementById('manualNamesList');
       var manualNameInput = document.getElementById('manualNameInput');
       var manualNameAddBtn = document.getElementById('manualNameAddBtn');
+      var manualNameSearch = null;
       var saveAsListField = document.getElementById('saveAsListField');
       var saveAsListCheckbox = document.getElementById('saveAsListCheckbox');
       var optionGroupDivider = document.getElementById('optionGroupDivider');
@@ -551,7 +552,7 @@
       // sconosciuto omonimo invece del tuo vero amico. Cliccare un suggerimento
       // aggiunge subito l'invitato (Fil, 2026-07-10), come in amici.html.
       if (window.CiSiamoUI && CiSiamoUI.attachAccountSearch) {
-        CiSiamoUI.attachAccountSearch(manualNameInput, function () { addManualName(); });
+        manualNameSearch = CiSiamoUI.attachAccountSearch(manualNameInput, function () { addManualName(); });
       }
 
       var CREATE_LIST_VALUE = '__create_list__';
@@ -754,9 +755,30 @@
         populateQuotaOptions(quotaManuallySet);
       }
 
-      manualNameAddBtn.addEventListener('click', addManualName);
+      // Prima di aggiungere aspetta che la ricerca account per il nome
+      // scritto sia finita (Fil, 2026-07-13): se scrivi veloce e premi
+      // subito Invio/+, senza questa attesa il suggerimento non fa in
+      // tempo ad arrivare e il nome finisce aggiunto "a vuoto" anche se
+      // quella persona è già registrata. L'attesa è quasi sempre
+      // impercettibile (la ricerca è già partita, si aspetta solo la
+      // risposta del server), il pulsante mostra "···" nel frattempo.
+      async function triggerAddManualName() {
+        if (!manualNameSearch) { addManualName(); return; }
+        var originalLabel = manualNameAddBtn.textContent;
+        manualNameAddBtn.disabled = true;
+        manualNameAddBtn.textContent = '···';
+        try {
+          await manualNameSearch.flush();
+        } finally {
+          manualNameAddBtn.disabled = false;
+          manualNameAddBtn.textContent = originalLabel;
+        }
+        addManualName();
+      }
+
+      manualNameAddBtn.addEventListener('click', triggerAddManualName);
       manualNameInput.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') { e.preventDefault(); addManualName(); }
+        if (e.key === 'Enter') { e.preventDefault(); triggerAddManualName(); }
       });
 
       manualNamesListEl.addEventListener('click', function (e) {
