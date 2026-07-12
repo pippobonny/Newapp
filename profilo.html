@@ -53,12 +53,20 @@
 
         <div class="section-title first" id="createViewTitle">Crea il tuo profilo</div>
 
-        <div style="display:flex; gap:10px; margin-bottom:16px;" id="authModeToggle">
-          <button type="button" class="primary-btn" id="showRegisterModeBtn" style="flex:1; margin-bottom:0;">Registrati</button>
-          <button type="button" class="primary-btn" id="showLoginModeBtn" style="flex:1; margin-bottom:0; background:var(--card); color:var(--ink); box-shadow:0 2px 8px rgba(58,50,90,0.06);">Accedi</button>
+        <!-- Prima le due scelte vere (email o Google), subito visibili senza
+             scorrere: prima il pulsante Google era in fondo alla pagina,
+             sotto tutto il form (Fil, 2026-07-12). Chi preme "Registrati
+             con email" apre il form sotto; chi preme Google apre subito
+             il consenso Google. -->
+        <div id="authChoiceRow" style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
+          <button type="button" class="primary-btn" id="showRegisterModeBtn" style="margin-bottom:0;">Registrati con email</button>
+          <button type="button" class="primary-btn" id="googleSignInBtn" style="margin-bottom:0; background:var(--card); color:var(--ink); box-shadow:0 2px 8px rgba(58,50,90,0.06); display:flex; align-items:center; justify-content:center; gap:10px;">
+            <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.9v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.66 9c0-.59.1-1.17.28-1.7V4.97H.9A9 9 0 0 0 0 9c0 1.45.35 2.83.9 4.03l3.05-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.42 0 9 0A9 9 0 0 0 .9 4.97L3.95 7.3C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
+            <span id="googleSignInBtnLabel">Continua con Google</span>
+          </button>
         </div>
 
-        <div id="registerFields">
+        <div id="registerFields" style="display:none;">
           <div class="card-date" style="margin:0 2px 16px;">Nome e cognome restano privati, il nome utente è visibile a tutti.</div>
 
           <div class="field">
@@ -101,18 +109,17 @@
         </div>
 
         <div class="form-error" id="createProfileError"></div>
-        <button type="button" class="primary-btn" id="createProfileBtn">Crea profilo</button>
+        <button type="button" class="primary-btn" id="createProfileBtn" style="display:none;">Crea profilo</button>
 
-        <div style="display:flex; align-items:center; gap:10px; margin:16px 0;" id="googleDividerRow">
-          <div style="flex:1; height:1px; background:rgba(58,50,90,0.12);"></div>
-          <div style="font-size:12px; color:var(--muted, #8C7C91);">oppure</div>
-          <div style="flex:1; height:1px; background:rgba(58,50,90,0.12);"></div>
-        </div>
-        <button type="button" class="primary-btn" id="googleSignInBtn" style="background:var(--card); color:var(--ink); box-shadow:0 2px 8px rgba(58,50,90,0.06); display:flex; align-items:center; justify-content:center; gap:10px;">
-          <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.9v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.66 9c0-.59.1-1.17.28-1.7V4.97H.9A9 9 0 0 0 0 9c0 1.45.35 2.83.9 4.03l3.05-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.42 0 9 0A9 9 0 0 0 .9 4.97L3.95 7.3C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
-          <span id="googleSignInBtnLabel">Continua con Google</span>
-        </button>
         <div class="field-hint" id="cancelCreateHint" style="text-align:center; display:none; margin-top:12px;"><a href="#" id="cancelCreateLink">Annulla</a></div>
+
+        <!-- Per chi e' arrivato qui per sbaglio e in realta' ha gia' un
+             account: volutamente piccolo e in fondo, non in competizione
+             con Registrati/Google (Fil, 2026-07-12). In modalita' Accedi
+             il testo si capovolge per tornare indietro. -->
+        <div class="field-hint" id="authSwitchHint" style="text-align:center; margin-top:18px;">
+          <a href="#" id="authSwitchLink">Hai già un account? Accedi</a>
+        </div>
       </div>
 
       <!-- Mostrata solo al ritorno dal login Google, la primissima volta:
@@ -238,9 +245,10 @@
       var createAvatarEl = document.getElementById('createProfileAvatar');
       var avatarFileInput = document.getElementById('createAvatarFile');
 
-      var authModeToggle = document.getElementById('authModeToggle');
+      var authChoiceRow = document.getElementById('authChoiceRow');
       var showRegisterModeBtn = document.getElementById('showRegisterModeBtn');
-      var showLoginModeBtn = document.getElementById('showLoginModeBtn');
+      var authSwitchHint = document.getElementById('authSwitchHint');
+      var authSwitchLink = document.getElementById('authSwitchLink');
       var registerFields = document.getElementById('registerFields');
       var loginFields = document.getElementById('loginFields');
       var loginEmailInput = document.getElementById('loginEmail');
@@ -337,8 +345,11 @@
         launchConfetti();
       }
 
-      welcomeEnterBtn.addEventListener('click', async function () {
-        await showNormalView();
+      // Entra nell'app: dopo il benvenuto si finisce in Home, non sul
+      // profilo (Fil, 2026-07-12) — Home è dove si vede subito cosa c'è
+      // da fare, il profilo lo si raggiunge comunque dalla navbar.
+      welcomeEnterBtn.addEventListener('click', function () {
+        window.location.href = 'index.html';
       });
 
       var isEditMode = false;
@@ -346,32 +357,45 @@
       var pendingAvatarFile = null; // foto scelta ma non ancora caricata su Supabase
       var currentAvatarUrl = '';    // foto gia' salvata (in modalita' modifica)
 
-      /* Il toggle Registrati/Accedi esiste solo per chi non ha ancora un account
-         su questo dispositivo (non in modalita' modifica profilo). "Accedi" collega
-         questo telefono a un account gia' esistente su un altro telefono, con lo
-         stesso username+password: usa CiSiamoData.loginAccount(), la stessa funzione
-         gia' usata dal flusso di invito in amico.html. */
+      /* Tre stati per chi non ha ancora un account su questo dispositivo
+         (non in modalita' modifica profilo): 'choice' (le due scelte vere,
+         Registrati con email o Google, appena si arriva sulla pagina),
+         'register' (form completo dopo aver scelto email) e 'login' (per
+         chi arriva sapendo di avere gia' un account, dal link "Accedi" in
+         fondo pagina o da ?mode=login altrove nell'app). "Accedi" collega
+         questo telefono a un account gia' esistente su un altro telefono,
+         con lo stesso username+password: usa CiSiamoData.loginAccount(),
+         la stessa funzione gia' usata dal flusso di invito in amico.html.
+         Ridisegnato il 2026-07-12: prima c'era un toggle Registrati/Accedi
+         sempre visibile sopra il form, ridondante col blocco "serve un
+         profilo" che porta qui, e il pulsante Google era in fondo alla
+         pagina sotto tutto il form. */
       function setAuthMode(mode) {
         authMode = mode;
         createError.textContent = '';
 
-        var isLogin = mode === 'login';
-        registerFields.style.display = isLogin ? 'none' : '';
-        loginFields.style.display = isLogin ? '' : 'none';
-        createAvatarBlock.style.display = isLogin ? 'none' : '';
-        createViewTitle.textContent = isLogin ? 'Accedi al tuo profilo' : 'Crea il tuo profilo';
-        createBtn.textContent = isLogin ? 'Accedi' : 'Crea profilo';
+        authChoiceRow.style.display = mode === 'choice' ? 'flex' : 'none';
+        registerFields.style.display = mode === 'register' ? '' : 'none';
+        loginFields.style.display = mode === 'login' ? '' : 'none';
+        createAvatarBlock.style.display = mode === 'register' ? '' : 'none';
+        createBtn.style.display = mode === 'choice' ? 'none' : '';
 
-        showRegisterModeBtn.style.background = isLogin ? 'var(--card)' : '';
-        showRegisterModeBtn.style.color = isLogin ? 'var(--ink)' : '';
-        showRegisterModeBtn.style.boxShadow = isLogin ? '0 2px 8px rgba(58,50,90,0.06)' : '';
-        showLoginModeBtn.style.background = isLogin ? '' : 'var(--card)';
-        showLoginModeBtn.style.color = isLogin ? '' : 'var(--ink)';
-        showLoginModeBtn.style.boxShadow = isLogin ? '' : '0 2px 8px rgba(58,50,90,0.06)';
+        if (mode === 'login') {
+          createViewTitle.textContent = 'Accedi al tuo profilo';
+          createBtn.textContent = 'Accedi';
+          authSwitchLink.textContent = 'Non hai un account? Registrati';
+        } else {
+          createViewTitle.textContent = 'Crea il tuo profilo';
+          createBtn.textContent = 'Crea profilo';
+          authSwitchLink.textContent = 'Hai già un account? Accedi';
+        }
       }
 
       showRegisterModeBtn.addEventListener('click', function () { setAuthMode('register'); });
-      showLoginModeBtn.addEventListener('click', function () { setAuthMode('login'); });
+      authSwitchLink.addEventListener('click', function (e) {
+        e.preventDefault();
+        setAuthMode(authMode === 'login' ? 'choice' : 'login');
+      });
 
       /* Mostra una foto (o un'iniziale testuale) dentro l'avatar circolare, riusata
          sia per l'anteprima locale (FileReader) sia per una foto gia' salvata online. */
@@ -450,24 +474,23 @@
         var navbarEl = document.querySelector('.navbar');
         if (navbarEl) navbarEl.style.display = (!isEdit && !CiSiamoData.hasAccount()) ? 'none' : '';
 
-        // Il toggle Registrati/Accedi ha senso solo per un profilo nuovo su questo
-        // dispositivo: in modifica (isEdit) si vede solo il form dati, niente login.
-        authModeToggle.style.display = isEdit ? 'none' : '';
-        // "Continua con Google" idem: ha senso solo per collegare/creare un
-        // profilo su questo dispositivo, non mentre si modifica quello già attivo.
-        document.getElementById('googleDividerRow').style.display = isEdit ? 'none' : '';
-        googleSignInBtn.style.display = isEdit ? 'none' : '';
+        // Le scelte iniziali (Registrati con email / Google) e il link
+        // "Accedi" in fondo hanno senso solo per un profilo nuovo su questo
+        // dispositivo: in modifica (isEdit) si vede solo il form dati.
+        authSwitchHint.style.display = isEdit ? 'none' : '';
         if (isEdit) {
+          authChoiceRow.style.display = 'none';
           registerFields.style.display = '';
           loginFields.style.display = 'none';
           createAvatarBlock.style.display = '';
+          createBtn.style.display = '';
           createViewTitle.textContent = 'Modifica profilo';
           createBtn.textContent = 'Salva modifiche';
           // Il nome utente si sceglie una volta sola in fase di registrazione:
           // dopo, non è più modificabile da nessuna parte, nemmeno da qui.
           usernameInput.disabled = true;
         } else {
-          setAuthMode(initialAuthMode || 'register');
+          setAuthMode(initialAuthMode || 'choice');
           usernameInput.disabled = false;
         }
 
@@ -817,8 +840,9 @@
           showGoogleProfileView(googleState.suggested);
         } else {
           // Chi arriva qui da un link "Accedi" (popup, o i blocchi di Crea/Amici)
-          // porta con se' ?mode=login: si apre gia' sulla tab Accedi invece che Registrati.
-          showCreateView(false, initParams.get('mode') === 'login' ? 'login' : 'register');
+          // porta con se' ?mode=login: si apre gia' sul form Accedi invece
+          // che sulla scelta iniziale Registrati/Google.
+          showCreateView(false, initParams.get('mode') === 'login' ? 'login' : 'choice');
         }
       }
     })();
