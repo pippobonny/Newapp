@@ -45,7 +45,10 @@
     </div>
 
     <div class="content" id="notifList">
-      <div class="empty-hint">Caricamento...</div>
+      <div id="friendRequestsSection"></div>
+      <div id="notifBody">
+        <div class="empty-hint">Caricamento...</div>
+      </div>
     </div>
    </div>
 
@@ -77,6 +80,7 @@
          dei tuoi eventi e delle tue liste. Riguardano solo chi ha un account
          (un ospite non ha nessuna lista/evento "suo" da tracciare). */
       var listEl = document.getElementById('notifList');
+      var notifBodyEl = document.getElementById('notifBody');
 
       /* Stessa regola d'accesso di tutta l'app: Notifiche non è mai il "posto
          giusto" per un ospite bloccato su un invito, quindi qui basta sapere
@@ -115,11 +119,68 @@
         return new Date(dateStr).toLocaleDateString('it-IT', { day: 'numeric', month: 'long' });
       }
 
+      /* Richieste di amicizia vera in attesa (Fil, 2026-07-12): a differenza
+         delle altre notifiche qui sotto (solo testo, ricalcolate ogni volta),
+         queste hanno un'azione vera — accetta/rifiuta — quindi vivono in una
+         sezione a parte, sopra il resto. */
+      async function loadFriendRequests() {
+        var requests = [];
+        try {
+          requests = await CiSiamoData.getMyPendingFriendRequests();
+        } catch (err) { /* niente richieste mostrate, il resto della pagina non si blocca */ }
+
+        var section = document.getElementById('friendRequestsSection');
+        if (!requests.length) {
+          section.innerHTML = '';
+          return;
+        }
+
+        section.innerHTML = '<div class="section-title first" style="margin-bottom:10px;">Richieste di amicizia</div>'
+          + requests.map(function (r) {
+            return ''
+              + '<div class="notif-item reveal" style="align-items:center;">'
+              + '<div class="notif-icon friend">👋</div>'
+              + '<div style="flex:1;">'
+              + '<div class="notif-text"><b>' + CiSiamoData.escapeHTML(r.ownerUsername) + '</b> vuole aggiungerti come amico vero nella sua lista "' + CiSiamoData.escapeHTML(r.friendListName) + '".</div>'
+              + '<div class="notif-time">' + timeAgo(r.requestedAt) + '</div>'
+              + '<div style="display:flex; gap:8px; margin-top:8px;">'
+              + '<button type="button" class="primary-btn" style="margin:0; padding:8px 14px; font-size:14px;" data-accept-friend="' + r.friendId + '">Accetta</button>'
+              + '<button type="button" class="primary-btn" style="margin:0; padding:8px 14px; font-size:14px; background:var(--card); color:var(--ink); box-shadow:0 2px 8px rgba(58,50,90,0.06);" data-decline-friend="' + r.friendId + '">Rifiuta</button>'
+              + '</div>'
+              + '</div>'
+              + '</div>';
+          }).join('');
+
+        section.querySelectorAll('[data-accept-friend]').forEach(function (btn) {
+          btn.addEventListener('click', function () { respondToRequest(btn.getAttribute('data-accept-friend'), true, btn); });
+        });
+        section.querySelectorAll('[data-decline-friend]').forEach(function (btn) {
+          btn.addEventListener('click', function () { respondToRequest(btn.getAttribute('data-decline-friend'), false, btn); });
+        });
+        if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+      }
+
+      async function respondToRequest(friendId, accept, btn) {
+        var row = btn.closest('.notif-item');
+        var buttons = row ? row.querySelectorAll('button') : [];
+        buttons.forEach(function (b) { b.disabled = true; });
+        try {
+          await CiSiamoData.respondFriendRequest(friendId, accept);
+        } catch (err) {
+          window.alert('Non sono riuscito a rispondere (' + err.message + ').');
+          buttons.forEach(function (b) { b.disabled = false; });
+          return;
+        }
+        await loadFriendRequests();
+      }
+
+      await loadFriendRequests();
+
       var events;
       try {
         events = await CiSiamoData.getEvents();
       } catch (err) {
-        listEl.innerHTML = '<div class="empty-hint">Non riesco a caricare le notifiche (' + CiSiamoData.escapeHTML(err.message) + ').</div>';
+        notifBodyEl.innerHTML = '<div class="empty-hint">Non riesco a caricare le notifiche (' + CiSiamoData.escapeHTML(err.message) + ').</div>';
         return;
       }
 
@@ -195,9 +256,9 @@
       notifications = notifications.slice(0, 20);
 
       if (!notifications.length) {
-        listEl.innerHTML = '<div class="empty-hint">Nessuna notifica per ora.</div>';
+        notifBodyEl.innerHTML = '<div class="empty-hint">Nessuna notifica per ora.</div>';
       } else {
-        listEl.innerHTML = notifications.map(function (n) {
+        notifBodyEl.innerHTML = notifications.map(function (n) {
           return ''
             + '<div class="notif-item reveal">'
             + '<div class="notif-icon ' + n.icon + '">' + n.emoji + '</div>'

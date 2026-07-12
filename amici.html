@@ -247,18 +247,20 @@
         }
 
         friendModalList.innerHTML = list.friends.map(function (f) {
-          // Nome collegato per sempre a un account vero (scelto dai
-          // suggerimenti username+foto, non solo testo che combacia per
-          // caso) — vedi "ci-siamo-omonimi.pdf", Fil 2026-07-07. Foto vera
-          // se già in cache, altrimenti l'iniziale finché non arriva
-          // (vedi il fetch qui sotto): mai più un pallino muto.
+          // "Amicizia vera" (Fil, 2026-07-12): scegliere un account dai
+          // suggerimenti username+foto non collega più subito — parte una
+          // richiesta, il destinatario deve accettarla lui da Notifiche.
+          // Solo dopo (linkStatus 'accepted') si vede la foto vera; mentre è
+          // in attesa si vede un indicatore diverso, non ancora "collegato".
           var linkedMarker = '';
-          if (f.accountId) {
+          if (f.linkStatus === 'accepted' && f.accountId) {
             var avatarUrl = friendAvatarCache[f.accountId];
             var initial = (f.name.trim().charAt(0) || '?').toUpperCase();
             linkedMarker = avatarUrl
-              ? '<span class="linked-mini-avatar" title="Collegato a un account"><img src="' + CiSiamoData.escapeHTML(avatarUrl) + '" alt=""></span>'
-              : '<span class="linked-mini-avatar" title="Collegato a un account">' + CiSiamoData.escapeHTML(initial) + '</span>';
+              ? '<span class="linked-mini-avatar" title="Amicizia confermata"><img src="' + CiSiamoData.escapeHTML(avatarUrl) + '" alt=""></span>'
+              : '<span class="linked-mini-avatar" title="Amicizia confermata">' + CiSiamoData.escapeHTML(initial) + '</span>';
+          } else if (f.linkStatus === 'pending') {
+            linkedMarker = '<span class="linked-mini-avatar" style="background:var(--butter-soft); color:var(--ink);" title="In attesa che confermi lui/lei">⏳</span>';
           }
           return ''
             + '<div class="settings-row" style="margin-bottom:8px;">'
@@ -268,6 +270,7 @@
         }).join('');
 
         var missingIds = list.friends
+          .filter(function (f) { return f.linkStatus === 'accepted'; })
           .map(function (f) { return f.accountId; })
           .filter(function (id) { return id && !(id in friendAvatarCache); });
         if (missingIds.length && window.CiSiamoData && CiSiamoData.getAvatarsForAccountIds) {

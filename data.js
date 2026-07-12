@@ -2,10 +2,12 @@
    Ci siamo — livello dati.
    Ora parla con Supabase (Postgres reale) invece che con localStorage:
    eventi, liste amici, partecipanti sono condivisi davvero tra chi apre
-   il link. La tabella "accounts" (nome, cognome, email, password) non è
-   raggiungibile direttamente: passa solo dalle funzioni protette
-   create_account / update_account / get_own_account (vedi Supabase),
-   che restituiscono comunque un oggetto senza password.
+   il link. Login/password passano dal vero Supabase Auth (auth.users), non
+   più da una tabella fatta in casa: creazione account via Edge Function
+   "create-account" (Admin API), login via supabase.auth.signInWithPassword().
+   La tabella "accounts" resta il profilo pubblico (username, nome, avatar…),
+   raggiungibile solo da get_own_account/update_account (SECURITY DEFINER,
+   usano auth.uid() — mai un id passato dal client).
    Serve un browser che supporti async/await (qualunque browser moderno).
    ========================================================= */
 
@@ -203,19 +205,46 @@
     }
   }
 
-  async function createAccount(input) {
-    var res = await supabase.rpc('create_account', {
-      p_nome: (input.firstName || '').trim() || null,
-      p_cognome: (input.lastName || '').trim() || null,
-      p_username: (input.username || '').trim(),
-      p_email: (input.email || '').trim() || null,
-      p_password: input.password || null,
-      p_data_nascita: input.birthDate || null,
-      p_avatar_url: input.avatarUrl || null
-    });
-    if (res.error) throwSupabaseError(res.error);
+  /* Legge il messaggio d'errore da una Edge Function invocata con
+     supabase.functions.invoke(): a differenza di un rpc(), l'errore non ha
+     .message pronto, va estratto dal corpo della risposta HTTP originale
+     (res.error.context). Se non si riesce, resta un messaggio generico. */
+  async function extractFunctionErrorMessage(res, fallback) {
+    try {
+      if (res.error && res.error.context && typeof res.error.context.json === 'function') {
+        var body = await res.error.context.json();
+        if (body && body.error) return body.error;
+      }
+    } catch (err) { /* ignora, si usa il fallback */ }
+    return (res.error && res.error.message) || fallback || 'Errore sconosciuto';
+  }
 
-    var acc = { id: res.data.id, username: res.data.username, avatarUrl: input.avatarUrl || '' };
+  /* Crea davvero un utente Supabase Auth (Edge Function "create-account",
+     Admin API: serve a creare l'utente già confermato, senza il giro di mail
+     di conferma) + la riga di profilo in accounts con lo stesso id. Poi
+     questo dispositivo fa subito login con le stesse credenziali, così parte
+     con una sessione vera (serve per tutte le richieste protette da RLS). */
+  async function createAccount(input) {
+    var email = (input.email || '').trim();
+    var password = input.password || '';
+
+    var res = await supabase.functions.invoke('create-account', {
+      body: {
+        nome: (input.firstName || '').trim() || null,
+        cognome: (input.lastName || '').trim() || null,
+        username: (input.username || '').trim(),
+        email: email,
+        password: password,
+        dataNascita: input.birthDate || null,
+        avatarUrl: input.avatarUrl || null
+      }
+    });
+    if (res.error) throw new Error(await extractFunctionErrorMessage(res, 'Impossibile creare l\'account'));
+
+    var signInRes = await supabase.auth.signInWithPassword({ email: email, password: password });
+    if (signInRes.error) throwSupabaseError(signInRes.error);
+
+    var acc = { id: res.data.id, username: res.data.username, avatarUrl: res.data.avatarUrl || '' };
     saveAccountLocal(acc);
     clearGuestLock();
     notifyAccountCreated(acc.id);
@@ -236,7 +265,7 @@
     var acc = getAccount();
     if (!acc || !acc.id) return null;
 
-    var res = await supabase.rpc('get_own_account', { p_id: acc.id });
+    var res = await supabase.rpc('get_own_account');
     if (res.error) throwSupabaseError(res.error);
     if (!res.data) return null;
 
@@ -265,19 +294,25 @@
     var merged = {
       firstName: input.firstName !== undefined ? input.firstName : current.firstName,
       lastName: input.lastName !== undefined ? input.lastName : current.lastName,
-      username: input.username !== undefined ? input.username : current.username,
       email: input.email !== undefined ? input.email : current.email,
       birthDate: input.birthDate !== undefined ? input.birthDate : current.birthDate,
       avatarUrl: input.avatarUrl !== undefined ? input.avatarUrl : current.avatarUrl
     };
 
+    // Cambio password (opzionale): passa direttamente da Supabase Auth,
+    // richiede una sessione attiva (c'è di sicuro, dato che per arrivare qui
+    // bisogna già essere loggati). Il nome utente non si può più cambiare
+    // dopo la registrazione (invariato da prima), quindi non viene inviato.
+    if (input.password) {
+      if (input.password.length < 8) throw new Error('La password deve avere almeno 8 caratteri.');
+      var pwRes = await supabase.auth.updateUser({ password: input.password });
+      if (pwRes.error) throwSupabaseError(pwRes.error);
+    }
+
     var res = await supabase.rpc('update_account', {
-      p_id: acc.id,
       p_nome: (merged.firstName || '').trim() || null,
       p_cognome: (merged.lastName || '').trim() || null,
-      p_username: (merged.username || '').trim(),
       p_email: (merged.email || '').trim() || null,
-      p_password: input.password || null,
       p_data_nascita: merged.birthDate || null,
       p_avatar_url: merged.avatarUrl || null
     });
@@ -372,7 +407,15 @@
      friend_lists è già una tabella a lettura pubblica (vedi le policy RLS). */
 
   function mapFriend(f) {
-    return { id: f.id, name: f.name, accountId: f.account_id || null };
+    return {
+      id: f.id,
+      name: f.name,
+      accountId: f.account_id || null,
+      linkStatus: f.link_status || 'none',
+      requestedAt: f.requested_at || null,
+      acceptedAt: f.accepted_at || null,
+      inviteToken: f.invite_token || null
+    };
   }
 
   function mapFriendList(list) {
@@ -385,7 +428,8 @@
     };
   }
 
-  var FRIEND_LIST_SELECT = 'id, name, owner_account_id, owner_name, friends(id, name, account_id)';
+  var FRIEND_LIST_SELECT = 'id, name, owner_account_id, owner_name, '
+    + 'friends(id, name, account_id, link_status, requested_at, accepted_at, invite_token)';
 
   /* Più recenti in cima, le più vecchie scendendo (Fil, 2026-07-05).
      IMPORTANTE (bug corretto 2026-07-10, segnalato da Fil dopo un test con
@@ -467,20 +511,80 @@
 
   /* accountId (opzionale) è il collegamento scelto dalla ricerca username+foto
      (vedi CiSiamoUI.attachAccountSearch in script.js e il documento
-     "ci-siamo-omonimi.pdf", Opzione A) — Fil, 2026-07-07: se lo passi, resta
-     per sempre su questo amico, così i prossimi eventi creati con questa
-     lista lo riconoscono subito senza dover riconfermare ogni volta. */
+     "ci-siamo-omonimi.pdf"). Aggiornamento 2026-07-12 (Opzione B, "amicizia
+     vera"): scegliere un account qui NON lo collega più subito per sempre —
+     parte una richiesta ("pending"), e resta un collegamento debole finché
+     il destinatario non la accetta da Notifiche (vedi respondFriendRequest).
+     Solo dopo l'accettazione (link_status 'accepted') gli eventi futuri
+     creati con questa lista lo riconoscono senza dover riconfermare ogni
+     volta. */
   async function addFriendToList(listId, friendName, accountId) {
     var name = (friendName || '').trim();
     if (!name) return null;
     await assertOwnsFriendList(listId);
+    var row = { friend_list_id: listId, name: name, account_id: accountId || null };
+    if (accountId) {
+      row.link_status = 'pending';
+      row.requested_at = new Date().toISOString();
+    }
     var res = await supabase
       .from('friends')
-      .insert({ friend_list_id: listId, name: name, account_id: accountId || null })
-      .select('id, name, account_id')
+      .insert(row)
+      .select('id, name, account_id, link_status, requested_at, accepted_at, invite_token')
       .single();
     if (res.error) throwSupabaseError(res.error);
     return mapFriend(res.data);
+  }
+
+  /* Collega (o ricollega) un amico già in lista a un account trovato con la
+     ricerca, in un secondo momento — stessa logica di addFriendToList sopra,
+     ma su una riga che esiste già. Passa dall'RPC perché il controllo "sei
+     davvero il proprietario di questa lista" va rifatto lato server (l'RPC è
+     SECURITY DEFINER, bypassa le RLS). */
+  async function requestFriendLink(friendId, targetAccountId) {
+    var res = await supabase.rpc('request_friend_link', {
+      p_friend_id: friendId,
+      p_target_account_id: targetAccountId
+    });
+    if (res.error) throwSupabaseError(res.error);
+    return res.data;
+  }
+
+  /* Le richieste di amicizia in attesa dove IO sono il destinatario (vedi
+     notifiche.html): solo id/nome lista/username di chi invita, niente
+     altro. */
+  async function getMyPendingFriendRequests() {
+    var res = await supabase.rpc('get_my_pending_friend_requests');
+    if (res.error) throwSupabaseError(res.error);
+    return (res.data || []).map(function (row) {
+      return {
+        friendId: row.friend_id,
+        friendListName: row.friend_list_name,
+        ownerUsername: row.owner_username,
+        requestedAt: row.requested_at
+      };
+    });
+  }
+
+  /* Accetta o rifiuta una richiesta ricevuta: l'RPC verifica da sola che sia
+     davvero rivolta a me (auth.uid()), non c'è modo di accettare/rifiutare
+     per conto di qualcun altro. */
+  async function respondFriendRequest(friendId, accept) {
+    var res = await supabase.rpc('respond_friend_request', {
+      p_friend_id: friendId,
+      p_accept: !!accept
+    });
+    if (res.error) throwSupabaseError(res.error);
+    return res.data;
+  }
+
+  /* Percorso alternativo "link personale per questo amico": aprirlo da loggati
+     conferma subito, senza passare da un "pending" prima (stesso spirito del
+     link diretto di un evento in amico.html: il link stesso è il consenso). */
+  async function acceptFriendInviteToken(token) {
+    var res = await supabase.rpc('accept_friend_invite_token', { p_token: token });
+    if (res.error) throwSupabaseError(res.error);
+    return res.data;
   }
 
   /* Ricerca account per username (Opzione A del documento omonimi): usata dai
@@ -507,12 +611,17 @@
      lo adotta come proprio account locale, esattamente come dopo una
      registrazione. Usato dal flusso di invito (amico.html) e da profilo.html. */
   async function loginAccount(email, password) {
-    var res = await supabase.rpc('login_account', {
-      p_email: (email || '').trim(),
-      p_password: password || ''
+    var signInRes = await supabase.auth.signInWithPassword({
+      email: (email || '').trim(),
+      password: password || ''
     });
-    if (res.error) throwSupabaseError(res.error);
-    var acc = { id: res.data.id, username: res.data.username, avatarUrl: res.data.avatarUrl || '' };
+    if (signInRes.error) throw new Error('Email o password non corretti');
+
+    var profileRes = await supabase.rpc('get_own_account');
+    if (profileRes.error) throwSupabaseError(profileRes.error);
+    if (!profileRes.data) throw new Error('Profilo non trovato.');
+
+    var acc = { id: profileRes.data.id, username: profileRes.data.username, avatarUrl: profileRes.data.avatarUrl || '' };
     saveAccountLocal(acc);
     clearGuestLock();
     return acc;
@@ -539,6 +648,89 @@
       p_new_password: newPassword || ''
     });
     if (res.error) throwSupabaseError(res.error);
+
+    // La password è cambiata sia in accounts che in auth.users (vedi RPC),
+    // ma questo dispositivo non ha ancora una sessione vera: la prende ora,
+    // stessa email restituita dalla RPC + la password appena scelta.
+    var signInRes = await supabase.auth.signInWithPassword({ email: res.data.email, password: newPassword || '' });
+    if (signInRes.error) throwSupabaseError(signInRes.error);
+
+    var acc = { id: res.data.id, username: res.data.username, avatarUrl: res.data.avatarUrl || '' };
+    saveAccountLocal(acc);
+    clearGuestLock();
+    return acc;
+  }
+
+  /* ---------- accedi con Google ----------
+     Fil, 2026-07-12: "come tutti gli altri siti al mondo". Da Google arrivano
+     solo email + nome + cognome + foto (scope standard "openid email
+     profile"): niente password (Google gestisce l'accesso, noi non la
+     vediamo mai) e niente data di nascita (dato troppo sensibile per lo
+     scope base). Username e data di nascita restano da chiedere a parte, una
+     sola volta, la prima volta che arriva qualcuno da Google. */
+
+  /* Apre la schermata di consenso Google. redirectTo torna sulla STESSA
+     pagina (profilo.html): dopo il consenso Supabase aggiunge da solo i
+     parametri della sessione nell'URL e il client li legge in automatico
+     (detectSessionInUrl, comportamento di default di supabase-js). */
+  async function signInWithGoogle() {
+    var res = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + window.location.pathname }
+    });
+    if (res.error) throwSupabaseError(res.error);
+    // Non c'è altro da fare qui: signInWithOAuth porta via dalla pagina
+    // (redirect vero verso Google), il resto succede al ritorno.
+  }
+
+  /* Da chiamare a ogni caricamento di profilo.html PRIMA di guardare
+     hasAccount(): capisce se questo dispositivo sta tornando da un login
+     Google appena fatto. Tre casi:
+     - nessuna sessione Supabase Auth attiva → null (flusso normale, invariato)
+     - sessione attiva e profilo già esistente (Google usato altre volte, o da
+       un altro telefono) → adotta subito l'account, come un login normale
+     - sessione attiva ma NESSUN profilo ancora → prima volta con Google,
+       serve completare username + data di nascita (vedi completeGoogleProfile) */
+  async function getGoogleSignupState() {
+    var sessionRes = await supabase.auth.getSession();
+    var session = sessionRes.data && sessionRes.data.session;
+    if (!session || !session.user) return null;
+
+    var res = await supabase.rpc('get_own_account');
+    if (!res.error && res.data) {
+      var acc = { id: res.data.id, username: res.data.username, avatarUrl: res.data.avatarUrl || '' };
+      saveAccountLocal(acc);
+      clearGuestLock();
+      return { needsProfile: false, account: acc };
+    }
+
+    var meta = session.user.user_metadata || {};
+    var fullName = meta.full_name || meta.name || '';
+    var nameParts = fullName.split(' ');
+    return {
+      needsProfile: true,
+      suggested: {
+        email: session.user.email || '',
+        firstName: meta.given_name || nameParts[0] || '',
+        lastName: meta.family_name || nameParts.slice(1).join(' ') || '',
+        avatarUrl: meta.avatar_url || meta.picture || ''
+      }
+    };
+  }
+
+  /* Completa il profilo dopo il primo accesso con Google: sessione già
+     attiva (auth.uid() la vede da sola), qui si scelgono solo username e
+     data di nascita, il resto arriva da Google (vedi RPC lato server). */
+  async function completeGoogleProfile(input) {
+    var res = await supabase.rpc('complete_google_profile', {
+      p_username: (input.username || '').trim(),
+      p_nome: (input.firstName || '').trim() || null,
+      p_cognome: (input.lastName || '').trim() || null,
+      p_data_nascita: input.birthDate || null,
+      p_avatar_url: input.avatarUrl || null
+    });
+    if (res.error) throwSupabaseError(res.error);
+
     var acc = { id: res.data.id, username: res.data.username, avatarUrl: res.data.avatarUrl || '' };
     saveAccountLocal(acc);
     clearGuestLock();
@@ -560,41 +752,43 @@
     + 'photoUrl:photo_url, '
     + 'locationAddress:location_address, locationPlaceId:location_place_id, '
     + 'locationLat:location_lat, locationLng:location_lng, '
-    + 'createdBy:created_by, friendListId:friend_list_id, createdAt:created_at, '
+    + 'createdBy:created_by, createdByAccountId:created_by_account_id, friendListId:friend_list_id, createdAt:created_at, '
     + 'cancelledAt:cancelled_at, shareToken:share_token, openInvite:open_invite, '
     + 'confirmedDateOptionId:confirmed_date_option_id, '
     + 'dateOptions:date_options!date_options_event_id_fkey(id, dateISO:date_iso), '
-    + 'participants(name, availableDateOptionIds:available_date_option_ids), '
+    + 'participants(name, availableDateOptionIds:available_date_option_ids, accountId:account_id), '
     + 'invitees:event_invitees(id, name, accountId:account_id, claimedAt:claimed_at)';
 
   /* ---------- visibilità eventi ----------
-     Bug segnalato da Fil (test dal telefono di suo padre): getEvents() dava
-     TUTTI gli eventi della tabella senza controllare se chi guarda è
-     organizzatore o invitato — chiunque, anche un account vero e proprio (non
-     solo un ospite), vedeva in Home/Eventi gli eventi creati da chiunque
-     altro. "Invitato" segue la stessa identità-per-nome usata ovunque nel
-     resto dell'app (case-insensitive): organizzatore, oppure presente negli
-     invitati copiati sull'evento, oppure già un partecipante registrato
-     sull'evento. Di proposito NON tocca getEventById(): aprire un evento dal
-     link diretto deve restare possibile per chi lo riceve (è il meccanismo di
-     invito stesso) — questo filtro riguarda solo cosa compare nelle liste,
-     non cosa si può aprire avendo il link. */
-  function isEventVisibleToMe(event, myName) {
-    var mine = (myName || '').trim().toLowerCase();
-    if (!mine) return false;
-    if (event.createdBy && event.createdBy.toLowerCase() === mine) return true;
+     Bug segnalato da Fil il 2026-07-12 (test con un secondo account sul
+     tablet): un invitato scritto a testo libero (mai confermato) bastava a
+     far comparire l'evento nella Home di CHIUNQUE avesse in futuro quello
+     stesso username, perché il confronto era per nome. Ora conta solo un
+     collegamento account CONFERMATO (organizzatore, invitato con account_id,
+     o partecipante con account_id): un nome scritto a mano senza conferma
+     non dà più accesso a nessuno, resta "invitato di carta" finché non si
+     collega davvero (vedi anche ci-siamo-omonimi.pdf). Di proposito NON
+     tocca getEventById()/getEventInviteInfo(): aprire un evento dal link
+     diretto deve restare possibile per chi lo riceve (è il meccanismo di
+     invito stesso, ora passa da get_event_public lato server) — questo
+     filtro riguarda solo cosa compare nelle liste (Home/Eventi), non cosa si
+     può aprire avendo il link. Chi non ha un account (ospite bloccato su un
+     singolo evento da checkAccessGate) non arriva mai a questa lista. */
+  function isEventVisibleToMe(event, myAccountId) {
+    if (!myAccountId) return false;
+    if (event.createdByAccountId && event.createdByAccountId === myAccountId) return true;
 
     var invitees = event.invitees || [];
-    var invited = invitees.some(function (f) { return (f.name || '').toLowerCase() === mine; });
-    if (invited) return true;
+    if (invitees.some(function (f) { return f.accountId === myAccountId; })) return true;
 
     var participants = event.participants || [];
-    return participants.some(function (p) { return (p.name || '').toLowerCase() === mine; });
+    return participants.some(function (p) { return p.accountId === myAccountId; });
   }
 
   function filterVisibleEvents(events) {
-    var myName = getGuestName();
-    return (events || []).filter(function (e) { return isEventVisibleToMe(e, myName); });
+    var acc = getAccount();
+    var myAccountId = acc && acc.id;
+    return (events || []).filter(function (e) { return isEventVisibleToMe(e, myAccountId); });
   }
 
   /* ---------- pulizia eventi annullati ----------
@@ -662,13 +856,14 @@
     return filterVisibleEvents(events);
   }
 
+  /* Passa da get_event_public (SECURITY DEFINER), non più da una select
+     diretta sulla tabella: da quando le RLS sono strette (Task 2) "events"
+     non è più leggibile in blocco da chi non è coinvolto, ma aprire un
+     evento dal link diretto deve restare possibile per chiunque lo riceva —
+     è il meccanismo di invito stesso, non un privilegio in più. */
   async function getEventById(id) {
     if (!id) return null;
-    var res = await supabase
-      .from('events')
-      .select(EVENT_SELECT)
-      .eq('id', id)
-      .maybeSingle();
+    var res = await supabase.rpc('get_event_public', { p_id: id });
     if (res.error) throwSupabaseError(res.error);
     if (res.data) pruneCancelledEvents([res.data]);
     return res.data || null;
@@ -696,6 +891,7 @@
   }
 
   async function createEvent(input) {
+    var creatorAcc = getAccount();
     var insertRes = await supabase
       .from('events')
       .insert({
@@ -703,6 +899,7 @@
         description: (input.description || '').trim(),
         quota: Math.max(1, parseInt(input.quota, 10) || 1),
         created_by: (input.createdBy || '').trim() || null,
+        created_by_account_id: creatorAcc && creatorAcc.id ? creatorAcc.id : null,
         friend_list_id: input.friendListId || null,
         photo_url: input.photoUrl || null,
         location_address: (input.locationAddress || '').trim() || null,
@@ -750,6 +947,7 @@
       var partRes = await supabase.from('participants').insert({
         event_id: eventId,
         name: organizerName,
+        account_id: creatorAcc && creatorAcc.id ? creatorAcc.id : null,
         available_date_option_ids: createdOptionIds
       });
       if (partRes.error) throw new Error(partRes.error.message);
@@ -1054,26 +1252,23 @@
      apre il link. */
   async function getEventInviteInfo(shareToken) {
     if (!shareToken) return null;
-    var res = await supabase
-      .from('events')
-      .select(EVENT_SELECT)
-      .eq('share_token', shareToken)
-      .maybeSingle();
+    var res = await supabase.rpc('get_event_public', { p_share_token: shareToken });
     if (res.error) throwSupabaseError(res.error);
     return res.data || null;
   }
 
   /* Conferma "sono io" su un invitato specifico di un evento (letto con
-     getEventInviteInfo). Se questo dispositivo ha già un account, o se ne è
-     appena collegato uno con loginAccount(), il nome mostrato seguirà sempre
-     lo username corrente di quell'account; altrimenti salva solo il nome
-     scelto, senza account. */
+     getEventInviteInfo). accountId non si manda più all'RPC (Fil, 2026-07-12:
+     era possibile spoofare l'account di qualcun altro passando un id a
+     piacere): l'RPC guarda auth.uid(), cioè la sessione vera di chi ha
+     appena fatto login/registrazione in amico.html — se questo dispositivo
+     non ha nessuna sessione, salva solo il nome scelto, senza account.
+     Il parametro resta nella firma solo per non dover toccare amico.html. */
   async function claimEventInvitee(shareToken, inviteeId, name, accountId) {
     var res = await supabase.rpc('claim_event_invitee', {
       p_share_token: shareToken,
       p_invitee_id: inviteeId,
-      p_name: (name || '').trim() || null,
-      p_account_id: accountId || null
+      p_name: (name || '').trim() || null
     });
     if (res.error) throwSupabaseError(res.error);
     return res.data;
@@ -1083,12 +1278,11 @@
      attivo (checkbox in crea.html, Fil 2026-07-07 — vedi anche il documento
      sui "primi utenti"). L'RPC ricontrolla open_invite lato server (non solo
      lato client) e blocca i doppioni per nome, stesso spirito difensivo di
-     claim_event_invitee qui sopra. */
+     claim_event_invitee qui sopra. Stessa nota sull'accountId qui sopra. */
   async function addSelfAsInvitee(shareToken, name, accountId) {
     var res = await supabase.rpc('add_self_as_invitee', {
       p_share_token: shareToken,
-      p_name: (name || '').trim() || null,
-      p_account_id: accountId || null
+      p_name: (name || '').trim() || null
     });
     if (res.error) throwSupabaseError(res.error);
     return res.data;
@@ -1142,30 +1336,23 @@
   /* Salva/aggiorna la disponibilità di un ospite per un evento.
      Se l'ospite (per nome, senza distinguere maiuscole/minuscole) aveva già
      risposto, sovrascrive la sua risposta invece di crearne una seconda. */
+  /* Passa da upsert_participant (SECURITY DEFINER): prima era un accesso
+     diretto alla tabella (select+update/insert dal client), che con le RLS
+     strette del Task 2 avrebbe bloccato chi risponde senza account (ospite
+     arrivato dal link, caso legittimo e voluto). Dentro l'RPC: se c'è una
+     sessione vera si usa account_id come chiave — due persone con lo stesso
+     nome sullo stesso evento non si sovrascrivono più a vicenda (Task 6) —
+     altrimenti si ripiega sul nome, solo per chi è davvero ospite. */
   async function upsertParticipant(eventId, guestName, availableDateOptionIds) {
     var name = (guestName || '').trim();
-    if (!name) return null;
+    if (!name && !hasAccount()) return null;
 
-    var existing = await supabase
-      .from('participants')
-      .select('id')
-      .eq('event_id', eventId)
-      .ilike('name', name)
-      .maybeSingle();
-    if (existing.error) throw new Error(existing.error.message);
-
-    if (existing.data) {
-      var upd = await supabase
-        .from('participants')
-        .update({ available_date_option_ids: availableDateOptionIds })
-        .eq('id', existing.data.id);
-      if (upd.error) throw new Error(upd.error.message);
-    } else {
-      var ins = await supabase
-        .from('participants')
-        .insert({ event_id: eventId, name: name, available_date_option_ids: availableDateOptionIds });
-      if (ins.error) throw new Error(ins.error.message);
-    }
+    var res = await supabase.rpc('upsert_participant', {
+      p_event_id: eventId,
+      p_name: name || null,
+      p_available_date_option_ids: availableDateOptionIds
+    });
+    if (res.error) throwSupabaseError(res.error);
 
     return getEventById(eventId);
   }
@@ -1410,6 +1597,10 @@
     addFriendToList: addFriendToList,
     searchAccounts: searchAccounts,
     removeFriendFromList: removeFriendFromList,
+    requestFriendLink: requestFriendLink,
+    getMyPendingFriendRequests: getMyPendingFriendRequests,
+    respondFriendRequest: respondFriendRequest,
+    acceptFriendInviteToken: acceptFriendInviteToken,
     getEventInviteInfo: getEventInviteInfo,
     claimEventInvitee: claimEventInvitee,
     addSelfAsInvitee: addSelfAsInvitee,
@@ -1418,7 +1609,10 @@
     getAvatarsForAccountIds: getAvatarsForAccountIds,
     loginAccount: loginAccount,
     requestPasswordReset: requestPasswordReset,
-    resetPassword: resetPassword
+    resetPassword: resetPassword,
+    signInWithGoogle: signInWithGoogle,
+    getGoogleSignupState: getGoogleSignupState,
+    completeGoogleProfile: completeGoogleProfile
   };
 
 })(window);

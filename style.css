@@ -1652,3 +1652,58 @@ label.event-photo-preview {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* ---------- schermata di benvenuto dopo la registrazione ----------
+   Fil, 2026-07-12: "stupiscimi" — avatar che entra con un piccolo rimbalzo,
+   titolo/sottotitolo/bottone che salgono a cascata uno dopo l'altro, e una
+   manciata di coriandoli che cadono dall'alto con i colori della palette
+   dell'app (nessuna libreria esterna, solo div generati al volo). */
+
+.welcome-avatar-pop {
+  animation: welcomeAvatarPop 0.7s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+
+@keyframes welcomeAvatarPop {
+  0%   { transform: scale(0) rotate(-8deg); opacity: 0; }
+  60%  { transform: scale(1.12) rotate(4deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.welcome-fade-up {
+  opacity: 0;
+  animation: welcomeFadeUp 0.55s ease both;
+}
+
+@keyframes welcomeFadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Coriandoli: contenitore a schermo intero, sopra tutto (anche sopra la
+   cornice "phone"), rimosso da solo dal JS a animazione finita. */
+.confetti-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 9999;
+}
+
+.confetti-piece {
+  position: absolute;
+  top: -24px;
+  width: 8px;
+  height: 14px;
+  opacity: 0.95;
+  animation-name: confettiFall;
+  animation-timing-function: cubic-bezier(.35, 0, .65, 1);
+  animation-fill-mode: forwards;
+}
+
+.confetti-piece.round { border-radius: 50%; }
+
+@keyframes confettiFall {
+  0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateY(115vh) rotate(540deg); opacity: 0; }
+}

@@ -79,7 +79,7 @@
           </div>
           <div class="field">
             <label>Password</label>
-            <input type="password" id="accPassword" placeholder="Scegli una password">
+            <input type="password" id="accPassword" placeholder="Almeno 8 caratteri">
           </div>
           <div class="field">
             <label>Data di nascita</label>
@@ -102,7 +102,50 @@
 
         <div class="form-error" id="createProfileError"></div>
         <button type="button" class="primary-btn" id="createProfileBtn">Crea profilo</button>
+
+        <div style="display:flex; align-items:center; gap:10px; margin:16px 0;" id="googleDividerRow">
+          <div style="flex:1; height:1px; background:rgba(58,50,90,0.12);"></div>
+          <div style="font-size:12px; color:var(--muted, #8C7C91);">oppure</div>
+          <div style="flex:1; height:1px; background:rgba(58,50,90,0.12);"></div>
+        </div>
+        <button type="button" class="primary-btn" id="googleSignInBtn" style="background:var(--card); color:var(--ink); box-shadow:0 2px 8px rgba(58,50,90,0.06); display:flex; align-items:center; justify-content:center; gap:10px;">
+          <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.9v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.66 9c0-.59.1-1.17.28-1.7V4.97H.9A9 9 0 0 0 0 9c0 1.45.35 2.83.9 4.03l3.05-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.42 0 9 0A9 9 0 0 0 .9 4.97L3.95 7.3C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
+          <span id="googleSignInBtnLabel">Continua con Google</span>
+        </button>
         <div class="field-hint" id="cancelCreateHint" style="text-align:center; display:none; margin-top:12px;"><a href="#" id="cancelCreateLink">Annulla</a></div>
+      </div>
+
+      <!-- Mostrata solo al ritorno dal login Google, la primissima volta:
+           email/nome/cognome/foto arrivano già da Google, mancano solo
+           username (identità pubblica dell'app) e data di nascita (Google
+           non la condivide). -->
+      <div id="googleProfileView" style="display:none;">
+        <div class="profile-header" style="margin-bottom: 14px;">
+          <div class="avatar large" id="googleProfileAvatar">?</div>
+        </div>
+        <div class="section-title first">Ultimo passo</div>
+        <div class="card-date" style="margin:0 2px 16px;" id="googleProfileGreeting">Ciao! Scegli un nome utente e la tua data di nascita per finire.</div>
+        <div class="field">
+          <label>Nome utente (visibile a tutti)</label>
+          <input type="text" id="googleUsername" placeholder="Come vuoi farti chiamare nell'app">
+        </div>
+        <div class="field">
+          <label>Data di nascita</label>
+          <input type="date" id="googleBirthdate">
+        </div>
+        <div class="form-error" id="googleProfileError"></div>
+        <button type="button" class="primary-btn" id="googleProfileBtn">Fatto</button>
+      </div>
+
+      <!-- Solo alla primissima creazione di un profilo (registrazione normale
+           o primo accesso Google): non si vede né al login né in modifica
+           profilo. Fil, 2026-07-12: un benvenuto vero, non solo un redirect
+           silenzioso. -->
+      <div id="welcomeView" style="display:none; text-align:center; padding: 24px 4px;">
+        <div class="avatar large welcome-avatar-pop" id="welcomeAvatar" style="margin: 0 auto 18px;">?</div>
+        <div class="section-title first welcome-fade-up" style="text-align:center; animation-delay:0.35s;" id="welcomeTitle">Benvenuto/a in Ci siamo!</div>
+        <div class="card-date welcome-fade-up" style="margin:0 2px 24px; text-align:center; animation-delay:0.5s;" id="welcomeSubtitle">Grazie di cuore per esserti registrato/a! Da qui puoi iniziare a organizzare eventi e ritrovarti con i tuoi amici, senza più il caos dei gruppi WhatsApp.</div>
+        <button type="button" class="primary-btn welcome-fade-up" style="animation-delay:0.65s;" id="welcomeEnterBtn">Entra nell'app →</button>
       </div>
 
       <!-- Mostrata solo quando si arriva da un link tipo profilo.html?resetToken=...,
@@ -212,6 +255,92 @@
       var resetPasswordError = document.getElementById('resetPasswordError');
       var resetPasswordBtn = document.getElementById('resetPasswordBtn');
 
+      var googleSignInBtn = document.getElementById('googleSignInBtn');
+      var googleProfileView = document.getElementById('googleProfileView');
+      var googleProfileAvatar = document.getElementById('googleProfileAvatar');
+      var googleProfileGreeting = document.getElementById('googleProfileGreeting');
+      var googleUsernameInput = document.getElementById('googleUsername');
+      var googleBirthdateInput = document.getElementById('googleBirthdate');
+      var googleProfileError = document.getElementById('googleProfileError');
+      var googleProfileBtn = document.getElementById('googleProfileBtn');
+      var pendingGoogleSuggestion = null;
+
+      var welcomeView = document.getElementById('welcomeView');
+      var welcomeAvatar = document.getElementById('welcomeAvatar');
+      var welcomeTitle = document.getElementById('welcomeTitle');
+      var welcomeEnterBtn = document.getElementById('welcomeEnterBtn');
+
+      /* Le viste di questa pagina (crea/accedi, reset password, completa
+         profilo Google, benvenuto, profilo normale) sono tutte nello stesso
+         DOM, mai state pensate insieme finché non sono diventate cinque:
+         ogni funzione show*View() nasconde solo quello che sapeva esistesse
+         quando è stata scritta. Un punto solo, così non si dimentica più
+         nessuna vista quando se ne aggiunge una nuova (successo il
+         2026-07-12 con la vista di benvenuto). */
+      function hideAllProfileViews() {
+        createView.style.display = 'none';
+        normalView.style.display = 'none';
+        resetPasswordView.style.display = 'none';
+        googleProfileView.style.display = 'none';
+        welcomeView.style.display = 'none';
+      }
+
+      /* Coriandoli generati al volo (niente librerie esterne): una manciata
+         di rettangolini/cerchietti con i colori della palette dell'app,
+         posizione/rotazione/durata randomizzate, tolti da soli dal DOM a
+         animazione finita. */
+      function launchConfetti() {
+        var colors = ['#FF7A29', '#6B3F73', '#9C6BA3', '#FFB35C', '#FFE3C7'];
+        var overlay = document.createElement('div');
+        overlay.className = 'confetti-overlay';
+        document.body.appendChild(overlay);
+
+        var pieceCount = 26;
+        for (var i = 0; i < pieceCount; i++) {
+          var piece = document.createElement('div');
+          piece.className = 'confetti-piece' + (Math.random() < 0.4 ? ' round' : '');
+          var size = 6 + Math.random() * 6;
+          piece.style.left = (Math.random() * 100) + 'vw';
+          piece.style.width = size + 'px';
+          piece.style.height = (size * 1.6) + 'px';
+          piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+          piece.style.animationDuration = (1.8 + Math.random() * 1.4) + 's';
+          piece.style.animationDelay = (Math.random() * 0.5) + 's';
+          overlay.appendChild(piece);
+        }
+
+        // Tolto da solo: 0.5s di ritardo massimo + 3.2s di caduta massima,
+        // un margine sopra per essere sicuri che l'ultimo pezzo sia sparito.
+        setTimeout(function () {
+          if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        }, 3200);
+      }
+
+      /* Solo alla primissima creazione di un profilo (registrazione normale
+         appena finita, o primo accesso Google appena completato): mai al
+         login di un account già esistente, mai in modifica profilo. */
+      function showWelcomeView(acc) {
+        hideAllProfileViews();
+        welcomeView.style.display = '';
+
+        var navbarEl = document.querySelector('.navbar');
+        if (navbarEl) navbarEl.style.display = 'none';
+
+        var username = (acc && acc.username) || '';
+        welcomeTitle.textContent = username ? 'Benvenuto/a, ' + username + '!' : 'Benvenuto/a in Ci siamo!';
+        if (acc && acc.avatarUrl) {
+          showAvatarImage(welcomeAvatar, acc.avatarUrl);
+        } else {
+          welcomeAvatar.textContent = username ? username.charAt(0).toUpperCase() : '?';
+        }
+
+        launchConfetti();
+      }
+
+      welcomeEnterBtn.addEventListener('click', async function () {
+        await showNormalView();
+      });
+
       var isEditMode = false;
       var authMode = 'register'; // 'register' | 'login' — solo rilevante quando !isEditMode
       var pendingAvatarFile = null; // foto scelta ma non ancora caricata su Supabase
@@ -310,7 +439,7 @@
 
       function showCreateView(isEdit, initialAuthMode) {
         isEditMode = isEdit;
-        normalView.style.display = 'none';
+        hideAllProfileViews();
         createView.style.display = '';
         createError.textContent = '';
         cancelHint.style.display = isEdit ? '' : 'none';
@@ -324,6 +453,10 @@
         // Il toggle Registrati/Accedi ha senso solo per un profilo nuovo su questo
         // dispositivo: in modifica (isEdit) si vede solo il form dati, niente login.
         authModeToggle.style.display = isEdit ? 'none' : '';
+        // "Continua con Google" idem: ha senso solo per collegare/creare un
+        // profilo su questo dispositivo, non mentre si modifica quello già attivo.
+        document.getElementById('googleDividerRow').style.display = isEdit ? 'none' : '';
+        googleSignInBtn.style.display = isEdit ? 'none' : '';
         if (isEdit) {
           registerFields.style.display = '';
           loginFields.style.display = 'none';
@@ -351,7 +484,7 @@
       }
 
       async function showNormalView() {
-        createView.style.display = 'none';
+        hideAllProfileViews();
         normalView.style.display = '';
         var navbarEl = document.querySelector('.navbar');
         if (navbarEl) navbarEl.style.display = '';
@@ -446,6 +579,7 @@
         if (!username) { createError.textContent = 'Scegli un nome utente.'; return; }
         if (!email) { createError.textContent = 'Scrivi la tua email.'; return; }
         if (!isEditMode && !password) { createError.textContent = 'Scegli una password.'; return; }
+        if (password && password.length < 8) { createError.textContent = 'La password deve avere almeno 8 caratteri.'; return; }
         if (!birthDate) { createError.textContent = 'Inserisci la tua data di nascita.'; return; }
 
         createBtn.disabled = true;
@@ -459,6 +593,7 @@
             createBtn.textContent = isEditMode ? 'Salvo...' : 'Creo il profilo...';
           }
 
+          var newAccount = null;
           if (isEditMode) {
             await CiSiamoData.updateAccount({
               firstName: firstName,
@@ -470,7 +605,7 @@
               avatarUrl: avatarUrl
             });
           } else {
-            await CiSiamoData.createAccount({
+            newAccount = await CiSiamoData.createAccount({
               firstName: firstName,
               lastName: lastName,
               username: username,
@@ -488,7 +623,13 @@
         }
 
         createBtn.disabled = false;
-        await showNormalView();
+        if (newAccount) {
+          // Registrazione vera appena completata (non modifica, non login):
+          // prima un benvenuto, poi si entra nell'app.
+          showWelcomeView(newAccount);
+        } else {
+          await showNormalView();
+        }
       });
 
       cancelLink.addEventListener('click', async function (e) {
@@ -531,10 +672,74 @@
          nell'email di reset): nessun\'altra vista deve essere visibile insieme
          a questa, per non confondere con login/registrazione. */
       function showResetPasswordView() {
-        createView.style.display = 'none';
-        normalView.style.display = 'none';
+        hideAllProfileViews();
         resetPasswordView.style.display = '';
       }
+
+      /* "Continua con Google" funziona sia in Registrati che in Accedi (è la
+         stessa cosa dal punto di vista di Google): apre il consenso, poi
+         Google riporta su questa stessa pagina — il resto lo decide
+         getGoogleSignupState() al ricarico (vedi in fondo al file). */
+      googleSignInBtn.addEventListener('click', async function () {
+        createError.textContent = '';
+        googleSignInBtn.disabled = true;
+        try {
+          await CiSiamoData.signInWithGoogle();
+        } catch (err) {
+          createError.textContent = 'Non sono riuscito ad aprire l\'accesso Google (' + err.message + ').';
+          googleSignInBtn.disabled = false;
+        }
+      });
+
+      /* Ultimo passo dopo il primo accesso Google: username + data di
+         nascita, il resto (nome, cognome, foto) arriva già pronto da Google
+         e si vede solo come anteprima, non si può cambiare qui (si può
+         sempre modificare dopo dalla modifica profilo normale). */
+      function showGoogleProfileView(suggested) {
+        hideAllProfileViews();
+        googleProfileView.style.display = '';
+
+        var navbarEl = document.querySelector('.navbar');
+        if (navbarEl) navbarEl.style.display = 'none';
+
+        pendingGoogleSuggestion = suggested || {};
+        googleProfileGreeting.textContent = pendingGoogleSuggestion.firstName
+          ? 'Ciao ' + pendingGoogleSuggestion.firstName + '! Scegli un nome utente e la tua data di nascita per finire.'
+          : 'Ciao! Scegli un nome utente e la tua data di nascita per finire.';
+        if (pendingGoogleSuggestion.avatarUrl) {
+          showAvatarImage(googleProfileAvatar, pendingGoogleSuggestion.avatarUrl);
+        } else {
+          googleProfileAvatar.textContent = (pendingGoogleSuggestion.firstName || '?').charAt(0).toUpperCase();
+        }
+        googleUsernameInput.value = '';
+        googleBirthdateInput.value = '';
+        googleProfileError.textContent = '';
+      }
+
+      googleProfileBtn.addEventListener('click', async function () {
+        var username = googleUsernameInput.value.trim();
+        var birthDate = googleBirthdateInput.value;
+        googleProfileError.textContent = '';
+        if (!username) { googleProfileError.textContent = 'Scegli un nome utente.'; return; }
+        if (!birthDate) { googleProfileError.textContent = 'Inserisci la tua data di nascita.'; return; }
+
+        googleProfileBtn.disabled = true;
+        googleProfileBtn.textContent = 'Salvo...';
+        try {
+          var newAccount = await CiSiamoData.completeGoogleProfile({
+            username: username,
+            firstName: pendingGoogleSuggestion.firstName || '',
+            lastName: pendingGoogleSuggestion.lastName || '',
+            birthDate: birthDate,
+            avatarUrl: pendingGoogleSuggestion.avatarUrl || ''
+          });
+          showWelcomeView(newAccount);
+        } catch (err) {
+          googleProfileError.textContent = err.message;
+          googleProfileBtn.disabled = false;
+          googleProfileBtn.textContent = 'Fatto';
+        }
+      });
 
       resetPasswordBtn.addEventListener('click', async function () {
         var token = new URLSearchParams(window.location.search).get('resetToken');
@@ -543,6 +748,7 @@
 
         resetPasswordError.textContent = '';
         if (!newPassword) { resetPasswordError.textContent = 'Scegli una nuova password.'; return; }
+        if (newPassword.length < 8) { resetPasswordError.textContent = 'La password deve avere almeno 8 caratteri.'; return; }
         if (newPassword !== newPassword2) { resetPasswordError.textContent = 'Le due password non coincidono.'; return; }
 
         resetPasswordBtn.disabled = true;
@@ -600,9 +806,20 @@
       } else if (CiSiamoData.hasAccount()) {
         await showNormalView();
       } else {
-        // Chi arriva qui da un link "Accedi" (popup, o i blocchi di Crea/Amici)
-        // porta con se' ?mode=login: si apre gia' sulla tab Accedi invece che Registrati.
-        showCreateView(false, initParams.get('mode') === 'login' ? 'login' : 'register');
+        // Nessun profilo salvato su QUESTO dispositivo: potrebbe comunque
+        // esistere già una sessione Supabase Auth vera se si sta tornando
+        // proprio ora dal consenso Google (redirect di ritorno). Un solo
+        // controllo in più, silenzioso, prima di mostrare "crea profilo".
+        var googleState = await CiSiamoData.getGoogleSignupState();
+        if (googleState && !googleState.needsProfile) {
+          await showNormalView();
+        } else if (googleState && googleState.needsProfile) {
+          showGoogleProfileView(googleState.suggested);
+        } else {
+          // Chi arriva qui da un link "Accedi" (popup, o i blocchi di Crea/Amici)
+          // porta con se' ?mode=login: si apre gia' sulla tab Accedi invece che Registrati.
+          showCreateView(false, initParams.get('mode') === 'login' ? 'login' : 'register');
+        }
       }
     })();
   </script>
