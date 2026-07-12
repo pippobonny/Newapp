@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Ci siamo — Profilo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FF7A29">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Ci siamo">
+<script>
+  /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
+     Android/Chrome 100dvh non combacia col vero window.innerHeight quando
+     l'app gira standalone, e la navbar finisce a metà, sotto la gesture bar.
+     Misuriamo noi lo spazio vero e lo passiamo a style.css via --app-height.
+     Solo in standalone: in Safari normale (scheda del browser) 100dvh da solo
+     si aggiorna già correttamente quando la barra degli indirizzi si nasconde/
+     mostra, mentre un innerHeight misurato una volta e aggiornato solo su
+     resize/orientationchange restava indietro e lasciava una striscia grigia
+     sotto la tab bar (bug notato da Fil su iPhone il 2026-07-05). */
+  (function () {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (!isStandalone) return;
+    function setAppHeight() {
+      document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+    }
+    setAppHeight();
+    window.addEventListener('resize', setAppHeight);
+    window.addEventListener('orientationchange', setAppHeight);
+  })();
+</script>
+</head>
+<body>
+
+  <div class="phone">
+   <div class="screen">
+    <div class="header simple">
+      <div class="header-title">Profilo</div>
+    </div>
+
+    <div class="content">
+      <div id="createProfileView">
+        <div class="profile-header" style="margin-bottom: 14px;" id="createAvatarBlock">
+          <div class="avatar large" id="createProfileAvatar">?</div>
+          <label class="field-hint" id="createAvatarLabel" for="createAvatarFile" style="cursor:pointer; color: var(--lavender); font-weight:600; display:inline-block; margin-top:8px;">Carica una foto</label>
+          <input type="file" id="createAvatarFile" accept="image/*" style="display:none;">
+        </div>
+
+        <div class="section-title first" id="createViewTitle">Crea il tuo profilo</div>
+
+        <div style="display:flex; gap:10px; margin-bottom:16px;" id="authModeToggle">
+          <button type="button" class="primary-btn" id="showRegisterModeBtn" style="flex:1; margin-bottom:0;">Registrati</button>
+          <button type="button" class="primary-btn" id="showLoginModeBtn" style="flex:1; margin-bottom:0; background:var(--card); color:var(--ink); box-shadow:0 2px 8px rgba(58,50,90,0.06);">Accedi</button>
+        </div>
+
+        <div id="registerFields">
+          <div class="card-date" style="margin:0 2px 16px;">Nome e cognome restano privati, il nome utente è visibile a tutti.</div>
+
+          <div class="field">
+            <label>Nome</label>
+            <input type="text" id="accFirstName" placeholder="Il tuo nome">
+          </div>
+          <div class="field">
+            <label>Cognome</label>
+            <input type="text" id="accLastName" placeholder="Il tuo cognome">
+          </div>
+          <div class="field">
+            <label>Nome utente (visibile a tutti)</label>
+            <input type="text" id="accUsername" placeholder="Come vuoi farti chiamare nell'app">
+          </div>
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="accEmail" placeholder="latua@email.it">
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <input type="password" id="accPassword" placeholder="Scegli una password">
+          </div>
+          <div class="field">
+            <label>Data di nascita</label>
+            <input type="date" id="accBirthdate">
+          </div>
+        </div>
+
+        <div id="loginFields" style="display:none;">
+          <div class="card-date" style="margin:0 2px 16px;">Accedi con l'email e la password che hai scelto quando hai creato il profilo (anche da un altro telefono).</div>
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="loginEmail" placeholder="latua@email.it">
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <input type="password" id="loginPassword" placeholder="La tua password">
+          </div>
+          <div class="field-hint" style="text-align:right; margin-top:-8px;"><a href="#" id="forgotPasswordLink">Password dimenticata?</a></div>
+        </div>
+
+        <div class="form-error" id="createProfileError"></div>
+        <button type="button" class="primary-btn" id="createProfileBtn">Crea profilo</button>
+        <div class="field-hint" id="cancelCreateHint" style="text-align:center; display:none; margin-top:12px;"><a href="#" id="cancelCreateLink">Annulla</a></div>
+      </div>
+
+      <!-- Mostrata solo quando si arriva da un link tipo profilo.html?resetToken=...,
+           cioè dopo aver premuto "Password dimenticata?" e aperto l'email ricevuta. -->
+      <div id="resetPasswordView" style="display:none;">
+        <div class="section-title first">Scegli una nuova password</div>
+        <div class="card-date" style="margin:0 2px 16px;">Imposta la nuova password per il tuo profilo. Il link scade dopo un'ora e funziona una sola volta.</div>
+        <div class="field">
+          <label>Nuova password</label>
+          <input type="password" id="resetNewPassword" placeholder="Scegli una nuova password">
+        </div>
+        <div class="field">
+          <label>Ripeti la nuova password</label>
+          <input type="password" id="resetNewPassword2" placeholder="Ripetila uguale">
+        </div>
+        <div class="form-error" id="resetPasswordError"></div>
+        <button type="button" class="primary-btn" id="resetPasswordBtn">Salva nuova password</button>
+      </div>
+
+      <div id="normalProfileView">
+        <div class="profile-header">
+          <div class="avatar large" id="profileAvatar">?</div>
+          <div class="field">
+            <input type="text" id="profileNameInput" placeholder="Come ti chiami?" style="text-align:center; font-family:'Fraunces',serif; font-size:18px; font-weight:600;">
+          </div>
+          <div class="email">Il nome utente è pubblico: lo vedono tutti negli eventi</div>
+        </div>
+
+        <div id="profileSaveRow" style="margin-bottom: 18px;">
+          <button type="button" class="primary-btn" id="saveNameBtn">Salva nome utente</button>
+        </div>
+
+        <div class="section-title">I tuoi eventi passati</div>
+        <div id="myEventsList"></div>
+
+        <div class="section-title">Impostazioni</div>
+        <div class="settings-row" id="editAccountRow">
+          <div class="left">📝 Dati del profilo (nome, email...)</div>
+          <div>›</div>
+        </div>
+        <div class="settings-row danger" id="forgetMeRow">
+          <div class="left">🗑️ Dimentica i miei dati locali</div>
+          <div>›</div>
+        </div>
+      </div>
+    </div>
+   </div>
+
+    <div class="navbar">
+      <a class="nav-item" href="index.html">
+        <div class="icon">🏠</div>
+      </a>
+      <a class="nav-item" href="eventi.html">
+        <div class="icon">📅</div>
+      </a>
+      <a class="nav-item" href="crea.html">
+        <div class="icon">＋</div>
+      </a>
+      <a class="nav-item" href="amici.html">
+        <div class="icon">👥</div>
+      </a>
+      <a class="nav-item active" href="profilo.html">
+        <div class="icon">👤</div>
+      </a>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="data.js"></script>
+  <script>
+    (async function () {
+      var createView = document.getElementById('createProfileView');
+      var normalView = document.getElementById('normalProfileView');
+
+      var firstNameInput = document.getElementById('accFirstName');
+      var lastNameInput = document.getElementById('accLastName');
+      var usernameInput = document.getElementById('accUsername');
+      var emailInput = document.getElementById('accEmail');
+      var passwordInput = document.getElementById('accPassword');
+      var birthdateInput = document.getElementById('accBirthdate');
+      var createError = document.getElementById('createProfileError');
+      var createBtn = document.getElementById('createProfileBtn');
+      var cancelHint = document.getElementById('cancelCreateHint');
+      var cancelLink = document.getElementById('cancelCreateLink');
+
+      var avatarEl = document.getElementById('profileAvatar');
+      var nameInput = document.getElementById('profileNameInput');
+      var profileSaveRow = document.getElementById('profileSaveRow');
+      var myEventsList = document.getElementById('myEventsList');
+      var createAvatarEl = document.getElementById('createProfileAvatar');
+      var avatarFileInput = document.getElementById('createAvatarFile');
+
+      var authModeToggle = document.getElementById('authModeToggle');
+      var showRegisterModeBtn = document.getElementById('showRegisterModeBtn');
+      var showLoginModeBtn = document.getElementById('showLoginModeBtn');
+      var registerFields = document.getElementById('registerFields');
+      var loginFields = document.getElementById('loginFields');
+      var loginEmailInput = document.getElementById('loginEmail');
+      var loginPasswordInput = document.getElementById('loginPassword');
+      var createAvatarBlock = document.getElementById('createAvatarBlock');
+      var createViewTitle = document.getElementById('createViewTitle');
+      var forgotPasswordLink = document.getElementById('forgotPasswordLink');
+
+      var resetPasswordView = document.getElementById('resetPasswordView');
+      var resetNewPasswordInput = document.getElementById('resetNewPassword');
+      var resetNewPassword2Input = document.getElementById('resetNewPassword2');
+      var resetPasswordError = document.getElementById('resetPasswordError');
+      var resetPasswordBtn = document.getElementById('resetPasswordBtn');
+
+      var isEditMode = false;
+      var authMode = 'register'; // 'register' | 'login' — solo rilevante quando !isEditMode
+      var pendingAvatarFile = null; // foto scelta ma non ancora caricata su Supabase
+      var currentAvatarUrl = '';    // foto gia' salvata (in modalita' modifica)
+
+      /* Il toggle Registrati/Accedi esiste solo per chi non ha ancora un account
+         su questo dispositivo (non in modalita' modifica profilo). "Accedi" collega
+         questo telefono a un account gia' esistente su un altro telefono, con lo
+         stesso username+password: usa CiSiamoData.loginAccount(), la stessa funzione
+         gia' usata dal flusso di invito in amico.html. */
+      function setAuthMode(mode) {
+        authMode = mode;
+        createError.textContent = '';
+
+        var isLogin = mode === 'login';
+        registerFields.style.display = isLogin ? 'none' : '';
+        loginFields.style.display = isLogin ? '' : 'none';
+        createAvatarBlock.style.display = isLogin ? 'none' : '';
+        createViewTitle.textContent = isLogin ? 'Accedi al tuo profilo' : 'Crea il tuo profilo';
+        createBtn.textContent = isLogin ? 'Accedi' : 'Crea profilo';
+
+        showRegisterModeBtn.style.background = isLogin ? 'var(--card)' : '';
+        showRegisterModeBtn.style.color = isLogin ? 'var(--ink)' : '';
+        showRegisterModeBtn.style.boxShadow = isLogin ? '0 2px 8px rgba(58,50,90,0.06)' : '';
+        showLoginModeBtn.style.background = isLogin ? '' : 'var(--card)';
+        showLoginModeBtn.style.color = isLogin ? '' : 'var(--ink)';
+        showLoginModeBtn.style.boxShadow = isLogin ? '' : '0 2px 8px rgba(58,50,90,0.06)';
+      }
+
+      showRegisterModeBtn.addEventListener('click', function () { setAuthMode('register'); });
+      showLoginModeBtn.addEventListener('click', function () { setAuthMode('login'); });
+
+      /* Mostra una foto (o un'iniziale testuale) dentro l'avatar circolare, riusata
+         sia per l'anteprima locale (FileReader) sia per una foto gia' salvata online. */
+      function showAvatarImage(el, url) {
+        el.innerHTML = '';
+        var img = document.createElement('img');
+        img.src = url;
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'cover';
+        img.style.borderRadius = '50%';
+        el.appendChild(img);
+      }
+
+      /* Avatar vuoto ("?") finche' non scrivi nulla: appena inizi a scrivere il nome
+         utente (o il nome, se il nome utente e' ancora vuoto) mostra l'iniziale.
+         Il nome utente ha la precedenza perche' e' l'identita' pubblica usata nel
+         resto dell'app (vedi CiSiamoData.getGuestName). Se e' gia' stata scelta una
+         foto, questa ha sempre la priorita' sull'iniziale testuale. */
+      function updateCreateAvatarPreview() {
+        if (createAvatarEl.querySelector('img')) return;
+        var source = usernameInput.value.trim() || firstNameInput.value.trim();
+        createAvatarEl.textContent = source ? source.charAt(0).toUpperCase() : '?';
+      }
+      usernameInput.addEventListener('input', updateCreateAvatarPreview);
+      firstNameInput.addEventListener('input', updateCreateAvatarPreview);
+
+      avatarFileInput.addEventListener('change', function () {
+        var file = avatarFileInput.files && avatarFileInput.files[0];
+        if (!file) return;
+        pendingAvatarFile = file;
+
+        var reader = new FileReader();
+        reader.onload = function (e) {
+          showAvatarImage(createAvatarEl, e.target.result);
+        };
+        reader.readAsDataURL(file);
+      });
+
+      async function fillCreateFormFromAccount() {
+        var acc;
+        try {
+          acc = await CiSiamoData.fetchOwnAccount();
+        } catch (err) {
+          createError.textContent = 'Non sono riuscito a caricare il profilo (' + err.message + ').';
+          return;
+        }
+        if (!acc) return;
+        firstNameInput.value = acc.firstName || '';
+        lastNameInput.value = acc.lastName || '';
+        usernameInput.value = acc.username || '';
+        emailInput.value = acc.email || '';
+        passwordInput.value = '';
+        passwordInput.placeholder = 'Lascia vuoto per non cambiarla';
+        birthdateInput.value = acc.birthDate || '';
+        currentAvatarUrl = acc.avatarUrl || '';
+        pendingAvatarFile = null;
+        if (currentAvatarUrl) {
+          showAvatarImage(createAvatarEl, currentAvatarUrl);
+        } else {
+          createAvatarEl.innerHTML = '';
+          updateCreateAvatarPreview();
+        }
+      }
+
+      function showCreateView(isEdit, initialAuthMode) {
+        isEditMode = isEdit;
+        normalView.style.display = 'none';
+        createView.style.display = '';
+        createError.textContent = '';
+        cancelHint.style.display = isEdit ? '' : 'none';
+
+        // Prima registrazione (nessun account ancora, non una modifica profilo):
+        // niente navbar in basso, tutto il resto dell'app è comunque
+        // irraggiungibile finché non crei un profilo (Fil, 2026-07-10).
+        var navbarEl = document.querySelector('.navbar');
+        if (navbarEl) navbarEl.style.display = (!isEdit && !CiSiamoData.hasAccount()) ? 'none' : '';
+
+        // Il toggle Registrati/Accedi ha senso solo per un profilo nuovo su questo
+        // dispositivo: in modifica (isEdit) si vede solo il form dati, niente login.
+        authModeToggle.style.display = isEdit ? 'none' : '';
+        if (isEdit) {
+          registerFields.style.display = '';
+          loginFields.style.display = 'none';
+          createAvatarBlock.style.display = '';
+          createViewTitle.textContent = 'Modifica profilo';
+          createBtn.textContent = 'Salva modifiche';
+          // Il nome utente si sceglie una volta sola in fase di registrazione:
+          // dopo, non è più modificabile da nessuna parte, nemmeno da qui.
+          usernameInput.disabled = true;
+        } else {
+          setAuthMode(initialAuthMode || 'register');
+          usernameInput.disabled = false;
+        }
+
+        if (!isEdit) passwordInput.placeholder = 'Scegli una password';
+        if (!isEdit) {
+          // profilo nuovo: nessuna foto ancora, riparti da zero
+          pendingAvatarFile = null;
+          currentAvatarUrl = '';
+          createAvatarEl.innerHTML = '';
+          updateCreateAvatarPreview();
+          loginEmailInput.value = '';
+          loginPasswordInput.value = '';
+        }
+      }
+
+      async function showNormalView() {
+        createView.style.display = 'none';
+        normalView.style.display = '';
+        var navbarEl = document.querySelector('.navbar');
+        if (navbarEl) navbarEl.style.display = '';
+        await refreshProfile();
+      }
+
+      async function refreshProfile() {
+        var guestName = CiSiamoData.getGuestName() || '';
+        nameInput.value = guestName;
+
+        // Chi ha un account non può più cambiare il nome utente da nessuna parte
+        // (nemmeno da "Dati del profilo", vedi showCreateView): qui il campo diventa
+        // di sola lettura e il pulsante "Salva nome utente" sparisce del tutto,
+        // perché non ci sarebbe nulla da salvare. Chi non ha ancora un account
+        // (ospite) può invece continuare a scrivere/cambiare il proprio nome qui.
+        var isAccountHolder = CiSiamoData.hasAccount();
+        nameInput.disabled = isAccountHolder;
+        profileSaveRow.style.display = isAccountHolder ? 'none' : '';
+
+        var acc = CiSiamoData.getAccount();
+        if (acc && acc.avatarUrl) {
+          showAvatarImage(avatarEl, acc.avatarUrl);
+        } else {
+          avatarEl.innerHTML = '';
+          avatarEl.textContent = guestName ? guestName.trim().charAt(0).toUpperCase() : '?';
+        }
+
+        myEventsList.innerHTML = '<div class="empty-hint">Caricamento...</div>';
+
+        var events;
+        try {
+          events = await CiSiamoData.getEvents();
+        } catch (err) {
+          myEventsList.innerHTML = '<div class="empty-hint">Non riesco a caricare i tuoi eventi (' + CiSiamoData.escapeHTML(err.message) + ').</div>';
+          return;
+        }
+
+        // Qui restano solo gli eventi "passato" (confermati e già successi da
+        // un po'): quelli ancora aperti/in attesa/annullati si vedono in Home
+        // e in Eventi, non anche qui — il Profilo è l'archivio di quello che
+        // è già successo, non un doppione delle altre due pagine.
+        var mine = events.filter(function (e) {
+          if (!guestName || !e.createdBy || e.createdBy.toLowerCase() !== guestName.toLowerCase()) return false;
+          return CiSiamoData.computeEventStatus(e).status === 'passato';
+        });
+
+        if (mine.length) {
+          myEventsList.innerHTML = mine.map(CiSiamoData.renderEventCardHTML).join('');
+        } else {
+          myEventsList.innerHTML = '<div class="empty-hint">Nessun evento passato ancora: qui trovi l\'archivio di quelli tuoi già conclusi.</div>';
+        }
+
+        // rianima/rende cliccabile il contenuto appena creato
+        if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+      }
+
+      createBtn.addEventListener('click', async function () {
+        if (!isEditMode && authMode === 'login') {
+          var loginEmail = loginEmailInput.value.trim();
+          var loginPassword = loginPasswordInput.value;
+
+          createError.textContent = '';
+          if (!loginEmail) { createError.textContent = 'Scrivi la tua email.'; return; }
+          if (!loginPassword) { createError.textContent = 'Scrivi la tua password.'; return; }
+
+          createBtn.disabled = true;
+          createBtn.textContent = 'Accesso...';
+          try {
+            await CiSiamoData.loginAccount(loginEmail, loginPassword);
+          } catch (err) {
+            createError.textContent = err.message;
+            createBtn.disabled = false;
+            createBtn.textContent = 'Accedi';
+            return;
+          }
+
+          createBtn.disabled = false;
+          await showNormalView();
+          return;
+        }
+
+        var firstName = firstNameInput.value.trim();
+        var lastName = lastNameInput.value.trim();
+        var username = usernameInput.value.trim();
+        var email = emailInput.value.trim();
+        var password = passwordInput.value;
+        var birthDate = birthdateInput.value;
+
+        createError.textContent = '';
+        if (!firstName) { createError.textContent = 'Scrivi il tuo nome.'; return; }
+        if (!lastName) { createError.textContent = 'Scrivi il tuo cognome.'; return; }
+        if (!username) { createError.textContent = 'Scegli un nome utente.'; return; }
+        if (!email) { createError.textContent = 'Scrivi la tua email.'; return; }
+        if (!isEditMode && !password) { createError.textContent = 'Scegli una password.'; return; }
+        if (!birthDate) { createError.textContent = 'Inserisci la tua data di nascita.'; return; }
+
+        createBtn.disabled = true;
+        createBtn.textContent = isEditMode ? 'Salvo...' : 'Creo il profilo...';
+
+        try {
+          var avatarUrl = currentAvatarUrl || undefined;
+          if (pendingAvatarFile) {
+            createBtn.textContent = 'Carico la foto...';
+            avatarUrl = await CiSiamoData.uploadAvatar(pendingAvatarFile);
+            createBtn.textContent = isEditMode ? 'Salvo...' : 'Creo il profilo...';
+          }
+
+          if (isEditMode) {
+            await CiSiamoData.updateAccount({
+              firstName: firstName,
+              lastName: lastName,
+              username: username,
+              email: email,
+              password: password || undefined,
+              birthDate: birthDate,
+              avatarUrl: avatarUrl
+            });
+          } else {
+            await CiSiamoData.createAccount({
+              firstName: firstName,
+              lastName: lastName,
+              username: username,
+              email: email,
+              password: password,
+              birthDate: birthDate,
+              avatarUrl: avatarUrl
+            });
+          }
+        } catch (err) {
+          createError.textContent = err.message;
+          createBtn.disabled = false;
+          createBtn.textContent = isEditMode ? 'Salva modifiche' : 'Crea profilo';
+          return;
+        }
+
+        createBtn.disabled = false;
+        await showNormalView();
+      });
+
+      cancelLink.addEventListener('click', async function (e) {
+        e.preventDefault();
+        if (CiSiamoData.hasAccount()) await showNormalView();
+      });
+
+      /* "Password dimenticata?" manda l'email di reset (Edge Function +
+         Resend) all'indirizzo scritto nel campo Accedi. Risponde sempre con
+         lo stesso messaggio, anche se quell'email non esiste: non deve
+         rivelare quali email sono registrate nell'app. */
+      forgotPasswordLink.addEventListener('click', async function (e) {
+        e.preventDefault();
+        var email = loginEmailInput.value.trim();
+        createError.textContent = '';
+        if (!email) {
+          createError.textContent = 'Scrivi prima la tua email qui sopra, poi premi di nuovo "Password dimenticata?".';
+          return;
+        }
+
+        var originalText = forgotPasswordLink.textContent;
+        forgotPasswordLink.textContent = 'Invio...';
+        try {
+          await CiSiamoData.requestPasswordReset(email);
+        } catch (err) {
+          createError.textContent = 'Non sono riuscito a inviare la richiesta (' + err.message + '). Riprova.';
+          forgotPasswordLink.textContent = originalText;
+          return;
+        }
+        forgotPasswordLink.textContent = originalText;
+
+        if (window.CiSiamoUI) {
+          window.CiSiamoUI.toast('Se quell\'indirizzo esiste, ti abbiamo mandato un\'email col link per scegliere una nuova password.');
+        } else {
+          window.alert('Se quell\'indirizzo esiste, ti abbiamo mandato un\'email col link per scegliere una nuova password.');
+        }
+      });
+
+      /* Vista dedicata quando si arriva da profilo.html?resetToken=... (link
+         nell'email di reset): nessun\'altra vista deve essere visibile insieme
+         a questa, per non confondere con login/registrazione. */
+      function showResetPasswordView() {
+        createView.style.display = 'none';
+        normalView.style.display = 'none';
+        resetPasswordView.style.display = '';
+      }
+
+      resetPasswordBtn.addEventListener('click', async function () {
+        var token = new URLSearchParams(window.location.search).get('resetToken');
+        var newPassword = resetNewPasswordInput.value;
+        var newPassword2 = resetNewPassword2Input.value;
+
+        resetPasswordError.textContent = '';
+        if (!newPassword) { resetPasswordError.textContent = 'Scegli una nuova password.'; return; }
+        if (newPassword !== newPassword2) { resetPasswordError.textContent = 'Le due password non coincidono.'; return; }
+
+        resetPasswordBtn.disabled = true;
+        resetPasswordBtn.textContent = 'Salvo...';
+        try {
+          await CiSiamoData.resetPassword(token, newPassword);
+        } catch (err) {
+          resetPasswordError.textContent = err.message;
+          resetPasswordBtn.disabled = false;
+          resetPasswordBtn.textContent = 'Salva nuova password';
+          return;
+        }
+
+        // Il token va usato una volta sola: si ripulisce l'URL e si ricarica
+        // sulla vista normale, ora collegati con la password appena scelta.
+        window.location.href = 'profilo.html';
+      });
+
+      document.getElementById('saveNameBtn').addEventListener('click', async function () {
+        var newName = nameInput.value.trim();
+        if (CiSiamoData.hasAccount()) {
+          try {
+            await CiSiamoData.updateAccount({ username: newName });
+          } catch (err) {
+            window.alert('Non sono riuscito a salvare il nome utente: ' + err.message);
+            return;
+          }
+        } else {
+          CiSiamoData.setGuestName(newName);
+        }
+        await refreshProfile();
+      });
+
+      document.getElementById('editAccountRow').addEventListener('click', async function () {
+        showCreateView(true);
+        await fillCreateFormFromAccount();
+      });
+
+      document.getElementById('forgetMeRow').addEventListener('click', function () {
+        var sure = window.confirm('Dimenticare il collegamento a questo profilo su questo telefono? Il profilo resta salvato online, ma dovrai ricrearne uno (o farne uno nuovo) per usare di nuovo l\'app da qui. Non si può annullare.');
+        if (sure) {
+          try {
+            window.localStorage.removeItem('ci-siamo:guestName');
+            window.localStorage.removeItem('ci-siamo:account');
+          } catch (err) { /* ignora */ }
+          window.location.href = 'index.html';
+        }
+      });
+
+      var initParams = new URLSearchParams(window.location.search);
+      if (initParams.get('resetToken')) {
+        // Arrivo dal link nell'email di reset: mostra solo il form nuova
+        // password, non toccare login/registrazione/vista normale.
+        showResetPasswordView();
+      } else if (CiSiamoData.hasAccount()) {
+        await showNormalView();
+      } else {
+        // Chi arriva qui da un link "Accedi" (popup, o i blocchi di Crea/Amici)
+        // porta con se' ?mode=login: si apre gia' sulla tab Accedi invece che Registrati.
+        showCreateView(false, initParams.get('mode') === 'login' ? 'login' : 'register');
+      }
+    })();
+  </script>
+  <script src="script.js"></script>
+</body>
+</html>

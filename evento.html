@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Ci siamo — Evento</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FF7A29">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Ci siamo">
+<script>
+  /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
+     Android/Chrome 100dvh non combacia col vero window.innerHeight quando
+     l'app gira standalone, e la navbar finisce a metà, sotto la gesture bar.
+     Misuriamo noi lo spazio vero e lo passiamo a style.css via --app-height.
+     Solo in standalone: in Safari normale (scheda del browser) 100dvh da solo
+     si aggiorna già correttamente quando la barra degli indirizzi si nasconde/
+     mostra, mentre un innerHeight misurato una volta e aggiornato solo su
+     resize/orientationchange restava indietro e lasciava una striscia grigia
+     sotto la tab bar (bug notato da Fil su iPhone il 2026-07-05). */
+  (function () {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (!isStandalone) return;
+    function setAppHeight() {
+      document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+    }
+    setAppHeight();
+    window.addEventListener('resize', setAppHeight);
+    window.addEventListener('orientationchange', setAppHeight);
+  })();
+</script>
+</head>
+<body>
+
+  <div class="phone">
+   <div class="screen">
+    <div class="header simple">
+      <a class="back-btn" href="index.html" id="backBtn">←</a>
+      <div class="header-title" id="eventTitle">Evento</div>
+      <div class="header-menu-wrap" id="eventMenuWrap" style="display:none;">
+        <div class="back-btn" id="eventMenuBtn" style="cursor:pointer;">⋮</div>
+        <span class="menu-dot" id="menuDot" style="display:none;"></span>
+        <div class="menu-dropdown" id="eventMenuDropdown" style="display:none;">
+          <a class="menu-dropdown-item" id="menuEditLink" href="#">✏️ Modifica</a>
+          <div class="menu-dropdown-item danger" id="menuDeleteBtn">🗑️ Elimina</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="content" id="eventContent">
+      <div class="empty-hint">Caricamento...</div>
+    </div>
+   </div>
+
+    <div class="navbar">
+      <a class="nav-item" href="index.html">
+        <div class="icon">🏠</div>
+      </a>
+      <a class="nav-item active" href="eventi.html">
+        <div class="icon">📅</div>
+      </a>
+      <a class="nav-item" href="crea.html">
+        <div class="icon">＋</div>
+      </a>
+      <a class="nav-item" href="amici.html">
+        <div class="icon">👥</div>
+      </a>
+      <a class="nav-item" href="profilo.html">
+        <div class="icon">👤</div>
+      </a>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="data.js"></script>
+  <script>
+    (async function () {
+      /* La freccia "indietro" deve tornare davvero alla schermata da cui sei
+         arrivato (Home, Eventi, una notifica, ecc.), non sempre a "Eventi" a
+         prescindere da dove vieni. Qui la navigazione è sempre un vero
+         caricamento di pagina (mai SPA), quindi document.referrer riflette
+         davvero la pagina precedente: si riscrive l'href del pulsante con
+         quella pagina, PRIMA che l'utente clicchi. Da lì in poi lo gestisce
+         già script.js con la sua normale animazione/navigazione via link —
+         non serve altro codice qui, e resta anche l'effetto ripple sul
+         pulsante. Se il link è stato aperto direttamente (da WhatsApp, senza
+         passare da un'altra pagina dell'app) o veniva da un'altra pagina
+         "di passaggio" (l'invito di amico.html, o questa stessa pagina),
+         resta l'href statico già nell'HTML: la Home. */
+      var backBtn = document.getElementById('backBtn');
+      if (backBtn) {
+        var ref = document.referrer || '';
+        var cameFromApp = ref.indexOf(window.location.origin) === 0;
+        var refPath = cameFromApp ? ref.split('/').pop().split('?')[0].split('#')[0] : '';
+        var NOT_A_REAL_BACK_TARGET = ['', 'amico.html', 'evento.html'];
+        if (NOT_A_REAL_BACK_TARGET.indexOf(refPath) === -1) {
+          backBtn.setAttribute('href', refPath);
+        }
+      }
+
+      var params = new URLSearchParams(window.location.search);
+      var eventId = params.get('id');
+
+      var titleEl = document.getElementById('eventTitle');
+      var contentEl = document.getElementById('eventContent');
+
+      /* Stessa regola d'accesso di tutta l'app: un ospite senza account può
+         vedere QUESTO evento solo se è proprio quello a cui è stato invitato
+         e bloccato (checkAccessGate in data.js) — altrimenti viene rimandato
+         al suo evento/lista vera, o vede "serve un profilo" se non ha nessun
+         invito attivo. Chi è bloccato qui a ragione (isLockedGuest) perde
+         navbar e freccia indietro: l'unica via d'uscita resta il bottone
+         "crea il tuo profilo" mostrato dentro la pagina (vedi render()). */
+      var gate = CiSiamoData.checkAccessGate(eventId ? { type: 'event', id: eventId } : null);
+      if (gate.action === 'redirect') {
+        window.location.href = gate.url;
+        return;
+      }
+
+      var event;
+      try {
+        event = eventId ? await CiSiamoData.getEventById(eventId) : null;
+      } catch (err) {
+        titleEl.textContent = 'Errore';
+        contentEl.innerHTML = '<div class="empty-hint">Non riesco a caricare questo evento (' + CiSiamoData.escapeHTML(err.message) + ').<br><a href="eventi.html">Torna agli eventi →</a></div>';
+        return;
+      }
+
+      if (!event) {
+        titleEl.textContent = 'Evento non trovato';
+        contentEl.innerHTML = '<div class="empty-hint">Questo evento non esiste (o il link non è più valido).<br><a href="eventi.html">Torna agli eventi →</a></div>';
+        return;
+      }
+
+      if (gate.action === 'block') {
+        /* Chi non ha account e non è già "bloccato" da nessuna parte è arrivato
+           qui aprendo il link diretto dell'evento (quello mostrato in "Condividi
+           l'invito" per una lista amici vera, non scritta a mano) senza mai
+           essere passato dal passaggio "chi sei tra questi nomi" di amico.html.
+           Fil: chi non è registrato deve SEMPRE passare da lì per identificarsi
+           — quindi, se l'evento ha una lista di invitati con un link di invito
+           valido, lo mandiamo a scegliere il suo nome invece di bloccarlo su
+           "serve un profilo"; una volta scelto, atterra di nuovo qui già
+           sbloccato. Chi ha già un account non passa mai da questo ramo
+           (checkAccessGate torna 'allow' per lui, vedi sopra). */
+        if (event.shareToken) {
+          window.location.href = 'amico.html?token=' + encodeURIComponent(event.shareToken);
+          return;
+        }
+        titleEl.textContent = 'Evento';
+        contentEl.innerHTML = CiSiamoData.accountRequiredBlockHTML(
+          'Per vedere questo evento devi prima creare un profilo, oppure aprirlo dal link di invito che hai ricevuto.'
+        );
+        document.querySelector('.navbar').style.display = 'none';
+        if (backBtn) backBtn.style.display = 'none';
+        return;
+      }
+      var isLockedGuest = gate.action === 'allowLocked';
+      if (isLockedGuest) {
+        document.querySelector('.navbar').style.display = 'none';
+        if (backBtn) backBtn.style.display = 'none';
+      }
+
+      document.title = 'Ci siamo — ' + event.name;
+      titleEl.textContent = event.name;
+
+      var guestName = CiSiamoData.getGuestName() || '';
+
+      /* Chi organizza è per forza presente (viene contato in automatico su
+         tutte le date già alla creazione, vedi createEvent in data.js): non
+         deve mai vedere i pulsanti "quando sei disponibile" come un invitato
+         qualsiasi. È anche l'unico a vedere il link da condividere e chi manca
+         ancora a rispondere: agli invitati basta rispondere e vedere chi c'è. */
+      var isOrganizer = !!(guestName && event.createdBy && guestName.toLowerCase() === event.createdBy.toLowerCase());
+
+      /* true quando la sezione "quando sei disponibile" è aperta in modifica
+         (chip selezionabili); false quando mostra solo il riepilogo compatto
+         con "Cambia la tua disponibilità". Parte aperta se non hai ancora
+         risposto, chiusa se hai già una risposta salvata. */
+      var editingAvailability = !findExistingParticipant();
+
+      // Fa partire l'animazione "sbandamento" dei giorni una sola volta per
+      // apertura pagina (vedi bindDayBarsScroll), non ad ogni render().
+      var scrollHintShown = false;
+
+      function findExistingParticipant() {
+        var found = null;
+        (event.participants || []).forEach(function (p) {
+          if (guestName && p.name.toLowerCase() === guestName.toLowerCase()) found = p;
+        });
+        return found;
+      }
+
+      /* ---------- "sei tu uno di questi?" per chi arriva già registrato ----------
+         Bug segnalato da Fil il 2026-07-07: se scrivi un invitato a mano
+         (es. "patty") e quella persona si registra DOPO con uno username
+         diverso (es. "pattu") e apre l'evento direttamente (non dal link
+         d'invito, dove questo passaggio esiste già in amico.html), l'app non
+         ha modo di sapere che sono la stessa persona — la mostrava come due
+         identità separate ("assenti: pattu" + "ancora da rispondere:
+         patty"). Stesso meccanismo di scelta di amico.html, riusando
+         claimEventInvitee() con lo share_token che l'evento ha già. Si
+         propone solo se: non organizzatore, ha un account (i soli per cui è
+         successo il problema), non ha già una risposta salvata con questo
+         username, il suo username non combacia già con un invitato, e c'è
+         almeno un invitato non ancora rivendicato. Si può anche saltare
+         ("continua come X"): non si ripropone più su QUESTO evento per
+         questo dispositivo (sessionStorage, non permanente: se si ricarica
+         il device o passa tempo può ripresentarsi, va bene così, non è
+         invasivo). */
+      function findClaimCandidates() {
+        if (isOrganizer || !guestName || !CiSiamoData.hasAccount()) return null;
+        if (findExistingParticipant()) return null;
+
+        var mine = guestName.toLowerCase();
+        var invitees = event.invitees || [];
+        var alreadyNamed = invitees.some(function (f) { return (f.name || '').toLowerCase() === mine; });
+        if (alreadyNamed) return null;
+
+        var unclaimed = invitees.filter(function (f) { return !f.claimedAt; });
+        if (!unclaimed.length) return null;
+
+        try {
+          if (sessionStorage.getItem('ci-siamo:claimDismissed:' + event.id)) return null;
+        } catch (err) { /* ignora */ }
+
+        return unclaimed;
+      }
+
+      function buildClaimPromptHTML(candidates) {
+        var rowsHTML = candidates.map(function (f) {
+          return ''
+            + '<div class="settings-row reveal" data-claim-invitee="' + f.id + '" style="cursor:pointer;">'
+            + '<div class="left">' + CiSiamoData.escapeHTML(f.name) + '</div>'
+            + '<div style="color:var(--ink-soft);">Sono io →</div>'
+            + '</div>';
+        }).join('');
+
+        return ''
+          + '<div class="section-title">Sei tu uno di questi?</div>'
+          + '<div class="card-date" style="margin:0 2px 12px;">Sei registrato come <b>' + CiSiamoData.escapeHTML(guestName) + '</b>. Se chi organizza ti aveva invitato con un altro nome, scegli quale sei: così la tua risposta resta collegata a te.</div>'
+          + '<div id="claimPromptList">' + rowsHTML + '</div>'
+          + '<div style="text-align:center; margin-top:8px;"><span class="signup-skip-link" id="claimSkipLink">Nessuno di questi, continua come ' + CiSiamoData.escapeHTML(guestName) + ' →</span></div>';
+      }
+
+      async function claimInviteeAs(inviteeId) {
+        try {
+          await CiSiamoData.claimEventInvitee(event.shareToken, inviteeId, null, CiSiamoData.getAccount().id);
+        } catch (err) {
+          if (window.CiSiamoUI && CiSiamoUI.toast) {
+            CiSiamoUI.toast('Non sono riuscito a collegarti (' + err.message + ').');
+          } else {
+            window.alert('Non sono riuscito a collegarti (' + err.message + ').');
+          }
+          return;
+        }
+        event = await CiSiamoData.getEventById(event.id);
+        render();
+      }
+
+      /* ---------- schema "chi c'è per ogni giorno" ----------
+         Sempre visibile, a chiunque apra l'evento: aiuta a capire a colpo
+         d'occhio quale data ha più persone disponibili. Chi ha risposto "non
+         ci sono mai" non compare qui (non essendo disponibile in nessun
+         giorno), ma resta nella riga "Assenti" più sotto.
+         Il giorno (o i giorni, in caso di parità) con più adesioni spicca con
+         un bordino arancione sottile — solo un accenno, niente di vistoso —
+         così si capisce a colpo d'occhio quale data sta vincendo, senza dover
+         contare i nomi in ogni riga. */
+      function buildDayBreakdownHTML() {
+        var TRACK_H = 92;
+        var counts = event.dateOptions.map(function (opt) {
+          return (event.participants || []).filter(function (p) {
+            return (p.availableDateOptionIds || []).indexOf(opt.id) !== -1;
+          }).length;
+        });
+        var maxCount = Math.max.apply(null, counts.concat([0]));
+
+        var barsHTML = event.dateOptions.map(function (opt, idx) {
+          var names = (event.participants || [])
+            .filter(function (p) { return (p.availableDateOptionIds || []).indexOf(opt.id) !== -1; })
+            .map(function (p) { return p.name; });
+          var count = names.length;
+          var namesLabel = names.length ? names.map(CiSiamoData.escapeHTML).join(', ') : 'Nessuno ancora';
+
+          // ha senso solo se c'è più di una data proposta (altrimenti "spicca"
+          // rispetto a cosa?) e se qualcuno ha già risposto almeno una volta
+          var isLeader = event.dateOptions.length > 1 && maxCount > 0 && counts[idx] === maxCount;
+          var fillH = count ? Math.max(10, Math.round((count / maxCount) * TRACK_H)) : 0;
+
+          var d = new Date(opt.dateISO + 'T00:00:00');
+          var weekday, dayMonth;
+          try {
+            weekday = d.toLocaleDateString('it-IT', { weekday: 'short' }).replace('.', '');
+            weekday = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+            dayMonth = d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }).replace('.', '');
+          } catch (err) {
+            weekday = '';
+            dayMonth = opt.dateISO;
+          }
+
+          return ''
+            + '<div class="day-bar-col" data-day-idx="' + idx + '">'
+            + '<div class="day-bar-bubble" style="display:none;">' + namesLabel + '</div>'
+            + '<div class="day-bar-badge' + (isLeader ? ' leader' : '') + '"><span aria-hidden="true">👤</span>' + count + '</div>'
+            + '<div class="day-bar-track' + (isLeader ? ' leader' : '') + '"><div class="day-bar-fill" style="height:' + fillH + 'px;"></div></div>'
+            + '<div class="day-bar-label">' + CiSiamoData.escapeHTML(weekday) + '<br><span class="sub">' + CiSiamoData.escapeHTML(dayMonth) + '</span></div>'
+            + '</div>';
+        }).join('');
+
+        return ''
+          + '<div class="day-bars-hint">Più alta la barra, più persone ci sono — scorri per gli altri giorni, tocca per i nomi</div>'
+          + '<div class="day-bars-scroll" id="dayBarsScroll"><div class="day-bars-row">' + barsHTML + '</div></div>';
+      }
+
+      /* ---------- organizzatore: conferma una data a mano ----------
+         Fil, 2026-07-10, due richieste che usano lo stesso meccanismo:
+         1) non aspettare che rispondano tutti — un bottone per chiudere
+            subito su una data a scelta, quale che sia lo stato attuale;
+         2) in caso di pareggio (più date appaiate alla quota, vedi
+            computeEventStatus/tiedOptions), niente scelta automatica e
+            silenziosa della prima inserita — si mostrano solo le date in
+            pareggio e l'organizzatore ne sceglie una lui.
+         Non visibile a chi non organizza, né su un evento già chiuso
+         (confermato/passato/annullato): lì non c'è più nulla da scegliere. */
+      function buildManualConfirmSectionHTML(info) {
+        if (!isOrganizer) return '';
+        if (info.status === 'done' || info.status === 'passato' || info.status === 'cancelled') return '';
+        if (!event.dateOptions || !event.dateOptions.length) return '';
+
+        var isTie = info.status === 'tie';
+        var optionsToShow = isTie ? info.tiedOptions : event.dateOptions;
+
+        var rowsHTML = optionsToShow.map(function (opt) {
+          var count = (event.participants || []).filter(function (p) {
+            return (p.availableDateOptionIds || []).indexOf(opt.id) !== -1;
+          }).length;
+          return ''
+            + '<div class="settings-row" style="margin-bottom:8px;">'
+            + '<div class="left">' + CiSiamoData.escapeHTML(CiSiamoData.formatDateLabel(opt.dateISO)) + ' · ' + count + (count === 1 ? ' disponibile' : ' disponibili') + '</div>'
+            + '<span class="signup-skip-link" data-confirm-option="' + opt.id + '" style="margin-top:0;">Conferma →</span>'
+            + '</div>';
+        }).join('');
+
+        var introHTML = isTie
+          ? ''
+            + '<div class="section-title">Pareggio: scegli tu la data</div>'
+            + '<div class="card-date" style="margin:0 2px 10px;">Queste date hanno lo stesso numero di persone disponibili — l\'evento resta in sospeso finché non ne confermi una.</div>'
+          : ''
+            + '<div class="section-title">Vuoi confermare tu, senza aspettare?</div>'
+            + '<div class="card-date" style="margin:0 2px 10px;">Puoi fissare subito una di queste date, anche prima che rispondano tutti.</div>';
+
+        return introHTML + rowsHTML;
+      }
+
+      /* Trascinamento con mouse (touch funziona già da solo con
+         overflow-x:auto — anzi, catturare il puntatore anche lì è quello che
+         rompeva il tap: con setPointerCapture il click risultante finisce
+         sempre sul contenitore, mai sulla singola barra sotto il dito/mouse,
+         perché il target del click viene "rediretto" all'elemento che ha la
+         capture. Bug reale, notato da Fil il 2026-07-05: "tocca per i nomi
+         non funziona". Fix: niente setPointerCapture, e il drag manuale parte
+         solo per il mouse (pointerType 'mouse'), su window (non sull'elemento
+         stesso) così il click sulle barre resta intatto in ogni caso.
+         Va rilegato dopo ogni render() come bindDayBars, perché il
+         contenitore viene rigenerato da zero ad ogni giro. */
+      function bindDayBarsScroll() {
+        var scrollEl = document.getElementById('dayBarsScroll');
+        if (!scrollEl) return;
+        var dragging = false;
+        var justDragged = false;
+        var startX = 0;
+        var startScroll = 0;
+
+        function onMove(e) {
+          if (!dragging) return;
+          var delta = e.clientX - startX;
+          if (Math.abs(delta) > 6) justDragged = true;
+          scrollEl.scrollLeft = startScroll - delta;
+        }
+
+        function onUp() {
+          dragging = false;
+          scrollEl.classList.remove('dragging');
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', onUp);
+          window.removeEventListener('pointercancel', onUp);
+        }
+
+        scrollEl.addEventListener('pointerdown', function (e) {
+          if (e.pointerType !== 'mouse') return;
+          dragging = true;
+          justDragged = false;
+          startX = e.clientX;
+          startScroll = scrollEl.scrollLeft;
+          scrollEl.classList.add('dragging');
+          window.addEventListener('pointermove', onMove);
+          window.addEventListener('pointerup', onUp);
+          window.addEventListener('pointercancel', onUp);
+        });
+
+        // Un trascinamento vero (solo mouse, vedi sopra) non deve anche far
+        // scattare il tap sulla barra su cui finisce il rilascio: intercettato
+        // in fase di cattura, prima che l'evento arrivi al listener di
+        // bindDayBars sulla singola barra.
+        scrollEl.addEventListener('click', function (e) {
+          if (justDragged) {
+            e.stopPropagation();
+            e.preventDefault();
+            justDragged = false;
+          }
+        }, true);
+
+        // Suggerimento visivo che si può scorrere: solo la prima volta che
+        // questa pagina viene renderizzata (non ad ogni render(), altrimenti
+        // ripartirebbe anche dopo un semplice salvataggio disponibilità), e
+        // solo se c'è davvero altro da vedere oltre lo schermo. Animazione
+        // fatta a mano frame per frame (non scroll-behavior:smooth, troppo
+        // rapido e non regolabile) per poterla rendere lenta e morbida come
+        // chiesto da Fil il 2026-07-05.
+        if (!scrollHintShown) {
+          scrollHintShown = true;
+          var maxScroll = scrollEl.scrollWidth - scrollEl.clientWidth;
+          if (maxScroll > 4) {
+            var nudge = Math.min(46, maxScroll);
+            window.setTimeout(function () {
+              animateScrollLeft(scrollEl, nudge, 750, function () {
+                window.setTimeout(function () {
+                  animateScrollLeft(scrollEl, 0, 750);
+                }, 260);
+              });
+            }, 1000);
+          }
+        }
+      }
+
+      /* Anima scrollLeft da solo verso "to" in "duration" millisecondi, con
+         una curva ease-in-out (parte piano, accelera, rallenta in fondo) così
+         il "sbandamento" di suggerimento sopra sembra un vero gesto morbido
+         invece di uno scatto. Usata solo per quello, non per il drag manuale
+         (che deve seguire il dito/mouse un frame alla volta, non animare). */
+      function animateScrollLeft(el, to, duration, onDone) {
+        var start = el.scrollLeft;
+        var change = to - start;
+        var startTime = null;
+        function step(ts) {
+          if (startTime === null) startTime = ts;
+          var t = Math.min(1, (ts - startTime) / duration);
+          var eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+          el.scrollLeft = start + change * eased;
+          if (t < 1) {
+            window.requestAnimationFrame(step);
+          } else if (onDone) {
+            onDone();
+          }
+        }
+        window.requestAnimationFrame(step);
+      }
+
+      /* Tocca una barra: apre il fumetto con i nomi sopra di essa, chiudendo
+         quello eventualmente già aperto su un'altra data (una sola alla
+         volta). Fatto senza richiamare render() — sono solo classi/stili
+         locali, niente da salvare, stesso spirito del toggle dei chip qui
+         sotto. Va richiamato dopo ogni render() perché le barre sono
+         rigenerate da zero ad ogni giro. */
+      function bindDayBars() {
+        document.querySelectorAll('.day-bar-col').forEach(function (col) {
+          col.addEventListener('click', function () {
+            var wasOpen = col.classList.contains('bar-selected');
+            document.querySelectorAll('.day-bar-col.bar-selected').forEach(function (other) {
+              other.classList.remove('bar-selected');
+              var b = other.querySelector('.day-bar-bubble');
+              if (b) b.style.display = 'none';
+              var badge = other.querySelector('.day-bar-badge');
+              if (badge) badge.classList.remove('selected');
+              var fill = other.querySelector('.day-bar-fill');
+              if (fill) fill.classList.remove('selected');
+            });
+            if (!wasOpen) {
+              col.classList.add('bar-selected');
+              var bubble = col.querySelector('.day-bar-bubble');
+              if (bubble) bubble.style.display = '';
+              var badge2 = col.querySelector('.day-bar-badge');
+              if (badge2) badge2.classList.add('selected');
+              var fill2 = col.querySelector('.day-bar-fill');
+              if (fill2) fill2.classList.add('selected');
+            }
+          });
+        });
+      }
+
+      /* ---------- "Invitati", con lo stato di ognuno ----------
+         Prima chi era assente o non aveva ancora risposto stava in due righe
+         di testo minuscolo, nascoste dietro un "Mostra dettagli" visibile
+         solo all'organizzatore per la parte "chi manca" — a chiunque altro
+         aprisse l'evento restava difficile capire subito chi fosse invitato
+         (Fil, 2026-07-10: "chi c'è a questo evento non sa rispondersi
+         facilmente"). Ora è un unico elenco sempre visibile, a tutti, con lo
+         stato di ciascuno accanto al nome. Parte dagli invitati "ufficiali"
+         (event.invitees) e aggiunge chi si è unito da solo con un invito
+         aperto e non era già tra loro; l'organizzatore non compare mai qui,
+         è sempre presente per definizione (vedi il messaggio dedicato più
+         sopra). La barra "Chi c'è per ogni giorno" resta un'altra cosa,
+         serve a capire quale data sta vincendo — questo elenco risponde
+         invece a "chi è invitato, punto". */
+      function buildInviteesRosterHTML() {
+        var participants = event.participants || [];
+        var organizerLower = (event.createdBy || '').trim().toLowerCase();
+
+        var participantByName = {};
+        participants.forEach(function (p) {
+          participantByName[(p.name || '').trim().toLowerCase()] = p;
+        });
+
+        var names = (event.invitees || []).map(function (f) { return f.name; });
+        var namesLower = names.map(function (n) { return n.trim().toLowerCase(); });
+        participants.forEach(function (p) {
+          var lower = (p.name || '').trim().toLowerCase();
+          if (!lower || lower === organizerLower) return;
+          if (namesLower.indexOf(lower) === -1) {
+            names.push(p.name);
+            namesLower.push(lower);
+          }
+        });
+        if (!names.length) return '';
+
+        // Chi c'è prima, poi chi manca a rispondere, poi chi ha detto di no:
+        // così le informazioni più utili ("chi viene") si leggono subito,
+        // senza dover scorrere tutta la lista.
+        var STATUS_ORDER = { available: 0, pending: 1, absent: 2 };
+        var rows = names.map(function (name) {
+          var participant = participantByName[name.trim().toLowerCase()];
+          var statusKey = !participant ? 'pending' : ((participant.availableDateOptionIds || []).length > 0 ? 'available' : 'absent');
+          var statusHTML = statusKey === 'available'
+            ? '<span style="color:var(--mint);">✅ Disponibile</span>'
+            : statusKey === 'absent'
+              ? '<span style="color:var(--cancel);">❌ Assente</span>'
+              : '<span style="color:var(--ink-soft);">⏳ Non ha risposto</span>';
+          return { name: name, statusKey: statusKey, statusHTML: statusHTML };
+        }).sort(function (a, b) { return STATUS_ORDER[a.statusKey] - STATUS_ORDER[b.statusKey]; });
+
+        var rowsHTML = rows.map(function (row) {
+          return ''
+            + '<div class="settings-row" style="margin-bottom:6px;">'
+            + '<div class="left">' + CiSiamoData.escapeHTML(row.name) + '</div>'
+            + '<div style="font-size:12.5px; font-weight:600;">' + row.statusHTML + '</div>'
+            + '</div>';
+        }).join('');
+
+        return ''
+          + '<div class="section-title first">Invitati</div>'
+          + rowsHTML;
+      }
+
+      /* ---------- organizzatore: è cambiata idea rispetto al "sempre presente"? ----------
+         Alla creazione l'organizzatore viene inserito come partecipante disponibile
+         su TUTTE le date (vedi createEvent in data.js): finché non tocca nulla, resta
+         così. Se in seguito modifica i suoi giorni (un imprevisto, ecc.), questo
+         confronto lo rileva e si passa a mostrargli il riepilogo vero e proprio
+         invece del messaggio generico "sei sempre presente". */
+      function organizerHasCustomAvailability(participant) {
+        if (!participant) return false;
+        var ids = participant.availableDateOptionIds || [];
+        var allIds = event.dateOptions.map(function (o) { return o.id; });
+        if (ids.length !== allIds.length) return true;
+        return allIds.some(function (id) { return ids.indexOf(id) === -1; });
+      }
+
+      /* ---------- sezione "quando sei disponibile" ----------
+         Niente più campo "il tuo nome": l'identità arriva da CiSiamoData
+         (account o nome ospite già impostato altrove). Se non c'è ancora
+         nessun nome su questo dispositivo, non si può rispondere da qui. */
+      function buildAvailabilitySectionHTML() {
+        var existingParticipant = findExistingParticipant();
+
+        // stato di base, mai toccato: messaggio fisso + un tasto per modificarlo
+        // (utile se dopo aver creato l'evento salta fuori un impegno un giorno).
+        if (isOrganizer && !editingAvailability && !organizerHasCustomAvailability(existingParticipant)) {
+          return ''
+            + '<div class="section-title">La tua disponibilità</div>'
+            + '<div class="card-date" style="margin:0 2px 14px;">Sei tu che organizzi: sei già conteggiato come presente in tutte le date proposte.</div>'
+            + '<div class="add-date-btn" id="editOrganizerAvailabilityBtn" style="margin-bottom:0;">✏️ Modifica i giorni in cui ci sei</div>';
+        }
+
+        if (!guestName) {
+          return ''
+            + '<div class="section-title">La tua disponibilità</div>'
+            + '<div class="empty-hint">Imposta prima un nome dal tuo profilo per poter rispondere.<br><a href="profilo.html">Vai al profilo →</a></div>';
+        }
+
+        if (existingParticipant && !editingAvailability) {
+          var ids = existingParticipant.availableDateOptionIds || [];
+          var summaryText;
+          if (ids.length) {
+            var labels = event.dateOptions
+              .filter(function (o) { return ids.indexOf(o.id) !== -1; })
+              .map(function (o) { return CiSiamoData.formatDateLabel(o.dateISO); });
+            summaryText = 'Sei disponibile: <b>' + labels.map(CiSiamoData.escapeHTML).join(', ') + '</b>';
+          } else {
+            summaryText = 'Hai indicato di <b>non essere mai disponibile</b> per questo evento.';
+          }
+          return ''
+            + '<div class="section-title">La tua disponibilità</div>'
+            + '<div class="card-date" style="margin:0 2px 14px;">' + summaryText + '</div>'
+            + '<div class="add-date-btn" id="changeAvailabilityBtn" style="margin-bottom:0;">Cambia la tua disponibilità →</div>';
+        }
+
+        var preselected = existingParticipant ? (existingParticipant.availableDateOptionIds || []) : [];
+
+        // Con una sola data proposta non ha senso un selettore "quale giorno":
+        // non c'è scelta. Due bottoni semplici (Fil, 2026-07-10) al posto del
+        // chip + "Conferma disponibilità" + "Non sono mai disponibile".
+        if (event.dateOptions.length === 1) {
+          return ''
+            + '<div class="section-title">Ci sarai?</div>'
+            + '<div class="form-error" id="formError"></div>'
+            + '<button type="button" class="primary-btn" id="singleDateYesBtn" data-option-id="' + event.dateOptions[0].id + '">✅ Ci sono</button>'
+            + '<div class="add-date-btn" id="singleDateNoBtn" style="margin-top:10px;">Non ci sono</div>';
+        }
+
+        var chipsHTML = event.dateOptions.map(function (opt) {
+          var selected = preselected.indexOf(opt.id) !== -1;
+          return '<div class="chip' + (selected ? ' selected' : '') + '" data-option-id="' + opt.id + '">'
+            + '<div class="chip-date">' + CiSiamoData.escapeHTML(CiSiamoData.formatDateLabel(opt.dateISO)) + '</div>'
+            + '<div class="chip-check">✓</div>'
+            + '</div>';
+        }).join('');
+
+        return ''
+          + '<div class="section-title">Quando sei disponibile?</div>'
+          + '<div class="chip-list" id="chipList">' + chipsHTML + '</div>'
+          + '<div class="form-error" id="formError"></div>'
+          + '<button type="button" class="primary-btn" id="confirmBtn">Conferma disponibilità</button>'
+          + '<div style="text-align:center;"><span class="signup-skip-link" id="neverAvailableBtn">Non sono mai disponibile</span></div>';
+      }
+
+      /* ---------- vista semplificata per evento confermato/passato ----------
+         Fil, 2026-07-07: una volta raggiunta la soglia minima, il "chi c'è per
+         ogni giorno" (barre per data) non ha più senso — c'è una sola data
+         ormai. Si sostituisce tutto il blocco quota + barre + risposta
+         disponibilità + "chi manca a rispondere" con due righe semplici:
+         quando si tiene l'evento, e chi ci sarà (chi aveva segnato quella
+         data come disponibile). Vale sia per "Confermato" che per "Passato"
+         (confermato via AskUserQuestion) — la fase di risposta è considerata
+         chiusa per tutti da quel momento in poi, nessuno può più cambiare
+         la propria disponibilità (anche questo confermato esplicitamente). */
+      function buildConfirmedSummaryHTML(info) {
+        if (!info.bestOption) return '';
+        var attendeeNames = (event.participants || [])
+          .filter(function (p) { return (p.availableDateOptionIds || []).indexOf(info.bestOption.id) !== -1; })
+          .map(function (p) { return p.name; });
+
+        var dateCardHTML = ''
+          + '<div class="confirmed-date-card' + (info.status === 'passato' ? ' passato' : '') + '">'
+          + '<div class="confirmed-date-icon">' + (info.status === 'passato' ? '📖' : '📅') + '</div>'
+          + '<div>'
+          + '<div class="confirmed-date-label">' + (info.status === 'passato' ? 'Si è tenuto' : 'Si terrà') + '</div>'
+          + '<div class="confirmed-date-value">' + CiSiamoData.escapeHTML(CiSiamoData.formatDateLabel(info.bestOption.dateISO)) + '</div>'
+          + '</div>'
+          + '</div>';
+
+        // Foto vera se la persona ha un account con avatar (vedi
+        // attendeeAvatars, caricato una volta prima del primo render con
+        // CiSiamoData.getAvatarsForNames), altrimenti l'iniziale del nome su
+        // sfondo sfumato — stesso stile dell'avatar generico del profilo.
+        var bubblesHTML = attendeeNames.length
+          ? '<div class="attendee-bubbles">' + attendeeNames.map(function (name) {
+              var avatarUrl = attendeeAvatars[name.toLowerCase()];
+              var initial = (name.trim().charAt(0) || '?').toUpperCase();
+              var circleInner = avatarUrl
+                ? '<img src="' + CiSiamoData.escapeHTML(avatarUrl) + '" alt="">'
+                : CiSiamoData.escapeHTML(initial);
+              return ''
+                + '<div class="attendee-bubble">'
+                + '<div class="attendee-bubble-circle">' + circleInner + '</div>'
+                + '<div class="attendee-bubble-name">' + CiSiamoData.escapeHTML(name) + '</div>'
+                + '</div>';
+            }).join('') + '</div>'
+          : '<div class="empty-hint" style="padding:10px 0;">Nessuno segnato per questa data.</div>';
+
+        return ''
+          + '<div class="section-title first">Quando</div>'
+          + dateCardHTML
+          + '<div class="section-title">Chi ci sarà</div>'
+          + bubblesHTML;
+      }
+
+      function render() {
+        var info = CiSiamoData.computeEventStatus(event);
+        var isConfirmedSimple = (info.status === 'done' || info.status === 'passato') && !!info.bestOption;
+        var colorVar = info.status === 'waiting' ? 'var(--sky)'
+          : info.status === 'almost' ? 'var(--butter)'
+          : info.status === 'cancelled' ? 'var(--cancel)'
+          : info.status === 'passato' ? 'var(--ink-soft)'
+          : info.status === 'tie' ? 'var(--butter)'
+          : 'var(--mint)';
+
+        // Ogni evento ha ormai il suo link di invito (event.shareToken): basta
+        // condividere l'indirizzo diretto della pagina, chi lo apre senza
+        // essere già riconosciuto viene mandato da solo a "chi sei tra questi
+        // nomi" (vedi il redirect più sopra, sul gate 'block').
+        var shareUrl = window.location.href;
+        var shareLabel = 'Condividi questo link con gli amici';
+
+        // il link da condividere lo vede solo chi organizza, e solo finché
+        // ha ancora senso invitare gente: una volta confermato (o passato)
+        // non serve più condividere nulla (Fil, 2026-07-07).
+        var shareSectionHTML = (isOrganizer && !isConfirmedSimple)
+          ? ''
+            + '<div class="share-box" id="shareBox">'
+            + '<div class="share-label" id="shareLabel">' + CiSiamoData.escapeHTML(shareLabel) + '</div>'
+            + '<div class="share-row"><input type="text" id="shareLinkInput" readonly value="' + CiSiamoData.escapeHTML(shareUrl) + '"><button type="button" id="shareActionBtn">Condividi</button></div>'
+            + '</div>'
+          : '';
+
+        // Modifica/elimina ora vivono nel menu ⋮ dell'header (vedi
+        // setupHeaderMenu più sotto, legato una sola volta): qui si aggiorna
+        // solo se il menu deve essere visibile, stesso criterio di prima
+        // (organizzatore, evento non ancora passato).
+        var eventMenuWrap = document.getElementById('eventMenuWrap');
+        if (eventMenuWrap) eventMenuWrap.style.display = (isOrganizer && info.status !== 'passato') ? '' : 'none';
+
+        // Tap per vederla a schermo intero (Fil, 2026-07-10): cursor:zoom-in
+        // per far capire che è cliccabile, vedi openPhotoLightbox più sotto.
+        var photoHTML = event.photoUrl
+          ? '<img id="eventPhotoImg" src="' + CiSiamoData.escapeHTML(event.photoUrl) + '" alt="" style="width:100%; height:160px; object-fit:cover; border-radius:18px; margin-bottom:16px; box-shadow:0 6px 18px rgba(58,50,90,0.14); cursor:zoom-in;">'
+          : '';
+
+        var mapsUrl = CiSiamoData.buildMapsUrl(event);
+        var locationHTML = event.locationAddress
+          ? '<div class="card-date" style="margin:2px 2px 16px;">📍 '
+            + (mapsUrl
+              ? '<a href="' + CiSiamoData.escapeHTML(mapsUrl) + '" target="_blank" rel="noopener" style="color:var(--lavender); font-weight:600;">' + CiSiamoData.escapeHTML(event.locationAddress) + '</a>'
+              : CiSiamoData.escapeHTML(event.locationAddress))
+            + '</div>'
+          : '';
+
+        // Solo per chi organizza, solo su un evento annullato: rilancia lo
+        // stesso evento (nome, descrizione, foto, luogo) portando dritti alla
+        // creazione, dove restano solo le date e gli invitati/quota da
+        // scegliere di nuovo (non aveva funzionato con quelli di prima).
+        var repeatBoxHTML = (isOrganizer && info.status === 'cancelled')
+          ? '<div class="add-date-btn" id="repeatEventBtn" style="margin-bottom:20px;">🔁 Ripeti questo evento con nuove date</div>'
+          : '';
+
+        // Unica via d'uscita per un ospite bloccato qui (niente navbar, niente
+        // freccia indietro): un bottone ben visibile verso il profilo, per
+        // registrarsi e tornare a navigare liberamente in tutta l'app.
+        var guestLockBannerHTML = isLockedGuest
+          ? '<div class="share-box" style="text-align:center; margin-bottom:16px;">'
+            + '<div class="share-label" style="margin-bottom:10px;">Stai partecipando come ospite</div>'
+            + '<a class="primary-btn" href="profilo.html" style="display:block; text-decoration:none; margin-bottom:0;">Crea il tuo profilo per accedere a tutta l\'app →</a>'
+            + '</div>'
+          : '';
+
+        var quotaCardHTML = isConfirmedSimple ? '' : ''
+          + '<div class="card reveal">'
+          + '<div class="card-top">'
+          + '<div>'
+          + '<div class="card-title">Quante persone servono</div>'
+          + '<div class="card-date">Quando ' + info.quota + (info.quota === 1 ? ' persona conferma' : ' persone confermano') + ' la stessa data, l\'evento si fissa lì</div>'
+          + '</div>'
+          + '<div class="badge ' + info.status + '">' + CiSiamoData.STATUS_LABELS[info.status] + '</div>'
+          + '</div>'
+          + '<div class="progress-row">'
+          + '<div class="progress-track"><div class="progress-fill" data-progress="' + info.percent + '" data-color="' + colorVar + '"></div></div>'
+          + '<div class="progress-label"><span class="count-up" data-target="' + info.count + '">0</span> di ' + info.quota + ' confermati</div>'
+          + '</div>'
+          + '</div>';
+
+        var inviteesRosterHTML = isConfirmedSimple ? '' : buildInviteesRosterHTML();
+
+        var breakdownSectionHTML = isConfirmedSimple ? '' : ''
+          + '<div class="section-title">Chi c\'è per ogni giorno</div>'
+          + buildDayBreakdownHTML();
+
+        var manualConfirmSectionHTML = buildManualConfirmSectionHTML(info);
+
+        // Su un evento già annullato non ha più senso lasciar scegliere una
+        // data (bug segnalato da Fil, 2026-07-10: "mi fa selezionare la
+        // data" su un evento già annullato) — stesso trattamento "chiuso" di
+        // isConfirmedSimple, solo col messaggio giusto per lo stato.
+        var claimCandidates = isConfirmedSimple ? null : findClaimCandidates();
+        var availabilityHTML = isConfirmedSimple ? ''
+          : info.status === 'cancelled' ? ''
+          : (claimCandidates ? buildClaimPromptHTML(claimCandidates) : buildAvailabilitySectionHTML());
+        var confirmedSummaryHTML = isConfirmedSimple ? buildConfirmedSummaryHTML(info) : '';
+
+        contentEl.innerHTML = ''
+          + guestLockBannerHTML
+          + photoHTML
+          + quotaCardHTML
+          + (info.status === 'cancelled' ? '<div class="card-date" style="margin:2px 2px 16px; color:var(--cancel);">Hanno risposto tutti gli invitati ma non si è raggiunta la quota minima: l\'evento si è annullato automaticamente. Resta visibile qui per una settimana, poi viene eliminato.</div>' : '')
+          + repeatBoxHTML
+          + (event.descriptionAudioUrl
+              ? '<audio controls src="' + CiSiamoData.escapeHTML(event.descriptionAudioUrl) + '" style="width:100%; margin:2px 2px 16px;"></audio>'
+              : (event.description ? '<div class="card-date" style="margin:2px 2px 16px;">' + CiSiamoData.escapeHTML(event.description) + '</div>' : ''))
+          + locationHTML
+          + shareSectionHTML
+          + confirmedSummaryHTML
+          + inviteesRosterHTML
+          + breakdownSectionHTML
+          + manualConfirmSectionHTML
+          + availabilityHTML;
+
+        // rianima/rende cliccabile il contenuto appena creato
+        if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+
+        bindEvents();
+        bindDayBars();
+        bindDayBarsScroll();
+      }
+
+      // Overlay a piena pagina con la foto ingrandita: un tap ovunque sopra
+      // (l'immagine inclusa, vedi il CSS "cursor:zoom-out") la richiude.
+      function openPhotoLightbox(url) {
+        if (!url) return;
+        var overlay = document.createElement('div');
+        overlay.className = 'photo-lightbox';
+        overlay.innerHTML = '<img src="' + CiSiamoData.escapeHTML(url) + '" alt="">';
+        overlay.addEventListener('click', function () { overlay.remove(); });
+        document.body.appendChild(overlay);
+      }
+
+      function bindEvents() {
+        var eventPhotoImg = document.getElementById('eventPhotoImg');
+        if (eventPhotoImg) {
+          eventPhotoImg.addEventListener('click', function () {
+            openPhotoLightbox(event.photoUrl);
+          });
+        }
+
+        document.querySelectorAll('[data-confirm-option]').forEach(function (btn) {
+          btn.addEventListener('click', async function () {
+            var optionId = btn.getAttribute('data-confirm-option');
+            var label = CiSiamoData.formatDateLabel(
+              (event.dateOptions.filter(function (o) { return o.id === optionId; })[0] || {}).dateISO || ''
+            );
+            var sure = window.confirm('Confermare "' + label + '"? L\'evento si fissa lì subito, anche se non tutti hanno ancora risposto. Non si può annullare da qui.');
+            if (!sure) return;
+
+            var originalText = btn.textContent;
+            btn.textContent = 'Confermo...';
+            try {
+              event = await CiSiamoData.confirmEventDate(event.id, optionId);
+            } catch (err) {
+              btn.textContent = originalText;
+              window.alert('Non sono riuscito a confermare (' + err.message + '). Riprova.');
+              return;
+            }
+            render();
+          });
+        });
+
+        // Bottone "Condividi" (prima "Copia"): su telefono usa la vera
+        // condivisione di sistema (Web Share API) così si apre il foglio con
+        // WhatsApp, Messaggi, ecc. — richiesto da Fil il 2026-07-05. Non tutti
+        // i browser desktop la supportano: lì si ripiega sul copia-negli-
+        // appunti di prima, stesso feedback "Copiato ✓".
+        var shareActionBtn = document.getElementById('shareActionBtn');
+        if (shareActionBtn) {
+          shareActionBtn.addEventListener('click', function () {
+            var input = document.getElementById('shareLinkInput');
+
+            if (navigator.share) {
+              navigator.share({ title: 'Ci siamo — ' + event.name, url: input.value })
+                .catch(function () { /* utente ha annullato il foglio di condivisione: nessun errore da mostrare */ });
+              return;
+            }
+
+            var done = function () {
+              shareActionBtn.textContent = 'Copiato ✓';
+              window.setTimeout(function () { shareActionBtn.textContent = 'Condividi'; }, 1500);
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(input.value).then(done).catch(function () {
+                input.select();
+                try { document.execCommand('copy'); done(); } catch (err) { /* ignora */ }
+              });
+            } else {
+              input.select();
+              try { document.execCommand('copy'); done(); } catch (err) { /* ignora */ }
+            }
+          });
+        }
+
+        document.querySelectorAll('#chipList .chip').forEach(function (chip) {
+          chip.addEventListener('click', function () {
+            chip.classList.toggle('selected');
+          });
+        });
+
+        document.querySelectorAll('[data-claim-invitee]').forEach(function (row) {
+          row.addEventListener('click', function () {
+            claimInviteeAs(row.getAttribute('data-claim-invitee'));
+          });
+        });
+        var claimSkipLink = document.getElementById('claimSkipLink');
+        if (claimSkipLink) {
+          claimSkipLink.addEventListener('click', function () {
+            try { sessionStorage.setItem('ci-siamo:claimDismissed:' + event.id, '1'); } catch (err) { /* ignora */ }
+            render();
+          });
+        }
+
+        var confirmBtn = document.getElementById('confirmBtn');
+        if (confirmBtn) {
+          confirmBtn.addEventListener('click', function () {
+            var selectedIds = Array.prototype.map.call(
+              document.querySelectorAll('#chipList .chip.selected'),
+              function (c) { return c.getAttribute('data-option-id'); }
+            );
+            saveAvailability(selectedIds, confirmBtn);
+          });
+        }
+
+        var singleDateYesBtn = document.getElementById('singleDateYesBtn');
+        if (singleDateYesBtn) {
+          singleDateYesBtn.addEventListener('click', function () {
+            saveAvailability([singleDateYesBtn.getAttribute('data-option-id')], singleDateYesBtn);
+          });
+        }
+
+        var singleDateNoBtn = document.getElementById('singleDateNoBtn');
+        if (singleDateNoBtn) {
+          singleDateNoBtn.addEventListener('click', function () {
+            saveAvailability([], singleDateNoBtn);
+          });
+        }
+
+        var neverAvailableBtn = document.getElementById('neverAvailableBtn');
+        if (neverAvailableBtn) {
+          neverAvailableBtn.addEventListener('click', function () {
+            saveAvailability([], neverAvailableBtn);
+          });
+        }
+
+        var changeAvailabilityBtn = document.getElementById('changeAvailabilityBtn');
+        if (changeAvailabilityBtn) {
+          changeAvailabilityBtn.addEventListener('click', function () {
+            editingAvailability = true;
+            render();
+          });
+        }
+
+        var editOrganizerAvailabilityBtn = document.getElementById('editOrganizerAvailabilityBtn');
+        if (editOrganizerAvailabilityBtn) {
+          editOrganizerAvailabilityBtn.addEventListener('click', function () {
+            editingAvailability = true;
+            render();
+          });
+        }
+
+        var repeatEventBtn = document.getElementById('repeatEventBtn');
+        if (repeatEventBtn) {
+          repeatEventBtn.addEventListener('click', function () {
+            // Riusa esattamente il meccanismo di bozza già esistente in
+            // crea.html (lo stesso della "+ Crea una lista amici"): nome,
+            // descrizione, foto e luogo passano così come sono; date, lista
+            // invitati e quota restano vuote apposta, da scegliere da capo.
+            var repeatDraft = {
+              eventName: event.name,
+              description: event.description,
+              locationValue: event.locationAddress || '',
+              selectedLocation: {
+                address: event.locationAddress || null,
+                placeId: event.locationPlaceId || null,
+                lat: (event.locationLat === undefined) ? null : event.locationLat,
+                lng: (event.locationLng === undefined) ? null : event.locationLng
+              },
+              carriedPhotoUrl: event.photoUrl || null,
+              currentStep: 1
+            };
+            try {
+              sessionStorage.setItem('ci-siamo:eventDraft', JSON.stringify(repeatDraft));
+              sessionStorage.setItem('cs-nav-direction', 'forward');
+            } catch (err) { /* ignora: nel peggiore dei casi si riparte da un form vuoto */ }
+
+            var screen = document.querySelector('.screen');
+            if (screen) screen.classList.add('slide-out-left');
+            window.setTimeout(function () { window.location.href = 'crea.html'; }, 160);
+          });
+        }
+
+      }
+
+      /* Salva su Supabase e torna alla vista compatta: niente più navigazione
+         verso la Home, si resta qui a vedere il riepilogo aggiornato. */
+      async function saveAvailability(selectedIds, btnEl) {
+        var formError = document.getElementById('formError');
+        if (formError) formError.textContent = '';
+
+        var originalText = btnEl.textContent;
+        btnEl.disabled = true;
+        btnEl.textContent = 'Salvo...';
+
+        try {
+          event = await CiSiamoData.upsertParticipant(event.id, guestName, selectedIds);
+        } catch (err) {
+          if (formError) formError.textContent = 'Non sono riuscito a salvare la tua disponibilità (' + err.message + '). Riprova.';
+          btnEl.disabled = false;
+          btnEl.textContent = originalText;
+          return;
+        }
+
+        editingAvailability = false;
+        render();
+      }
+
+      /* ---------- menu ⋮ dell'header: Modifica/Elimina ----------
+         Legato una sola volta (non dentro bindEvents, che invece viene
+         richiamato ad ogni render() perché ricostruisce contentEl da zero):
+         questi elementi sono statici nell'header, fuori da contentEl, quindi
+         un bind ripetuto ad ogni render() si accumulerebbe (più listener
+         sullo stesso bottone, conferme multiple). La sola cosa che cambia ad
+         ogni render() è la visibilità del menu (vedi sopra in render()). */
+      function setupHeaderMenu() {
+        var menuBtn = document.getElementById('eventMenuBtn');
+        var dropdown = document.getElementById('eventMenuDropdown');
+        var editLink = document.getElementById('menuEditLink');
+        var deleteBtn = document.getElementById('menuDeleteBtn');
+        var menuDot = document.getElementById('menuDot');
+        if (!menuBtn || !dropdown) return;
+
+        if (editLink) editLink.setAttribute('href', 'crea.html?edit=' + encodeURIComponent(event.id));
+
+        // puntino "c'è qualcosa qui", non un fumetto di testo: meno invasivo
+        // per far notare il menu ⋮ la prima volta che un organizzatore
+        // rivede un suo evento (Fil, 2026-07-07). Sparisce per sempre al
+        // primo click sul menu, su qualunque evento (non serve per ognuno).
+        var MENU_DOT_KEY = 'ci-siamo:hintSeen:menuDot';
+        if (menuDot) {
+          try {
+            if (!localStorage.getItem(MENU_DOT_KEY)) menuDot.style.display = '';
+          } catch (e) { /* ignora */ }
+        }
+
+        menuBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          dropdown.style.display = (dropdown.style.display === 'none') ? '' : 'none';
+          if (menuDot && menuDot.style.display !== 'none') {
+            menuDot.style.display = 'none';
+            try { localStorage.setItem(MENU_DOT_KEY, '1'); } catch (err) { /* ignora */ }
+          }
+        });
+
+        document.addEventListener('click', function () {
+          dropdown.style.display = 'none';
+        });
+        dropdown.addEventListener('click', function (e) { e.stopPropagation(); });
+
+        if (deleteBtn) {
+          deleteBtn.addEventListener('click', async function () {
+            // Non annullabile: conferma esplicita prima di procedere (Fil,
+            // 2026-07-07). Chi aveva risposto disponibile riceve email +
+            // notifica in-app da CiSiamoData.deleteEvent() stesso.
+            dropdown.style.display = 'none';
+            var sure = window.confirm('Eliminare "' + event.name + '"? Chi aveva già risposto disponibile riceverà un avviso. Non si può annullare.');
+            if (!sure) return;
+
+            var originalText = deleteBtn.textContent;
+            deleteBtn.textContent = 'Elimino...';
+            try {
+              await CiSiamoData.deleteEvent(event.id);
+            } catch (err) {
+              deleteBtn.textContent = originalText;
+              window.alert('Non sono riuscito a eliminare l\'evento (' + err.message + '). Riprova.');
+              return;
+            }
+            window.location.href = 'eventi.html';
+          });
+        }
+      }
+      setupHeaderMenu();
+
+      /* ---------- foto profilo per le bolle "chi ci sarà" ----------
+         Caricata una sola volta, solo se l'evento è già confermato/passato
+         (altrimenti le bolle non compaiono e la chiamata sarebbe inutile).
+         Se fallisce, si torna in silenzio alle sole iniziali (vedi
+         buildConfirmedSummaryHTML). */
+      var attendeeAvatars = {};
+      async function loadAttendeeAvatarsIfNeeded() {
+        var info = CiSiamoData.computeEventStatus(event);
+        if ((info.status !== 'done' && info.status !== 'passato') || !info.bestOption) return;
+        var names = (event.participants || [])
+          .filter(function (p) { return (p.availableDateOptionIds || []).indexOf(info.bestOption.id) !== -1; })
+          .map(function (p) { return p.name; });
+        if (!names.length) return;
+        try {
+          var rows = await CiSiamoData.getAvatarsForNames(names);
+          rows.forEach(function (r) {
+            if (r.avatarUrl && r.username) attendeeAvatars[r.username.toLowerCase()] = r.avatarUrl;
+          });
+        } catch (err) { /* ignora: le bolle restano con l'iniziale */ }
+      }
+      await loadAttendeeAvatarsIfNeeded();
+
+      render();
+    })();
+  </script>
+  <script src="script.js"></script>
+
+</body>
+</html>

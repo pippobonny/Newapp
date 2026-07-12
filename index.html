@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Ci siamo — Home</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FF7A29">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Ci siamo">
+<script>
+  /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
+     Android/Chrome 100dvh non combacia col vero window.innerHeight quando
+     l'app gira standalone, e la navbar finisce a metà, sotto la gesture bar.
+     Misuriamo noi lo spazio vero e lo passiamo a style.css via --app-height.
+     Solo in standalone: in Safari normale (scheda del browser) 100dvh da solo
+     si aggiorna già correttamente quando la barra degli indirizzi si nasconde/
+     mostra, mentre un innerHeight misurato una volta e aggiornato solo su
+     resize/orientationchange restava indietro e lasciava una striscia grigia
+     sotto la tab bar (bug notato da Fil su iPhone il 2026-07-05). */
+  (function () {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (!isStandalone) return;
+    function setAppHeight() {
+      document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+    }
+    setAppHeight();
+    window.addEventListener('resize', setAppHeight);
+    window.addEventListener('orientationchange', setAppHeight);
+  })();
+</script>
+</head>
+<body>
+
+  <!-- Splash "veramente breve" solo in Home, solo se sono passate alcune ore
+       dall'ultima volta (non a ogni apertura/navigazione): questo script
+       inline, sincrono, decide SUBITO se nasconderla, prima che il resto
+       della pagina venga dipinto, per non avere nessun flash. La vera
+       animazione di uscita (fade + timestamp aggiornato) la fa
+       initSplashScreen() in script.js, solo quando resta visibile qui. -->
+  <div class="splash-screen" id="splashScreen"><div class="splash-logo">logo</div></div>
+  <script>
+    (function () {
+      try {
+        var SPLASH_MIN_GAP_MS = 3 * 60 * 60 * 1000; // 3 ore: quanto deve passare prima di rivederla
+        var last = parseInt(localStorage.getItem('ci-siamo:splashLastShown'), 10);
+        if (last && (Date.now() - last) < SPLASH_MIN_GAP_MS) {
+          document.getElementById('splashScreen').style.display = 'none';
+        }
+      } catch (e) {}
+    })();
+  </script>
+
+  <div class="phone">
+   <div class="screen">
+    <div class="aurora-bg">
+      <div class="blob b1"></div>
+      <div class="blob b2"></div>
+      <div class="blob b3"></div>
+      <div class="blob b4"></div>
+    </div>
+
+    <div class="top-badge-wrap">
+      <div class="attendance-badge" id="attendanceBadge">🔥 Presente a tutti gli ultimi eventi</div>
+    </div>
+
+    <div class="header">
+      <div class="profile">
+        <div class="avatar" id="homeAvatar">?</div>
+        <div class="greeting">
+          <div class="name" id="homeGreeting">Ciao, Ospite</div>
+          <div class="date" id="todayDate">Oggi</div>
+        </div>
+      </div>
+      <a class="bell" href="notifiche.html">🔔</a>
+    </div>
+
+    <div class="content">
+      <div class="section-title first">Ultime proposte</div>
+      <div id="upcomingList"></div>
+
+      <div id="closedSection"></div>
+    </div>
+   </div>
+
+    <div class="navbar">
+      <a class="nav-item active" href="index.html">
+        <div class="icon">🏠</div>
+      </a>
+      <a class="nav-item" href="eventi.html">
+        <div class="icon">📅</div>
+      </a>
+      <a class="nav-item" href="crea.html">
+        <div class="icon">＋</div>
+      </a>
+      <a class="nav-item" href="amici.html">
+        <div class="icon">👥</div>
+      </a>
+      <a class="nav-item" href="profilo.html">
+        <div class="icon">👤</div>
+      </a>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="data.js"></script>
+  <script>
+    (async function () {
+      /* Entrare qui "dal nulla" (indirizzo diretto, non da un link di invito)
+         richiede un account: niente più "continua senza registrazione" fuori
+         dal flusso di invito (vedi amico.html). Un ospite bloccato su un
+         evento o su una lista viene rimandato lì; chi non ha proprio nessun
+         account e nessun invito attivo vede la schermata "serve un profilo"
+         al posto della Home. */
+      var gate = CiSiamoData.checkAccessGate(null);
+      if (gate.action === 'redirect') {
+        window.location.href = gate.url;
+        return;
+      }
+      if (gate.action === 'block') {
+        document.querySelector('.aurora-bg').style.display = 'none';
+        document.querySelector('.top-badge-wrap').style.display = 'none';
+        document.querySelector('.header').style.display = 'none';
+        document.querySelector('.navbar').style.display = 'none';
+        document.querySelector('.content').innerHTML = CiSiamoData.accountRequiredBlockHTML(
+          'Per vedere gli eventi e organizzarti con gli amici devi prima creare un profilo.'
+        );
+        if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+        return;
+      }
+
+      var guestName = CiSiamoData.getGuestName();
+      document.getElementById('homeGreeting').textContent = 'Ciao, ' + (guestName || 'Ospite');
+
+      var homeAvatarEl = document.getElementById('homeAvatar');
+      var homeAcc = CiSiamoData.getAccount();
+      if (homeAcc && homeAcc.avatarUrl) {
+        homeAvatarEl.innerHTML = '';
+        var homeAvatarImg = document.createElement('img');
+        homeAvatarImg.src = homeAcc.avatarUrl;
+        homeAvatarImg.style.width = '100%';
+        homeAvatarImg.style.height = '100%';
+        homeAvatarImg.style.objectFit = 'cover';
+        homeAvatarImg.style.borderRadius = '50%';
+        homeAvatarEl.appendChild(homeAvatarImg);
+      } else {
+        homeAvatarEl.textContent = guestName ? guestName.trim().charAt(0).toUpperCase() : '👋';
+      }
+
+      var events = await CiSiamoData.getEvents();
+      // Gli eventi annullati NON compaiono più in Home (Fil, 2026-07-10): restano
+      // solo nel tab "Annullati" di Eventi, così la Home mostra solo cose ancora
+      // rilevanti (da confermare, o confermate). "closed" quindi ora è solo
+      // "done". Gli eventi "passato" (confermati e già successi da un po') non
+      // vanno in nessuna delle due sezioni: restano solo nell'archivio del Profilo.
+      var upcoming = events.filter(function (e) {
+        var status = CiSiamoData.computeEventStatus(e).status;
+        return status !== 'done' && status !== 'cancelled' && status !== 'passato';
+      });
+      var closed = events.filter(function (e) {
+        var status = CiSiamoData.computeEventStatus(e).status;
+        return status === 'done';
+      });
+
+      var upcomingList = document.getElementById('upcomingList');
+      if (upcoming.length) {
+        upcomingList.innerHTML = upcoming.map(CiSiamoData.renderEventCardHTML).join('');
+      } else {
+        upcomingList.innerHTML = '<div class="empty-hint">Nessun evento da confermare al momento.<br><a href="crea.html">Proponine uno tu →</a></div>';
+      }
+
+      var closedSection = document.getElementById('closedSection');
+      if (closed.length) {
+        closedSection.innerHTML = '<div class="section-title">Organizzazione chiusa</div>' + closed.map(CiSiamoData.renderEventCardHTML).join('');
+      }
+
+      // le card sopra sono state create ora, dopo il caricamento pagina: bisogna
+      // dire a script.js di (ri)animarle, altrimenti restano invisibili
+      if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+    })();
+  </script>
+  <script src="script.js"></script>
+</body>
+</html>

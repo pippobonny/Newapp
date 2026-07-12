@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Ci siamo — Invito</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FF7A29">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Ci siamo">
+<script>
+  /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
+     Android/Chrome 100dvh non combacia col vero window.innerHeight quando
+     l'app gira standalone, e la navbar finisce a metà, sotto la gesture bar.
+     Misuriamo noi lo spazio vero e lo passiamo a style.css via --app-height.
+     Solo in standalone: in Safari normale (scheda del browser) 100dvh da solo
+     si aggiorna già correttamente quando la barra degli indirizzi si nasconde/
+     mostra, mentre un innerHeight misurato una volta e aggiornato solo su
+     resize/orientationchange restava indietro e lasciava una striscia grigia
+     sotto la tab bar (bug notato da Fil su iPhone il 2026-07-05). */
+  (function () {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (!isStandalone) return;
+    function setAppHeight() {
+      document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+    }
+    setAppHeight();
+    window.addEventListener('resize', setAppHeight);
+    window.addEventListener('orientationchange', setAppHeight);
+  })();
+</script>
+</head>
+<body>
+
+  <div class="phone">
+   <div class="screen">
+    <div class="header simple">
+      <div class="header-title">Invito</div>
+    </div>
+
+    <div class="content" id="inviteContent">
+      <div class="empty-hint">Caricamento...</div>
+    </div>
+   </div>
+
+    <!-- Rimane sempre nascosta in questa pagina: appena l'invito viene confermato
+         (creando un account, accedendo, o continuando senza login) si viene
+         rimandati direttamente alla Home, quindi qui non serve mai mostrarla. -->
+    <div class="navbar" id="mainNavbar" style="display:none;">
+      <a class="nav-item" href="index.html">
+        <div class="icon">🏠</div>
+      </a>
+      <a class="nav-item" href="eventi.html">
+        <div class="icon">📅</div>
+      </a>
+      <a class="nav-item" href="crea.html">
+        <div class="icon">＋</div>
+      </a>
+      <a class="nav-item" href="amici.html">
+        <div class="icon">👥</div>
+      </a>
+      <a class="nav-item" href="profilo.html">
+        <div class="icon">👤</div>
+      </a>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="data.js"></script>
+  <script>
+    (async function () {
+      var searchParams = new URLSearchParams(window.location.search);
+      var token = searchParams.get('token');
+      var contentEl = document.getElementById('inviteContent');
+
+      if (!token) {
+        contentEl.innerHTML = '<div class="empty-hint">Link non valido: manca il codice di invito.<br><a href="index.html">Torna alla Home →</a></div>';
+        return;
+      }
+
+      // Ogni invito è sempre legato a un evento (Fil + Virgi, 2026-07-05): la
+      // lista amici non ha più un suo link, serve solo a compilare gli
+      // invitati quando l'evento viene creato.
+      var event;
+      try {
+        event = await CiSiamoData.getEventInviteInfo(token);
+      } catch (err) {
+        contentEl.innerHTML = '<div class="empty-hint">Non riesco a verificare questo invito (' + CiSiamoData.escapeHTML(err.message) + ').</div>';
+        return;
+      }
+
+      if (!event) {
+        contentEl.innerHTML = '<div class="empty-hint">Questo link di invito non esiste (o non è più valido).<br><a href="index.html">Torna alla Home →</a></div>';
+        return;
+      }
+
+      var eventId = event.id;
+      var invitees = (event.invitees || []).map(function (f) {
+        return { id: f.id, name: f.name, isClaimed: !!f.claimedAt };
+      });
+
+      var ownerLabel = event.createdBy ? event.createdBy : 'Un utente';
+      var ownerInitial = ownerLabel ? ownerLabel.trim().charAt(0).toUpperCase() : '🎉';
+
+      /* Mostra una foto (o un'iniziale testuale) dentro un avatar circolare: stessa
+         funzione di supporto usata in profilo.html per l'anteprima della foto profilo. */
+      function showAvatarImage(el, url) {
+        el.innerHTML = '';
+        var img = document.createElement('img');
+        img.src = url;
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'cover';
+        img.style.borderRadius = '50%';
+        el.appendChild(img);
+      }
+
+      /* ---------- passo 1: "chi sei tra questi?" ----------
+         Un solo link per tutta la lista: chi lo apre sceglie quale dei nomi
+         (messi dal creatore della lista) è lui. I nomi già confermati da
+         qualcun altro restano visibili ma non selezionabili. La card in alto
+         riprende lo stesso stile "floating" dell'avatar+nome della Home, per
+         essere coerente col resto dell'app invece di un semplice paragrafo. */
+      function renderSelection() {
+        var rows = invitees.map(function (f) {
+          if (f.isClaimed) {
+            return ''
+              + '<div class="settings-row" style="opacity:0.55;">'
+              + '<div class="left">' + CiSiamoData.escapeHTML(f.name) + ' <span class="badge done">Confermato</span></div>'
+              + '</div>';
+          }
+          return ''
+            + '<div class="settings-row reveal" data-select-friend="' + f.id + '" style="cursor:pointer;">'
+            + '<div class="left">' + CiSiamoData.escapeHTML(f.name) + '</div>'
+            + '<div style="color:var(--ink-soft);">Sono io →</div>'
+            + '</div>';
+        }).join('');
+
+        var anySelectable = invitees.some(function (f) { return !f.isClaimed; });
+
+        // "Aggiungimi" solo se l'organizzatore ha acceso "chiunque col link
+        // può aggiungersi" in crea.html (Fil, 2026-07-07): senza, chi non è
+        // stato messo in lista non ha modo di entrare da qui.
+        var addSelfRow = event.openInvite
+          ? '<div class="settings-row reveal" id="addSelfRow" style="cursor:pointer; opacity:0.85;">'
+            + '<div class="left">Il mio nome non c\'è</div>'
+            + '<div style="color:var(--ink-soft);">Aggiungimi →</div>'
+            + '</div>'
+          : '';
+
+        contentEl.innerHTML = ''
+          + '<div class="header" style="margin:0 0 18px;">'
+          + '<div class="profile">'
+          + '<div class="avatar">' + CiSiamoData.escapeHTML(ownerInitial) + '</div>'
+          + '<div class="greeting">'
+          + '<div class="name">' + CiSiamoData.escapeHTML(ownerLabel) + '</div>'
+          + '<div class="date">ti ha invitato all\'evento "' + CiSiamoData.escapeHTML(event.name) + '"</div>'
+          + '</div>'
+          + '</div>'
+          + '</div>'
+          + '<div class="card-date" style="margin:0 2px 16px;">Scegli chi sei tra questi nomi.</div>'
+          + rows
+          + addSelfRow
+          + (anySelectable || event.openInvite ? '' : '<div class="empty-hint">Sono già stati confermati tutti i nomi di questo invito.<br><a href="index.html">Vai alla Home →</a></div>');
+
+        if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+
+        contentEl.querySelectorAll('[data-select-friend]').forEach(function (row) {
+          row.addEventListener('click', function () {
+            var friendId = row.getAttribute('data-select-friend');
+            var friend = invitees.filter(function (f) { return f.id === friendId; })[0];
+            if (friend) renderConfirm(friend);
+          });
+        });
+
+        var addSelfRowEl = document.getElementById('addSelfRow');
+        if (addSelfRowEl) addSelfRowEl.addEventListener('click', renderNameEntry);
+      }
+
+      /* ---------- passo 1bis: "il mio nome non c'è" ----------
+         Solo su eventi con invito aperto. Chiede il nome, poi prosegue nello
+         stesso renderConfirm() usato per un invitato già in lista: la sola
+         differenza è che friend.id resta null, e confirmClaim() lo usa per
+         scegliere addSelfAsInvitee() invece di claimEventInvitee(). */
+      function renderNameEntry() {
+        contentEl.innerHTML = ''
+          + '<div class="card-date" style="margin:0 2px 16px;">Come ti chiami?</div>'
+          + '<div class="field"><input type="text" id="selfNameInput" placeholder="Il tuo nome"></div>'
+          + '<div class="form-error" id="selfNameError"></div>'
+          + '<button type="button" class="primary-btn" id="selfNameContinueBtn">Continua →</button>'
+          + '<div class="signup-skip-link" id="selfNameBackLink">← Torna alla lista</div>';
+
+        if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+
+        document.getElementById('selfNameBackLink').addEventListener('click', renderSelection);
+        document.getElementById('selfNameContinueBtn').addEventListener('click', function () {
+          var typedName = document.getElementById('selfNameInput').value.trim();
+          if (!typedName) {
+            document.getElementById('selfNameError').textContent = 'Scrivi il tuo nome.';
+            return;
+          }
+          renderConfirm({ id: null, name: typedName });
+        });
+      }
+
+      /* ---------- passo 2: accedi / registrati (se non hai già un account su questo
+         dispositivo), oppure conferma diretta se ce l'hai già ---------- */
+      function renderConfirm(friend) {
+        var hasAcc = CiSiamoData.hasAccount();
+        var existingGuestName = CiSiamoData.getGuestName() || '';
+
+        if (hasAcc) {
+          contentEl.innerHTML = ''
+            + '<div class="card-date" style="margin:0 2px 16px;">Hai scelto <b>' + CiSiamoData.escapeHTML(friend.name) + '</b>. Sei registrato come <b>' + CiSiamoData.escapeHTML(existingGuestName) + '</b>: verrai aggiunto alla lista con questo nome.</div>'
+            + '<div class="form-error" id="inviteError"></div>'
+            + '<button type="button" class="primary-btn" id="inviteConfirmBtn">Conferma →</button>'
+            + '<div class="signup-skip-link" id="backLink">← Scegli un altro nome</div>';
+
+          document.getElementById('backLink').addEventListener('click', renderSelection);
+          document.getElementById('inviteConfirmBtn').addEventListener('click', function () {
+            confirmClaim(friend, null, CiSiamoData.getAccount().id, this);
+          });
+          return;
+        }
+
+        /* "Accedi" / "Registrati" sono i due pulsanti grandi in evidenza; "Senza
+           login" è solo testo piccolo e centrato tra i due, non una bollicina,
+           apposta per essere meno in vista. La registrazione si apre qui sotto,
+           nella stessa pagina: nessuna navigazione verso profilo.html. */
+        contentEl.innerHTML = ''
+          + '<div class="card-date" style="margin:0 2px 16px;">Hai scelto <b>' + CiSiamoData.escapeHTML(friend.name) + '</b>. Vuoi accedere con un account già esistente o registrarne uno nuovo?</div>'
+          + '<div style="display:flex; gap:10px; margin-bottom:8px;">'
+          + '<button type="button" class="primary-btn" id="goLoginBtn" style="flex:1; margin-bottom:0;">Accedi</button>'
+          + '<button type="button" class="primary-btn" id="goRegisterBtn" style="flex:1; margin-bottom:0; background:var(--card); color:var(--ink); box-shadow:0 2px 8px rgba(58,50,90,0.06);">Registrati</button>'
+          + '</div>'
+          + '<div style="text-align:center; margin-bottom:8px;"><span class="signup-skip-link" id="guestModeLink">Senza login</span></div>'
+          + '<div class="field-hint" style="text-align:center; margin:0 8px 16px;">Con un profilo ritrovi tutti i tuoi eventi in un posto solo. Senza, resti visibile solo per questo evento.</div>'
+          + '<div id="loginPanel">'
+          + '<div class="field"><label>Email</label><input type="email" id="loginEmail" placeholder="latua@email.it"></div>'
+          + '<div class="field"><label>Password</label><input type="password" id="loginPassword" placeholder="La tua password"></div>'
+          + '<div class="field-hint" style="text-align:right; margin-top:-8px;"><a href="#" id="forgotPasswordLink">Password dimenticata?</a></div>'
+          + '</div>'
+          + '<div id="registerPanel" style="display:none;">'
+          + '<div class="profile-header" style="margin-bottom: 14px;">'
+          + '<div class="avatar large" id="regAvatar">?</div>'
+          + '<label class="field-hint" for="regAvatarFile" style="cursor:pointer; color: var(--lavender); font-weight:600; display:inline-block; margin-top:8px;">Carica una foto</label>'
+          + '<input type="file" id="regAvatarFile" accept="image/*" style="display:none;">'
+          + '</div>'
+          + '<div class="field"><label>Nome</label><input type="text" id="regFirstName" placeholder="Il tuo nome"></div>'
+          + '<div class="field"><label>Cognome</label><input type="text" id="regLastName" placeholder="Il tuo cognome"></div>'
+          + '<div class="field"><label>Nome utente (visibile a tutti)</label><input type="text" id="regUsername" placeholder="Come vuoi farti chiamare nell\'app"></div>'
+          + '<div class="field"><label>Email</label><input type="email" id="regEmail" placeholder="latua@email.it"></div>'
+          + '<div class="field"><label>Password</label><input type="password" id="regPassword" placeholder="Scegli una password"></div>'
+          + '<div class="field"><label>Data di nascita</label><input type="date" id="regBirthdate"></div>'
+          + '</div>'
+          + '<div id="guestPanel" style="display:none;">'
+          + '<div class="field"><label>Come ti chiami?</label><input type="text" id="guestNameInput" placeholder="Il tuo nome" value="' + CiSiamoData.escapeHTML(friend.name) + '"></div>'
+          + '</div>'
+          + '<div class="form-error" id="inviteError"></div>'
+          + '<button type="button" class="primary-btn" id="inviteConfirmBtn">Conferma →</button>'
+          + '<div class="signup-skip-link" id="backLink">← Scegli un altro nome</div>';
+
+        if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+
+        var activeMode = 'login';
+        var pendingAvatarFile = null;
+
+        var goLoginBtn = document.getElementById('goLoginBtn');
+        var goRegisterBtn = document.getElementById('goRegisterBtn');
+        var guestModeLink = document.getElementById('guestModeLink');
+        var loginPanel = document.getElementById('loginPanel');
+        var registerPanel = document.getElementById('registerPanel');
+        var guestPanel = document.getElementById('guestPanel');
+        var confirmBtn = document.getElementById('inviteConfirmBtn');
+
+        var regAvatarEl = document.getElementById('regAvatar');
+        var regFirstNameInput = document.getElementById('regFirstName');
+        var regUsernameInput = document.getElementById('regUsername');
+
+        function updateRegAvatarPreview() {
+          if (regAvatarEl.querySelector('img')) return;
+          var source = regUsernameInput.value.trim() || regFirstNameInput.value.trim();
+          regAvatarEl.textContent = source ? source.charAt(0).toUpperCase() : '?';
+        }
+        regUsernameInput.addEventListener('input', updateRegAvatarPreview);
+        regFirstNameInput.addEventListener('input', updateRegAvatarPreview);
+
+        document.getElementById('regAvatarFile').addEventListener('change', function (e) {
+          var file = e.target.files && e.target.files[0];
+          if (!file) return;
+          pendingAvatarFile = file;
+
+          var reader = new FileReader();
+          reader.onload = function (ev) {
+            showAvatarImage(regAvatarEl, ev.target.result);
+          };
+          reader.readAsDataURL(file);
+        });
+
+        function hideAllPanels() {
+          loginPanel.style.display = 'none';
+          registerPanel.style.display = 'none';
+          guestPanel.style.display = 'none';
+          document.getElementById('inviteError').textContent = '';
+        }
+
+        function setConfirmLabel() {
+          confirmBtn.textContent = 'Conferma →';
+        }
+
+        function showLoginPanel() {
+          activeMode = 'login';
+          hideAllPanels();
+          loginPanel.style.display = '';
+          setConfirmLabel();
+        }
+
+        function showRegisterPanel() {
+          activeMode = 'register';
+          hideAllPanels();
+          registerPanel.style.display = '';
+          setConfirmLabel();
+        }
+
+        function showGuestPanel() {
+          activeMode = 'guest';
+          hideAllPanels();
+          guestPanel.style.display = '';
+          setConfirmLabel();
+        }
+
+        goLoginBtn.addEventListener('click', showLoginPanel);
+        goRegisterBtn.addEventListener('click', showRegisterPanel);
+        guestModeLink.addEventListener('click', showGuestPanel);
+
+        document.getElementById('backLink').addEventListener('click', renderSelection);
+
+        /* Stesso "Password dimenticata?" di profilo.html: manda l'email di
+           reset all'indirizzo scritto qui sopra, senza mai rivelare se quella
+           email esiste davvero nell'app. */
+        var forgotPasswordLink = document.getElementById('forgotPasswordLink');
+        forgotPasswordLink.addEventListener('click', async function (e) {
+          e.preventDefault();
+          var errorEl = document.getElementById('inviteError');
+          var email = document.getElementById('loginEmail').value.trim();
+          errorEl.textContent = '';
+          if (!email) {
+            errorEl.textContent = 'Scrivi prima la tua email qui sopra, poi premi di nuovo "Password dimenticata?".';
+            return;
+          }
+
+          var originalText = forgotPasswordLink.textContent;
+          forgotPasswordLink.textContent = 'Invio...';
+          try {
+            await CiSiamoData.requestPasswordReset(email);
+          } catch (err) {
+            errorEl.textContent = 'Non sono riuscito a inviare la richiesta (' + err.message + '). Riprova.';
+            forgotPasswordLink.textContent = originalText;
+            return;
+          }
+          forgotPasswordLink.textContent = originalText;
+
+          if (window.CiSiamoUI) {
+            window.CiSiamoUI.toast('Se quell\'indirizzo esiste, ti abbiamo mandato un\'email col link per scegliere una nuova password.');
+          } else {
+            window.alert('Se quell\'indirizzo esiste, ti abbiamo mandato un\'email col link per scegliere una nuova password.');
+          }
+        });
+
+        confirmBtn.addEventListener('click', async function () {
+          var btn = this;
+          var errorEl = document.getElementById('inviteError');
+          errorEl.textContent = '';
+
+          if (activeMode === 'login') {
+            var email = document.getElementById('loginEmail').value.trim();
+            var password = document.getElementById('loginPassword').value;
+            if (!email || !password) {
+              errorEl.textContent = 'Scrivi email e password.';
+              return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Accesso...';
+            var account;
+            try {
+              account = await CiSiamoData.loginAccount(email, password);
+            } catch (err) {
+              errorEl.textContent = err.message;
+              btn.disabled = false;
+              btn.textContent = 'Conferma →';
+              return;
+            }
+            confirmClaim(friend, null, account.id, btn);
+            return;
+          }
+
+          if (activeMode === 'register') {
+            var firstName = document.getElementById('regFirstName').value.trim();
+            var lastName = document.getElementById('regLastName').value.trim();
+            var regUsername = regUsernameInput.value.trim();
+            var email = document.getElementById('regEmail').value.trim();
+            var regPassword = document.getElementById('regPassword').value;
+            var birthDate = document.getElementById('regBirthdate').value;
+
+            if (!firstName) { errorEl.textContent = 'Scrivi il tuo nome.'; return; }
+            if (!lastName) { errorEl.textContent = 'Scrivi il tuo cognome.'; return; }
+            if (!regUsername) { errorEl.textContent = 'Scegli un nome utente.'; return; }
+            if (!email) { errorEl.textContent = 'Scrivi la tua email.'; return; }
+            if (!regPassword) { errorEl.textContent = 'Scegli una password.'; return; }
+            if (!birthDate) { errorEl.textContent = 'Inserisci la tua data di nascita.'; return; }
+
+            btn.disabled = true;
+            btn.textContent = 'Creo il profilo...';
+
+            var newAccount;
+            try {
+              var avatarUrl;
+              if (pendingAvatarFile) {
+                btn.textContent = 'Carico la foto...';
+                avatarUrl = await CiSiamoData.uploadAvatar(pendingAvatarFile);
+                btn.textContent = 'Creo il profilo...';
+              }
+              newAccount = await CiSiamoData.createAccount({
+                firstName: firstName,
+                lastName: lastName,
+                username: regUsername,
+                email: email,
+                password: regPassword,
+                birthDate: birthDate,
+                avatarUrl: avatarUrl
+              });
+            } catch (err) {
+              errorEl.textContent = err.message;
+              btn.disabled = false;
+              btn.textContent = 'Conferma →';
+              return;
+            }
+
+            confirmClaim(friend, null, newAccount.id, btn);
+            return;
+          }
+
+          var name = document.getElementById('guestNameInput').value.trim();
+          if (!name) {
+            errorEl.textContent = 'Scrivi il tuo nome.';
+            return;
+          }
+          confirmClaim(friend, name, null, btn);
+        });
+      }
+
+      /* ---------- conferma definitiva verso il database ---------- */
+      async function confirmClaim(friend, name, accountId, btn) {
+        var errorEl = document.getElementById('inviteError');
+        btn.disabled = true;
+        btn.textContent = 'Confermo...';
+
+        var result;
+        try {
+          // friend.id nullo = "il mio nome non c'è" (renderNameEntry): non
+          // stiamo confermando un invitato già in lista, ne stiamo creando
+          // uno nuovo. L'RPC ricontrolla comunque open_invite lato server.
+          result = friend.id
+            ? await CiSiamoData.claimEventInvitee(token, friend.id, name, accountId)
+            : await CiSiamoData.addSelfAsInvitee(token, name, accountId);
+        } catch (err) {
+          errorEl.textContent = err.message;
+          btn.disabled = false;
+          btn.textContent = 'Conferma →';
+          return;
+        }
+
+        if (!accountId) {
+          CiSiamoData.setGuestName(name);
+          // Ha scelto esplicitamente "senza login": da qui in poi resta
+          // confinato solo a questo evento finché non si registra o accede —
+          // vedi checkAccessGate in data.js, controllato da tutte le altre
+          // pagine dell'app.
+          CiSiamoData.setGuestLock({ type: 'event', id: eventId });
+        }
+
+        // invece di restare qui, si rimbalza subito sull'evento: il messaggio
+        // di conferma appare come un popup dal basso che sparisce da solo
+        // (vedi initPendingToast in script.js)
+        var toastMessage = 'Sei entrato come ' + result.name + '. Segna la tua disponibilità!';
+        try { sessionStorage.setItem('ci-siamo:toast', toastMessage); } catch (err) { /* ignora */ }
+        window.location.href = 'evento.html?id=' + encodeURIComponent(eventId);
+      }
+
+      renderSelection();
+    })();
+  </script>
+  <script src="script.js"></script>
+</body>
+</html>

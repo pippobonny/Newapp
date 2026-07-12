@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Ci siamo — Amici</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FF7A29">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Ci siamo">
+<script>
+  /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
+     Android/Chrome 100dvh non combacia col vero window.innerHeight quando
+     l'app gira standalone, e la navbar finisce a metà, sotto la gesture bar.
+     Misuriamo noi lo spazio vero e lo passiamo a style.css via --app-height.
+     Solo in standalone: in Safari normale (scheda del browser) 100dvh da solo
+     si aggiorna già correttamente quando la barra degli indirizzi si nasconde/
+     mostra, mentre un innerHeight misurato una volta e aggiornato solo su
+     resize/orientationchange restava indietro e lasciava una striscia grigia
+     sotto la tab bar (bug notato da Fil su iPhone il 2026-07-05). */
+  (function () {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (!isStandalone) return;
+    function setAppHeight() {
+      document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+    }
+    setAppHeight();
+    window.addEventListener('resize', setAppHeight);
+    window.addEventListener('orientationchange', setAppHeight);
+  })();
+</script>
+</head>
+<body>
+
+  <div class="phone">
+   <div class="screen">
+    <div class="header simple">
+      <div class="header-title">Amici</div>
+    </div>
+
+    <div class="content" id="pageContent">
+      <!-- Il contenuto qui sotto viene sostituito con un messaggio bloccante
+           da questo stesso script se non hai ancora un profilo: solo chi ha
+           un account può creare liste amici (vedi commento più sotto). -->
+
+      <!-- Visibile solo se sei arrivato qui da "+ Crea una lista amici" nel
+           form di un evento (crea.html): resta finché non premi tu, così puoi
+           anche aggiungere amici alla lista prima di tornare indietro. -->
+      <div id="returnToEventBanner" style="display:none; margin-bottom:16px;">
+        <div class="share-box" style="text-align:center;">
+          <div class="share-label" style="margin-bottom:10px;">Stai creando un evento</div>
+          <div class="add-date-btn" id="returnToEventBtn" style="margin-bottom:0;">← Torna a creare l'evento</div>
+        </div>
+      </div>
+
+      <div class="card-date" style="margin: 0 2px 16px;">Crea liste di amici (es. "Stretti", "Conoscenti") per compilare più in fretta gli invitati quando proponi un evento.</div>
+
+      <div class="field">
+        <label>Nuova lista amici</label>
+        <input type="text" id="newListInput" placeholder="Es. Amici stretti">
+      </div>
+      <div class="add-date-btn" id="addListBtn">+ Crea lista</div>
+
+      <div class="form-error" id="formError"></div>
+
+      <div class="section-title first">Le tue liste</div>
+      <div id="listsContainer"></div>
+    </div>
+   </div>
+
+    <div class="navbar">
+      <a class="nav-item" href="index.html">
+        <div class="icon">🏠</div>
+      </a>
+      <a class="nav-item" href="eventi.html">
+        <div class="icon">📅</div>
+      </a>
+      <a class="nav-item" href="crea.html">
+        <div class="icon">＋</div>
+      </a>
+      <a class="nav-item active" href="amici.html">
+        <div class="icon">👥</div>
+      </a>
+      <a class="nav-item" href="profilo.html">
+        <div class="icon">👤</div>
+      </a>
+    </div>
+
+    <!-- Popup di gestione di UNA lista amici: si apre cliccando "Gestisci amici" su
+         una card. Evita di dover fare una pagina html separata per ogni lista.
+         Solo un elenco di nomi ad uso tuo (Fil + Virgi, 2026-07-05): niente più
+         link di invito né conferma da parte di chi ci sta dentro. -->
+    <div class="signup-overlay" id="friendListModal" style="display:none;">
+      <div class="signup-modal" style="text-align:left; max-height:74vh; overflow-y:auto;">
+        <div class="list-header" style="margin-bottom:14px;">
+          <div class="card-title" id="friendModalTitle">Lista</div>
+          <div class="list-delete" id="friendModalCloseBtn">Chiudi ✕</div>
+        </div>
+
+        <!-- Campo di ricerca in cima al modal (Fil, 2026-07-10): con la lista
+             amici sotto, il menu a tendina dei suggerimenti account ha sempre
+             spazio libero per aprirsi, invece di restare tagliato dallo
+             scroll del modal quando il campo era in fondo, vicino alla
+             tastiera. -->
+        <div class="inline-add-row">
+          <input type="text" id="friendModalInput" placeholder="Aggiungi amico...">
+          <button type="button" id="friendModalAddBtn">+</button>
+        </div>
+        <div class="form-error" id="friendModalError"></div>
+        <div id="friendModalList" style="margin-top:14px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="data.js"></script>
+  <script src="script.js"></script>
+  <script>
+    (async function () {
+      var pageContent = document.getElementById('pageContent');
+
+      /* Solo chi ha un profilo può creare liste amici: senza, sostituiamo il
+         form + le liste con un messaggio bloccante che invita a crearne uno.
+         Un ospite bloccato da un invito (checkAccessGate) viene invece
+         rimandato al suo evento/lista, dato che Amici non è mai un posto
+         consentito per lui. */
+      var gate = CiSiamoData.checkAccessGate(null);
+      if (gate.action === 'redirect') {
+        window.location.href = gate.url;
+        return;
+      }
+      if (gate.action === 'block') {
+        pageContent.innerHTML = CiSiamoData.accountRequiredBlockHTML(
+          'Per creare liste amici devi prima creare un profilo.'
+        );
+        document.querySelector('.navbar').style.display = 'none';
+        return;
+      }
+
+      var listsContainer = document.getElementById('listsContainer');
+      var newListInput = document.getElementById('newListInput');
+      var addListBtn = document.getElementById('addListBtn');
+      var formError = document.getElementById('formError');
+
+      /* ---------- ritorno a crea.html dopo "+ Crea una lista amici" ---------- */
+      var RETURN_FLAG_KEY = 'ci-siamo:returnToEventCreation';
+      var JUST_CREATED_LIST_KEY = 'ci-siamo:justCreatedListId';
+      var returningToEvent = false;
+      try { returningToEvent = sessionStorage.getItem(RETURN_FLAG_KEY) === '1'; } catch (err) { /* ignora */ }
+
+      if (returningToEvent) {
+        document.getElementById('returnToEventBanner').style.display = '';
+        document.getElementById('returnToEventBtn').addEventListener('click', function () {
+          try { sessionStorage.removeItem(RETURN_FLAG_KEY); } catch (err) { /* ignora */ }
+          try { sessionStorage.setItem('cs-nav-direction', 'backward'); } catch (err) { /* ignora */ }
+          var screen = document.querySelector('.screen');
+          if (screen) screen.classList.add('slide-out-right');
+          window.setTimeout(function () { window.location.href = 'crea.html'; }, 160);
+        });
+      }
+
+      var friendListModal = document.getElementById('friendListModal');
+      var friendModalTitle = document.getElementById('friendModalTitle');
+      var friendModalList = document.getElementById('friendModalList');
+      var friendModalInput = document.getElementById('friendModalInput');
+      var friendModalAddBtn = document.getElementById('friendModalAddBtn');
+      var friendModalError = document.getElementById('friendModalError');
+      var friendModalCloseBtn = document.getElementById('friendModalCloseBtn');
+
+      // Suggerimenti username+foto mentre scrivi (documento "ci-siamo-omonimi.pdf",
+      // Opzione A, Fil 2026-07-07): se scegli un suggerimento, il collegamento
+      // resta per sempre su questo amico (vedi addFriendFromInput più sotto).
+      // Cliccare un suggerimento aggiunge subito l'amico (Fil, 2026-07-10),
+      // niente più "+" da premere dopo.
+      if (window.CiSiamoUI && CiSiamoUI.attachAccountSearch) {
+        CiSiamoUI.attachAccountSearch(friendModalInput, function () { addFriendFromInput(); });
+      }
+
+      var currentLists = [];
+      var openListId = null;
+
+      function friendsSummary(friends) {
+        if (!friends.length) return 'Nessun amico ancora';
+        return friends.length + (friends.length === 1 ? ' amico' : ' amici');
+      }
+
+      async function renderLists() {
+        formError.textContent = '';
+        listsContainer.innerHTML = '<div class="empty-hint">Caricamento...</div>';
+
+        var lists;
+        try {
+          lists = await CiSiamoData.getFriendLists();
+        } catch (err) {
+          listsContainer.innerHTML = '<div class="empty-hint">Non riesco a caricare le liste (' + CiSiamoData.escapeHTML(err.message) + ').</div>';
+          return;
+        }
+
+        currentLists = lists;
+
+        if (!lists.length) {
+          listsContainer.innerHTML = '<div class="empty-hint">Non hai ancora nessuna lista.<br>Creane una qui sopra.</div>';
+        } else {
+          listsContainer.innerHTML = lists.map(function (list) {
+            return ''
+              + '<div class="card reveal friend-list-card" data-list-id="' + list.id + '">'
+              + '<div class="list-header">'
+              + '<div class="card-title">' + CiSiamoData.escapeHTML(list.name) + '</div>'
+              + '<div class="list-delete" data-delete-list="' + list.id + '">Elimina lista ✕</div>'
+              + '</div>'
+              + '<div class="card-date" style="margin-top:2px;">' + friendsSummary(list.friends) + '</div>'
+              + '<div class="add-date-btn" data-manage-list="' + list.id + '" style="margin-top:12px; margin-bottom:0;">Gestisci amici →</div>'
+              + '</div>';
+          }).join('');
+        }
+
+        // se il popup di gestione lista è già aperto, aggiorna anche quello con i dati freschi
+        if (openListId) {
+          var stillOpen = currentLists.filter(function (l) { return l.id === openListId; })[0];
+          if (stillOpen) {
+            renderModalContent(stillOpen);
+          } else {
+            closeFriendModal();
+          }
+        }
+
+        // rianima/rende cliccabile il contenuto appena creato
+        if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+      }
+
+      // Cache locale { accountId: avatarUrl|null }, così non richiediamo di
+      // nuovo la stessa foto ogni volta che la lista si ridisegna (succede
+      // spesso: dopo ogni aggiunta/rimozione amico si passa da loadLists()).
+      var friendAvatarCache = {};
+
+      function renderModalContent(list) {
+        friendModalTitle.textContent = list.name;
+
+        if (!list.friends.length) {
+          friendModalList.innerHTML = '<div class="empty-hint" style="padding:14px 0;">Nessun amico ancora.<br>Aggiungine uno qui sotto.</div>';
+          return;
+        }
+
+        friendModalList.innerHTML = list.friends.map(function (f) {
+          // Nome collegato per sempre a un account vero (scelto dai
+          // suggerimenti username+foto, non solo testo che combacia per
+          // caso) — vedi "ci-siamo-omonimi.pdf", Fil 2026-07-07. Foto vera
+          // se già in cache, altrimenti l'iniziale finché non arriva
+          // (vedi il fetch qui sotto): mai più un pallino muto.
+          var linkedMarker = '';
+          if (f.accountId) {
+            var avatarUrl = friendAvatarCache[f.accountId];
+            var initial = (f.name.trim().charAt(0) || '?').toUpperCase();
+            linkedMarker = avatarUrl
+              ? '<span class="linked-mini-avatar" title="Collegato a un account"><img src="' + CiSiamoData.escapeHTML(avatarUrl) + '" alt=""></span>'
+              : '<span class="linked-mini-avatar" title="Collegato a un account">' + CiSiamoData.escapeHTML(initial) + '</span>';
+          }
+          return ''
+            + '<div class="settings-row" style="margin-bottom:8px;">'
+            + '<div class="left" style="display:flex; align-items:center;">' + linkedMarker + CiSiamoData.escapeHTML(f.name) + '</div>'
+            + '<span class="friend-remove" data-remove-friend="' + f.id + '">✕</span>'
+            + '</div>';
+        }).join('');
+
+        var missingIds = list.friends
+          .map(function (f) { return f.accountId; })
+          .filter(function (id) { return id && !(id in friendAvatarCache); });
+        if (missingIds.length && window.CiSiamoData && CiSiamoData.getAvatarsForAccountIds) {
+          CiSiamoData.getAvatarsForAccountIds(missingIds).then(function (avatarMap) {
+            missingIds.forEach(function (id) {
+              friendAvatarCache[id] = (avatarMap[id] && avatarMap[id].avatarUrl) || null;
+            });
+            if (openListId === list.id) renderModalContent(list);
+          }).catch(function () { /* niente foto, resta l'iniziale: non blocca nulla */ });
+        }
+      }
+
+      function openFriendModal(listId) {
+        var list = currentLists.filter(function (l) { return l.id === listId; })[0];
+        if (!list) return;
+        openListId = listId;
+        friendModalInput.value = '';
+        friendModalError.textContent = '';
+        renderModalContent(list);
+        friendListModal.style.display = '';
+      }
+
+      function closeFriendModal() {
+        openListId = null;
+        friendListModal.style.display = 'none';
+      }
+
+      addListBtn.addEventListener('click', async function () {
+        var name = newListInput.value.trim();
+        if (!name) {
+          formError.textContent = 'Scrivi un nome per la lista.';
+          return;
+        }
+        var newList;
+        try {
+          newList = await CiSiamoData.createFriendList(name);
+        } catch (err) {
+          formError.textContent = 'Non sono riuscito a creare la lista (' + err.message + ').';
+          return;
+        }
+        // se stai tornando a un evento in bozza, ricorda quale lista hai appena
+        // creato: crea.html la preseleziona da sola quando torni indietro
+        if (returningToEvent && newList) {
+          try { sessionStorage.setItem(JUST_CREATED_LIST_KEY, newList.id); } catch (err) { /* ignora */ }
+        }
+        newListInput.value = '';
+        await renderLists();
+        // Fil, 2026-07-05: appena crei la lista si apre subito il popup per
+        // aggiungere amici, invece di doverlo riaprire tu da "Gestisci amici".
+        if (newList) {
+          openFriendModal(newList.id);
+          // fumetto "una volta sola" (Fil, 2026-07-07): solo qui, appena crei
+          // una lista, è il momento giusto per spiegare cos'è — non prima,
+          // quando la lista ancora non esiste. Sparisce appena tocchi il
+          // campo per aggiungere il primo amico (a quel punto arriva anche
+          // il fumetto di CiSiamoUI.attachAccountSearch, in sequenza).
+          if (window.CiSiamoUI && CiSiamoUI.showOnceHint) {
+            CiSiamoUI.showOnceHint('friendListConcept', friendModalList.parentElement,
+              'Una lista amici è solo un elenco di nomi pronti da riusare: non invita nessuno adesso, serve solo per compilare più in fretta i prossimi eventi.',
+              friendModalInput, ['focus']);
+          }
+        }
+      });
+
+      listsContainer.addEventListener('click', async function (e) {
+        var deleteListId = e.target.getAttribute('data-delete-list');
+        if (deleteListId) {
+          if (window.confirm('Eliminare questa lista di amici?')) {
+            await CiSiamoData.deleteFriendList(deleteListId);
+            renderLists();
+          }
+          return;
+        }
+
+        var manageListId = e.target.getAttribute('data-manage-list');
+        if (manageListId) {
+          openFriendModal(manageListId);
+        }
+      });
+
+      friendModalCloseBtn.addEventListener('click', closeFriendModal);
+
+      // click fuori dalla card (sullo sfondo scuro) chiude il popup
+      friendListModal.addEventListener('click', function (e) {
+        if (e.target === friendListModal) closeFriendModal();
+      });
+
+      // Estratta in una funzione a sé (non solo il click del "+") perché la
+      // richiama anche CiSiamoUI.attachAccountSearch qui sotto: cliccare un
+      // profilo trovato nel menu di ricerca deve aggiungerlo subito, senza
+      // dover premere "+" un'altra volta (Fil, 2026-07-10).
+      async function addFriendFromInput() {
+        var name = friendModalInput.value.trim();
+        if (!name) {
+          friendModalError.textContent = 'Scrivi un nome.';
+          return;
+        }
+        friendModalError.textContent = '';
+
+        // Se il testo combacia ancora con un suggerimento scelto (username+foto),
+        // il collegamento resta sull'amico per sempre (Fil, 2026-07-07) — vedi
+        // CiSiamoUI.attachAccountSearch: si annulla da solo se modifichi il testo.
+        var linkedAccountId = (friendModalInput.dataset.linkedUsername === name)
+          ? (friendModalInput.dataset.linkedAccountId || null)
+          : null;
+
+        try {
+          await CiSiamoData.addFriendToList(openListId, name, linkedAccountId);
+        } catch (err) {
+          friendModalError.textContent = 'Non sono riuscito ad aggiungere l\'amico (' + err.message + ').';
+          return;
+        }
+        friendModalInput.value = '';
+        delete friendModalInput.dataset.linkedAccountId;
+        delete friendModalInput.dataset.linkedUsername;
+        renderLists();
+      }
+
+      friendModalAddBtn.addEventListener('click', addFriendFromInput);
+
+      friendModalInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') friendModalAddBtn.click();
+      });
+
+      friendModalList.addEventListener('click', async function (e) {
+        var removeFriendId = e.target.getAttribute('data-remove-friend');
+        if (removeFriendId) {
+          await CiSiamoData.removeFriendFromList(openListId, removeFriendId);
+          renderLists();
+        }
+      });
+
+      renderLists();
+    })();
+  </script>
+</body>
+</html>

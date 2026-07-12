@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Ci siamo — Eventi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FF7A29">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Ci siamo">
+<script>
+  /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
+     Android/Chrome 100dvh non combacia col vero window.innerHeight quando
+     l'app gira standalone, e la navbar finisce a metà, sotto la gesture bar.
+     Misuriamo noi lo spazio vero e lo passiamo a style.css via --app-height.
+     Solo in standalone: in Safari normale (scheda del browser) 100dvh da solo
+     si aggiorna già correttamente quando la barra degli indirizzi si nasconde/
+     mostra, mentre un innerHeight misurato una volta e aggiornato solo su
+     resize/orientationchange restava indietro e lasciava una striscia grigia
+     sotto la tab bar (bug notato da Fil su iPhone il 2026-07-05). */
+  (function () {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (!isStandalone) return;
+    function setAppHeight() {
+      document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+    }
+    setAppHeight();
+    window.addEventListener('resize', setAppHeight);
+    window.addEventListener('orientationchange', setAppHeight);
+  })();
+</script>
+</head>
+<body>
+
+  <div class="phone">
+   <div class="screen">
+    <div class="header simple">
+      <div class="header-title">I tuoi eventi</div>
+    </div>
+
+    <div class="content">
+      <div class="pill-row">
+        <div class="pill active" data-filter="confermati">Confermati</div>
+        <div class="pill" data-filter="attesa">In attesa</div>
+        <div class="pill" data-filter="annullati">Annullati</div>
+        <div class="pill" data-filter="tutti">Tutti</div>
+      </div>
+
+      <div id="eventsList"></div>
+    </div>
+   </div>
+
+    <div class="navbar">
+      <a class="nav-item" href="index.html">
+        <div class="icon">🏠</div>
+      </a>
+      <a class="nav-item active" href="eventi.html">
+        <div class="icon">📅</div>
+      </a>
+      <a class="nav-item" href="crea.html">
+        <div class="icon">＋</div>
+      </a>
+      <a class="nav-item" href="amici.html">
+        <div class="icon">👥</div>
+      </a>
+      <a class="nav-item" href="profilo.html">
+        <div class="icon">👤</div>
+      </a>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="data.js"></script>
+  <script>
+    (async function () {
+      /* Stessa regola d'accesso di tutta l'app: senza account, si vede questa
+         pagina solo se un lock ti confina qui (mai il caso per Eventi, che
+         non è mai il "posto giusto" per un ospite bloccato) — altrimenti la
+         schermata "serve un profilo" al posto della lista. */
+      var gate = CiSiamoData.checkAccessGate(null);
+      if (gate.action === 'redirect') {
+        window.location.href = gate.url;
+        return;
+      }
+      if (gate.action === 'block') {
+        document.querySelector('.navbar').style.display = 'none';
+        document.querySelector('.content').innerHTML = CiSiamoData.accountRequiredBlockHTML(
+          'Per vedere i tuoi eventi devi prima creare un profilo.'
+        );
+        if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+        return;
+      }
+
+      var events = await CiSiamoData.getEvents();
+
+      // Gli eventi "passato" (confermati e già successi da un po') restano
+      // solo nell'archivio del Profilo: qui non compaiono in nessun filtro,
+      // nemmeno "Tutti".
+      events = events.filter(function (e) { return CiSiamoData.computeEventStatus(e).status !== 'passato'; });
+
+      var listEl = document.getElementById('eventsList');
+      var pills = document.querySelectorAll('.pill');
+
+      function matches(event, filter) {
+        var status = CiSiamoData.computeEventStatus(event).status;
+        if (filter === 'tutti') return true;
+        if (filter === 'attesa') return status === 'waiting' || status === 'almost';
+        if (filter === 'confermati') return status === 'done';
+        if (filter === 'annullati') return status === 'cancelled';
+        return true;
+      }
+
+      function render(filter) {
+        var filtered = events.filter(function (e) { return matches(e, filter); });
+        if (filtered.length) {
+          listEl.innerHTML = filtered.map(CiSiamoData.renderEventCardHTML).join('');
+        } else {
+          listEl.innerHTML = '<div class="empty-hint">Nessun evento in questa categoria.</div>';
+        }
+        // rianima/rende cliccabile il contenuto appena creato
+        if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+      }
+
+      pills.forEach(function (pill) {
+        pill.addEventListener('click', function () {
+          pills.forEach(function (p) { p.classList.remove('active'); });
+          pill.classList.add('active');
+          render(pill.getAttribute('data-filter'));
+        });
+      });
+
+      render('confermati');
+    })();
+  </script>
+  <script src="script.js"></script>
+</body>
+</html>

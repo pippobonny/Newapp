@@ -1,0 +1,14 @@
+{
+  "name": "Ci siamo",
+  "short_name": "Ci siamo",
+  "description": "Organizza eventi con i tuoi amici",
+  "start_url": "index.html",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#EDE3E6",
+  "theme_color": "#FF7A29",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

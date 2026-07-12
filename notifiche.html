@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Ci siamo — Notifiche</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FF7A29">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Ci siamo">
+<script>
+  /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
+     Android/Chrome 100dvh non combacia col vero window.innerHeight quando
+     l'app gira standalone, e la navbar finisce a metà, sotto la gesture bar.
+     Misuriamo noi lo spazio vero e lo passiamo a style.css via --app-height.
+     Solo in standalone: in Safari normale (scheda del browser) 100dvh da solo
+     si aggiorna già correttamente quando la barra degli indirizzi si nasconde/
+     mostra, mentre un innerHeight misurato una volta e aggiornato solo su
+     resize/orientationchange restava indietro e lasciava una striscia grigia
+     sotto la tab bar (bug notato da Fil su iPhone il 2026-07-05). */
+  (function () {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (!isStandalone) return;
+    function setAppHeight() {
+      document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+    }
+    setAppHeight();
+    window.addEventListener('resize', setAppHeight);
+    window.addEventListener('orientationchange', setAppHeight);
+  })();
+</script>
+</head>
+<body>
+
+  <div class="phone">
+   <div class="screen">
+    <div class="header simple">
+      <a class="back-btn" href="index.html">←</a>
+      <div class="header-title">Notifiche</div>
+    </div>
+
+    <div class="content" id="notifList">
+      <div class="empty-hint">Caricamento...</div>
+    </div>
+   </div>
+
+    <div class="navbar">
+      <a class="nav-item" href="index.html">
+        <div class="icon">🏠</div>
+      </a>
+      <a class="nav-item" href="eventi.html">
+        <div class="icon">📅</div>
+      </a>
+      <a class="nav-item" href="crea.html">
+        <div class="icon">＋</div>
+      </a>
+      <a class="nav-item" href="amici.html">
+        <div class="icon">👥</div>
+      </a>
+      <a class="nav-item" href="profilo.html">
+        <div class="icon">👤</div>
+      </a>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="data.js"></script>
+  <script>
+    (async function () {
+      /* Notifiche "vere" ma semplici: niente letto/non letto, si ricalcolano
+         da zero ogni volta che apri questa scheda, guardando lo stato attuale
+         dei tuoi eventi e delle tue liste. Riguardano solo chi ha un account
+         (un ospite non ha nessuna lista/evento "suo" da tracciare). */
+      var listEl = document.getElementById('notifList');
+
+      /* Stessa regola d'accesso di tutta l'app: Notifiche non è mai il "posto
+         giusto" per un ospite bloccato su un invito, quindi qui basta sapere
+         se bisogna rimandarlo altrove o mostrare "serve un profilo". */
+      var gate = CiSiamoData.checkAccessGate(null);
+      if (gate.action === 'redirect') {
+        window.location.href = gate.url;
+        return;
+      }
+      if (gate.action === 'block') {
+        document.querySelector('.navbar').style.display = 'none';
+        listEl.innerHTML = CiSiamoData.accountRequiredBlockHTML(
+          'Per vedere le notifiche dei tuoi eventi e delle tue liste devi prima creare un profilo.'
+        );
+        if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+        return;
+      }
+
+      var myUsername = (CiSiamoData.getGuestName() || '').toLowerCase();
+
+      /* "2 ore fa" / "Ieri" / "3 giorni fa" ecc. a partire da un timestamp
+         Postgres (es. event.createdAt o friend.claimedAt). */
+      function timeAgo(dateStr) {
+        if (!dateStr) return '';
+        var diffMs = Date.now() - new Date(dateStr).getTime();
+        var diffMin = Math.floor(diffMs / 60000);
+        if (diffMin < 1) return 'Adesso';
+        if (diffMin < 60) return diffMin + (diffMin === 1 ? ' minuto fa' : ' minuti fa');
+        var diffH = Math.floor(diffMin / 60);
+        if (diffH < 24) return diffH + (diffH === 1 ? ' ora fa' : ' ore fa');
+        var diffD = Math.floor(diffH / 24);
+        if (diffD === 1) return 'Ieri';
+        if (diffD < 7) return diffD + ' giorni fa';
+        var diffW = Math.floor(diffD / 7);
+        if (diffW < 5) return diffW + (diffW === 1 ? ' settimana fa' : ' settimane fa');
+        return new Date(dateStr).toLocaleDateString('it-IT', { day: 'numeric', month: 'long' });
+      }
+
+      var events;
+      try {
+        events = await CiSiamoData.getEvents();
+      } catch (err) {
+        listEl.innerHTML = '<div class="empty-hint">Non riesco a caricare le notifiche (' + CiSiamoData.escapeHTML(err.message) + ').</div>';
+        return;
+      }
+
+      /* Avvisi "congelati" per modifiche/eliminazioni di eventi che nel
+         frattempo potrebbero non esistere più (vedi event_notices in
+         data.js): si aggiungono agli altri, stesso formato, prima di
+         ordinare e tagliare a 20. Se questa lettura fallisce, le altre
+         notifiche restano comunque visibili. */
+      var eventNotices = [];
+      try {
+        eventNotices = await CiSiamoData.getEventNotices(CiSiamoData.getGuestName());
+      } catch (err) { /* ignora: solo queste notifiche in più si perdono */ }
+
+      // getEvents() torna già solo gli eventi "miei" (organizzatore, invitato
+      // per nome, o già partecipante — vedi isEventVisibleToMe in data.js):
+      // non serve più nessun filtro aggiuntivo via lista amici, dato che le
+      // liste non sono più collegate agli eventi dopo la creazione.
+      var notifications = [];
+
+      events.forEach(function (event) {
+        var info = CiSiamoData.computeEventStatus(event);
+        var ts = event.createdAt;
+        var iAmOrganizer = !!(event.createdBy && event.createdBy.toLowerCase() === myUsername);
+
+        if (info.status === 'cancelled') {
+          notifications.push({
+            icon: 'cancelled', emoji: '🚫', time: ts,
+            text: '<b>' + CiSiamoData.escapeHTML(event.name) + '</b> è stato annullato: non si è raggiunta la quota minima.'
+          });
+        } else if (info.status === 'done') {
+          notifications.push({
+            icon: 'confirmed', emoji: '✅', time: ts,
+            text: '<b>' + CiSiamoData.escapeHTML(event.name) + '</b> è confermato!'
+          });
+        } else if (info.status === 'almost') {
+          var missing = info.quota - info.count;
+          notifications.push({
+            icon: 'quota', emoji: '🎉', time: ts,
+            text: '<b>' + CiSiamoData.escapeHTML(event.name) + '</b> ha quasi raggiunto la quota: manca' + (missing === 1 ? '' : 'no') + ' ' + missing + (missing === 1 ? ' persona' : ' persone') + '.'
+          });
+        } else if (!iAmOrganizer) {
+          // "Nuova proposta" solo se non l'hai creato tu: non ha senso avvisarti
+          // di un evento che hai appena proposto tu stesso.
+          notifications.push({
+            icon: 'new', emoji: '📅', time: ts,
+            text: 'Nuova proposta: <b>' + CiSiamoData.escapeHTML(event.name) + '</b>. Segna la tua disponibilità.'
+          });
+        }
+
+        // Chi ha scelto il proprio nome dal link di invito di questo evento
+        // (vedi amico.html): notifica solo per chi organizza, come prima
+        // avveniva per chi si aggiungeva a una lista amici.
+        if (iAmOrganizer) {
+          (event.invitees || []).forEach(function (f) {
+            if (f.claimedAt) {
+              notifications.push({
+                icon: 'friend', emoji: '👋', time: f.claimedAt,
+                text: '<b>' + CiSiamoData.escapeHTML(f.name) + '</b> è entrato/a nel tuo evento "' + CiSiamoData.escapeHTML(event.name) + '".'
+              });
+            }
+          });
+        }
+      });
+
+      eventNotices.forEach(function (n) {
+        notifications.push({
+          icon: 'cancelled', emoji: n.emoji || '✏️', time: n.createdAt,
+          text: CiSiamoData.escapeHTML(n.message)
+        });
+      });
+
+      notifications.sort(function (a, b) { return new Date(b.time) - new Date(a.time); });
+      notifications = notifications.slice(0, 20);
+
+      if (!notifications.length) {
+        listEl.innerHTML = '<div class="empty-hint">Nessuna notifica per ora.</div>';
+      } else {
+        listEl.innerHTML = notifications.map(function (n) {
+          return ''
+            + '<div class="notif-item reveal">'
+            + '<div class="notif-icon ' + n.icon + '">' + n.emoji + '</div>'
+            + '<div>'
+            + '<div class="notif-text">' + n.text + '</div>'
+            + '<div class="notif-time">' + timeAgo(n.time) + '</div>'
+            + '</div>'
+            + '</div>';
+        }).join('');
+      }
+
+      if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+    })();
+  </script>
+  <script src="script.js"></script>
+</body>
+</html>

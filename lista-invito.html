@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Ci siamo — Sei nella lista</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FF7A29">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Ci siamo">
+<script>
+  /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
+     Android/Chrome 100dvh non combacia col vero window.innerHeight quando
+     l'app gira standalone, e la navbar finisce a metà, sotto la gesture bar.
+     Misuriamo noi lo spazio vero e lo passiamo a style.css via --app-height.
+     Solo in standalone: in Safari normale (scheda del browser) 100dvh da solo
+     si aggiorna già correttamente quando la barra degli indirizzi si nasconde/
+     mostra, mentre un innerHeight misurato una volta e aggiornato solo su
+     resize/orientationchange restava indietro e lasciava una striscia grigia
+     sotto la tab bar (bug notato da Fil su iPhone il 2026-07-05). */
+  (function () {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (!isStandalone) return;
+    function setAppHeight() {
+      document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+    }
+    setAppHeight();
+    window.addEventListener('resize', setAppHeight);
+    window.addEventListener('orientationchange', setAppHeight);
+  })();
+</script>
+</head>
+<body>
+
+  <div class="phone">
+   <div class="screen">
+    <div class="header simple">
+      <div class="header-title">Ci siamo</div>
+    </div>
+
+    <!-- Unica vista per un ospite (senza account) invitato solo a una lista
+         amici, senza nessun evento collegato: niente freccia indietro, niente
+         navbar in fondo alla pagina — l'unico modo di andare avanti da qui è
+         crearsi un profilo (o accedere a uno già esistente). Se scopre di
+         avere già un account, o se il lock non c'è più per qualche motivo,
+         questa pagina si fa da parte da sola (vedi script sotto). -->
+    <div class="content" id="pageContent">
+      <div class="empty-hint">Caricamento...</div>
+    </div>
+   </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="data.js"></script>
+  <script>
+    (function () {
+      var pageContent = document.getElementById('pageContent');
+
+      if (CiSiamoData.hasAccount()) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      var lock = CiSiamoData.getGuestLock();
+      if (!lock || lock.type !== 'list') {
+        // niente da mostrare qui: o non sei mai stato bloccato su una lista,
+        // o il lock è scaduto/è stato tolto — la strada giusta resta comunque
+        // creare un profilo, quindi si va dritti lì.
+        window.location.href = 'profilo.html';
+        return;
+      }
+
+      var guestName = CiSiamoData.getGuestName() || '';
+
+      pageContent.innerHTML = ''
+        + '<div style="text-align:center; padding: 30px 12px;">'
+        + '<div class="signup-modal-icon">🎉</div>'
+        + '<div class="signup-modal-title">Sei entrato nella lista</div>'
+        + '<div class="signup-modal-text">Sei stato aggiunto come <b>' + CiSiamoData.escapeHTML(guestName) + '</b> alla lista'
+        + (lock.name ? ' "' + CiSiamoData.escapeHTML(lock.name) + '"' : '')
+        + (lock.ownerName ? ' di <b>' + CiSiamoData.escapeHTML(lock.ownerName) + '</b>' : '')
+        + '. Per vedere gli eventi, rispondere alle proposte e usare tutto Ci siamo ti basta creare un profilo: si fa in un minuto.</div>'
+        + '<a class="primary-btn" href="profilo.html" style="display:block; text-decoration:none;">Crea il tuo profilo →</a>'
+        + '<a class="signup-skip-link" href="profilo.html?mode=login" style="text-decoration:underline;">Hai già un account? Accedi</a>'
+        + '</div>';
+    })();
+  </script>
+  <script src="script.js"></script>
+</body>
+</html>

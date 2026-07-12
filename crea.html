@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Ci siamo — Crea evento</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FF7A29">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Ci siamo">
+<script>
+  /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
+     Android/Chrome 100dvh non combacia col vero window.innerHeight quando
+     l'app gira standalone, e la navbar finisce a metà, sotto la gesture bar.
+     Misuriamo noi lo spazio vero e lo passiamo a style.css via --app-height.
+     Solo in standalone: in Safari normale (scheda del browser) 100dvh da solo
+     si aggiorna già correttamente quando la barra degli indirizzi si nasconde/
+     mostra, mentre un innerHeight misurato una volta e aggiornato solo su
+     resize/orientationchange restava indietro e lasciava una striscia grigia
+     sotto la tab bar (bug notato da Fil su iPhone il 2026-07-05). */
+  (function () {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (!isStandalone) return;
+    function setAppHeight() {
+      document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+    }
+    setAppHeight();
+    window.addEventListener('resize', setAppHeight);
+    window.addEventListener('orientationchange', setAppHeight);
+  })();
+</script>
+</head>
+<body>
+
+  <div class="phone">
+   <div class="screen">
+    <div class="header simple">
+      <a class="back-btn" href="index.html" id="crBackBtn">←</a>
+      <div class="header-title" id="pageTitle">Nuova proposta</div>
+    </div>
+
+    <div class="content" id="pageContent">
+      <div class="wizard-dots" id="wizardDots">
+        <span class="wizard-dot active" data-step="1"></span>
+        <span class="wizard-dot" data-step="2"></span>
+        <span class="wizard-dot" data-step="3"></span>
+      </div>
+
+      <div class="wizard-step" id="wizardStep1">
+        <div class="field">
+          <label>Nome evento</label>
+          <input type="text" id="eventName" placeholder="Es. Weekend in montagna">
+        </div>
+
+        <div class="field">
+          <label>Descrizione (opzionale)</label>
+          <div class="pill-row" id="descriptionModeTabs">
+            <div class="pill active" data-desc-mode="text">✏️ Testo</div>
+            <div class="pill" data-desc-mode="audio">🎙️ Vocale</div>
+          </div>
+          <div id="descriptionTextPanel">
+            <textarea id="eventDescription" placeholder="Qualche dettaglio in più..."></textarea>
+          </div>
+          <div id="descriptionAudioPanel" style="display:none;">
+            <div id="audioRecorderIdle">
+              <div class="add-date-btn" id="recordAudioBtn" style="margin-bottom:0; text-align:center; user-select:none;">🎙️ Tocca per registrare</div>
+            </div>
+            <div id="audioRecorderRecording" style="display:none; text-align:center; cursor:pointer;">
+              <div style="color:var(--cancel); font-weight:600; margin-bottom:8px;">🔴 Registrazione... <span id="recordTimer">0:00</span></div>
+              <div class="field-hint">Tocca per fermare</div>
+            </div>
+            <div id="audioRecorderDone" style="display:none;">
+              <audio id="audioPreviewPlayer" controls style="width:100%; margin-bottom:8px;"></audio>
+              <div class="add-date-btn" id="redoAudioBtn" style="margin-bottom:0; text-align:center;">🗑️ Rifai la registrazione</div>
+            </div>
+            <div class="field-hint" id="audioHint" style="display:none;"></div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Foto dell'evento (opzionale)</label>
+          <label class="event-photo-preview" id="eventPhotoPreview" for="eventPhotoFile">
+            <span id="eventPhotoEmoji">🖼️</span>
+            <span class="photo-placeholder-text" id="eventPhotoPlaceholder">Carica una tua immagine</span>
+          </label>
+          <input type="file" id="eventPhotoFile" accept="image/*" style="display:none;">
+          <div class="add-date-btn" id="removeEventPhotoBtn" style="display:none; margin-top:8px; margin-bottom:0; text-align:center;">🗑️ Togli foto</div>
+        </div>
+
+        <div class="field">
+          <label>Dove sarà (opzionale)</label>
+          <input type="text" id="eventLocationInput" placeholder="Scrivi un indirizzo o un luogo">
+          <div class="field-hint" id="locationHint" style="display:none;"></div>
+        </div>
+
+        <div class="form-error" id="step1Error"></div>
+
+        <button type="button" class="primary-btn" id="step1NextBtn">Continua →</button>
+      </div>
+
+      <div class="wizard-step" id="wizardStep2" style="display:none;">
+        <div class="field">
+          <label>Manda l'invito a</label>
+          <select id="friendListSelect"></select>
+        </div>
+
+        <div class="field" id="manualNamesField" style="display:none;">
+          <label>Scrivi i nomi degli invitati (uno alla volta)</label>
+          <div class="inline-add-row">
+            <input type="text" id="manualNameInput" placeholder="Nome">
+            <button type="button" id="manualNameAddBtn">+</button>
+          </div>
+          <div id="manualNamesList"></div>
+          <div class="field-hint">Il link che ricevi dopo aver creato l'evento è unico: chi lo apre sceglie il proprio nome tra questi, poi entra come ospite o con un account.</div>
+        </div>
+
+        <div class="field" id="saveAsListField" style="display:none;">
+          <label class="settings-row" style="cursor:pointer; padding:12px 14px; background:var(--card); border-radius:14px; box-shadow:0 2px 8px rgba(58,50,90,0.06);">
+            <input type="checkbox" id="saveAsListCheckbox" style="margin-right:10px; width:16px; height:16px; accent-color: var(--lavender);">
+            <span style="font-size:13px;">Salva anche come lista amici, per riusarla nei prossimi eventi</span>
+          </label>
+        </div>
+
+        <div class="field">
+          <label>Quante persone servono per confermare</label>
+          <select id="eventQuota"></select>
+        </div>
+
+        <div class="field">
+          <label class="settings-row" style="cursor:pointer; padding:12px 14px; background:var(--card); border-radius:14px; box-shadow:0 2px 8px rgba(58,50,90,0.06);">
+            <input type="checkbox" id="openInviteCheckbox" style="margin-right:10px; width:16px; height:16px; accent-color: var(--lavender);">
+            <span style="font-size:13px;">Chiunque abbia il link può aggiungersi, anche se non è nella lista qui sopra</span>
+          </label>
+        </div>
+
+        <div class="form-error" id="step2Error"></div>
+
+        <div style="display:flex; gap:10px; margin-bottom:20px;">
+          <div class="add-date-btn" id="step2BackBtn" style="flex:0 0 110px; margin-bottom:0; cursor:pointer;">← Indietro</div>
+          <button type="button" class="primary-btn" id="step2NextBtn" style="flex:1;">Continua →</button>
+        </div>
+      </div>
+
+      <div class="wizard-step" id="wizardStep3" style="display:none;">
+        <div class="field">
+          <label>Quando può essere l'evento</label>
+          <div class="pill-row" id="dateModeTabs">
+            <div class="pill active" data-mode="range">Range di date</div>
+            <div class="pill" data-mode="singole">Date singole</div>
+            <div class="pill" data-mode="pattern">Ricorrenza</div>
+          </div>
+
+          <div class="date-mode-panel" data-panel="range">
+            <div class="date-row">
+              <input type="date" id="rangeStart">
+              <span style="flex:0 0 auto;color:var(--ink-soft);font-size:13px;">→</span>
+              <input type="date" id="rangeEnd">
+            </div>
+            <div class="field-hint">Ogni giorno nel range diventa un'opzione tra cui scegliere (max 60 giorni).</div>
+          </div>
+
+          <div class="date-mode-panel" data-panel="singole" style="display:none;">
+            <div class="date-row-list" id="dateRowList">
+              <div class="date-row">
+                <input type="date">
+                <div class="remove-date">✕</div>
+              </div>
+              <div class="date-row">
+                <input type="date">
+                <div class="remove-date">✕</div>
+              </div>
+            </div>
+            <div class="add-date-btn" id="addDateBtn">+ Aggiungi un'altra data</div>
+            <div class="field-hint">Ogni data che aggiungi diventa un'opzione tra cui gli invitati scelgono quando possono esserci.</div>
+          </div>
+
+          <div class="date-mode-panel" data-panel="pattern" style="display:none;">
+            <div class="date-row">
+              <select id="patternWeekday">
+                <option value="weekend">Ogni weekend (sab + dom)</option>
+                <option value="1">Ogni lunedì</option>
+                <option value="2">Ogni martedì</option>
+                <option value="3">Ogni mercoledì</option>
+                <option value="4">Ogni giovedì</option>
+                <option value="5">Ogni venerdì</option>
+                <option value="6">Ogni sabato</option>
+                <option value="0">Ogni domenica</option>
+              </select>
+            </div>
+            <div class="date-row">
+              <select id="patternMonth"></select>
+            </div>
+            <div class="field-hint">Genera automaticamente tutte le date che corrispondono, nel mese scelto.</div>
+          </div>
+        </div>
+
+        <div class="form-error" id="formError"></div>
+
+        <div style="display:flex; gap:10px;">
+          <div class="add-date-btn" id="step3BackBtn" style="flex:0 0 110px; margin-bottom:0; cursor:pointer;">← Indietro</div>
+          <button type="button" class="primary-btn" id="createEventBtn" style="flex:1;">Crea e genera link →</button>
+        </div>
+      </div>
+    </div>
+   </div>
+
+    <div class="navbar">
+      <a class="nav-item" href="index.html">
+        <div class="icon">🏠</div>
+      </a>
+      <a class="nav-item" href="eventi.html">
+        <div class="icon">📅</div>
+      </a>
+      <a class="nav-item active" href="crea.html">
+        <div class="icon">＋</div>
+      </a>
+      <a class="nav-item" href="amici.html">
+        <div class="icon">👥</div>
+      </a>
+      <a class="nav-item" href="profilo.html">
+        <div class="icon">👤</div>
+      </a>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="data.js"></script>
+  <script src="script.js"></script>
+  <script>
+    (async function () {
+      /* Solo chi ha un profilo può creare eventi: senza, sostituiamo il form
+         con un messaggio bloccante che invita a crearne uno. Un ospite
+         bloccato da un invito (checkAccessGate) viene invece rimandato al
+         suo evento/lista, dato che Crea non è mai un posto consentito per lui. */
+      var gate = CiSiamoData.checkAccessGate(null);
+      if (gate.action === 'redirect') {
+        window.location.href = gate.url;
+        return;
+      }
+      if (gate.action === 'block') {
+        document.getElementById('pageContent').innerHTML = CiSiamoData.accountRequiredBlockHTML(
+          'Per creare un evento devi prima creare un profilo.'
+        );
+        document.querySelector('.navbar').style.display = 'none';
+        return;
+      }
+
+      // Modalità modifica: crea.html?edit=<id> riusa lo stesso wizard invece
+      // di duplicarlo in una pagina a parte (Fil, 2026-07-07 — "aggiungerei
+      // il modo di modificare un evento"). editingEvent viene popolato più
+      // sotto, dopo che tutti gli helper del form (manualNames, dateRowList
+      // ecc.) esistono già.
+      var editEventId = new URLSearchParams(window.location.search).get('edit');
+      var isEditMode = !!editEventId;
+      var editingEvent = null;
+
+      // Ogni evento deve andare a qualcuno: o una lista amici già pronta, o i
+      // nomi scritti a mano al volo qui sotto (opzione "✏️ Scrivi i nomi a
+      // mano" nel select). In entrambi i casi i nomi vengono solo COPIATI
+      // sull'evento alla creazione (vedi createEventBtn più sotto): la lista
+      // resta un elenco tuo, scollegato dall'evento da quel momento in poi.
+      var friendLists = await CiSiamoData.getFriendLists();
+
+      var dateRowList = document.getElementById('dateRowList');
+      var addDateBtn = document.getElementById('addDateBtn');
+      var formError = document.getElementById('formError');
+      var step1Error = document.getElementById('step1Error');
+      var step2Error = document.getElementById('step2Error');
+
+      // Solo chi ha un account arriva fin qui (vedi il blocco "Serve un profilo"
+      // qui sopra): l'organizzatore è sempre e solo il nome utente del tuo account,
+      // non un campo da compilare, quindi non c'è più un input per questo — si
+      // mostra semplicemente nel titolo della pagina.
+      var savedGuestName = CiSiamoData.getGuestName();
+      var pageTitleEl = document.getElementById('pageTitle');
+      if (savedGuestName && pageTitleEl) pageTitleEl.textContent = 'Nuova proposta di ' + savedGuestName;
+
+      /* ---------- foto dell'evento (opzionale) ----------
+         Stessa idea dell'avatar profilo: si tiene il file scelto in memoria e
+         si carica su Storage solo al momento di creare davvero l'evento (non
+         subito alla scelta), così non restano foto orfane su Supabase se poi
+         l'utente non completa il form.
+         "carriedPhotoUrl" serve solo per "Ripeti questo evento" da evento.html
+         (vedi restoreDraftIfAny più sotto): lì non c'è nessun File scelto, solo
+         l'URL della foto già online dell'evento originale — se non tocchi il
+         campo foto, si riusa quell'URL direttamente senza ricaricarla; se scegli
+         un file nuovo, questo prende priorità e l'URL riportato si dimentica. */
+      var pendingEventPhotoFile = null;
+      var carriedPhotoUrl = null;
+      var eventPhotoFile = document.getElementById('eventPhotoFile');
+      var eventPhotoPreview = document.getElementById('eventPhotoPreview');
+      var removeEventPhotoBtn = document.getElementById('removeEventPhotoBtn');
+
+      // Tasto "Togli foto" (Fil, 2026-07-10): prima si poteva solo sostituire
+      // una foto già scelta con un'altra, non tornare senza foto.
+      function showRemovePhotoBtn() {
+        if (removeEventPhotoBtn) removeEventPhotoBtn.style.display = '';
+      }
+
+      function clearEventPhoto() {
+        pendingEventPhotoFile = null;
+        carriedPhotoUrl = null;
+        eventPhotoFile.value = '';
+        eventPhotoPreview.innerHTML = '<span id="eventPhotoEmoji">🖼️</span><span class="photo-placeholder-text" id="eventPhotoPlaceholder">Carica una tua immagine</span>';
+        if (removeEventPhotoBtn) removeEventPhotoBtn.style.display = 'none';
+      }
+
+      if (removeEventPhotoBtn) {
+        removeEventPhotoBtn.addEventListener('click', clearEventPhoto);
+      }
+
+      eventPhotoFile.addEventListener('change', function (e) {
+        var file = e.target.files && e.target.files[0];
+        if (!file) return;
+        pendingEventPhotoFile = file;
+        carriedPhotoUrl = null;
+
+        var reader = new FileReader();
+        reader.onload = function (ev) {
+          eventPhotoPreview.innerHTML = '<img src="' + ev.target.result + '" alt="">';
+          showRemovePhotoBtn();
+        };
+        reader.readAsDataURL(file);
+      });
+
+      /* ---------- descrizione: testo O nota vocale, mai insieme (Fil, 2026-07-07) ----------
+         Stessa idea della foto: il vocale registrato resta in memoria (Blob) e si
+         carica su Storage solo al momento del salvataggio vero, non appena finita
+         la registrazione. "carriedAudioUrl" è l'equivalente di carriedPhotoUrl:
+         un URL già online (evento in modifica), non un Blob da ricaricare. */
+      var descriptionModeTabs = document.getElementById('descriptionModeTabs');
+      var descriptionTextPanel = document.getElementById('descriptionTextPanel');
+      var descriptionAudioPanel = document.getElementById('descriptionAudioPanel');
+      var descriptionMode = 'text';
+      var pendingAudioBlob = null;
+      var carriedAudioUrl = null;
+      var audioPreviewPlayer = document.getElementById('audioPreviewPlayer');
+      var audioRecorderIdle = document.getElementById('audioRecorderIdle');
+      var audioRecorderRecording = document.getElementById('audioRecorderRecording');
+      var audioRecorderDone = document.getElementById('audioRecorderDone');
+      var recordAudioBtn = document.getElementById('recordAudioBtn');
+      var redoAudioBtn = document.getElementById('redoAudioBtn');
+      var recordTimerEl = document.getElementById('recordTimer');
+      var audioHint = document.getElementById('audioHint');
+
+      function setDescriptionMode(mode) {
+        descriptionMode = mode;
+        descriptionModeTabs.querySelectorAll('.pill').forEach(function (p) {
+          p.classList.toggle('active', p.getAttribute('data-desc-mode') === mode);
+        });
+        descriptionTextPanel.style.display = mode === 'text' ? '' : 'none';
+        descriptionAudioPanel.style.display = mode === 'audio' ? '' : 'none';
+      }
+
+      descriptionModeTabs.querySelectorAll('.pill').forEach(function (pill) {
+        pill.addEventListener('click', function () { setDescriptionMode(pill.getAttribute('data-desc-mode')); });
+      });
+
+      // Tocca per iniziare, tocca di nuovo per fermare (Fil, 2026-07-10: il
+      // "tieni premuto" stile WhatsApp era poco intuitivo). Nessun limite di
+      // durata, si ferma solo con un tocco esplicito.
+      var mediaRecorder = null;
+      var recordedChunks = [];
+      var recordTimerInterval = null;
+      var recordStartTime = 0;
+      // true dal tocco su "registra" a quando lo stream è pronto (o fallito):
+      // evita che un doppio tap rapido, mentre il permesso del microfono è
+      // ancora in sospeso, apra due registrazioni insieme.
+      var recordingBusy = false;
+
+      function pickAudioMimeType() {
+        var candidates = ['audio/webm', 'audio/mp4', 'audio/ogg'];
+        for (var i = 0; i < candidates.length; i++) {
+          if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(candidates[i])) return candidates[i];
+        }
+        return '';
+      }
+
+      function formatRecordTimer(ms) {
+        var totalSec = Math.floor(ms / 1000);
+        var m = Math.floor(totalSec / 60);
+        var s = totalSec % 60;
+        return m + ':' + (s < 10 ? '0' : '') + s;
+      }
+
+      async function startRecording() {
+        if (recordingBusy) return;
+        recordingBusy = true;
+
+        if (audioHint) audioHint.style.display = 'none';
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+          if (audioHint) { audioHint.style.display = ''; audioHint.textContent = 'Il tuo browser non supporta la registrazione vocale.'; }
+          recordingBusy = false;
+          return;
+        }
+        var stream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (err) {
+          if (audioHint) { audioHint.style.display = ''; audioHint.textContent = 'Non riesco ad accedere al microfono (permesso negato?).'; }
+          recordingBusy = false;
+          return;
+        }
+
+        recordedChunks = [];
+        var mimeType = pickAudioMimeType();
+        try {
+          mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType: mimeType }) : new MediaRecorder(stream);
+        } catch (err) {
+          mediaRecorder = new MediaRecorder(stream);
+        }
+
+        mediaRecorder.addEventListener('dataavailable', function (e) {
+          if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+        });
+
+        mediaRecorder.addEventListener('stop', function () {
+          stream.getTracks().forEach(function (t) { t.stop(); });
+          var blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || mimeType || 'audio/webm' });
+          pendingAudioBlob = blob;
+          carriedAudioUrl = null;
+          if (audioPreviewPlayer) audioPreviewPlayer.src = URL.createObjectURL(blob);
+          audioRecorderRecording.style.display = 'none';
+          audioRecorderDone.style.display = '';
+          recordingBusy = false;
+        });
+
+        mediaRecorder.start();
+        recordStartTime = Date.now();
+        audioRecorderIdle.style.display = 'none';
+        audioRecorderDone.style.display = 'none';
+        audioRecorderRecording.style.display = '';
+        if (recordTimerEl) recordTimerEl.textContent = '0:00';
+        recordTimerInterval = window.setInterval(function () {
+          if (recordTimerEl) recordTimerEl.textContent = formatRecordTimer(Date.now() - recordStartTime);
+        }, 250);
+      }
+
+      function stopRecording() {
+        if (recordTimerInterval) { window.clearInterval(recordTimerInterval); recordTimerInterval = null; }
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+      }
+
+      if (recordAudioBtn) {
+        recordAudioBtn.addEventListener('click', function (e) { e.preventDefault(); startRecording(); });
+      }
+
+      // Tocco per fermare: è il secondo mezzo del tap-tap (avvia/ferma),
+      // vedi il commento su recordingBusy più sopra.
+      if (audioRecorderRecording) {
+        audioRecorderRecording.addEventListener('click', function () {
+          if (mediaRecorder && mediaRecorder.state === 'recording') stopRecording();
+        });
+      }
+
+      if (redoAudioBtn) {
+        redoAudioBtn.addEventListener('click', function () {
+          pendingAudioBlob = null;
+          carriedAudioUrl = null;
+          if (audioPreviewPlayer) audioPreviewPlayer.removeAttribute('src');
+          audioRecorderDone.style.display = 'none';
+          audioRecorderIdle.style.display = '';
+        });
+      }
+
+      /* ---------- posizione dell'evento (opzionale) ----------
+         Campo di testo semplice di base; se è configurata una chiave Google
+         Maps (CiSiamoData.GOOGLE_MAPS_API_KEY) si aggiunge sopra
+         l'autocompletamento vero, ma anche senza chiave il campo funziona lo
+         stesso come semplice indirizzo scritto a mano — non blocca mai nulla. */
+      var eventLocationInput = document.getElementById('eventLocationInput');
+      var locationHint = document.getElementById('locationHint');
+      var selectedLocation = { address: null, placeId: null, lat: null, lng: null };
+
+      eventLocationInput.addEventListener('input', function () {
+        // se modifichi il testo dopo aver scelto un suggerimento, quel
+        // place_id/coordinate non sono più affidabili: si torna al semplice
+        // indirizzo scritto a mano
+        if (eventLocationInput.value !== selectedLocation.address) {
+          selectedLocation = { address: null, placeId: null, lat: null, lng: null };
+        }
+      });
+
+      (function setupLocationAutocomplete() {
+        var apiKey = CiSiamoData.GOOGLE_MAPS_API_KEY;
+        if (!apiKey) {
+          locationHint.style.display = '';
+          locationHint.textContent = 'Suggerimenti automatici non ancora attivi: per ora scrivi l\'indirizzo a mano.';
+          return;
+        }
+        if (window.google && window.google.maps && window.google.maps.places) {
+          attachAutocomplete();
+          return;
+        }
+        window.__ciSiamoMapsReady = attachAutocomplete;
+        var script = document.createElement('script');
+        script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(apiKey) + '&libraries=places&loading=async&callback=__ciSiamoMapsReady';
+        script.onerror = function () {
+          locationHint.style.display = '';
+          locationHint.textContent = 'Non sono riuscito a caricare i suggerimenti di Google Maps: puoi comunque scrivere l\'indirizzo a mano.';
+        };
+        document.head.appendChild(script);
+
+        function attachAutocomplete() {
+          var autocomplete = new google.maps.places.Autocomplete(eventLocationInput, {
+            fields: ['formatted_address', 'place_id', 'geometry']
+          });
+          autocomplete.addListener('place_changed', function () {
+            var place = autocomplete.getPlace();
+            if (!place || (!place.formatted_address && !place.geometry)) return;
+            selectedLocation = {
+              address: place.formatted_address || eventLocationInput.value,
+              placeId: place.place_id || null,
+              lat: (place.geometry && place.geometry.location) ? place.geometry.location.lat() : null,
+              lng: (place.geometry && place.geometry.location) ? place.geometry.location.lng() : null
+            };
+            eventLocationInput.value = selectedLocation.address;
+          });
+        }
+      })();
+
+      var friendListSelect = document.getElementById('friendListSelect');
+      var quotaSelect = document.getElementById('eventQuota');
+      var manualNamesField = document.getElementById('manualNamesField');
+      var manualNamesListEl = document.getElementById('manualNamesList');
+      var manualNameInput = document.getElementById('manualNameInput');
+      var manualNameAddBtn = document.getElementById('manualNameAddBtn');
+      var saveAsListField = document.getElementById('saveAsListField');
+      var saveAsListCheckbox = document.getElementById('saveAsListCheckbox');
+      var openInviteCheckbox = document.getElementById('openInviteCheckbox');
+      var MANUAL_VALUE = '__manual__';
+      var manualNames = []; // { name, accountId } — accountId null finché non scegli un suggerimento
+
+      // Suggerimenti username+foto mentre scrivi (documento "ci-siamo-omonimi.pdf",
+      // Opzione A, Fil 2026-07-07): riduce il rischio di invitare per sbaglio uno
+      // sconosciuto omonimo invece del tuo vero amico. Cliccare un suggerimento
+      // aggiunge subito l'invitato (Fil, 2026-07-10), come in amici.html.
+      if (window.CiSiamoUI && CiSiamoUI.attachAccountSearch) {
+        CiSiamoUI.attachAccountSearch(manualNameInput, function () { addManualName(); });
+      }
+
+      var CREATE_LIST_VALUE = '__create_list__';
+
+      friendLists.forEach(function (list) {
+        var opt = document.createElement('option');
+        opt.value = list.id;
+        opt.textContent = list.name + ' (' + list.friends.length + ')';
+        friendListSelect.appendChild(opt);
+      });
+
+      var createListOption = document.createElement('option');
+      createListOption.value = CREATE_LIST_VALUE;
+      createListOption.textContent = '+ Crea una lista amici';
+      friendListSelect.appendChild(createListOption);
+
+      var manualOption = document.createElement('option');
+      manualOption.value = MANUAL_VALUE;
+      manualOption.textContent = '✏️ Scrivi i nomi a mano (senza lista)';
+      friendListSelect.appendChild(manualOption);
+
+      // se non hai ancora nessuna lista amici, ha senso partire già dalla
+      // modalità "nomi a mano" invece che su un select vuoto
+      if (!friendLists.length) friendListSelect.value = MANUAL_VALUE;
+
+      function isManualMode() { return friendListSelect.value === MANUAL_VALUE; }
+
+      function renderManualNamesList() {
+        if (!manualNames.length) {
+          manualNamesListEl.innerHTML = '';
+          return;
+        }
+        manualNamesListEl.innerHTML = manualNames.map(function (entry, idx) {
+          // nome collegato per sempre a un account vero (scelto dai
+          // suggerimenti username+foto) — vedi "ci-siamo-omonimi.pdf". Foto
+          // vera se ce l'abbiamo già (appena scelta dal suggerimento, o
+          // recuperata per gli invitati esistenti in modifica), altrimenti
+          // un'etichetta "collegato": mai più un pallino muto senza
+          // spiegazione (Fil, 2026-07-07).
+          var linkedMarker = '';
+          if (entry.accountId) {
+            var initial = (entry.name.trim().charAt(0) || '?').toUpperCase();
+            linkedMarker = entry.avatarUrl
+              ? '<span class="linked-mini-avatar" title="Collegato a un account"><img src="' + CiSiamoData.escapeHTML(entry.avatarUrl) + '" alt=""></span>'
+              : '<span class="linked-mini-avatar" title="Collegato a un account">' + CiSiamoData.escapeHTML(initial) + '</span>';
+          }
+          return ''
+            + '<div class="settings-row" style="margin-top:8px;">'
+            + '<div class="left" style="display:flex; align-items:center;">' + linkedMarker + CiSiamoData.escapeHTML(entry.name) + '</div>'
+            + '<span class="friend-remove" data-remove-manual="' + idx + '">✕</span>'
+            + '</div>';
+        }).join('');
+      }
+
+      /* Il valore proposto di default è "quante persone possono rispondere
+         oggi": gli invitati già in lista PIÙ l'organizzatore, che è sempre
+         "presente" in automatico su tutte le date (vedi il commento in
+         data.js su createEvent) — bug segnalato da Fil il 2026-07-07, prima
+         contava solo gli invitati. Ma non è più anche il TETTO massimo
+         selezionabile (altro suo commento, stesso giorno): "magari faccio
+         l'evento e poi aggiungo le persone dopo", quindi la quota deve poter
+         essere più alta di chi è invitato adesso — utile anche con "invito
+         aperto" (chiunque col link può aggiungersi in seguito). Il menu
+         propone sempre un bel po' di opzioni oltre al default (QUOTA_CEILING),
+         così scegliere un numero più alto resta possibile senza dover prima
+         invitare davvero tutti. Si aggiorna ogni volta che cambi lista (o
+         aggiungi/togli un nome scritto a mano), provando a tenere il valore
+         già scelto se resta valido, altrimenti riparte dal default. */
+      var QUOTA_CEILING = 30;
+      function populateQuotaOptions(preserveValue) {
+        var defaultCount;
+        if (isManualMode()) {
+          defaultCount = Math.max(1, manualNames.length + 1);
+        } else {
+          var selectedList = friendLists.filter(function (l) { return l.id === friendListSelect.value; })[0];
+          defaultCount = selectedList ? Math.max(1, selectedList.friends.length + 1) : 1;
+        }
+        var maxCount = Math.max(defaultCount, QUOTA_CEILING);
+        var previousValue = preserveValue ? parseInt(quotaSelect.value, 10) : null;
+
+        quotaSelect.innerHTML = '';
+        for (var i = 1; i <= maxCount; i++) {
+          var opt = document.createElement('option');
+          opt.value = i;
+          opt.textContent = i + (i === 1 ? ' persona' : ' persone');
+          quotaSelect.appendChild(opt);
+        }
+        quotaSelect.value = (previousValue && previousValue <= maxCount) ? previousValue : defaultCount;
+      }
+
+      function updateManualPanelsVisibility() {
+        var manual = isManualMode();
+        manualNamesField.style.display = manual ? '' : 'none';
+        saveAsListField.style.display = manual ? '' : 'none';
+      }
+
+      // finché non tocchi tu stesso il menu "Quante persone servono", resta
+      // agganciato al massimo (tutti gli invitati): così aggiungere un nome a
+      // mano fa salire da solo il valore, invece di restare fermo al primo
+      // numero scelto in automatico quando c'era un solo nome.
+      var quotaManuallySet = false;
+      quotaSelect.addEventListener('change', function () { quotaManuallySet = true; });
+
+      friendListSelect.addEventListener('change', function () {
+        if (friendListSelect.value === CREATE_LIST_VALUE) {
+          goCreateFriendList();
+          return;
+        }
+        updateManualPanelsVisibility();
+        quotaManuallySet = false;
+        populateQuotaOptions(false);
+      });
+      updateManualPanelsVisibility();
+      populateQuotaOptions(false);
+
+      /* ---------- form a step: 3 schede (evento / inviti / date) ----------
+         Stesso form di sempre, solo diviso in 3 "schede" per non mostrare
+         tutto insieme: si passa da una all'altra con Continua/Indietro, i
+         valori restano negli stessi input di prima (nulla si azzera tornando
+         indietro). I puntini in alto mostrano a che punto sei. */
+      var wizardStepEls = {
+        1: document.getElementById('wizardStep1'),
+        2: document.getElementById('wizardStep2'),
+        3: document.getElementById('wizardStep3')
+      };
+      var wizardDotEls = document.querySelectorAll('.wizard-dot');
+      var currentStep = 1;
+
+      function showStep(n) {
+        currentStep = n;
+        Object.keys(wizardStepEls).forEach(function (key) {
+          wizardStepEls[key].style.display = (parseInt(key, 10) === n) ? '' : 'none';
+        });
+        wizardDotEls.forEach(function (dot) {
+          var dotStep = parseInt(dot.getAttribute('data-step'), 10);
+          dot.classList.toggle('active', dotStep === n);
+          dot.classList.toggle('done', dotStep < n);
+        });
+        var screenEl = document.querySelector('.screen');
+        if (screenEl) screenEl.scrollTop = 0;
+
+        // fumetti "una volta sola" (Fil, 2026-07-07): spiegano quota e invito
+        // aperto PRIMA che tocchi quei campi, non tutti insieme — in
+        // sequenza, uno alla volta: quello sull'invito aperto compare solo
+        // DOPO che hai chiuso (cioè toccato) quello della quota, non prima.
+        if (n === 2 && window.CiSiamoUI && CiSiamoUI.showOnceHint) {
+          function showOpenInviteHint() {
+            CiSiamoUI.showOnceHint('openInvite', openInviteCheckbox.closest('.field'),
+              'Attivalo solo se vuoi che chiunque abbia il link possa aggiungersi da solo, anche se non l\'hai scritto qui sopra. Comodo per eventi aperti a un gruppo largo, ma il link diventa di fatto un accesso libero.',
+              openInviteCheckbox, ['focus', 'change']);
+          }
+          var quotaHintShown = CiSiamoUI.showOnceHint('eventQuota', quotaSelect.closest('.field'),
+            'Quando questo numero di persone conferma la stessa data, l\'evento si fissa lì. Se nessuna data ci arriva dopo che tutti hanno risposto, l\'evento si annulla da solo.',
+            quotaSelect, ['focus', 'change'], showOpenInviteHint);
+          if (!quotaHintShown) showOpenInviteHint();
+        }
+      }
+
+      document.getElementById('step1NextBtn').addEventListener('click', function () {
+        step1Error.textContent = '';
+        var name = document.getElementById('eventName').value.trim();
+        if (!name) { step1Error.textContent = 'Serve almeno un nome per l\'evento.'; return; }
+        showStep(2);
+      });
+
+      document.getElementById('step2BackBtn').addEventListener('click', function () { showStep(1); });
+
+      document.getElementById('step2NextBtn').addEventListener('click', function () {
+        step2Error.textContent = '';
+        if (isManualMode() && !manualNames.length) { step2Error.textContent = 'Aggiungi almeno un invitato.'; return; }
+        showStep(3);
+      });
+
+      document.getElementById('step3BackBtn').addEventListener('click', function () { showStep(2); });
+
+      function addManualName() {
+        var name = manualNameInput.value.trim();
+        if (!name) return;
+        var alreadyThere = manualNames.some(function (entry) { return entry.name.toLowerCase() === name.toLowerCase(); });
+        if (alreadyThere) {
+          formError.textContent = 'Hai già aggiunto un invitato con questo nome.';
+          return;
+        }
+        formError.textContent = '';
+
+        // Se il testo combacia ancora con un suggerimento scelto (username+foto),
+        // l'invitato nasce già collegato (Fil, 2026-07-07) — si annulla da solo
+        // se modifichi il testo dopo aver scelto (CiSiamoUI.attachAccountSearch).
+        var isLinked = manualNameInput.dataset.linkedUsername === name;
+        var linkedAccountId = isLinked ? (manualNameInput.dataset.linkedAccountId || null) : null;
+        var linkedAvatarUrl = isLinked ? (manualNameInput.dataset.linkedAvatarUrl || null) : null;
+
+        manualNames.push({ name: name, accountId: linkedAccountId, avatarUrl: linkedAvatarUrl });
+        manualNameInput.value = '';
+        delete manualNameInput.dataset.linkedAccountId;
+        delete manualNameInput.dataset.linkedUsername;
+        delete manualNameInput.dataset.linkedAvatarUrl;
+        renderManualNamesList();
+        populateQuotaOptions(quotaManuallySet);
+      }
+
+      manualNameAddBtn.addEventListener('click', addManualName);
+      manualNameInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); addManualName(); }
+      });
+
+      manualNamesListEl.addEventListener('click', function (e) {
+        var idx = e.target.getAttribute('data-remove-manual');
+        if (idx === null) return;
+        manualNames.splice(parseInt(idx, 10), 1);
+        renderManualNamesList();
+        populateQuotaOptions(quotaManuallySet);
+      });
+
+      function makeDateRow() {
+        var row = document.createElement('div');
+        row.className = 'date-row';
+
+        var input = document.createElement('input');
+        input.type = 'date';
+
+        var remove = document.createElement('div');
+        remove.className = 'remove-date';
+        remove.textContent = '✕';
+        remove.addEventListener('click', function () {
+          // non far sparire l'ultima riga rimasta, altrimenti non resta nessuna data da scegliere
+          if (dateRowList.querySelectorAll('.date-row').length > 1) {
+            row.remove();
+          }
+        });
+
+        row.appendChild(input);
+        row.appendChild(remove);
+        return row;
+      }
+
+      addDateBtn.addEventListener('click', function () {
+        dateRowList.appendChild(makeDateRow());
+      });
+
+      // le due righe già presenti nell'HTML devono poter essere rimosse allo stesso modo
+      dateRowList.querySelectorAll('.remove-date').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          if (dateRowList.querySelectorAll('.date-row').length > 1) {
+            btn.closest('.date-row').remove();
+          }
+        });
+      });
+
+      /* ---------- modalità di scelta data: range / date singole / ricorrenza ----------
+         Le 3 modalità sono alternative: solo quella attiva viene letta al momento
+         di creare l'evento. In tutti i casi il risultato è lo stesso: un elenco di
+         date ISO, che passa a CiSiamoData.createEvent esattamente come prima —
+         così evento.html/data.js non devono sapere in che modo sono state scelte. */
+      var dateModeTabs = document.getElementById('dateModeTabs');
+      var datePanels = document.querySelectorAll('.date-mode-panel');
+      var activeDateMode = 'range';
+
+      dateModeTabs.querySelectorAll('.pill').forEach(function (pill) {
+        pill.addEventListener('click', function () {
+          activeDateMode = pill.getAttribute('data-mode');
+          dateModeTabs.querySelectorAll('.pill').forEach(function (p) {
+            p.classList.toggle('active', p === pill);
+          });
+          datePanels.forEach(function (panel) {
+            panel.style.display = panel.getAttribute('data-panel') === activeDateMode ? '' : 'none';
+          });
+          formError.textContent = '';
+        });
+      });
+
+      /* select del mese per la ricorrenza: prossimi 12 mesi, a partire da questo */
+      var patternMonthSelect = document.getElementById('patternMonth');
+      var MONTH_NAMES = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+
+      function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+
+      (function populateMonths() {
+        var now = new Date();
+        for (var i = 0; i < 12; i++) {
+          var d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+          var opt = document.createElement('option');
+          opt.value = d.getFullYear() + '-' + pad2(d.getMonth() + 1);
+          opt.textContent = MONTH_NAMES[d.getMonth()] + ' ' + d.getFullYear();
+          patternMonthSelect.appendChild(opt);
+        }
+      })();
+
+      /* Legge la modalità attiva e restituisce { dates: [...] } oppure { error: '...' } */
+      function collectDates() {
+        if (activeDateMode === 'range') {
+          var startVal = document.getElementById('rangeStart').value;
+          var endVal = document.getElementById('rangeEnd').value;
+          if (!startVal || !endVal) return { error: 'Scegli una data di inizio e una di fine.' };
+
+          var start = new Date(startVal + 'T00:00:00');
+          var end = new Date(endVal + 'T00:00:00');
+          if (end < start) return { error: 'La data di fine deve essere dopo quella di inizio.' };
+
+          var diffDays = Math.round((end - start) / 86400000);
+          if (diffDays > 60) return { error: 'Il range è troppo lungo (massimo 60 giorni).' };
+
+          var rangeDates = [];
+          var cursor = new Date(start);
+          while (cursor <= end) {
+            rangeDates.push(cursor.getFullYear() + '-' + pad2(cursor.getMonth() + 1) + '-' + pad2(cursor.getDate()));
+            cursor.setDate(cursor.getDate() + 1);
+          }
+          return { dates: rangeDates };
+        }
+
+        if (activeDateMode === 'singole') {
+          var singleDates = Array.prototype.map.call(
+            dateRowList.querySelectorAll('input[type="date"]'),
+            function (input) { return input.value; }
+          ).filter(function (v) { return !!v; });
+
+          if (!singleDates.length) return { error: 'Aggiungi almeno una data possibile.' };
+          return { dates: singleDates };
+        }
+
+        if (activeDateMode === 'pattern') {
+          var weekdayVal = document.getElementById('patternWeekday').value;
+          var monthVal = document.getElementById('patternMonth').value;
+          if (!monthVal) return { error: 'Scegli un mese.' };
+
+          var parts = monthVal.split('-');
+          var year = parseInt(parts[0], 10);
+          var month = parseInt(parts[1], 10) - 1;
+          var daysInMonth = new Date(year, month + 1, 0).getDate();
+          var targetWeekdays = weekdayVal === 'weekend' ? [0, 6] : [parseInt(weekdayVal, 10)];
+
+          var patternDates = [];
+          for (var day = 1; day <= daysInMonth; day++) {
+            var d = new Date(year, month, day);
+            if (targetWeekdays.indexOf(d.getDay()) !== -1) {
+              patternDates.push(year + '-' + pad2(month + 1) + '-' + pad2(day));
+            }
+          }
+
+          if (!patternDates.length) return { error: 'Nessuna data trovata per questa combinazione.' };
+          return { dates: patternDates };
+        }
+
+        return { error: 'Modalità data non valida.' };
+      }
+
+      var createEventBtn = document.getElementById('createEventBtn');
+
+      createEventBtn.addEventListener('click', async function () {
+        var name = document.getElementById('eventName').value.trim();
+        var description = descriptionMode === 'text' ? document.getElementById('eventDescription').value.trim() : '';
+        var quota = document.getElementById('eventQuota').value;
+        var defaultBtnLabel = isEditMode ? 'Salva modifiche →' : 'Crea e genera link →';
+
+        formError.textContent = '';
+
+        if (!name) {
+          formError.textContent = 'Serve almeno un nome per l\'evento.';
+          return;
+        }
+
+        var dateResult = collectDates();
+        if (dateResult.error) {
+          formError.textContent = dateResult.error;
+          return;
+        }
+
+        var manual = isManualMode();
+        if (manual && !manualNames.length) {
+          formError.textContent = 'Aggiungi almeno un invitato.';
+          return;
+        }
+
+        createEventBtn.disabled = true;
+
+        var event;
+        try {
+          var friendListId = manual ? null : friendListSelect.value;
+          var inviteeNames;
+
+          if (manual) {
+            inviteeNames = manualNames.slice();
+            // "Salva anche come lista amici": crea una lista vera e propria a
+            // parte con questi stessi nomi, per riusarla nei prossimi eventi.
+            // Da qui in poi non ha più nulla a che fare con QUESTO evento
+            // (che tiene comunque la sua copia indipendente degli invitati).
+            // Non disponibile in modifica: il checkbox resta nascosto lì.
+            if (saveAsListCheckbox.checked) {
+              createEventBtn.textContent = 'Salvo la lista...';
+              var newList = await CiSiamoData.createFriendList(name);
+              for (var mi = 0; mi < manualNames.length; mi++) {
+                await CiSiamoData.addFriendToList(newList.id, manualNames[mi].name, manualNames[mi].accountId);
+              }
+              friendListId = newList.id;
+            }
+          } else {
+            var selectedListForInvitees = friendLists.filter(function (l) { return l.id === friendListId; })[0];
+            inviteeNames = selectedListForInvitees ? selectedListForInvitees.friends.map(function (f) { return { name: f.name, accountId: f.accountId || null }; }) : [];
+          }
+
+          var photoUrl = carriedPhotoUrl || null;
+          if (pendingEventPhotoFile) {
+            createEventBtn.textContent = 'Carico la foto...';
+            photoUrl = await CiSiamoData.uploadEventPhoto(pendingEventPhotoFile);
+          }
+
+          var descriptionAudioUrl = descriptionMode === 'audio' ? (carriedAudioUrl || null) : null;
+          if (descriptionMode === 'audio' && pendingAudioBlob) {
+            createEventBtn.textContent = 'Carico il vocale...';
+            descriptionAudioUrl = await CiSiamoData.uploadEventAudio(pendingAudioBlob);
+          }
+
+          var locationAddress = selectedLocation.address || eventLocationInput.value.trim() || null;
+
+          var payload = {
+            name: name,
+            description: description,
+            descriptionAudioUrl: descriptionAudioUrl,
+            quota: quota,
+            dates: dateResult.dates,
+            createdBy: savedGuestName,
+            friendListId: friendListId || null,
+            inviteeNames: inviteeNames,
+            photoUrl: photoUrl,
+            locationAddress: locationAddress,
+            locationPlaceId: selectedLocation.placeId,
+            locationLat: selectedLocation.lat,
+            locationLng: selectedLocation.lng,
+            openInvite: openInviteCheckbox.checked
+          };
+
+          if (isEditMode) {
+            createEventBtn.textContent = 'Salvo le modifiche...';
+            event = await CiSiamoData.updateEvent(editEventId, payload);
+          } else {
+            createEventBtn.textContent = 'Creo l\'evento...';
+            event = await CiSiamoData.createEvent(payload);
+          }
+        } catch (err) {
+          formError.textContent = 'Non sono riuscito a salvare l\'evento (' + err.message + '). Riprova.';
+          createEventBtn.textContent = defaultBtnLabel;
+          createEventBtn.disabled = false;
+          return;
+        }
+
+        var href = 'evento.html?id=' + encodeURIComponent(event.id);
+
+        // Popup "evento creato" con dettagli, solo alla creazione vera e
+        // propria (non su una modifica): sparisce da solo dopo 10s, o subito
+        // a un tocco ovunque sopra (Fil, 2026-07-10).
+        if (!isEditMode) {
+          showEventCreatedPopup(event, href);
+          return;
+        }
+
+        // stessa transizione a scorrimento delle altre pagine: "forward", verso destra
+        var screen = document.querySelector('.screen');
+        try { sessionStorage.setItem('cs-nav-direction', 'forward'); } catch (err) { /* ignora */ }
+        if (screen) screen.classList.add('slide-out-left');
+
+        window.setTimeout(function () {
+          window.location.href = href;
+        }, 160);
+      });
+
+      /* Popup di conferma dopo la creazione: sfondo sfocato (riusa lo stesso
+         stile di .signup-overlay/.signup-modal, coerente col resto dell'app),
+         un riepilogo essenziale, poi via a evento.html — da solo dopo 10s o
+         al primo tocco, quello che arriva prima. */
+      function showEventCreatedPopup(event, href) {
+        var phone = document.querySelector('.phone');
+        if (!phone) { window.location.href = href; return; }
+
+        var dateLabels = (event.dateOptions || []).map(function (o) {
+          return CiSiamoData.formatDateLabel(o.dateISO);
+        });
+        var dateText = dateLabels.length === 1
+          ? dateLabels[0]
+          : (dateLabels.length ? dateLabels.length + ' date proposte, in attesa di conferma' : 'Nessuna data proposta');
+        var inviteesCount = (event.invitees || []).length;
+
+        var overlay = document.createElement('div');
+        overlay.className = 'signup-overlay';
+        overlay.innerHTML = ''
+          + '<div class="signup-modal">'
+          + '<div class="signup-modal-icon">🎉</div>'
+          + '<div class="signup-modal-title">' + CiSiamoData.escapeHTML(event.name) + '</div>'
+          + '<div class="signup-modal-text" style="margin-bottom:6px;">📅 ' + CiSiamoData.escapeHTML(dateText) + '</div>'
+          + (inviteesCount
+              ? '<div class="signup-modal-text">👥 ' + inviteesCount + (inviteesCount === 1 ? ' invitato' : ' invitati') + '</div>'
+              : '<div class="signup-modal-text">Nessun invitato ancora: puoi aggiungerne dopo.</div>')
+          + '</div>';
+
+        var dismissed = false;
+        function goToEvent() {
+          if (dismissed) return;
+          dismissed = true;
+          window.location.href = href;
+        }
+        overlay.addEventListener('click', goToEvent);
+        window.setTimeout(goToEvent, 10000);
+
+        phone.appendChild(overlay);
+      }
+
+      /* ---------- "+ Crea una lista amici" dal form evento ----------
+         Salva una bozza di tutto quello che hai già scritto, poi ti manda su
+         amici.html a creare la lista (restandoci: puoi anche aggiungere
+         subito gli amici, poi torni tu quando vuoi). Al ritorno la bozza si
+         ripristina da sola e la lista appena creata è già selezionata. */
+      var DRAFT_KEY = 'ci-siamo:eventDraft';
+      var JUST_CREATED_LIST_KEY = 'ci-siamo:justCreatedListId';
+      var RETURN_FLAG_KEY = 'ci-siamo:returnToEventCreation';
+
+      function collectDraft() {
+        return {
+          eventName: document.getElementById('eventName').value,
+          description: document.getElementById('eventDescription').value,
+          activeDateMode: activeDateMode,
+          rangeStart: document.getElementById('rangeStart').value,
+          rangeEnd: document.getElementById('rangeEnd').value,
+          singleDates: Array.prototype.map.call(
+            dateRowList.querySelectorAll('input[type="date"]'),
+            function (i) { return i.value; }
+          ),
+          patternWeekday: document.getElementById('patternWeekday').value,
+          patternMonth: document.getElementById('patternMonth').value,
+          manualNames: manualNames.slice(),
+          saveAsListChecked: saveAsListCheckbox.checked,
+          openInviteChecked: openInviteCheckbox.checked,
+          locationValue: eventLocationInput.value,
+          selectedLocation: selectedLocation,
+          // solo se non hai già scelto un file nuovo: altrimenti, come il file
+          // stesso, questo pezzo si perde nel giro "+ Crea una lista amici"
+          // (limite noto, non c'è nulla da riportare comunque in quel caso)
+          carriedPhotoUrl: pendingEventPhotoFile ? null : carriedPhotoUrl,
+          currentStep: currentStep
+        };
+      }
+
+      function goCreateFriendList() {
+        try {
+          sessionStorage.setItem(DRAFT_KEY, JSON.stringify(collectDraft()));
+          sessionStorage.setItem(RETURN_FLAG_KEY, '1');
+          sessionStorage.setItem('cs-nav-direction', 'forward');
+        } catch (err) { /* ignora: nel peggiore dei casi si perde solo la bozza */ }
+
+        var screen = document.querySelector('.screen');
+        if (screen) screen.classList.add('slide-out-left');
+
+        window.setTimeout(function () {
+          window.location.href = 'amici.html';
+        }, 160);
+      }
+
+      function restoreDraftIfAny() {
+        var raw;
+        try { raw = sessionStorage.getItem(DRAFT_KEY); } catch (err) { raw = null; }
+        if (!raw) return;
+        try { sessionStorage.removeItem(DRAFT_KEY); } catch (err) { /* ignora */ }
+
+        var draft;
+        try { draft = JSON.parse(raw); } catch (err) { return; }
+        if (!draft) return;
+
+        document.getElementById('eventName').value = draft.eventName || '';
+        document.getElementById('eventDescription').value = draft.description || '';
+        document.getElementById('rangeStart').value = draft.rangeStart || '';
+        document.getElementById('rangeEnd').value = draft.rangeEnd || '';
+        if (draft.patternWeekday) document.getElementById('patternWeekday').value = draft.patternWeekday;
+        if (draft.patternMonth) document.getElementById('patternMonth').value = draft.patternMonth;
+
+        if (draft.singleDates && draft.singleDates.length) {
+          draft.singleDates.forEach(function (val, idx) {
+            var rows = dateRowList.querySelectorAll('input[type="date"]');
+            if (!rows[idx]) dateRowList.appendChild(makeDateRow());
+            dateRowList.querySelectorAll('input[type="date"]')[idx].value = val;
+          });
+        }
+
+        if (draft.activeDateMode && draft.activeDateMode !== 'range') {
+          var targetPill = dateModeTabs.querySelector('[data-mode="' + draft.activeDateMode + '"]');
+          if (targetPill) targetPill.click();
+        }
+
+        if (draft.manualNames && draft.manualNames.length) {
+          manualNames = draft.manualNames.slice();
+          renderManualNamesList();
+        }
+        if (draft.saveAsListChecked) saveAsListCheckbox.checked = true;
+        if (draft.openInviteChecked) openInviteCheckbox.checked = true;
+
+        if (draft.locationValue) eventLocationInput.value = draft.locationValue;
+        if (draft.selectedLocation) selectedLocation = draft.selectedLocation;
+
+        // foto riportata da "Ripeti questo evento" (evento.html): solo un URL
+        // già online, non un file da caricare di nuovo, la mostriamo così com'è
+        if (draft.carriedPhotoUrl) {
+          carriedPhotoUrl = draft.carriedPhotoUrl;
+          eventPhotoPreview.innerHTML = '<img src="' + CiSiamoData.escapeHTML(draft.carriedPhotoUrl) + '" alt="">';
+          showRemovePhotoBtn();
+        }
+
+        // se nel frattempo hai creato una nuova lista amici, selezionala già
+        var justCreatedId;
+        try { justCreatedId = sessionStorage.getItem(JUST_CREATED_LIST_KEY); } catch (err) { justCreatedId = null; }
+        if (justCreatedId) {
+          try { sessionStorage.removeItem(JUST_CREATED_LIST_KEY); } catch (err) { /* ignora */ }
+          if (friendListSelect.querySelector('option[value="' + justCreatedId + '"]')) {
+            friendListSelect.value = justCreatedId;
+          }
+        }
+
+        updateManualPanelsVisibility();
+        populateQuotaOptions(false);
+
+        // torna alla scheda dove eri rimasto (di solito la 2, da cui si crea
+        // la lista amici), non si riparte sempre dalla prima
+        showStep(draft.currentStep || 1);
+      }
+
+      restoreDraftIfAny();
+
+      /* ---------- popolamento in modalità modifica ---------- */
+      if (isEditMode) {
+        try {
+          editingEvent = await CiSiamoData.getEventById(editEventId);
+        } catch (err) {
+          editingEvent = null;
+        }
+
+        var myNameForEdit = (savedGuestName || '').toLowerCase();
+        var isReallyOrganizer = !!(editingEvent && editingEvent.createdBy && editingEvent.createdBy.toLowerCase() === myNameForEdit);
+
+        if (!editingEvent || !isReallyOrganizer) {
+          // non è un tuo evento (o non esiste più): niente modifica per te
+          window.location.href = editingEvent ? ('evento.html?id=' + encodeURIComponent(editEventId)) : 'index.html';
+          return;
+        }
+
+        var crBackBtn = document.getElementById('crBackBtn');
+        if (crBackBtn) crBackBtn.setAttribute('href', 'evento.html?id=' + encodeURIComponent(editEventId));
+
+        if (pageTitleEl) pageTitleEl.textContent = 'Modifica evento';
+        createEventBtn.textContent = 'Salva modifiche →';
+
+        document.getElementById('eventName').value = editingEvent.name || '';
+
+        if (editingEvent.descriptionAudioUrl) {
+          carriedAudioUrl = editingEvent.descriptionAudioUrl;
+          if (audioPreviewPlayer) audioPreviewPlayer.src = editingEvent.descriptionAudioUrl;
+          audioRecorderIdle.style.display = 'none';
+          audioRecorderDone.style.display = '';
+          setDescriptionMode('audio');
+        } else {
+          document.getElementById('eventDescription').value = editingEvent.description || '';
+        }
+
+        if (editingEvent.photoUrl) {
+          carriedPhotoUrl = editingEvent.photoUrl;
+          eventPhotoPreview.innerHTML = '<img src="' + CiSiamoData.escapeHTML(editingEvent.photoUrl) + '" alt="">';
+          showRemovePhotoBtn();
+        }
+
+        if (editingEvent.locationAddress) {
+          eventLocationInput.value = editingEvent.locationAddress;
+          selectedLocation = {
+            address: editingEvent.locationAddress || null,
+            placeId: editingEvent.locationPlaceId || null,
+            lat: (editingEvent.locationLat === undefined) ? null : editingEvent.locationLat,
+            lng: (editingEvent.locationLng === undefined) ? null : editingEvent.locationLng
+          };
+        }
+
+        // invitati: sempre "nomi a mano" in modifica — la lista amici era solo un
+        // modo per compilarli alla creazione, da qui in poi vivono sull'evento
+        // (vedi il commento in data.js su event_invitees). Si nasconde tutto il
+        // selettore di lista, non serve più scegliere.
+        manualNames = (editingEvent.invitees || []).map(function (f) { return { name: f.name, accountId: f.accountId || null, avatarUrl: null }; });
+        friendListSelect.value = MANUAL_VALUE;
+        var friendListField = friendListSelect.closest('.field');
+        if (friendListField) friendListField.style.display = 'none';
+        updateManualPanelsVisibility();
+        if (saveAsListField) saveAsListField.style.display = 'none';
+        renderManualNamesList();
+
+        // foto vere per gli invitati già collegati (in modifica, il
+        // collegamento arriva dal DB, non dal suggerimento appena scelto:
+        // qui manca ancora l'avatarUrl finché non lo recuperiamo per id).
+        var editLinkedIds = manualNames.map(function (e) { return e.accountId; }).filter(function (id) { return !!id; });
+        if (editLinkedIds.length) {
+          CiSiamoData.getAvatarsForAccountIds(editLinkedIds).then(function (avatarMap) {
+            manualNames.forEach(function (e) {
+              if (e.accountId && avatarMap[e.accountId]) e.avatarUrl = avatarMap[e.accountId].avatarUrl || null;
+            });
+            renderManualNamesList();
+          }).catch(function () { /* niente foto, resta l'iniziale: non blocca nulla */ });
+        }
+
+        // date: sempre "date singole" in modifica, precompilate con le date
+        // attuali — più prevedibile che riproporre range/ricorrenza da capo.
+        activeDateMode = 'singole';
+        if (dateModeTabs) dateModeTabs.style.display = 'none';
+        datePanels.forEach(function (panel) {
+          panel.style.display = panel.getAttribute('data-panel') === 'singole' ? '' : 'none';
+        });
+        dateRowList.innerHTML = '';
+        var editDates = (editingEvent.dateOptions || []).map(function (o) { return o.dateISO; });
+        if (!editDates.length) editDates = ['', ''];
+        editDates.forEach(function (iso) {
+          var row = makeDateRow();
+          row.querySelector('input[type="date"]').value = iso;
+          dateRowList.appendChild(row);
+        });
+
+        quotaManuallySet = true;
+        populateQuotaOptions(false);
+        if (editingEvent.quota) quotaSelect.value = editingEvent.quota;
+        openInviteCheckbox.checked = !!editingEvent.openInvite;
+      }
+    })();
+  </script>
+
+</body>
+</html>
