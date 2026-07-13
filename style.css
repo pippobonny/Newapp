@@ -1161,17 +1161,21 @@ label.event-photo-preview {
   pointer-events: none;
 }
 
-/* Pallino che scorre da una tab all'altra, creato via script.js */
+/* Pallino che scorre da una tab all'altra, creato via script.js.
+   Fil, 2026-07-13: non voleva più un cerchio pieno col bordo netto, ma una
+   "nube" sfumata — niente box-shadow/bordo, sfumatura radiale che va a
+   trasparente. La larghezza qui sotto è l'unica cosa che conta per il
+   centraggio: indicatorTargetX() in script.js legge offsetWidth a runtime,
+   quindi cambiare la dimensione non richiede toccare il JS. */
 .nav-indicator {
   position: absolute;
   top: 50%;
   left: 0;
-  width: 42px;
-  height: 42px;
-  margin-top: -21px;
+  width: 50px;
+  height: 50px;
+  margin-top: -25px;
   border-radius: 50%;
-  background: rgba(255, 122, 41, 0.4);
-  box-shadow: 0 0 0 1px rgba(255, 122, 41, 0.6), 0 3px 8px rgba(58, 50, 90, 0.1);
+  background: radial-gradient(circle, rgba(255, 122, 41, 0.45) 0%, rgba(255, 122, 41, 0.22) 45%, rgba(255, 122, 41, 0) 72%);
   pointer-events: none;
   transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
   z-index: 0;
@@ -1611,17 +1615,90 @@ label.event-photo-preview {
   white-space: nowrap;
 }
 
-/* ---------- Spese (stile Tricount), dentro evento.html — Fil, 2026-07-13 ---------- */
+/* ---------- Spese (stile Tricount), dentro evento.html — Fil, 2026-07-13 ----------
+   Iterazione 2026-07-13 dopo il giro di mockup con Fil: niente bustina di
+   soldi nell'intestazione, tutto chiuso in un accordion per non essere
+   invadente in pagina, emoji facoltativa per spesa, conto e conguagli
+   ridisegnati come pillole/frasi invece di righe di solo testo colorato. */
+.expense-accordion { margin-bottom: 4px; }
+
+.expense-accordion-header {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.expense-accordion-titles { flex: 1; min-width: 0; }
+
+.expense-accordion-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.expense-accordion-subtitle {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  margin-top: 1px;
+}
+
+.expense-accordion-chevron {
+  font-size: 13px;
+  color: var(--ink-soft);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.expense-accordion-chevron.open { transform: rotate(180deg); }
+
+.expense-accordion-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease;
+}
+
+.expense-accordion-body.open { max-height: 2000px; }
+
+.expense-accordion-inner {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 6px 14px 14px;
+  margin-top: 8px;
+}
+
 .expense-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 2px;
+  padding: 10px 0;
   border-bottom: 0.5px solid rgba(58,50,90,0.08);
   gap: 10px;
 }
 
 .expense-row:last-of-type { border-bottom: none; }
+
+.expense-row-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.expense-emoji-chip {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: var(--peach-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+}
 
 .expense-desc {
   font-size: 13.5px;
@@ -1656,24 +1733,130 @@ label.event-photo-preview {
   color: var(--ink-soft);
 }
 
-.balance-row {
+.balance-pill-list {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 2px;
-  font-size: 13px;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 4px;
 }
 
-.balance-row.balance-positive { color: #2E7D4F; }
-.balance-row.balance-negative { color: var(--cancel); }
+.balance-pill-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 7px 10px;
+}
 
-.settlement-row {
-  padding: 8px 10px;
+.balance-pill-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--peach-soft);
+  color: var(--ink);
+  font-size: 10.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.balance-pill-name {
+  flex: 1;
+  font-size: 12.5px;
+  color: var(--ink);
+  min-width: 0;
+}
+
+.balance-pill-amount {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.balance-pill-amount-positive { color: #1D6B47; background: #E4F3EA; }
+.balance-pill-amount-negative { color: var(--cancel); background: var(--cancel-soft); }
+.balance-pill-amount-neutral { color: var(--ink-soft); background: var(--past-soft); }
+
+.settlement-sentence-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   background: var(--lavender-soft);
-  color: var(--lavender);
-  border-radius: 10px;
-  font-size: 13px;
+  border-radius: 12px;
+  padding: 10px 12px;
   margin-bottom: 6px;
+}
+
+.settlement-sentence-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--lavender);
+  font-size: 10.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.settlement-sentence-text {
+  font-size: 12.5px;
+  color: var(--lavender);
+  line-height: 1.4;
+}
+
+/* ---------- riga emoji nel modale "Nuova/Modifica spesa" ---------- */
+.expense-desc-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.emoji-slot {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--peach-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.emoji-slot-placeholder { color: var(--ink); opacity: 0.4; }
+
+.emoji-slot-chosen { font-size: 20px; }
+
+.expense-desc-row input#expenseDescInput {
+  flex: 1;
+  min-width: 0;
+}
+
+.emoji-picker {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 4px;
+}
+
+.emoji-choice {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--card);
+  border: 0.5px solid rgba(58,50,90,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
 }
 
 /* ---------- header: menu a 3 puntini (Modifica/Elimina) ---------- */

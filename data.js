@@ -1583,7 +1583,8 @@
       p_description: (input.description || '').trim(),
       p_amount: input.amount,
       p_paid_by_name: input.paidByName,
-      p_included_names: input.includedNames || []
+      p_included_names: input.includedNames || [],
+      p_emoji: input.emoji || null
     });
     if (res.error) throwSupabaseError(res.error);
     return res.data;
@@ -1595,7 +1596,8 @@
       p_description: (input.description || '').trim(),
       p_amount: input.amount,
       p_paid_by_name: input.paidByName,
-      p_included_names: input.includedNames || []
+      p_included_names: input.includedNames || [],
+      p_emoji: input.emoji || null
     });
     if (res.error) throwSupabaseError(res.error);
   }
