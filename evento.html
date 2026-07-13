@@ -795,14 +795,25 @@
         var balanceHTML = '';
         if (expenses.length) {
           var calc = CiSiamoData.computeExpenseBalances(event);
+          // Stessa logica foto-vera-o-iniziale delle bolle "Chi ci sarà"
+          // (attendeeAvatars, già caricato una volta prima del primo
+          // render): Fil ha notato giustamente che qui mancava, era rimasta
+          // solo l'iniziale anche per chi ha una foto profilo caricata.
+          var avatarChipHTML = function (name) {
+            var avatarUrl = attendeeAvatars[name.toLowerCase()];
+            var initial = (name.trim().charAt(0) || '?').toUpperCase();
+            return avatarUrl
+              ? '<img src="' + CiSiamoData.escapeHTML(avatarUrl) + '" alt="">'
+              : CiSiamoData.escapeHTML(initial);
+          };
+
           var balRows = calc.balances.map(function (b) {
-            var initial = (b.name.trim().charAt(0) || '?').toUpperCase();
             var cls = b.net > 0.01 ? 'balance-pill-amount-positive' : (b.net < -0.01 ? 'balance-pill-amount-negative' : 'balance-pill-amount-neutral');
             var amountLabel = b.net > 0.01 ? '+' + CiSiamoData.formatEuro(b.net)
               : (b.net < -0.01 ? '-' + CiSiamoData.formatEuro(-b.net) : CiSiamoData.formatEuro(0));
             return ''
               + '<div class="balance-pill-row">'
-              + '<div class="balance-pill-avatar">' + CiSiamoData.escapeHTML(initial) + '</div>'
+              + '<div class="balance-pill-avatar">' + avatarChipHTML(b.name) + '</div>'
               + '<div class="balance-pill-name">' + CiSiamoData.escapeHTML(b.name) + '</div>'
               + '<div class="balance-pill-amount ' + cls + '">' + amountLabel + '</div>'
               + '</div>';
@@ -810,10 +821,9 @@
 
           var settleHTML = calc.settlements.length
             ? calc.settlements.map(function (s) {
-                var fromInitial = (s.fromName.trim().charAt(0) || '?').toUpperCase();
                 return ''
                   + '<div class="settlement-sentence-row">'
-                  + '<div class="settlement-sentence-avatar">' + CiSiamoData.escapeHTML(fromInitial) + '</div>'
+                  + '<div class="settlement-sentence-avatar">' + avatarChipHTML(s.fromName) + '</div>'
                   + '<div class="settlement-sentence-text">' + CiSiamoData.escapeHTML(s.fromName) + ' deve dare <b>' + CiSiamoData.formatEuro(s.amount) + '</b> a ' + CiSiamoData.escapeHTML(s.toName) + '</div>'
                   + '</div>';
               }).join('')

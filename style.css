@@ -1761,6 +1761,14 @@ label.event-photo-preview {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.balance-pill-avatar img,
+.settlement-sentence-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .balance-pill-name {
@@ -1804,6 +1812,7 @@ label.event-photo-preview {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .settlement-sentence-text {
