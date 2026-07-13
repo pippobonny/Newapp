@@ -259,6 +259,8 @@
         return;
       }
 
+      await CiSiamoData.renderSessionWarningIfNeeded(document.getElementById('pageContent'));
+
       // Modalità modifica: crea.html?edit=<id> riusa lo stesso wizard invece
       // di duplicarlo in una pagina a parte (Fil, 2026-07-07 — "aggiungerei
       // il modo di modificare un evento"). editingEvent viene popolato più

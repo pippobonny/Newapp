@@ -194,7 +194,7 @@
           <div>›</div>
         </div>
         <div class="settings-row danger" id="forgetMeRow">
-          <div class="left">🗑️ Dimentica i miei dati locali</div>
+          <div class="left">🚪 Esci</div>
           <div>›</div>
         </div>
       </div>
@@ -511,6 +511,7 @@
         normalView.style.display = '';
         var navbarEl = document.querySelector('.navbar');
         if (navbarEl) navbarEl.style.display = '';
+        await CiSiamoData.renderSessionWarningIfNeeded();
         await refreshProfile();
       }
 
@@ -810,15 +811,16 @@
         await fillCreateFormFromAccount();
       });
 
-      document.getElementById('forgetMeRow').addEventListener('click', function () {
-        var sure = window.confirm('Dimenticare il collegamento a questo profilo su questo telefono? Il profilo resta salvato online, ma dovrai ricrearne uno (o farne uno nuovo) per usare di nuovo l\'app da qui. Non si può annullare.');
-        if (sure) {
-          try {
-            window.localStorage.removeItem('ci-siamo:guestName');
-            window.localStorage.removeItem('ci-siamo:account');
-          } catch (err) { /* ignora */ }
-          window.location.href = 'index.html';
-        }
+      // Rinominato da "Dimentica i miei dati locali" a "Esci" (Fil,
+      // 2026-07-13: il vecchio nome non si capiva). Ora chiude anche la
+      // sessione Supabase vera (logOut in data.js), non solo la cache
+      // locale: altrimenti il token restava valido sul telefono anche
+      // dopo aver premuto "esci".
+      document.getElementById('forgetMeRow').addEventListener('click', async function () {
+        var sure = window.confirm('Uscire da questo profilo su questo telefono? Il profilo resta salvato online: per riusare l\'app da qui dovrai accedere di nuovo con email e password (o Google).');
+        if (!sure) return;
+        await CiSiamoData.logOut();
+        window.location.href = 'profilo.html';
       });
 
       var initParams = new URLSearchParams(window.location.search);

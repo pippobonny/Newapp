@@ -99,6 +99,8 @@
         return;
       }
 
+      await CiSiamoData.renderSessionWarningIfNeeded();
+
       var myUsername = (CiSiamoData.getGuestName() || '').toLowerCase();
 
       /* "2 ore fa" / "Ieri" / "3 giorni fa" ecc. a partire da un timestamp

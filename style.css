@@ -580,6 +580,31 @@ a { text-decoration: none; color: inherit; }
   background: rgba(58,50,90,0.08);
 }
 
+/* Avviso "sessione scaduta" (Fil, 2026-07-13): colori da attenzione, non da
+   errore vero — non è un guasto, è solo un accesso vecchio da rifare. */
+.session-warning-banner {
+  background: var(--butter-soft);
+  color: var(--ink);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.session-warning-banner .session-warning-btn {
+  display: block;
+  margin-top: 10px;
+  background: var(--lavender);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .field textarea { resize: none; height: 70px; }
 
 /* Anteprima foto evento (crea.html): riquadro rettangolare arrotondato, non
@@ -1584,6 +1609,71 @@ label.event-photo-preview {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ---------- Spese (stile Tricount), dentro evento.html — Fil, 2026-07-13 ---------- */
+.expense-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 2px;
+  border-bottom: 0.5px solid rgba(58,50,90,0.08);
+  gap: 10px;
+}
+
+.expense-row:last-of-type { border-bottom: none; }
+
+.expense-desc {
+  font-size: 13.5px;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.expense-meta {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  margin-top: 1px;
+}
+
+.expense-row-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.expense-amount {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.expense-actions {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.balance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 2px;
+  font-size: 13px;
+}
+
+.balance-row.balance-positive { color: #2E7D4F; }
+.balance-row.balance-negative { color: var(--cancel); }
+
+.settlement-row {
+  padding: 8px 10px;
+  background: var(--lavender-soft);
+  color: var(--lavender);
+  border-radius: 10px;
+  font-size: 13px;
+  margin-bottom: 6px;
 }
 
 /* ---------- header: menu a 3 puntini (Modifica/Elimina) ---------- */

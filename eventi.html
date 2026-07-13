@@ -97,6 +97,8 @@
         return;
       }
 
+      await CiSiamoData.renderSessionWarningIfNeeded();
+
       var events = await CiSiamoData.getEvents();
 
       // Gli eventi "passato" (confermati e già successi da un po') restano

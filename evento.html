@@ -77,6 +77,38 @@
 
   </div>
 
+  <!-- Aggiungi/modifica una spesa (Fil, 2026-07-13): stesso stile del popup
+       lista amici in amici.html, riusato qui perché il form ha più campi di
+       quanti ne stiano bene in una riga sola dentro il resto della pagina. -->
+  <div class="signup-overlay" id="expenseModal" style="display:none;">
+    <div class="signup-modal" style="text-align:left; max-height:82vh; overflow-y:auto;">
+      <div class="list-header" style="margin-bottom:14px;">
+        <div class="card-title" id="expenseModalTitle">Nuova spesa</div>
+        <div class="list-delete" id="expenseModalCloseBtn">Chiudi ✕</div>
+      </div>
+
+      <div class="field">
+        <label>Cosa avete pagato</label>
+        <input type="text" id="expenseDescInput" placeholder="Es. Cena, taxi, affitto...">
+      </div>
+      <div class="field">
+        <label>Quanto (€)</label>
+        <input type="number" id="expenseAmountInput" inputmode="decimal" step="0.01" min="0" placeholder="0,00">
+      </div>
+      <div class="field">
+        <label>Chi ha pagato</label>
+        <select id="expensePaidBySelect"></select>
+      </div>
+      <div class="field">
+        <label>Tra chi si divide</label>
+        <div class="option-group" id="expenseIncludeList"></div>
+      </div>
+
+      <div class="form-error" id="expenseModalError"></div>
+      <button type="button" class="primary-btn" id="expenseSaveBtn">Salva spesa</button>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="data.js"></script>
   <script>
@@ -161,6 +193,8 @@
         if (backBtn) backBtn.style.display = 'none';
         return;
       }
+      await CiSiamoData.renderSessionWarningIfNeeded(contentEl);
+
       var isLockedGuest = gate.action === 'allowLocked';
       if (isLockedGuest) {
         document.querySelector('.navbar').style.display = 'none';
@@ -691,6 +725,79 @@
           + bubblesHTML;
       }
 
+      /* ---------- Spese (stile Tricount), solo per evento confermato ----------
+         Fil, 2026-07-13: ha senso dividere le spese solo quando c'è una data
+         fissata e quindi un elenco vero di "chi parteciperà" — prima di
+         allora non esiste ancora l'insieme di persone tra cui dividere. Solo
+         chi ha un account può aggiungere/modificare (le RPC lato server
+         rivalidano comunque tutto): un ospite senza account vede il conto
+         ma non i pulsanti per toccarlo. */
+      function buildExpensesSectionHTML() {
+        var info = CiSiamoData.computeEventStatus(event);
+        var isConfirmedSimple = (info.status === 'done' || info.status === 'passato') && !!info.bestOption;
+        if (!isConfirmedSimple) return '';
+        var confirmedNames = CiSiamoData.getConfirmedParticipantNames(event);
+        if (!confirmedNames.length) return '';
+
+        var myAccountId = (CiSiamoData.getAccount() || {}).id || null;
+        var isOrganizerAccount = !!(myAccountId && event.createdByAccountId && myAccountId === event.createdByAccountId);
+        var canWrite = CiSiamoData.hasAccount();
+
+        var expenses = event.expenses || [];
+        var rowsHTML = expenses.length
+          ? expenses.map(function (ex) {
+              var canEdit = canWrite && myAccountId && (ex.createdByAccountId === myAccountId || isOrganizerAccount);
+              var actionsHTML = canEdit
+                ? '<span class="expense-edit" data-edit-expense="' + ex.id + '" style="cursor:pointer;">✏️</span><span class="expense-remove" data-remove-expense="' + ex.id + '" style="cursor:pointer;">✕</span>'
+                : '';
+              return ''
+                + '<div class="expense-row">'
+                + '<div>'
+                + '<div class="expense-desc">' + CiSiamoData.escapeHTML(ex.description) + '</div>'
+                + '<div class="expense-meta">Pagato da ' + CiSiamoData.escapeHTML(ex.paidByName) + ' · diviso tra ' + (ex.shareNames || []).length + '</div>'
+                + '</div>'
+                + '<div class="expense-row-right">'
+                + '<div class="expense-amount">' + CiSiamoData.formatEuro(ex.amount) + '</div>'
+                + '<div class="expense-actions">' + actionsHTML + '</div>'
+                + '</div>'
+                + '</div>';
+            }).join('')
+          : '<div class="empty-hint" style="padding:10px 0;">Nessuna spesa ancora.</div>';
+
+        var addBtnHTML = canWrite
+          ? '<div class="add-date-btn" id="addExpenseBtn" style="margin-top:8px;">+ Aggiungi una spesa</div>'
+          : '';
+
+        var balanceHTML = '';
+        if (expenses.length) {
+          var calc = CiSiamoData.computeExpenseBalances(event);
+          var balRows = calc.balances.map(function (b) {
+            var cls = b.net > 0.01 ? 'balance-positive' : (b.net < -0.01 ? 'balance-negative' : '');
+            var label = b.net > 0.01 ? 'deve ricevere ' + CiSiamoData.formatEuro(b.net)
+              : (b.net < -0.01 ? 'deve dare ' + CiSiamoData.formatEuro(-b.net) : 'in pari');
+            return '<div class="balance-row ' + cls + '"><div>' + CiSiamoData.escapeHTML(b.name) + '</div><div>' + label + '</div></div>';
+          }).join('');
+
+          var settleHTML = calc.settlements.length
+            ? calc.settlements.map(function (s) {
+                return '<div class="settlement-row">' + CiSiamoData.escapeHTML(s.fromName) + ' → ' + CiSiamoData.escapeHTML(s.toName) + ' <b>' + CiSiamoData.formatEuro(s.amount) + '</b></div>';
+              }).join('')
+            : '<div class="empty-hint" style="padding:6px 0;">Conti già in pari.</div>';
+
+          balanceHTML = ''
+            + '<div class="section-title">Il conto</div>'
+            + balRows
+            + '<div class="section-title">Conguagli suggeriti</div>'
+            + settleHTML;
+        }
+
+        return ''
+          + '<div class="section-title">Spese</div>'
+          + rowsHTML
+          + addBtnHTML
+          + balanceHTML;
+      }
+
       function render() {
         var info = CiSiamoData.computeEventStatus(event);
         var isConfirmedSimple = (info.status === 'done' || info.status === 'passato') && !!info.bestOption;
@@ -791,6 +898,7 @@
           : info.status === 'cancelled' ? ''
           : (claimCandidates ? buildClaimPromptHTML(claimCandidates) : buildAvailabilitySectionHTML());
         var confirmedSummaryHTML = isConfirmedSimple ? buildConfirmedSummaryHTML(info) : '';
+        var expensesSectionHTML = buildExpensesSectionHTML();
 
         contentEl.innerHTML = ''
           + guestLockBannerHTML
@@ -804,6 +912,7 @@
           + locationHTML
           + shareSectionHTML
           + confirmedSummaryHTML
+          + expensesSectionHTML
           + inviteesRosterHTML
           + breakdownSectionHTML
           + manualConfirmSectionHTML
@@ -988,6 +1097,34 @@
           });
         }
 
+        var addExpenseBtn = document.getElementById('addExpenseBtn');
+        if (addExpenseBtn) {
+          addExpenseBtn.addEventListener('click', function () { openExpenseModal(null); });
+        }
+
+        document.querySelectorAll('[data-edit-expense]').forEach(function (el) {
+          el.addEventListener('click', function () {
+            var id = el.getAttribute('data-edit-expense');
+            var ex = (event.expenses || []).filter(function (e) { return e.id === id; })[0];
+            if (ex) openExpenseModal(ex);
+          });
+        });
+
+        document.querySelectorAll('[data-remove-expense]').forEach(function (el) {
+          el.addEventListener('click', async function () {
+            var id = el.getAttribute('data-remove-expense');
+            var sure = window.confirm('Cancellare questa spesa? Non si può annullare.');
+            if (!sure) return;
+            try {
+              await CiSiamoData.deleteEventExpense(id);
+            } catch (err) {
+              window.alert('Non sono riuscito a cancellare la spesa (' + err.message + ').');
+              return;
+            }
+            event = await CiSiamoData.getEventById(event.id);
+            render();
+          });
+        });
       }
 
       /* Salva su Supabase e torna alla vista compatta: niente più navigazione
@@ -1078,6 +1215,114 @@
         }
       }
       setupHeaderMenu();
+
+      /* ---------- popup aggiungi/modifica spesa ----------
+         Legato una sola volta come setupHeaderMenu(): il popup vive fuori da
+         contentEl, non viene ricreato ad ogni render(). editingExpenseId
+         null = sto aggiungendo una nuova spesa, altrimenti sto modificando
+         quella con quell'id (aperto da data-edit-expense in bindEvents). */
+      var expenseModal = document.getElementById('expenseModal');
+      var expenseModalTitle = document.getElementById('expenseModalTitle');
+      var expenseModalCloseBtn = document.getElementById('expenseModalCloseBtn');
+      var expenseDescInput = document.getElementById('expenseDescInput');
+      var expenseAmountInput = document.getElementById('expenseAmountInput');
+      var expensePaidBySelect = document.getElementById('expensePaidBySelect');
+      var expenseIncludeList = document.getElementById('expenseIncludeList');
+      var expenseModalError = document.getElementById('expenseModalError');
+      var expenseSaveBtn = document.getElementById('expenseSaveBtn');
+      var editingExpenseId = null;
+
+      function openExpenseModal(ex) {
+        editingExpenseId = ex ? ex.id : null;
+        expenseModalTitle.textContent = ex ? 'Modifica spesa' : 'Nuova spesa';
+        expenseModalError.textContent = '';
+        expenseDescInput.value = ex ? ex.description : '';
+        expenseAmountInput.value = ex ? ex.amount : '';
+
+        var confirmedNames = CiSiamoData.getConfirmedParticipantNames(event);
+        expensePaidBySelect.innerHTML = confirmedNames.map(function (n) {
+          return '<option value="' + CiSiamoData.escapeHTML(n) + '">' + CiSiamoData.escapeHTML(n) + '</option>';
+        }).join('');
+        // Di base propone te stesso come chi ha pagato, se sei tra i
+        // partecipanti confermati: il caso più comune è che chi registra la
+        // spesa sia anche chi l'ha anticipata (Fil, "fondamentale la facilità
+        // d'uso" — un campo pre-riempito bene si tocca una volta in meno).
+        var myLower = (guestName || '').toLowerCase();
+        var defaultPaidBy = ex ? ex.paidByName
+          : (confirmedNames.filter(function (n) { return n.toLowerCase() === myLower; })[0] || confirmedNames[0]);
+        expensePaidBySelect.value = defaultPaidBy;
+
+        // In modifica, preseleziona esattamente chi c'era prima; in una
+        // spesa nuova partono tutti spuntati (la divisione di base è "tutti",
+        // vedi le domande fatte a Fil) e si deseleziona chi va escluso.
+        var includedLower = ex ? (ex.shareNames || []).map(function (n) { return n.toLowerCase(); }) : null;
+        expenseIncludeList.innerHTML = confirmedNames.map(function (n) {
+          var checked = includedLower ? includedLower.indexOf(n.toLowerCase()) !== -1 : true;
+          return ''
+            + '<label class="option-row">'
+            + '<input type="checkbox" class="expense-include-checkbox" value="' + CiSiamoData.escapeHTML(n) + '"' + (checked ? ' checked' : '') + '>'
+            + '<span class="option-row-title">' + CiSiamoData.escapeHTML(n) + '</span>'
+            + '</label>';
+        }).join('');
+
+        expenseModal.style.display = '';
+      }
+
+      function closeExpenseModal() {
+        expenseModal.style.display = 'none';
+        editingExpenseId = null;
+      }
+
+      if (expenseModalCloseBtn) expenseModalCloseBtn.addEventListener('click', closeExpenseModal);
+      if (expenseModal) {
+        expenseModal.addEventListener('click', function (e) {
+          if (e.target === expenseModal) closeExpenseModal();
+        });
+      }
+
+      if (expenseSaveBtn) {
+        expenseSaveBtn.addEventListener('click', async function () {
+          var description = expenseDescInput.value.trim();
+          // virgola o punto, come capita scrivendo su tastiera numerica di
+          // telefono (Fil userà sicuramente la virgola, italiano)
+          var amount = parseFloat((expenseAmountInput.value || '').replace(',', '.'));
+          var paidByName = expensePaidBySelect.value;
+          var includedNames = Array.prototype.map.call(
+            document.querySelectorAll('.expense-include-checkbox:checked'),
+            function (cb) { return cb.value; }
+          );
+
+          expenseModalError.textContent = '';
+          if (!description) { expenseModalError.textContent = 'Scrivi cosa avete pagato.'; return; }
+          if (!amount || amount <= 0) { expenseModalError.textContent = 'Scrivi un importo maggiore di zero.'; return; }
+          if (!includedNames.length) { expenseModalError.textContent = 'Scegli almeno una persona con cui dividere.'; return; }
+
+          var originalText = expenseSaveBtn.textContent;
+          expenseSaveBtn.disabled = true;
+          expenseSaveBtn.textContent = 'Salvo...';
+          try {
+            if (editingExpenseId) {
+              await CiSiamoData.updateEventExpense(editingExpenseId, {
+                description: description, amount: amount, paidByName: paidByName, includedNames: includedNames
+              });
+            } else {
+              await CiSiamoData.addEventExpense(event.id, {
+                description: description, amount: amount, paidByName: paidByName, includedNames: includedNames
+              });
+            }
+          } catch (err) {
+            expenseModalError.textContent = err.message;
+            expenseSaveBtn.disabled = false;
+            expenseSaveBtn.textContent = originalText;
+            return;
+          }
+          expenseSaveBtn.disabled = false;
+          expenseSaveBtn.textContent = originalText;
+          event = await CiSiamoData.getEventById(event.id);
+          closeExpenseModal();
+          render();
+        });
+      }
 
       /* ---------- foto profilo per le bolle "chi ci sarà" ----------
          Caricata una sola volta, solo se l'evento è già confermato/passato

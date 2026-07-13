@@ -822,8 +822,8 @@
        da solo, come un click sul suggerimento. */
     function flush() {
       var query = inputEl.value.trim();
-      if (query.length < 2) return Promise.resolve();
-      if (inputEl.dataset.linkedUsername === inputEl.value) return Promise.resolve(); // già collegato, niente da aspettare
+      if (query.length < 2) { hideDropdown(); return Promise.resolve(); }
+      if (inputEl.dataset.linkedUsername === inputEl.value) { hideDropdown(); return Promise.resolve(); } // già collegato, niente da aspettare
 
       window.clearTimeout(debounceTimer);
       return runSearch(query).then(function (results) {
@@ -835,8 +835,14 @@
           inputEl.dataset.linkedAccountId = exact.id;
           inputEl.dataset.linkedUsername = exact.username;
           inputEl.dataset.linkedAvatarUrl = exact.avatarUrl || '';
-          hideDropdown();
         }
+        // La si nasconde sempre a questo punto (trovato o no): chi ha
+        // premuto "+"/Invio sta commettendo l'aggiunta adesso, un
+        // suggerimento rimasto visibile dopo sembra un'azione ancora da
+        // fare quando invece è già stato deciso tutto (Fil, 2026-07-13,
+        // dopo aver visto il suggerimento restare a schermo e pensato che
+        // il nome non fosse stato aggiunto).
+        hideDropdown();
       });
     }
 

@@ -170,6 +170,72 @@
     return { action: 'redirect', url: 'lista-invito.html' };
   }
 
+  /* Dal login vero con Supabase Auth (2026-07-12) in poi, "sei loggato" non
+     è più solo la cache locale { id, username } (quella esisteva già prima,
+     con l'account fatto in casa) — serve anche una sessione Supabase vera
+     dietro, altrimenti auth.uid() è null per ogni richiesta e le RLS
+     restituiscono zero righe IN SILENZIO, senza errore: sembra che l'app
+     sia vuota invece di dire che non sei più autenticato. Successo davvero
+     il 2026-07-12 con l'account creato la mattina prima della migrazione:
+     cache locale presente, zero sessioni Supabase mai aperte per quell'id.
+     Ogni pagina protetta chiama questo, oltre a checkAccessGate, per
+     accorgersene ed evitare di mostrare una Home/Eventi vuoti senza
+     spiegazione. Non tocca la cache locale da sola: mostrare il perché e
+     lasciare a chi usa l'app la scelta di uscire (vedi logOut sotto). */
+  async function checkSessionHealth() {
+    if (!hasAccount()) return { ok: true };
+    var acc = getAccount();
+    var sessionRes = await supabase.auth.getSession();
+    var session = sessionRes.data && sessionRes.data.session;
+    if (session && session.user && session.user.id === acc.id) return { ok: true };
+    return { ok: false };
+  }
+
+  /* Uscita vera: chiude la sessione Supabase (non solo la cache locale, che
+     da sola lascerebbe comunque valido il token sul dispositivo) e pulisce
+     tutto quello che dice "sei loggato/sei un ospite con un nome" su questo
+     telefono. Usata sia dal pulsante "Esci" in Profilo sia dall'avviso di
+     sessione scaduta qui sopra. */
+  async function logOut() {
+    try { await supabase.auth.signOut(); } catch (err) { /* usciamo comunque in locale */ }
+    try {
+      window.localStorage.removeItem(ACCOUNT_KEY);
+      window.localStorage.removeItem(GUEST_KEY);
+    } catch (err) { /* ignora */ }
+  }
+
+  /* Inserisce l'avviso "sessione scaduta" in cima a containerEl se serve
+     (vedi checkSessionHealth sopra) — volutamente qui in data.js e non in
+     script.js: data.js è sempre il primo script caricato su ogni pagina
+     (script.js è l'ultimo tag prima di </body>), quindi è l'unico posto da
+     cui si può richiamare in modo affidabile nella parte sincrona
+     dell'inizializzazione di una pagina, prima che sia garantito che
+     script.js abbia già finito di caricarsi. Ogni pagina protetta la
+     richiama subito dopo checkAccessGate; non fa nulla se non serve. */
+  async function renderSessionWarningIfNeeded(containerEl) {
+    var health;
+    try { health = await checkSessionHealth(); } catch (err) { return; }
+    if (health.ok) return;
+
+    var target = containerEl || document.querySelector('.content');
+    if (!target || target.querySelector('.session-warning-banner')) return;
+
+    var banner = document.createElement('div');
+    banner.className = 'session-warning-banner';
+    banner.innerHTML = ''
+      + '<div>Il tuo accesso su questo telefono non è più valido (è successo dopo un aggiornamento dell\'app): esci e accedi di nuovo per rivedere i tuoi dati.</div>'
+      + '<button type="button" class="session-warning-btn">Esci ora</button>';
+    target.insertBefore(banner, target.firstChild);
+
+    banner.querySelector('.session-warning-btn').addEventListener('click', async function () {
+      var btn = banner.querySelector('.session-warning-btn');
+      btn.disabled = true;
+      btn.textContent = 'Esco...';
+      await logOut();
+      window.location.href = 'profilo.html';
+    });
+  }
+
   /* Schermata "serve un profilo", uguale ovunque serva bloccare una pagina
      intera: stesso stile del popup di registrazione, solo non saltabile. */
   function accountRequiredBlockHTML(message) {
@@ -1495,6 +1561,119 @@
     };
   }
 
+  /* ---------- Spese (stile Tricount), dentro l'evento — Fil, 2026-07-13 ----------
+     Solo chi ha un account può aggiungere/modificare (le RPC lato server
+     rivalidano tutto comunque, anche se qualcuno bypassa questa
+     interfaccia). Chi entra in una spesa deve essere tra i "partecipanti
+     confermati": chi aveva votato disponibile proprio per la data poi
+     fissata — non avrebbe senso dividere una spesa con chi non parteciperà
+     davvero. */
+
+  function getConfirmedParticipantNames(event) {
+    if (!event || !event.confirmedDateOptionId) return [];
+    var confirmedId = event.confirmedDateOptionId;
+    return (event.participants || [])
+      .filter(function (p) { return (p.availableDateOptionIds || []).indexOf(confirmedId) !== -1; })
+      .map(function (p) { return p.name; });
+  }
+
+  async function addEventExpense(eventId, input) {
+    var res = await supabase.rpc('add_event_expense', {
+      p_event_id: eventId,
+      p_description: (input.description || '').trim(),
+      p_amount: input.amount,
+      p_paid_by_name: input.paidByName,
+      p_included_names: input.includedNames || []
+    });
+    if (res.error) throwSupabaseError(res.error);
+    return res.data;
+  }
+
+  async function updateEventExpense(expenseId, input) {
+    var res = await supabase.rpc('update_event_expense', {
+      p_expense_id: expenseId,
+      p_description: (input.description || '').trim(),
+      p_amount: input.amount,
+      p_paid_by_name: input.paidByName,
+      p_included_names: input.includedNames || []
+    });
+    if (res.error) throwSupabaseError(res.error);
+  }
+
+  async function deleteEventExpense(expenseId) {
+    var res = await supabase.rpc('delete_event_expense', { p_expense_id: expenseId });
+    if (res.error) throwSupabaseError(res.error);
+  }
+
+  function formatEuro(amount) {
+    var n = Number(amount) || 0;
+    return n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  }
+
+  /* Saldo per persona (quanto ha pagato meno quanto doveva pagare, in base
+     alle spese a cui è inclusa) + conguagli ottimizzati: chi deve dare a
+     chi, minimizzando i trasferimenti (algoritmo goloso: il maggior
+     creditore incassa dal maggior debitore, si ripete finché nessuno resta
+     sbilanciato). Tutto calcolato qui, non nel database: sono solo numeri
+     derivati dalle spese, niente da salvare a parte. */
+  function computeExpenseBalances(event) {
+    var expenses = event.expenses || [];
+    var balances = {}; // chiave: nome in minuscolo -> { name, accountId, paid, owed }
+
+    function ensure(name, accountId) {
+      var key = (name || '').trim().toLowerCase();
+      if (!balances[key]) balances[key] = { name: name, accountId: accountId || null, paid: 0, owed: 0 };
+      if (accountId && !balances[key].accountId) balances[key].accountId = accountId;
+      return balances[key];
+    }
+
+    expenses.forEach(function (ex) {
+      var payer = ensure(ex.paidByName, ex.paidByAccountId);
+      payer.paid += Number(ex.amount) || 0;
+
+      var shareNames = ex.shareNames || [];
+      if (!shareNames.length) return;
+      var share = (Number(ex.amount) || 0) / shareNames.length;
+      shareNames.forEach(function (name) {
+        ensure(name, null).owed += share;
+      });
+    });
+
+    var list = Object.keys(balances).map(function (key) {
+      var b = balances[key];
+      return {
+        name: b.name,
+        accountId: b.accountId,
+        paid: Math.round(b.paid * 100) / 100,
+        owed: Math.round(b.owed * 100) / 100,
+        net: Math.round((b.paid - b.owed) * 100) / 100
+      };
+    });
+
+    // Conguagli: liste separate da consumare (creditori net>0, debitori
+    // net<0), sempre il più grande contro il più grande finché non restano.
+    var creditors = list.filter(function (p) { return p.net > 0.01; }).map(function (p) { return { name: p.name, amount: p.net }; });
+    var debtors = list.filter(function (p) { return p.net < -0.01; }).map(function (p) { return { name: p.name, amount: -p.net }; });
+    creditors.sort(function (a, b) { return b.amount - a.amount; });
+    debtors.sort(function (a, b) { return b.amount - a.amount; });
+
+    var settlements = [];
+    var ci = 0, di = 0;
+    while (ci < creditors.length && di < debtors.length) {
+      var c = creditors[ci], d = debtors[di];
+      var amount = Math.min(c.amount, d.amount);
+      if (amount > 0.01) {
+        settlements.push({ fromName: d.name, toName: c.name, amount: Math.round(amount * 100) / 100 });
+      }
+      c.amount -= amount;
+      d.amount -= amount;
+      if (c.amount <= 0.01) ci++;
+      if (d.amount <= 0.01) di++;
+    }
+
+    return { balances: list, settlements: settlements };
+  }
+
   var STATUS_LABELS = {
     waiting: 'In attesa',
     almost: 'Quasi pieno',
@@ -1567,6 +1746,9 @@
     getGuestLock: getGuestLock,
     clearGuestLock: clearGuestLock,
     checkAccessGate: checkAccessGate,
+    checkSessionHealth: checkSessionHealth,
+    logOut: logOut,
+    renderSessionWarningIfNeeded: renderSessionWarningIfNeeded,
     accountRequiredBlockHTML: accountRequiredBlockHTML,
     createAccount: createAccount,
     updateAccount: updateAccount,
@@ -1589,6 +1771,12 @@
     escapeHTML: escapeHTML,
     renderEventCardHTML: renderEventCardHTML,
     STATUS_LABELS: STATUS_LABELS,
+    getConfirmedParticipantNames: getConfirmedParticipantNames,
+    addEventExpense: addEventExpense,
+    updateEventExpense: updateEventExpense,
+    deleteEventExpense: deleteEventExpense,
+    formatEuro: formatEuro,
+    computeExpenseBalances: computeExpenseBalances,
     GOOGLE_MAPS_API_KEY: GOOGLE_MAPS_API_KEY,
     getFriendLists: getFriendLists,
     getFriendListById: getFriendListById,
