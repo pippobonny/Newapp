@@ -1045,7 +1045,10 @@
         if (screen) screen.classList.add('slide-out-left');
 
         window.setTimeout(function () {
-          window.location.href = href;
+          // replace, non href: il form di modifica non deve restare nella
+          // cronologia, altrimenti il tasto indietro del telefono ci
+          // riporta sopra invece che a dove si era prima (Fil, 2026-07-17).
+          window.location.replace(href);
         }, 160);
       });
 
@@ -1055,7 +1058,7 @@
          al primo tocco, quello che arriva prima. */
       function showEventCreatedPopup(event, href) {
         var phone = document.querySelector('.phone');
-        if (!phone) { window.location.href = href; return; }
+        if (!phone) { window.location.replace(href); return; }
 
         var dateLabels = (event.dateOptions || []).map(function (o) {
           return CiSiamoData.formatDateLabel(o.dateISO);
@@ -1081,7 +1084,11 @@
         function goToEvent() {
           if (dismissed) return;
           dismissed = true;
-          window.location.href = href;
+          // replace, non href: appena creato, crea.html non deve restare nella
+          // cronologia — altrimenti condividendo il link e tornando indietro
+          // col tasto nativo del telefono si ricade sul form invece che
+          // restare sull'evento appena creato (Fil, 2026-07-17).
+          window.location.replace(href);
         }
         overlay.addEventListener('click', goToEvent);
         window.setTimeout(goToEvent, 10000);
@@ -1219,8 +1226,10 @@
         var isReallyOrganizer = !!(editingEvent && editingEvent.createdBy && editingEvent.createdBy.toLowerCase() === myNameForEdit);
 
         if (!editingEvent || !isReallyOrganizer) {
-          // non è un tuo evento (o non esiste più): niente modifica per te
-          window.location.href = editingEvent ? ('evento.html?id=' + encodeURIComponent(editEventId)) : 'index.html';
+          // non è un tuo evento (o non esiste più): niente modifica per te.
+          // replace, non href: stesso motivo del redirect dopo il salvataggio
+          // più sotto, il form non deve restare nella cronologia.
+          window.location.replace(editingEvent ? ('evento.html?id=' + encodeURIComponent(editEventId)) : 'index.html');
           return;
         }
 

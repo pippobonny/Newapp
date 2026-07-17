@@ -40,6 +40,10 @@
   <div class="phone">
    <div class="screen">
     <div class="header simple">
+      <!-- Freccia visibile solo dentro Registrati/Accedi, per tornare alla
+           schermata di scelta (Registrati con email / Google): prima non
+           c'era modo di tornare indietro da lì (Fil, 2026-07-17). -->
+      <a class="back-btn" href="#" id="authBackBtn" style="display:none;">←</a>
       <div class="header-title">Profilo</div>
     </div>
 
@@ -58,9 +62,15 @@
              sotto tutto il form (Fil, 2026-07-12). Chi preme "Registrati
              con email" apre il form sotto; chi preme Google apre subito
              il consenso Google. -->
-        <div id="authChoiceRow" style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
+        <div id="authChoiceRow" style="display:flex; flex-direction:column; gap:10px; margin-bottom:10px;">
           <button type="button" class="primary-btn" id="showRegisterModeBtn" style="margin-bottom:0;">Registrati con email</button>
-          <button type="button" class="primary-btn" id="googleSignInBtn" style="margin-bottom:0; background:var(--card); color:var(--ink); box-shadow:0 2px 8px rgba(58,50,90,0.06); display:flex; align-items:center; justify-content:center; gap:10px;">
+        </div>
+
+        <!-- Fuori da authChoiceRow perché resta visibile anche in modalità
+             Accedi (prima Google spariva del tutto e restava solo email/
+             password: Fil, 2026-07-17). -->
+        <div id="googleSignInWrap" style="margin-bottom:16px;">
+          <button type="button" class="primary-btn" id="googleSignInBtn" style="margin-bottom:0; width:100%; background:var(--card); color:var(--ink); box-shadow:0 2px 8px rgba(58,50,90,0.06); display:flex; align-items:center; justify-content:center; gap:10px;">
             <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.9v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.66 9c0-.59.1-1.17.28-1.7V4.97H.9A9 9 0 0 0 0 9c0 1.45.35 2.83.9 4.03l3.05-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.42 0 9 0A9 9 0 0 0 .9 4.97L3.95 7.3C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
             <span id="googleSignInBtnLabel">Continua con Google</span>
           </button>
@@ -247,6 +257,8 @@
 
       var authChoiceRow = document.getElementById('authChoiceRow');
       var showRegisterModeBtn = document.getElementById('showRegisterModeBtn');
+      var googleSignInWrap = document.getElementById('googleSignInWrap');
+      var authBackBtn = document.getElementById('authBackBtn');
       var authSwitchHint = document.getElementById('authSwitchHint');
       var authSwitchLink = document.getElementById('authSwitchLink');
       var registerFields = document.getElementById('registerFields');
@@ -375,10 +387,14 @@
         createError.textContent = '';
 
         authChoiceRow.style.display = mode === 'choice' ? 'flex' : 'none';
+        // Google resta visibile sia nella scelta iniziale sia in Accedi:
+        // solo in Registrati (form email già scelto) e in modifica non serve.
+        googleSignInWrap.style.display = (mode === 'choice' || mode === 'login') ? '' : 'none';
         registerFields.style.display = mode === 'register' ? '' : 'none';
         loginFields.style.display = mode === 'login' ? '' : 'none';
         createAvatarBlock.style.display = mode === 'register' ? '' : 'none';
         createBtn.style.display = mode === 'choice' ? 'none' : '';
+        authBackBtn.style.display = (mode === 'register' || mode === 'login') ? '' : 'none';
 
         if (mode === 'login') {
           createViewTitle.textContent = 'Accedi al tuo profilo';
@@ -395,6 +411,10 @@
       authSwitchLink.addEventListener('click', function (e) {
         e.preventDefault();
         setAuthMode(authMode === 'login' ? 'choice' : 'login');
+      });
+      authBackBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        setAuthMode('choice');
       });
 
       /* Mostra una foto (o un'iniziale testuale) dentro l'avatar circolare, riusata
@@ -480,6 +500,8 @@
         authSwitchHint.style.display = isEdit ? 'none' : '';
         if (isEdit) {
           authChoiceRow.style.display = 'none';
+          googleSignInWrap.style.display = 'none';
+          authBackBtn.style.display = 'none';
           registerFields.style.display = '';
           loginFields.style.display = 'none';
           createAvatarBlock.style.display = '';
@@ -837,7 +859,10 @@
         // controllo in più, silenzioso, prima di mostrare "crea profilo".
         var googleState = await CiSiamoData.getGoogleSignupState();
         if (googleState && !googleState.needsProfile) {
-          await showNormalView();
+          // Accesso con Google di un account già completo (non la primissima
+          // registrazione): va dritto in Home come un login normale via
+          // email, non deve fermarsi sulla vista profilo (Fil, 2026-07-17).
+          window.location.href = 'index.html';
         } else if (googleState && googleState.needsProfile) {
           showGoogleProfileView(googleState.suggested);
         } else {

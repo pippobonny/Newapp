@@ -388,6 +388,15 @@ a { text-decoration: none; color: inherit; }
   padding: 30px 10px;
 }
 
+/* I link dentro empty-hint (es. "Proponine uno tu →", "Torna alla Home →")
+   ereditavano lo stile generico "a" (niente sottolineato, colore uguale al
+   testo intorno) e sembravano testo normale, non cliccabile. Stesso
+   trattamento di .field-hint a: colore + grassetto (Fil, 2026-07-17). */
+.empty-hint a {
+  color: var(--lavender);
+  font-weight: 600;
+}
+
 /* Fumetto informativo "una volta sola" — vedi CiSiamoUI.showOnceHint in
    script.js. Sempre nel flusso normale del documento (mai position:absolute):
    dopo il bug del menu ⋮ finito sotto la foto per colpa di stacking context,

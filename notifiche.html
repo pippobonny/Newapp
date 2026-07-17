@@ -202,6 +202,24 @@
       // liste non sono più collegate agli eventi dopo la creazione.
       var notifications = [];
 
+      /* Data di creazione dell'evento: va bene solo per "nuova proposta"
+         (che riguarda proprio quel momento). Per gli stati che invece
+         dipendono dalle risposte (confermato, quasi quota, annullato) usare
+         sempre createdAt dava la data di creazione anche a eventi confermati
+         giorni dopo, o addirittura più vecchi delle notifiche "nuova
+         proposta" — le nuove finivano sotto quelle vecchie in classifica.
+         Qui si usa invece l'attività più recente sull'evento (la risposta più
+         recente tra i partecipanti, o l'annullamento vero e proprio se c'è),
+         così l'ordine rispecchia quando la notifica ha davvero senso di
+         esistere (Fil, 2026-07-17). */
+      function latestActivityTime(event) {
+        var latest = event.createdAt;
+        (event.participants || []).forEach(function (p) {
+          if (p.createdAt && new Date(p.createdAt) > new Date(latest)) latest = p.createdAt;
+        });
+        return latest;
+      }
+
       events.forEach(function (event) {
         var info = CiSiamoData.computeEventStatus(event);
         var ts = event.createdAt;
@@ -209,18 +227,18 @@
 
         if (info.status === 'cancelled') {
           notifications.push({
-            icon: 'cancelled', emoji: '🚫', time: ts,
+            icon: 'cancelled', emoji: '🚫', time: event.cancelledAt || latestActivityTime(event),
             text: '<b>' + CiSiamoData.escapeHTML(event.name) + '</b> è stato annullato: non si è raggiunta la quota minima.'
           });
         } else if (info.status === 'done') {
           notifications.push({
-            icon: 'confirmed', emoji: '✅', time: ts,
+            icon: 'confirmed', emoji: '✅', time: latestActivityTime(event),
             text: '<b>' + CiSiamoData.escapeHTML(event.name) + '</b> è confermato!'
           });
         } else if (info.status === 'almost') {
           var missing = info.quota - info.count;
           notifications.push({
-            icon: 'quota', emoji: '🎉', time: ts,
+            icon: 'quota', emoji: '🎉', time: latestActivityTime(event),
             text: '<b>' + CiSiamoData.escapeHTML(event.name) + '</b> ha quasi raggiunto la quota: manca' + (missing === 1 ? '' : 'no') + ' ' + missing + (missing === 1 ? ' persona' : ' persone') + '.'
           });
         } else if (!iAmOrganizer) {

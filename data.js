@@ -822,7 +822,7 @@
     + 'cancelledAt:cancelled_at, shareToken:share_token, openInvite:open_invite, '
     + 'confirmedDateOptionId:confirmed_date_option_id, '
     + 'dateOptions:date_options!date_options_event_id_fkey(id, dateISO:date_iso), '
-    + 'participants(name, availableDateOptionIds:available_date_option_ids, accountId:account_id), '
+    + 'participants(name, availableDateOptionIds:available_date_option_ids, accountId:account_id, createdAt:created_at), '
     + 'invitees:event_invitees(id, name, accountId:account_id, claimedAt:claimed_at)';
 
   /* ---------- visibilità eventi ----------

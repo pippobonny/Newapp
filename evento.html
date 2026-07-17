@@ -1216,6 +1216,13 @@
         var formError = document.getElementById('formError');
         if (formError) formError.textContent = '';
 
+        // Serve per capire, dopo il salvataggio, se è stata proprio questa
+        // risposta a far scattare la conferma (Fil, 2026-07-17): se non lo era
+        // già prima e lo è dopo, chi ha appena risposto ha "chiuso" l'evento
+        // e merita lo stesso popup di festa di chi lo crea, non solo il
+        // riepilogo silenzioso che si vede ricaricando la pagina più tardi.
+        var wasConfirmed = CiSiamoData.computeEventStatus(event).status === 'done';
+
         var originalText = btnEl.textContent;
         btnEl.disabled = true;
         btnEl.textContent = 'Salvo...';
@@ -1231,6 +1238,42 @@
 
         editingAvailability = false;
         render();
+
+        var infoAfter = CiSiamoData.computeEventStatus(event);
+        if (!wasConfirmed && infoAfter.status === 'done' && infoAfter.bestOption) {
+          showEventConfirmedPopup(infoAfter);
+        }
+      }
+
+      /* Stesso trattamento del popup "evento creato" di crea.html (sfondo
+         sfocato, riepilogo essenziale, si chiude da solo dopo 10s o al primo
+         tocco): qui però non si naviga da nessuna parte dopo, si resta
+         sull'evento (già ridisegnato sotto da render() con lo stato
+         confermato). */
+      function showEventConfirmedPopup(info) {
+        var phone = document.querySelector('.phone');
+        if (!phone) return;
+
+        var overlay = document.createElement('div');
+        overlay.className = 'signup-overlay';
+        overlay.innerHTML = ''
+          + '<div class="signup-modal">'
+          + '<div class="signup-modal-icon">🎉</div>'
+          + '<div class="signup-modal-title">Evento confermato!</div>'
+          + '<div class="signup-modal-text" style="margin-bottom:6px;">' + CiSiamoData.escapeHTML(event.name) + '</div>'
+          + '<div class="signup-modal-text">📅 ' + CiSiamoData.escapeHTML(CiSiamoData.formatDateLabel(info.bestOption.dateISO)) + '</div>'
+          + '</div>';
+
+        var dismissed = false;
+        function dismiss() {
+          if (dismissed) return;
+          dismissed = true;
+          if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        }
+        overlay.addEventListener('click', dismiss);
+        window.setTimeout(dismiss, 10000);
+
+        phone.appendChild(overlay);
       }
 
       /* ---------- menu ⋮ dell'header: Modifica/Elimina ----------
