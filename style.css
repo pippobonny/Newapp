@@ -700,8 +700,16 @@ label.event-photo-preview {
    quando due ne stanno nella stessa riga (range di date) il telefono va in
    overflow orizzontale invece di stare nella larghezza dello schermo. Il
    padding-right più stretto (solo qui, dove i date-input sono due per riga)
-   lascia un po' più di spazio libero per i segni gg/mm/aaaa. */
-.date-row input { flex: 1; min-width: 0; }
+   lascia un po' più di spazio libero per i segni gg/mm/aaaa.
+
+   width:1px è la parte per iOS (Fil, 2026-07-17): un <input type="date">
+   vuoto su Safari/iPhone calcola la sua larghezza "naturale" dal segnaposto
+   di sistema, più stretta di quanto risulti a data scelta — il riquadro
+   sembra restringersi finché non scrivi una data. Dare un width di partenza
+   esplicito (qualunque valore piccolo, sovrascritto subito dalla crescita
+   flex:1) impedisce a Safari di usare quel contenuto come base di calcolo:
+   la larghezza viene sempre dalla riga flessibile, vuoto o pieno che sia. */
+.date-row input { flex: 1; min-width: 0; width: 1px; }
 .date-row input[type="date"] { padding-right: 30px; background-size: 14px; background-position: right 8px center; }
 .date-row input[type="date"]::-webkit-calendar-picker-indicator { width: 30px; }
 

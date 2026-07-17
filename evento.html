@@ -736,11 +736,31 @@
             }).join('') + '</div>'
           : '<div class="empty-hint" style="padding:10px 0;">Nessuno segnato per questa data.</div>';
 
+        // "Non potrò esserci" / "Ci sarò dopotutto" (Fil, 2026-07-17): solo su
+        // un evento ancora da tenersi (mai su "passato", non ha più senso
+        // cambiare idea su qualcosa già successo) e mai per l'organizzatore
+        // (ha modifica/elimina evento per quello). Chi è tra i presenti vede
+        // la prima; chi aveva già risposto ma non è (più) tra i presenti per
+        // questa data vede la seconda — chi non ha mai risposto affatto non
+        // vede nulla, non ha senso proporgli di "rientrare" in qualcosa a cui
+        // non ha mai partecipato.
+        var withdrawActionHTML = '';
+        if (info.status === 'done' && !isOrganizer && guestName) {
+          var mine = guestName.toLowerCase();
+          var iAmAttending = attendeeNames.some(function (n) { return n.toLowerCase() === mine; });
+          if (iAmAttending) {
+            withdrawActionHTML = '<div style="text-align:center; margin-top:6px;"><span class="signup-skip-link" id="withdrawFromEventLink">Non potrò esserci →</span></div>';
+          } else if (findExistingParticipant()) {
+            withdrawActionHTML = '<div style="text-align:center; margin-top:6px;"><span class="signup-skip-link" id="rejoinEventLink">Ci sarò dopotutto →</span></div>';
+          }
+        }
+
         return ''
           + '<div class="section-title first">Quando</div>'
           + dateCardHTML
           + '<div class="section-title">Chi ci sarà</div>'
-          + bubblesHTML;
+          + bubblesHTML
+          + withdrawActionHTML;
       }
 
       /* ---------- Spese (stile Tricount), solo per evento confermato ----------
@@ -1031,6 +1051,52 @@
             render();
           });
         });
+
+        // "Non potrò esserci" su un evento già confermato: azzera la propria
+        // disponibilità e avvisa l'organizzatore; se con te tolto la data
+        // scende sotto quota, l'evento si riapre da solo per tutti (vedi
+        // withdrawFromEvent in data.js). Nessuna conferma testuale sul
+        // perché: basta il conferma/annulla del browser (Fil, 2026-07-17).
+        var withdrawLink = document.getElementById('withdrawFromEventLink');
+        if (withdrawLink) {
+          withdrawLink.addEventListener('click', async function () {
+            var sure = window.confirm('Segnalare che non potrai esserci per "' + event.name + '"? L\'organizzatore riceverà una notifica.');
+            if (!sure) return;
+
+            var originalText = withdrawLink.textContent;
+            withdrawLink.textContent = 'Segnalo...';
+            try {
+              event = await CiSiamoData.withdrawFromEvent(event.id, guestName);
+            } catch (err) {
+              withdrawLink.textContent = originalText;
+              window.alert('Non sono riuscito a segnalarlo (' + err.message + '). Riprova.');
+              return;
+            }
+            render();
+          });
+        }
+
+        // "Ci sarò dopotutto": stesso meccanismo di una risposta normale,
+        // solo richiamato da dentro la vista confermata (che altrimenti non
+        // mostra più i pulsanti di risposta una volta raggiunta la quota).
+        var rejoinLink = document.getElementById('rejoinEventLink');
+        if (rejoinLink) {
+          rejoinLink.addEventListener('click', async function () {
+            var info = CiSiamoData.computeEventStatus(event);
+            if (!info.bestOption) return;
+
+            var originalText = rejoinLink.textContent;
+            rejoinLink.textContent = 'Aggiorno...';
+            try {
+              event = await CiSiamoData.upsertParticipant(event.id, guestName, [info.bestOption.id]);
+            } catch (err) {
+              rejoinLink.textContent = originalText;
+              window.alert('Non sono riuscito ad aggiornare la tua risposta (' + err.message + '). Riprova.');
+              return;
+            }
+            render();
+          });
+        }
 
         // Bottone "Condividi" (prima "Copia"): su telefono usa la vera
         // condivisione di sistema (Web Share API) così si apre il foglio con

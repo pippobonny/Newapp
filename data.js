@@ -1432,6 +1432,26 @@
     return getEventById(eventId);
   }
 
+  /* "Non potrò esserci" su un evento già confermato (Fil, 2026-07-17): a
+     differenza di un normale "non sono disponibile" (che si può dare solo
+     mentre l'evento aspetta ancora risposte), questo si usa DOPO che una
+     data è già stata fissata — un imprevisto capitato a chi aveva già detto
+     di esserci. Sempre azzera la disponibilità di chi lo chiama; se con lui
+     tolto la data confermata scende sotto quota, l'evento si riapre da solo
+     (torna "in attesa" per tutti, vedi withdraw_from_event lato server) e
+     l'organizzatore riceve una notifica in ogni caso, riaperto o no. Tornare
+     indietro ("ci sarò dopotutto") non serve una funzione dedicata: basta
+     rispondere di nuovo disponibile con upsertParticipant, come sempre. */
+  async function withdrawFromEvent(eventId, guestName) {
+    var res = await supabase.rpc('withdraw_from_event', {
+      p_event_id: eventId,
+      p_name: (guestName || '').trim() || null
+    });
+    if (res.error) throwSupabaseError(res.error);
+
+    return getEventById(eventId);
+  }
+
   /* Calcola stato, percentuale di riempimento e "miglior data" di un evento.
      Chi ha risposto "non ci sono mai" (available_date_option_ids vuoto, salvato
      con un click esplicito, non una non-risposta) resta un partecipante a tutti
@@ -1775,6 +1795,7 @@
     confirmEventDate: confirmEventDate,
     getEventNotices: getEventNotices,
     upsertParticipant: upsertParticipant,
+    withdrawFromEvent: withdrawFromEvent,
     computeEventStatus: computeEventStatus,
     buildMapsUrl: buildMapsUrl,
     formatDateLabel: formatDateLabel,
