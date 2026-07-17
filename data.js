@@ -654,8 +654,17 @@
   }
 
   /* Ricerca account per username (Opzione A del documento omonimi): usata dai
-     suggerimenti mentre scrivi un nome, in amici.html e in crea.html. Nessun
-     dato sensibile: solo id/username/foto tornano indietro. */
+     suggerimenti mentre scrivi un nome, in amici.html e in crea.html. Aperta
+     a tutti gli account registrati (Fil, 2026-07-17: una versione ristretta
+     ai soli amici/invitati passati rendeva impossibile trovare qualcuno per
+     la prima volta — proprio il caso d'uso principale di amici.html).
+
+     Confronta anche nome e cognome veri, non solo lo username (utile per chi
+     scrive "Michela Zecchin" e sull'app quella persona è "michi"): il
+     confronto avviene TUTTO dentro la funzione server (search_accounts, RPC),
+     nome/cognome non vengono mai restituiti al client — solo id/username/
+     foto, come già prima. Vedi la funzione lato Supabase per la logica di
+     confronto token per token. */
   async function searchAccounts(query) {
     var q = (query || '').trim();
     if (q.length < 2) return [];

@@ -809,7 +809,7 @@
       var hintContainer = inputEl.closest('.field')
         || (inputEl.closest('.inline-add-row') && inputEl.closest('.inline-add-row').parentElement)
         || parent;
-      showOnceHint('accountSearch', hintContainer, 'Cerca per nome utente: se lo trovi e lo scegli, resta collegato per sempre e riceverà notifiche vere invece di un invito generico.', inputEl, ['input', 'blur']);
+      showOnceHint('accountSearch', hintContainer, 'Cerca per nome utente o per nome e cognome: se la trovi e la scegli, resta collegata per sempre e riceverà notifiche vere invece di un invito generico.', inputEl, ['input', 'blur']);
     });
 
     /* Da richiamare prima di aggiungere (Invio o "+"): se per il testo
