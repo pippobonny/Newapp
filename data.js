@@ -17,6 +17,49 @@
   var SUPABASE_KEY = 'sb_publishable_WU-op4b5mEoqOZpzOYFSaA_P5ElM1y_';
   var supabase = global.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+  /* Fil, 2026-07-19: bug osservato da Virginia — modifica un evento, preme
+     "Conferma", riceve "non sono riuscito a salvare", preme di nuovo e va
+     tutto bene. Causa quasi certa: Safari su iOS sospende i timer delle
+     schede in background (o quando lo schermo si blocca), quindi il timer
+     di auto-refresh del token di supabase-js non parte mentre il telefono
+     è "addormentato". Il primo tap dopo la ripresa parte con un token
+     scaduto e fallisce; il secondo funziona perché nel frattempo il client
+     se n'è accorto e ha rinnovato la sessione da solo. Qui forziamo un
+     controllo (e se serve un refresh) ogni volta che la pagina torna
+     visibile, così il token è già buono PRIMA che l'utente tocchi
+     "Conferma" — invece di scoprirlo a metà del salvataggio. */
+  if (global.document) {
+    global.document.addEventListener('visibilitychange', function () {
+      if (global.document.visibilityState === 'visible') {
+        supabase.auth.getSession().catch(function () { /* ignora: se fallisce qui, fallirà (e si vedrà) sulla prossima azione reale */ });
+      }
+    });
+  }
+
+  /* Riprova UNA volta un'operazione che scrive su Supabase se il primo
+     tentativo fallisce per token scaduto (messaggio "JWT expired" o "invalid
+     JWT", o errore di rete generico durante il ripristino sessione) — stesso
+     scenario di sopra, ma come rete di sicurezza per il caso in cui il tap
+     arrivi prima che il controllo su visibilitychange sia riuscito a finire.
+     NON riprova per errori "veri" (validazione, permessi, dati mancanti):
+     solo per la sotto-stringa che indica un problema di token/sessione. */
+  function isAuthTokenError(err) {
+    var msg = ((err && err.message) || '').toLowerCase();
+    return msg.indexOf('jwt') !== -1 || msg.indexOf('token') !== -1 || msg.indexOf('session') !== -1 || msg.indexOf('401') !== -1;
+  }
+
+  async function withAuthRetry(fn) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (!isAuthTokenError(err)) throw err;
+      try {
+        await supabase.auth.getSession();
+      } catch (refreshErr) { /* ignora, si tenta comunque il retry */ }
+      return await fn();
+    }
+  }
+
   /* Chiave per Google Maps (Places Autocomplete, usata da crea.html per il
      campo posizione). È normale che sia visibile qui: le chiavi Maps sono
      fatte per stare lato client, e si proteggono restringendo i referrer
@@ -389,21 +432,85 @@
     return acc2;
   }
 
+  /* Fil, 2026-07-19: "su iPhone crea evento è lento, soprattutto le foto".
+     Le foto di un iPhone recente sono spesso 3-15MB (alta risoluzione, anche
+     dopo la conversione HEIC->JPEG che Safari fa da solo scegliendo dal
+     picker file). Caricarle così com'è su una connessione mobile è lento e,
+     se la rete è debole, può far scadere la richiesta a metà — altra
+     possibile causa del "non sono riuscito a salvare, riprova" visto da
+     Virginia se aveva anche cambiato la foto. Qui ridimensioniamo/ricomprimiamo
+     lato client PRIMA di caricare: stesso identico risultato visivo (le foto
+     mostrate in app non superano mai ~1600px di lato), molto più leggero da
+     spedire, e come effetto collaterale sempre un JPEG in uscita — quindi
+     anche se il file originale fosse rimasto in HEIC (capita in alcuni
+     contesti di WebView che non convertono da soli), chi guarda l'evento da
+     Android/Windows lo vede comunque, invece di un'icona rotta.
+     Se qualcosa va storto (formato non decodificabile, canvas bloccato dal
+     browser...) si torna al file originale invece di bloccare l'utente. */
+  async function compressImageForUpload(file, maxDimension, quality) {
+    if (!file || !file.type || file.type.indexOf('image/') !== 0) return file;
+    var skipBelowBytes = 350 * 1024; // già leggera: non vale la pena ricomprimere
+    if (file.size && file.size < skipBelowBytes) return file;
+
+    try {
+      var bitmap;
+      if (window.createImageBitmap) {
+        bitmap = await createImageBitmap(file);
+      } else {
+        bitmap = await new Promise(function (resolve, reject) {
+          var img = new Image();
+          img.onload = function () { resolve(img); };
+          img.onerror = reject;
+          img.src = URL.createObjectURL(file);
+        });
+      }
+
+      var srcW = bitmap.width || bitmap.naturalWidth;
+      var srcH = bitmap.height || bitmap.naturalHeight;
+      if (!srcW || !srcH) return file;
+
+      var scale = Math.min(1, (maxDimension || 1600) / Math.max(srcW, srcH));
+      var outW = Math.max(1, Math.round(srcW * scale));
+      var outH = Math.max(1, Math.round(srcH * scale));
+
+      var canvas = document.createElement('canvas');
+      canvas.width = outW;
+      canvas.height = outH;
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#FFFFFF'; // sfondo bianco per chi arriva da un PNG trasparente
+      ctx.fillRect(0, 0, outW, outH);
+      ctx.drawImage(bitmap, 0, 0, outW, outH);
+      if (bitmap.close) bitmap.close();
+
+      var blob = await new Promise(function (resolve) {
+        canvas.toBlob(function (b) { resolve(b); }, 'image/jpeg', quality || 0.82);
+      });
+      if (!blob || blob.size >= file.size) return file; // se non abbiamo guadagnato nulla, tieni l'originale
+      return blob;
+    } catch (err) {
+      return file;
+    }
+  }
+
   /* Carica un'immagine sul bucket Storage "avatars" e restituisce l'URL pubblico
      da salvare come avatarUrl. Ogni file ha un nome unico, cosi' non si sovrascrivono
      tra loro le foto di account diversi (o caricamenti ripetuti dello stesso account). */
   async function uploadAvatar(file) {
     if (!file) return null;
+    var original = file;
+    file = await compressImageForUpload(file, 1000, 0.85); // avatar: quadrato piccolo in UI, non serve più di 1000px
 
     var ext = 'jpg';
-    if (file.name && file.name.indexOf('.') !== -1) {
-      ext = file.name.split('.').pop().toLowerCase();
+    var contentType = 'image/jpeg';
+    if (file === original) {
+      contentType = file.type || undefined;
+      if (file.name && file.name.indexOf('.') !== -1) ext = file.name.split('.').pop().toLowerCase();
     }
     var path = 'avatar-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.' + ext;
 
     var uploadRes = await supabase.storage.from('avatars').upload(path, file, {
       upsert: false,
-      contentType: file.type || undefined
+      contentType: contentType
     });
     if (uploadRes.error) throw new Error(uploadRes.error.message);
 
@@ -415,16 +522,20 @@
      dell'evento, mostrata in evento.html e come anteprima nelle card. */
   async function uploadEventPhoto(file) {
     if (!file) return null;
+    var original = file;
+    file = await compressImageForUpload(file, 1600, 0.82);
 
     var ext = 'jpg';
-    if (file.name && file.name.indexOf('.') !== -1) {
-      ext = file.name.split('.').pop().toLowerCase();
+    var contentType = 'image/jpeg';
+    if (file === original) {
+      contentType = file.type || undefined;
+      if (file.name && file.name.indexOf('.') !== -1) ext = file.name.split('.').pop().toLowerCase();
     }
     var path = 'event-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.' + ext;
 
     var uploadRes = await supabase.storage.from('event-photos').upload(path, file, {
       upsert: false,
-      contentType: file.type || undefined
+      contentType: contentType
     });
     if (uploadRes.error) throw new Error(uploadRes.error.message);
 
@@ -599,7 +710,22 @@
       .select('id, name, account_id, link_status, requested_at, accepted_at, invite_token')
       .single();
     if (res.error) throwSupabaseError(res.error);
+    if (accountId) notifyFriendRequest(res.data.id);
     return mapFriend(res.data);
+  }
+
+  /* Email "qualcuno vuole aggiungerti come amico vero" (Edge Function
+     "notify-friend-request" + Resend, Fil 2026-07-19), quando una riga
+     'friends' passa in link_status='pending' — sia dal primo collegamento
+     sopra (addFriendToList con un accountId scelto dalla ricerca) sia da un
+     ricollegamento successivo (requestFriendLink qui sotto). Come le altre
+     email dell'app: basta l'id della riga, la Edge Function rilegge da sola
+     destinatario e mittente. Fire and forget: non deve mai bloccare la
+     richiesta, che resta comunque visibile in-app su notifiche.html. */
+  function notifyFriendRequest(friendId) {
+    if (!friendId) return;
+    supabase.functions.invoke('notify-friend-request', { body: { friendId: friendId } })
+      .catch(function (err) { /* non blocca la richiesta */ });
   }
 
   /* Collega (o ricollega) un amico già in lista a un account trovato con la
@@ -613,6 +739,7 @@
       p_target_account_id: targetAccountId
     });
     if (res.error) throwSupabaseError(res.error);
+    notifyFriendRequest(friendId);
     return res.data;
   }
 
@@ -1075,6 +1202,112 @@
     return res.data || [];
   }
 
+  /* Data dell'ultima attività vera su un evento: creazione per "nuova
+     proposta", ma per gli stati che dipendono dalle risposte (confermato,
+     quasi quota, annullato) la sola data di creazione mandava le notifiche
+     nell'ordine sbagliato — un evento creato giorni fa ma confermato ora
+     sembrava "vecchio" (Fil, 2026-07-17). Qui si usa sempre l'attività più
+     recente tra i partecipanti. */
+  function latestEventActivityTime(event) {
+    var latest = event.createdAt;
+    (event.participants || []).forEach(function (p) {
+      if (p.createdAt && new Date(p.createdAt) > new Date(latest)) latest = p.createdAt;
+    });
+    return latest;
+  }
+
+  /* Costruisce la lista di notifiche (eventi + avvisi congelati), più recenti
+     in cima, tagliata a 20: unica fonte di verità, usata sia da notifiche.html
+     per mostrarle sia da index.html per sapere se ce ne sono di nuove da
+     segnalare col pallino sulla campanella (vedi getNotificationsSeenAt/
+     markNotificationsSeen più sotto). Spostata qui da notifiche.html
+     (Fil, 2026-07-17) proprio per essere richiamabile da entrambe. */
+  function buildNotifications(events, eventNotices, myUsername) {
+    var notifications = [];
+
+    (events || []).forEach(function (event) {
+      var info = computeEventStatus(event);
+      var ts = event.createdAt;
+      var iAmOrganizer = !!(event.createdBy && event.createdBy.toLowerCase() === myUsername);
+
+      if (info.status === 'cancelled') {
+        notifications.push({
+          icon: 'cancelled', emoji: '🚫', time: event.cancelledAt || latestEventActivityTime(event),
+          text: '<b>' + escapeHTML(event.name) + '</b> è stato annullato: non si è raggiunta la quota minima.'
+        });
+      } else if (info.status === 'done') {
+        notifications.push({
+          icon: 'confirmed', emoji: '✅', time: latestEventActivityTime(event),
+          text: '<b>' + escapeHTML(event.name) + '</b> è confermato!'
+        });
+      } else if (info.status === 'almost') {
+        var missing = info.quota - info.count;
+        notifications.push({
+          icon: 'quota', emoji: '🎉', time: latestEventActivityTime(event),
+          text: '<b>' + escapeHTML(event.name) + '</b> ha quasi raggiunto la quota: manca' + (missing === 1 ? '' : 'no') + ' ' + missing + (missing === 1 ? ' persona' : ' persone') + '.'
+        });
+      } else if (!iAmOrganizer) {
+        notifications.push({
+          icon: 'new', emoji: '📅', time: ts,
+          text: 'Nuova proposta: <b>' + escapeHTML(event.name) + '</b>. Segna la tua disponibilità.'
+        });
+      }
+
+      if (iAmOrganizer) {
+        (event.invitees || []).forEach(function (f) {
+          if (f.claimedAt) {
+            notifications.push({
+              icon: 'friend', emoji: '👋', time: f.claimedAt,
+              text: '<b>' + escapeHTML(f.name) + '</b> è entrato/a nel tuo evento "' + escapeHTML(event.name) + '".'
+            });
+          }
+        });
+      }
+    });
+
+    (eventNotices || []).forEach(function (n) {
+      notifications.push({
+        icon: 'cancelled', emoji: n.emoji || '✏️', time: n.createdAt,
+        text: escapeHTML(n.message)
+      });
+    });
+
+    notifications.sort(function (a, b) { return new Date(b.time) - new Date(a.time); });
+    return notifications.slice(0, 20);
+  }
+
+  /* ---------- "hai notifiche nuove?" (pallino sulla campanella in Home) ----------
+     Le notifiche non hanno un id stabile (si ricalcolano al volo ogni volta,
+     vedi buildNotifications sopra), quindi non si può segnare "letta" una per
+     una: si tiene solo un timestamp locale "vista fino a qui" per questo
+     dispositivo, aggiornato ogni volta che si apre notifiche.html. Il
+     pallino si accende confrontando quel timestamp con la più recente tra le
+     notifiche vere e le richieste di amicizia in sospeso (Fil, 2026-07-17). */
+  var NOTIFICATIONS_SEEN_KEY = 'ci-siamo:notificationsSeenAt';
+
+  function getNotificationsSeenAt() {
+    try { return localStorage.getItem(NOTIFICATIONS_SEEN_KEY); } catch (err) { return null; }
+  }
+
+  function markNotificationsSeen() {
+    try { localStorage.setItem(NOTIFICATIONS_SEEN_KEY, new Date().toISOString()); } catch (err) { /* ignora */ }
+  }
+
+  /* true se esiste almeno una notifica (o richiesta di amicizia in sospeso)
+     più recente dell'ultima visita a notifiche.html su questo dispositivo. */
+  function hasUnreadNotifications(notifications, pendingFriendRequests) {
+    var seenAt = getNotificationsSeenAt();
+    if (!seenAt) return !!((notifications && notifications.length) || (pendingFriendRequests && pendingFriendRequests.length));
+
+    var seenTime = new Date(seenAt).getTime();
+    var newestNotif = (notifications || [])[0];
+    if (newestNotif && new Date(newestNotif.time).getTime() > seenTime) return true;
+
+    return (pendingFriendRequests || []).some(function (r) {
+      return r.requestedAt && new Date(r.requestedAt).getTime() > seenTime;
+    });
+  }
+
   /* Email "una data che avevi confermato è stata tolta" (Edge Function
      "notify-date-removed" + Resend). Tutta l'informazione necessaria viaggia
      nel corpo della chiamata (non la rilegge dal DB): l'evento nel frattempo
@@ -1082,9 +1315,22 @@
      semplice ed evita corse tra "l'evento è stato già modificato quando
      arriva la mail" passare già tutto pronto. Fire and forget come le altre
      email dell'app. */
-  function notifyDateRemoved(eventName, affected) {
+  function notifyDateRemoved(eventId, eventName, affected) {
     if (!affected || !affected.length) return;
-    supabase.functions.invoke('notify-date-removed', { body: { eventName: eventName, affected: affected } })
+    supabase.functions.invoke('notify-date-removed', { body: { eventId: eventId, eventName: eventName, affected: affected } })
+      .catch(function (err) { /* non blocca il salvataggio */ });
+  }
+
+  /* Email "l'evento è stato modificato" (Edge Function "notify-event-modified"
+     + Resend, Fil 2026-07-19) per chi resta invitato quando cambia qualcosa
+     di diverso dalle date (nome, luogo, descrizione, quota...). Chi ha già
+     ricevuto l'email più specifica "ti hanno tolto una data"
+     (notifyDateRemoved) non è tra i destinatari qui, vedi
+     speciallyNotifiedLower in updateEvent — niente doppie email per lo
+     stesso salvataggio. */
+  function notifyEventModified(eventId, eventName, recipientNames) {
+    if (!recipientNames || !recipientNames.length) return;
+    supabase.functions.invoke('notify-event-modified', { body: { eventId: eventId, eventName: eventName, recipientNames: recipientNames } })
       .catch(function (err) { /* non blocca il salvataggio */ });
   }
 
@@ -1139,9 +1385,11 @@
 
     for (var ri = 0; ri < removedInvitees.length; ri++) {
       var invRow = removedInvitees[ri];
-      await supabase.from('event_invitees').delete().eq('id', invRow.id);
+      var delInvRes = await supabase.from('event_invitees').delete().eq('id', invRow.id);
+      if (delInvRes.error) throw new Error(delInvRes.error.message);
       // Fil, 2026-07-07: se aveva già risposto, la sua risposta sparisce con lui.
-      await supabase.from('participants').delete().eq('event_id', eventId).ilike('name', invRow.name);
+      var delPartRes = await supabase.from('participants').delete().eq('event_id', eventId).ilike('name', invRow.name);
+      if (delPartRes.error) throw new Error(delPartRes.error.message);
     }
     if (addedInviteeEntries.length) {
       var newInviteeRows = addedInviteeEntries.map(function (e) {
@@ -1195,7 +1443,8 @@
         if (!hadRemoved) continue;
         var strippedIds = (part.availableDateOptionIds || []).filter(function (id) { return removedOptionIds.indexOf(id) === -1; });
         if (partLower === organizerLower) continue; // l'organizzatore si gestisce a parte sotto, insieme all'aggiunta delle nuove date
-        await supabase.from('participants').update({ available_date_option_ids: strippedIds }).eq('event_id', eventId).ilike('name', part.name);
+        var stripRes = await supabase.from('participants').update({ available_date_option_ids: strippedIds }).eq('event_id', eventId).ilike('name', part.name);
+        if (stripRes.error) throw new Error(stripRes.error.message);
       }
     }
 
@@ -1225,15 +1474,17 @@
         } else {
           finalOrganizerIds = (organizerParticipant.availableDateOptionIds || []).filter(function (id) { return removedOptionIds.indexOf(id) === -1; });
         }
-        await supabase.from('participants').update({ available_date_option_ids: finalOrganizerIds }).eq('event_id', eventId).ilike('name', organizerName);
+        var updOrgRes = await supabase.from('participants').update({ available_date_option_ids: finalOrganizerIds }).eq('event_id', eventId).ilike('name', organizerName);
+        if (updOrgRes.error) throw new Error(updOrgRes.error.message);
       } else if (keptOptionIds.length + addedOptionIds.length > 0) {
         // caso raro: evento creato senza date, ora ne guadagna — l'organizzatore
         // non aveva ancora una riga participants, se ne crea una come in createEvent
-        await supabase.from('participants').insert({
+        var insOrgRes = await supabase.from('participants').insert({
           event_id: eventId,
           name: organizerName,
           available_date_option_ids: keptOptionIds.concat(addedOptionIds)
         });
+        if (insOrgRes.error) throw new Error(insOrgRes.error.message);
       }
     }
 
@@ -1251,7 +1502,7 @@
         };
       });
       pushEventNotices(dateNoticeRows);
-      notifyDateRemoved(input.name || current.name, affectedByDateRemoval);
+      notifyDateRemoved(eventId, input.name || current.name, affectedByDateRemoval);
     }
 
     var speciallyNotifiedLower = affectedByDateRemoval.map(function (a) { return a.name.toLowerCase(); });
@@ -1269,6 +1520,7 @@
         };
       });
       pushEventNotices(genericRows);
+      notifyEventModified(eventId, input.name || current.name, genericRecipients);
     }
 
     return getEventById(eventId);
@@ -1796,6 +2048,10 @@
     getEventNotices: getEventNotices,
     upsertParticipant: upsertParticipant,
     withdrawFromEvent: withdrawFromEvent,
+    buildNotifications: buildNotifications,
+    getNotificationsSeenAt: getNotificationsSeenAt,
+    markNotificationsSeen: markNotificationsSeen,
+    hasUnreadNotifications: hasUnreadNotifications,
     computeEventStatus: computeEventStatus,
     buildMapsUrl: buildMapsUrl,
     formatDateLabel: formatDateLabel,
@@ -1834,5 +2090,40 @@
     getGoogleSignupState: getGoogleSignupState,
     completeGoogleProfile: completeGoogleProfile
   };
+
+  /* Fil, 2026-07-19: applica withAuthRetry (vedi sopra) a tutte le funzioni
+     che SCRIVONO su Supabase — quelle che un utente lancia toccando un
+     bottone tipo "Conferma"/"Salva"/"Elimina" e per cui un fallimento dovuto
+     a un token scaduto (schermo bloccato, app in background) sarebbe visto
+     come "non sono riuscito a salvare, riprova": qui il riprova lo facciamo
+     noi in automatico, una volta sola, prima di mostrare l'errore. Le
+     funzioni di sola lettura restano come sono: se falliscono per lo stesso
+     motivo, ricaricare la pagina le rifà comunque partire da capo. */
+  /* Solo funzioni per cui rifare la stessa chiamata da capo è sicuro: update
+     su una riga esistente (per id, o che ricalcola un diff contro lo stato
+     fresco del DB come updateEvent), delete (rifare una delete è un no-op),
+     upload (nome file già randomizzato, un doppione al massimo spreca un
+     po' di storage ma non rompe nulla), login/reset password.
+     Escluse di proposito le funzioni che INSERISCONO una riga nuova senza
+     ricontrollare se esiste già (createEvent, addEventExpense,
+     createFriendList, addFriendToList, requestFriendLink, claimEventInvitee,
+     addSelfAsInvitee, acceptFriendInviteToken, createAccount): un retry
+     automatico lì rischierebbe di creare un evento/spesa/amico doppio invece
+     di limitarsi a "riprovare a salvare" — meglio che l'utente veda l'errore
+     e tocchi di nuovo lui, come già faceva prima. */
+  [
+    'updateAccount', 'uploadAvatar', 'uploadEventPhoto', 'uploadEventAudio',
+    'updateEvent', 'deleteEvent', 'confirmEventDate', 'upsertParticipant', 'withdrawFromEvent',
+    'markNotificationsSeen', 'updateEventExpense', 'deleteEventExpense',
+    'deleteFriendList', 'removeFriendFromList', 'respondFriendRequest',
+    'loginAccount', 'resetPassword', 'completeGoogleProfile'
+  ].forEach(function (name) {
+    var original = global.CiSiamoData[name];
+    if (typeof original !== 'function') return;
+    global.CiSiamoData[name] = function () {
+      var args = arguments;
+      return withAuthRetry(function () { return original.apply(null, args); });
+    };
+  });
 
 })(window);

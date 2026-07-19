@@ -192,6 +192,52 @@
         return friends.length + (friends.length === 1 ? ' amico' : ' amici');
       }
 
+      // Stessa palette di evento.html/attendee-bubble, qui ruotata per
+      // posizione dentro la card invece che fissa: due liste non hanno mai
+      // gli stessi colori nella stessa combinazione (Fil, 2026-07-19 — prima
+      // c'era una sola iconcina grigia uguale per tutte le liste, "sembrava
+      // vuoto/asettico").
+      var AVATAR_GRADIENTS = [
+        ['#FF7A29', '#6B3F73'],
+        ['#9C6BA3', '#FF7A29'],
+        ['#FFB35C', '#6B3F73'],
+        ['#6B3F73', '#9C6BA3']
+      ];
+
+      // Foto vera solo per amici "collegati" (linkStatus accepted + account_id,
+      // stesso criterio di renderModalContent/friendAvatarCache qui sotto);
+      // per tutti gli altri, cerchio con l'iniziale su sfondo sfumato.
+      function friendAvatarBubbleHTML(friend, gradientIndex, extraClass) {
+        var initial = (friend.name || '?').trim().charAt(0).toUpperCase() || '?';
+        var avatarUrl = (friend.linkStatus === 'accepted' && friend.accountId) ? friendAvatarCache[friend.accountId] : null;
+        var gradient = AVATAR_GRADIENTS[gradientIndex % AVATAR_GRADIENTS.length];
+        var inner = avatarUrl
+          ? '<img src="' + CiSiamoData.escapeHTML(avatarUrl) + '" alt="">'
+          : CiSiamoData.escapeHTML(initial);
+        var bgStyle = avatarUrl ? '' : ' style="background:linear-gradient(135deg,' + gradient[0] + ',' + gradient[1] + ');"';
+        return '<div class="friend-list-avatar' + (extraClass ? ' ' + extraClass : '') + '"' + bgStyle + '>' + inner + '</div>';
+      }
+
+      function friendListCardHTML(list, listIndex) {
+        var friends = list.friends || [];
+        var shown = friends.slice(0, 3);
+        var extra = friends.length - shown.length;
+        var avatarsHTML = shown.map(function (f, fi) { return friendAvatarBubbleHTML(f, listIndex + fi); }).join('')
+          + (extra > 0 ? '<div class="friend-list-avatar friend-list-avatar-more">+' + extra + '</div>' : '');
+
+        return ''
+          + '<div class="card reveal friend-list-card" data-manage-list="' + list.id + '">'
+          + '<div class="friend-list-card-top">'
+          + '<div class="friend-list-card-name">' + CiSiamoData.escapeHTML(list.name) + '</div>'
+          + '<div class="list-delete" data-delete-list="' + list.id + '">✕</div>'
+          + '</div>'
+          + '<div>'
+          + (friends.length ? '<div class="friend-list-avatars">' + avatarsHTML + '</div>' : '')
+          + '<div class="card-date friend-list-card-count">' + friendsSummary(friends) + '</div>'
+          + '</div>'
+          + '</div>';
+      }
+
       async function renderLists() {
         formError.textContent = '';
         listsContainer.innerHTML = '<div class="empty-hint">Caricamento...</div>';
@@ -209,17 +255,30 @@
         if (!lists.length) {
           listsContainer.innerHTML = '<div class="empty-hint">Non hai ancora nessuna lista.<br>Creane una qui sopra.</div>';
         } else {
-          listsContainer.innerHTML = lists.map(function (list) {
-            return ''
-              + '<div class="card reveal friend-list-card" data-list-id="' + list.id + '">'
-              + '<div class="list-header">'
-              + '<div class="card-title">' + CiSiamoData.escapeHTML(list.name) + '</div>'
-              + '<div class="list-delete" data-delete-list="' + list.id + '">Elimina lista ✕</div>'
-              + '</div>'
-              + '<div class="card-date" style="margin-top:2px;">' + friendsSummary(list.friends) + '</div>'
-              + '<div class="add-date-btn" data-manage-list="' + list.id + '" style="margin-top:12px; margin-bottom:0;">Gestisci amici →</div>'
-              + '</div>';
-          }).join('');
+          listsContainer.innerHTML = lists.map(friendListCardHTML).join('');
+
+          // Foto degli amici collegati per le card appena disegnate: stesso
+          // friendAvatarCache usato dal popup "Gestisci amici", così se il
+          // popup era già stato aperto una volta non richiediamo di nuovo le
+          // stesse foto. Se una foto arriva dopo il primo giro, si ridisegna
+          // solo la griglia (non tutta la pagina).
+          var neededIds = [];
+          lists.forEach(function (list) {
+            (list.friends || []).forEach(function (f) {
+              if (f.linkStatus === 'accepted' && f.accountId && !(f.accountId in friendAvatarCache) && neededIds.indexOf(f.accountId) === -1) {
+                neededIds.push(f.accountId);
+              }
+            });
+          });
+          if (neededIds.length && window.CiSiamoData && CiSiamoData.getAvatarsForAccountIds) {
+            CiSiamoData.getAvatarsForAccountIds(neededIds).then(function (avatarMap) {
+              neededIds.forEach(function (id) {
+                friendAvatarCache[id] = (avatarMap[id] && avatarMap[id].avatarUrl) || null;
+              });
+              listsContainer.innerHTML = lists.map(friendListCardHTML).join('');
+              if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+            }).catch(function () { /* niente foto, restano le iniziali: non blocca nulla */ });
+          }
         }
 
         // se il popup di gestione lista è già aperto, aggiorna anche quello con i dati freschi
@@ -339,8 +398,15 @@
       });
 
       listsContainer.addEventListener('click', async function (e) {
-        var deleteListId = e.target.getAttribute('data-delete-list');
-        if (deleteListId) {
+        // closest(), non e.target diretto (Fil, 2026-07-19): ora tutta la
+        // card apre "Gestisci amici", quindi e.target è quasi sempre un
+        // elemento dentro la card (il nome, gli avatar...) e non la card
+        // stessa. La ✕ va controllata per prima e con un return, altrimenti
+        // cliccarla aprirebbe anche il popup di gestione (è annidata dentro
+        // la card che ha data-manage-list).
+        var deleteEl = e.target.closest('[data-delete-list]');
+        if (deleteEl) {
+          var deleteListId = deleteEl.getAttribute('data-delete-list');
           if (window.confirm('Eliminare questa lista di amici?')) {
             await CiSiamoData.deleteFriendList(deleteListId);
             renderLists();
@@ -348,9 +414,9 @@
           return;
         }
 
-        var manageListId = e.target.getAttribute('data-manage-list');
-        if (manageListId) {
-          openFriendModal(manageListId);
+        var manageEl = e.target.closest('[data-manage-list]');
+        if (manageEl) {
+          openFriendModal(manageEl.getAttribute('data-manage-list'));
         }
       });
 

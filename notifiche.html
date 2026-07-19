@@ -200,80 +200,13 @@
       // per nome, o già partecipante — vedi isEventVisibleToMe in data.js):
       // non serve più nessun filtro aggiuntivo via lista amici, dato che le
       // liste non sono più collegate agli eventi dopo la creazione.
-      var notifications = [];
-
-      /* Data di creazione dell'evento: va bene solo per "nuova proposta"
-         (che riguarda proprio quel momento). Per gli stati che invece
-         dipendono dalle risposte (confermato, quasi quota, annullato) usare
-         sempre createdAt dava la data di creazione anche a eventi confermati
-         giorni dopo, o addirittura più vecchi delle notifiche "nuova
-         proposta" — le nuove finivano sotto quelle vecchie in classifica.
-         Qui si usa invece l'attività più recente sull'evento (la risposta più
-         recente tra i partecipanti, o l'annullamento vero e proprio se c'è),
-         così l'ordine rispecchia quando la notifica ha davvero senso di
-         esistere (Fil, 2026-07-17). */
-      function latestActivityTime(event) {
-        var latest = event.createdAt;
-        (event.participants || []).forEach(function (p) {
-          if (p.createdAt && new Date(p.createdAt) > new Date(latest)) latest = p.createdAt;
-        });
-        return latest;
-      }
-
-      events.forEach(function (event) {
-        var info = CiSiamoData.computeEventStatus(event);
-        var ts = event.createdAt;
-        var iAmOrganizer = !!(event.createdBy && event.createdBy.toLowerCase() === myUsername);
-
-        if (info.status === 'cancelled') {
-          notifications.push({
-            icon: 'cancelled', emoji: '🚫', time: event.cancelledAt || latestActivityTime(event),
-            text: '<b>' + CiSiamoData.escapeHTML(event.name) + '</b> è stato annullato: non si è raggiunta la quota minima.'
-          });
-        } else if (info.status === 'done') {
-          notifications.push({
-            icon: 'confirmed', emoji: '✅', time: latestActivityTime(event),
-            text: '<b>' + CiSiamoData.escapeHTML(event.name) + '</b> è confermato!'
-          });
-        } else if (info.status === 'almost') {
-          var missing = info.quota - info.count;
-          notifications.push({
-            icon: 'quota', emoji: '🎉', time: latestActivityTime(event),
-            text: '<b>' + CiSiamoData.escapeHTML(event.name) + '</b> ha quasi raggiunto la quota: manca' + (missing === 1 ? '' : 'no') + ' ' + missing + (missing === 1 ? ' persona' : ' persone') + '.'
-          });
-        } else if (!iAmOrganizer) {
-          // "Nuova proposta" solo se non l'hai creato tu: non ha senso avvisarti
-          // di un evento che hai appena proposto tu stesso.
-          notifications.push({
-            icon: 'new', emoji: '📅', time: ts,
-            text: 'Nuova proposta: <b>' + CiSiamoData.escapeHTML(event.name) + '</b>. Segna la tua disponibilità.'
-          });
-        }
-
-        // Chi ha scelto il proprio nome dal link di invito di questo evento
-        // (vedi amico.html): notifica solo per chi organizza, come prima
-        // avveniva per chi si aggiungeva a una lista amici.
-        if (iAmOrganizer) {
-          (event.invitees || []).forEach(function (f) {
-            if (f.claimedAt) {
-              notifications.push({
-                icon: 'friend', emoji: '👋', time: f.claimedAt,
-                text: '<b>' + CiSiamoData.escapeHTML(f.name) + '</b> è entrato/a nel tuo evento "' + CiSiamoData.escapeHTML(event.name) + '".'
-              });
-            }
-          });
-        }
-      });
-
-      eventNotices.forEach(function (n) {
-        notifications.push({
-          icon: 'cancelled', emoji: n.emoji || '✏️', time: n.createdAt,
-          text: CiSiamoData.escapeHTML(n.message)
-        });
-      });
-
-      notifications.sort(function (a, b) { return new Date(b.time) - new Date(a.time); });
-      notifications = notifications.slice(0, 20);
+      //
+      // La costruzione vera (stati evento + avvisi congelati, ordinati per
+      // attività più recente) vive in CiSiamoData.buildNotifications: unica
+      // fonte di verità, così anche il pallino "hai notifiche nuove?" in Home
+      // usa esattamente la stessa lista, senza duplicare la logica qui
+      // (Fil, 2026-07-17).
+      var notifications = CiSiamoData.buildNotifications(events, eventNotices, myUsername);
 
       if (!notifications.length) {
         notifBodyEl.innerHTML = '<div class="empty-hint">Nessuna notifica per ora.</div>';
@@ -291,6 +224,11 @@
       }
 
       if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+
+      // Segna "vista fino a qui" solo ora che la pagina è davvero disegnata
+      // (notifiche vere + richieste amicizia): è quello che spegne il
+      // pallino sulla campanella in Home (Fil, 2026-07-17).
+      CiSiamoData.markNotificationsSeen();
     })();
   </script>
   <script src="script.js"></script>

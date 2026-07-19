@@ -64,9 +64,31 @@ a { text-decoration: none; color: inherit; }
    contenuto riempie tutto lo schermo. "hover:none e pointer:coarse" riconosce i
    dispositivi touch a prescindere da quanto è larga la finestra/lo schermo. */
 @media (max-width: 480px), (hover: none) and (pointer: coarse) {
+  /* Fil, 2026-07-19: su Safari iOS la barra in basso (indirizzo/tab) è
+     traslucida e "galleggia" sopra il contenuto — su un sito normale
+     (esempio: Quanta Magazine) si vede la pagina stessa continuare sotto,
+     nessuna cucitura. Da noi invece si vedeva uno sfondo bianco-grigiastro
+     diverso da quello dell'app in quello spazio: il .phone (sfondo
+     var(--bg), l'unico "vero" contenuto) è alto esattamente 100dvh/
+     --app-height e si ferma lì, mentre il <body> dietro aveva un colore di
+     sfondo diverso (#EDE3E6, pensato per fare da "tavolo" dietro al mockup
+     su desktop) — qualunque spiraglio rivelato dalla barra traslucida, o
+     dal suo nascondersi/mostrarsi durante lo scroll, mostrava quella
+     cucitura di colore. Qui dentro (solo su dispositivo vero, non nel
+     mockup desktop) html/body prendono lo stesso colore dell'app ed sono
+     alti quanto la viewport più grande possibile (100lvh: toolbar
+     nascosta), così qualunque spazio la barra traslucida lasci intravedere
+     è dello stesso colore dell'app, non un bianco che stona. */
+  html {
+    background: var(--bg);
+  }
+
   body {
     padding: 0;
     align-items: stretch;
+    background: var(--bg);
+    min-height: 100vh;
+    min-height: 100lvh;
   }
 
   .phone {
@@ -233,6 +255,21 @@ a { text-decoration: none; color: inherit; }
   justify-content: center;
   font-size: 18px;
   box-shadow: 0 2px 8px rgba(58,50,90,0.06);
+}
+
+/* Pallino "hai notifiche nuove?" sulla campanella (Fil, 2026-07-17): dentro
+   ai bordi (top/right positivi, non negativi come .menu-dot) perché .bell ha
+   overflow:hidden per contenere il ripple del click — un posizionamento a
+   cavallo del bordo verrebbe tagliato via. */
+.bell-dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--cancel, #E0637A);
+  border: 2px solid var(--card, #fff);
 }
 
 /* Scrollable content */
@@ -462,7 +499,11 @@ a { text-decoration: none; color: inherit; }
   border-radius: 14px;
   padding: 12px 14px;
   font-family: 'Inter', sans-serif;
-  font-size: 14px;
+  /* 16px minimo, non 14px: sotto i 16px Safari iOS zooma automaticamente
+     la pagina ogni volta che il campo prende il focus (bug notato da Fil,
+     "la pagina salta quando tocco un campo") — con user-scalable=no nel
+     meta viewport lo zoom a volte resta anche incastrato dopo. */
+  font-size: 16px;
   color: var(--ink);
   box-shadow: 0 2px 8px rgba(58,50,90,0.06);
 }
@@ -808,6 +849,59 @@ label.event-photo-preview {
   color: #FFF8F0;
 }
 
+/* Griglia "Quando sei disponibile?" (evento.html, Fil 2026-07-19): card
+   quadrate 3 per riga invece della lista verticale di .chip — con più di
+   3-4 date proposte risparmia parecchio scroll. .day-card tiene comunque
+   la classe .chip (colore quando selezionata, animazione al tap, "pop"
+   already gestiti da lì): qui si sovrascrive solo il layout interno, da
+   riga (icona a sinistra, testo a destra) a colonna centrata. */
+.day-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.day-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 4px 7px;
+  background: var(--bg);
+  box-shadow: none;
+}
+
+.day-card .day-dow {
+  font-size: 10px;
+  color: var(--ink-soft);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.day-card .day-num {
+  font-family: 'Fraunces', serif;
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 1.3;
+  margin: 1px 0;
+  color: var(--ink);
+}
+
+.day-card .day-month {
+  font-size: 10px;
+  color: var(--ink-soft);
+  margin-bottom: 5px;
+}
+
+.day-card .chip-check {
+  width: 16px;
+  height: 16px;
+  font-size: 9px;
+  margin: 0 auto;
+}
+
 /* Liste amici (amici.html) */
 .list-header {
   display: flex;
@@ -821,6 +915,101 @@ label.event-photo-preview {
   color: var(--ink-soft);
   cursor: pointer;
   padding: 4px 6px;
+}
+
+/* Griglia liste amici (amici.html, Fil 2026-07-19): card quadrate 2 per
+   riga invece di una sotto l'altra, stesso spirito della griglia giorni di
+   evento.html. Tutta la card apre "Gestisci amici" (era prima solo il
+   testo "Gestisci amici →", tolto per fare spazio): la ✕ di eliminazione
+   resta un bersaglio separato, vedi il listener su #listsContainer in
+   amici.html (usa closest(), non e.target diretto). */
+#listsContainer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+#listsContainer > .empty-hint {
+  grid-column: 1 / -1;
+}
+
+.friend-list-card {
+  aspect-ratio: 1;
+  padding: 14px;
+  border-radius: 18px;
+  margin-bottom: 0;
+  box-shadow: 0 2px 8px rgba(58,50,90,0.06);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.friend-list-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.friend-list-card-name {
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.friend-list-card .list-delete {
+  padding: 0;
+  font-size: 13px;
+  color: #C9BEC6;
+  flex-shrink: 0;
+}
+
+.friend-list-avatars {
+  display: flex;
+  align-items: center;
+}
+
+.friend-list-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 2px 6px rgba(58,50,90,0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 11px;
+  color: #FFF;
+  overflow: hidden;
+}
+
+.friend-list-avatar:not(:first-child) {
+  margin-left: -10px;
+}
+
+.friend-list-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.friend-list-avatar-more {
+  background: #F0E6EA;
+  color: var(--ink-soft);
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+}
+
+.friend-list-card-count {
+  margin: 8px 0 0;
 }
 
 .friends-row {
@@ -863,7 +1052,7 @@ label.event-photo-preview {
   border-radius: 12px;
   padding: 10px 12px;
   font-family: 'Inter', sans-serif;
-  font-size: 13px;
+  font-size: 16px; /* non sotto i 16px: zoom automatico al focus su Safari iOS */
   color: var(--ink);
 }
 
@@ -1967,6 +2156,36 @@ label.event-photo-preview {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* Anellino di caricamento mentre la ricerca account è in corso (Fil,
+   2026-07-19) — stesso riquadro .account-search-dropdown, solo contenuto
+   diverso finché non arrivano i risultati veri. */
+.account-search-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.account-search-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--past-soft);
+  border-top-color: var(--peach);
+  animation: accountSearchSpin 0.7s linear infinite;
+}
+
+@keyframes accountSearchSpin {
+  to { transform: rotate(360deg); }
+}
+
+.account-search-empty {
+  padding: 14px 16px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  text-align: center;
 }
 
 /* ---------- foto evento a schermo intero (Fil, 2026-07-10) ----------

@@ -676,20 +676,41 @@
             + '<div class="add-date-btn" id="singleDateNoBtn" style="margin-top:10px;">Non ci sono</div>';
         }
 
-        var chipsHTML = event.dateOptions.map(function (opt) {
+        // Card quadrate 3 per riga invece di una lista verticale (Fil,
+        // 2026-07-19): con più di 3-4 date proposte una colonna sola
+        // costringeva a scorrere parecchio prima di arrivare al bottone
+        // "Conferma disponibilità". Data abbreviata (giorno/numero/mese) per
+        // stare nello spazio stretto di una card piccola.
+        var dayCardsHTML = event.dateOptions.map(function (opt) {
           var selected = preselected.indexOf(opt.id) !== -1;
-          return '<div class="chip' + (selected ? ' selected' : '') + '" data-option-id="' + opt.id + '">'
-            + '<div class="chip-date">' + CiSiamoData.escapeHTML(CiSiamoData.formatDateLabel(opt.dateISO)) + '</div>'
+          var parts = shortDateParts(opt.dateISO);
+          return '<div class="chip day-card' + (selected ? ' selected' : '') + '" data-option-id="' + opt.id + '">'
+            + '<div class="day-dow">' + CiSiamoData.escapeHTML(parts.dow) + '</div>'
+            + '<div class="day-num">' + CiSiamoData.escapeHTML(parts.day) + '</div>'
+            + '<div class="day-month">' + CiSiamoData.escapeHTML(parts.month) + '</div>'
             + '<div class="chip-check">✓</div>'
             + '</div>';
         }).join('');
 
         return ''
           + '<div class="section-title">Quando sei disponibile?</div>'
-          + '<div class="chip-list" id="chipList">' + chipsHTML + '</div>'
+          + '<div class="day-grid" id="dayGrid">' + dayCardsHTML + '</div>'
           + '<div class="form-error" id="formError"></div>'
           + '<button type="button" class="primary-btn" id="confirmBtn">Conferma disponibilità</button>'
           + '<div style="text-align:center;"><span class="signup-skip-link" id="neverAvailableBtn">Non sono mai disponibile</span></div>';
+      }
+
+      /* Giorno/numero/mese abbreviati per le card quadrate della griglia
+         disponibilità (vedi sopra) — CiSiamoData.formatDateLabel/shortDateLabel
+         restituiscono invece la data per esteso ("Sabato 25 luglio"), pensata
+         per il resto dell'app dove lo spazio non è così stretto. */
+      function shortDateParts(dateISO) {
+        var d = new Date(dateISO + 'T00:00:00');
+        var dow = d.toLocaleDateString('it-IT', { weekday: 'short' }).replace('.', '');
+        var month = d.toLocaleDateString('it-IT', { month: 'short' }).replace('.', '');
+        dow = dow.charAt(0).toUpperCase() + dow.slice(1);
+        month = month.charAt(0).toUpperCase() + month.slice(1);
+        return { dow: dow, day: String(d.getDate()), month: month };
       }
 
       /* ---------- vista semplificata per evento confermato/passato ----------
@@ -985,6 +1006,13 @@
         var confirmedSummaryHTML = isConfirmedSimple ? buildConfirmedSummaryHTML(info) : '';
         var expensesSectionHTML = buildExpensesSectionHTML();
 
+        // Fil, 2026-07-19: "chi c'è" e "quando sei disponibile" spostati
+        // subito dopo le info dell'evento (prima erano in fondo alla
+        // pagina) — chi deve rispondere non scorre più oltre invitati e
+        // grafica dei giorni. La grafica "chi c'è per ogni giorno" e il
+        // box di conferma manuale dell'organizzatore restano in fondo:
+        // sono dettagli/strumenti, non la prima cosa che un ospite deve
+        // fare aprendo la pagina.
         contentEl.innerHTML = ''
           + guestLockBannerHTML
           + photoHTML
@@ -996,12 +1024,12 @@
               : (event.description ? '<div class="card-date" style="margin:2px 2px 16px;">' + CiSiamoData.escapeHTML(event.description) + '</div>' : ''))
           + locationHTML
           + shareSectionHTML
-          + confirmedSummaryHTML
-          + expensesSectionHTML
           + inviteesRosterHTML
+          + confirmedSummaryHTML
+          + availabilityHTML
+          + expensesSectionHTML
           + breakdownSectionHTML
-          + manualConfirmSectionHTML
-          + availabilityHTML;
+          + manualConfirmSectionHTML;
 
         // rianima/rende cliccabile il contenuto appena creato
         if (window.CiSiamoUI) window.CiSiamoUI.refresh();
@@ -1130,7 +1158,7 @@
           });
         }
 
-        document.querySelectorAll('#chipList .chip').forEach(function (chip) {
+        document.querySelectorAll('#dayGrid .chip').forEach(function (chip) {
           chip.addEventListener('click', function () {
             chip.classList.toggle('selected');
           });
@@ -1153,7 +1181,7 @@
         if (confirmBtn) {
           confirmBtn.addEventListener('click', function () {
             var selectedIds = Array.prototype.map.call(
-              document.querySelectorAll('#chipList .chip.selected'),
+              document.querySelectorAll('#dayGrid .chip.selected'),
               function (c) { return c.getAttribute('data-option-id'); }
             );
             saveAvailability(selectedIds, confirmBtn);

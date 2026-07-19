@@ -77,7 +77,7 @@
           <div class="date" id="todayDate">Oggi</div>
         </div>
       </div>
-      <a class="bell" href="notifiche.html">🔔</a>
+      <a class="bell" href="notifiche.html" id="homeBell">🔔<span class="bell-dot" id="bellDot" style="display:none;"></span></a>
     </div>
 
     <div class="content">
@@ -185,6 +185,26 @@
       // le card sopra sono state create ora, dopo il caricamento pagina: bisogna
       // dire a script.js di (ri)animarle, altrimenti restano invisibili
       if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+
+      // Pallino "hai notifiche nuove?" sulla campanella (Fil, 2026-07-17):
+      // stessa lista costruita da notifiche.html (CiSiamoData.buildNotifications,
+      // unica fonte di verità), confrontata con l'ultima visita salvata su
+      // questo dispositivo. Tutto "best effort": se una delle due letture in
+      // più fallisce, il pallino semplicemente non si accende, non deve mai
+      // rompere il resto della Home.
+      try {
+        var myUsernameForBell = (guestName || '').toLowerCase();
+        var eventNoticesForBell = [];
+        var pendingFriendRequestsForBell = [];
+        try { eventNoticesForBell = await CiSiamoData.getEventNotices(guestName); } catch (err) { /* ignora */ }
+        try { pendingFriendRequestsForBell = await CiSiamoData.getMyPendingFriendRequests(); } catch (err) { /* ignora */ }
+
+        var notificationsForBell = CiSiamoData.buildNotifications(events, eventNoticesForBell, myUsernameForBell);
+        if (CiSiamoData.hasUnreadNotifications(notificationsForBell, pendingFriendRequestsForBell)) {
+          var bellDot = document.getElementById('bellDot');
+          if (bellDot) bellDot.style.display = '';
+        }
+      } catch (err) { /* ignora: il pallino resta semplicemente spento */ }
     })();
   </script>
   <script src="script.js"></script>

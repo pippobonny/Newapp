@@ -728,22 +728,58 @@
       dropdown.innerHTML = '';
     }
 
+    // Fil, 2026-07-19: prima non c'era nessun segnale tra "smetto di
+    // scrivere" e "spuntano i risultati" — su una rete lenta (iPhone in
+    // mobilità, vedi anche la compressione foto aggiunta oggi) il campo
+    // sembrava morto per un attimo. Copre sia l'attesa del debounce (250ms)
+    // sia quella della rete: sparisce da sola appena renderResults() o
+    // hideDropdown() sovrascrivono il contenuto del dropdown.
+    function showLoading() {
+      dropdown.innerHTML = '<div class="account-search-loading"><span class="account-search-spinner"></span></div>';
+      dropdown.style.display = '';
+    }
+
     function renderResults(results) {
       lastResults = results || [];
-      if (!lastResults.length) { hideDropdown(); return; }
 
-      dropdown.innerHTML = lastResults.map(function (acc) {
-        var initial = (acc.username.trim().charAt(0) || '?').toUpperCase();
-        var circle = acc.avatarUrl
-          ? '<img src="' + CiSiamoData.escapeHTML(acc.avatarUrl) + '" alt="">'
-          : CiSiamoData.escapeHTML(initial);
-        return ''
-          + '<div class="account-search-item" data-account-id="' + acc.id + '" data-username="' + CiSiamoData.escapeHTML(acc.username) + '" data-avatar-url="' + CiSiamoData.escapeHTML(acc.avatarUrl || '') + '">'
-          + '<div class="account-search-avatar">' + circle + '</div>'
-          + '<div>' + CiSiamoData.escapeHTML(acc.username) + '</div>'
-          + '</div>';
-      }).join('');
+      if (!lastResults.length) {
+        // Fil, 2026-07-19: prima spariva tutto in silenzio, come se non
+        // fosse successo nulla — chi cercava un amico non capiva se non
+        // l'aveva trovato perché non è registrato su Ci siamo, o se la
+        // ricerca semplicemente non era ancora partita. Il nome resta
+        // comunque valido come invitato "libero" (senza account collegato,
+        // vedi commento in cima al file): questo è solo per chiarire perché
+        // non compare nessun suggerimento da scegliere.
+        dropdown.innerHTML = '<div class="account-search-empty">Nessun account trovato con questo nome</div>';
+      } else {
+        dropdown.innerHTML = lastResults.map(function (acc) {
+          var initial = (acc.username.trim().charAt(0) || '?').toUpperCase();
+          var circle = acc.avatarUrl
+            ? '<img src="' + CiSiamoData.escapeHTML(acc.avatarUrl) + '" alt="">'
+            : CiSiamoData.escapeHTML(initial);
+          return ''
+            + '<div class="account-search-item" data-account-id="' + acc.id + '" data-username="' + CiSiamoData.escapeHTML(acc.username) + '" data-avatar-url="' + CiSiamoData.escapeHTML(acc.avatarUrl || '') + '">'
+            + '<div class="account-search-avatar">' + circle + '</div>'
+            + '<div>' + CiSiamoData.escapeHTML(acc.username) + '</div>'
+            + '</div>';
+        }).join('');
+      }
       dropdown.style.display = '';
+
+      // Fil, 2026-07-19: in amici.html il campo sta in cima al popup (fix
+      // precedente) e lì i risultati hanno sempre spazio, ma in crea.html lo
+      // stesso identico componente vive a metà della pagina di creazione
+      // evento — con la tastiera aperta i risultati potevano finire coperti,
+      // perché lo scroll automatico del telefono avviene al focus (per
+      // mostrare il campo) e non si ripete quando il dropdown compare dopo,
+      // mentre scrivi. Fix qui invece che pagina per pagina, così vale
+      // ovunque venga usato attachAccountSearch, anche in futuro: ogni volta
+      // che i risultati compaiono/cambiano, si porta il dropdown dentro
+      // l'area visibile — sul telefono questo tiene conto anche della
+      // tastiera aperta, non solo dello scroll della pagina.
+      window.requestAnimationFrame(function () {
+        dropdown.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      });
     }
 
     // Interroga il server SUBITO (non aspetta il debounce): usata sia dal
@@ -772,6 +808,7 @@
       window.clearTimeout(debounceTimer);
       if (query.length < 2) { hideDropdown(); lastQuery = query; return; }
 
+      showLoading();
       debounceTimer = window.setTimeout(function () { runSearch(query); }, 250);
     });
 
