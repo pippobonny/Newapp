@@ -646,6 +646,7 @@
             lng: (ev.locationLng === undefined) ? null : ev.locationLng
           },
           carriedPhotoUrl: ev.photoUrl || null,
+          eventTimeValue: ev.eventTime ? ev.eventTime.slice(0, 5) : '',
           currentStep: 1
         };
         try {

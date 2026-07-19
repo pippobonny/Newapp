@@ -214,6 +214,17 @@
           </div>
         </div>
 
+        <!-- Orario facoltativo (Fil, 2026-07-20): UNO solo per tutto
+             l'evento, non per singola data proposta -- vale su qualunque
+             giorno finisca per vincere. Se lasciato vuoto, l'evento resta
+             "senza ora" (buildEventICS in data.js lo tratta come evento
+             "tutto il giorno" quando si aggiunge al calendario). -->
+        <div class="field">
+          <label>Orario (facoltativo)</label>
+          <input type="time" id="eventTimeInput">
+          <div class="field-hint">Se lo lasci vuoto, l'evento sul calendario risulterà "tutto il giorno".</div>
+        </div>
+
         <div class="form-error" id="formError"></div>
 
         <div style="display:flex; gap:10px;">
@@ -553,6 +564,7 @@
       var saveAsListCheckbox = document.getElementById('saveAsListCheckbox');
       var optionGroupDivider = document.getElementById('optionGroupDivider');
       var openInviteCheckbox = document.getElementById('openInviteCheckbox');
+      var eventTimeInput = document.getElementById('eventTimeInput');
       var selectedListPreview = document.getElementById('selectedListPreview');
       var selectedListPreviewName = document.getElementById('selectedListPreviewName');
       var selectedListPreviewCount = document.getElementById('selectedListPreviewCount');
@@ -1042,7 +1054,8 @@
             locationPlaceId: selectedLocation.placeId,
             locationLat: selectedLocation.lat,
             locationLng: selectedLocation.lng,
-            openInvite: openInviteCheckbox.checked
+            openInvite: openInviteCheckbox.checked,
+            eventTime: eventTimeInput.value
           };
 
           if (isEditMode) {
@@ -1153,6 +1166,7 @@
           openInviteChecked: openInviteCheckbox.checked,
           locationValue: eventLocationInput.value,
           selectedLocation: selectedLocation,
+          eventTimeValue: eventTimeInput.value,
           // solo se non hai già scelto un file nuovo: altrimenti, come il file
           // stesso, questo pezzo si perde nel giro "+ Crea una lista amici"
           // (limite noto, non c'è nulla da riportare comunque in quel caso)
@@ -1215,6 +1229,7 @@
 
         if (draft.locationValue) eventLocationInput.value = draft.locationValue;
         if (draft.selectedLocation) selectedLocation = draft.selectedLocation;
+        if (draft.eventTimeValue) eventTimeInput.value = draft.eventTimeValue;
 
         // foto riportata da "Ripeti questo evento" (evento.html): solo un URL
         // già online, non un file da caricare di nuovo, la mostriamo così com'è
@@ -1294,6 +1309,12 @@
             lat: (editingEvent.locationLat === undefined) ? null : editingEvent.locationLat,
             lng: (editingEvent.locationLng === undefined) ? null : editingEvent.locationLng
           };
+        }
+
+        // orario (Fil, 2026-07-20): eventTime arriva dal DB come "HH:MM:SS",
+        // <input type="time"> vuole "HH:MM" -- si taglia ai primi 5 caratteri.
+        if (editingEvent.eventTime) {
+          eventTimeInput.value = editingEvent.eventTime.slice(0, 5);
         }
 
         // invitati: sempre "nomi a mano" in modifica — la lista amici era solo un

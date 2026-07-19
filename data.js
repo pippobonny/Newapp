@@ -130,6 +130,94 @@
     }
   }
 
+  // "19:00:00" (come arriva dal DB) -> "19:00". Torna null se non c'è
+  // orario, così chi la usa può decidere da solo cosa scrivere in quel caso
+  // (Fil, 2026-07-20).
+  function formatTimeLabel(eventTime) {
+    if (!eventTime) return null;
+    return String(eventTime).slice(0, 5);
+  }
+
+  // Data completa di orario per il riepilogo di un evento confermato (Fil,
+  // 2026-07-20): "Sab 25 luglio · ore 19:00", o solo la data se l'evento
+  // non ha un orario impostato.
+  function formatDateTimeLabel(dateISO, eventTime) {
+    var timeLabel = formatTimeLabel(eventTime);
+    return formatDateLabel(dateISO) + (timeLabel ? ' · ore ' + timeLabel : '');
+  }
+
+  function icsPad2(n) { return (n < 10 ? '0' : '') + n; }
+
+  // Caratteri speciali del formato iCalendar (RFC 5545): backslash, punto e
+  // virgola, virgola e a capo vanno "scappati" col backslash, altrimenti il
+  // file risulta invalido per chi lo importa.
+  function icsEscape(str) {
+    return String(str || '')
+      .replace(/\\/g, '\\\\')
+      .replace(/;/g, '\\;')
+      .replace(/,/g, '\\,')
+      .replace(/\n/g, '\\n');
+  }
+
+  function icsDateStamp() {
+    var d = new Date();
+    return d.getUTCFullYear() + icsPad2(d.getUTCMonth() + 1) + icsPad2(d.getUTCDate()) + 'T'
+      + icsPad2(d.getUTCHours()) + icsPad2(d.getUTCMinutes()) + icsPad2(d.getUTCSeconds()) + 'Z';
+  }
+
+  /* Genera un file .ics (iCalendar -- standard universale, lo capiscono sia
+     Calendario di Apple sia Google Calendar) per aggiungere un evento
+     confermato al calendario del telefono (Fil, 2026-07-20). Con un orario
+     salvato (event.eventTime) l'evento sul calendario ha quell'ora precisa,
+     un'ora di durata di default (non essendoci un orario di fine salvato in
+     nduma); senza orario diventa un evento "tutto il giorno". L'orario è
+     scritto "flottante" (senza fuso orario/Z): i calendari lo leggono come
+     ora locale del dispositivo che lo apre, che è esattamente quello che
+     serve qui (nessuna gestione fusi orari: tutti gli utenti sono in
+     Italia). */
+  function buildEventICS(event, dateISO) {
+    var datePart = dateISO.replace(/-/g, '');
+    var timeLabel = formatTimeLabel(event.eventTime);
+
+    var dtLines;
+    if (timeLabel) {
+      var hm = timeLabel.split(':');
+      var startHour = Number(hm[0]), startMin = Number(hm[1]);
+      var dtStart = datePart + 'T' + icsPad2(startHour) + icsPad2(startMin) + '00';
+
+      var endDate = new Date(
+        Number(dateISO.slice(0, 4)), Number(dateISO.slice(5, 7)) - 1, Number(dateISO.slice(8, 10)),
+        startHour, startMin
+      );
+      endDate.setHours(endDate.getHours() + 1);
+      var dtEnd = endDate.getFullYear() + icsPad2(endDate.getMonth() + 1) + icsPad2(endDate.getDate())
+        + 'T' + icsPad2(endDate.getHours()) + icsPad2(endDate.getMinutes()) + '00';
+
+      dtLines = ['DTSTART:' + dtStart, 'DTEND:' + dtEnd];
+    } else {
+      var nextDay = new Date(dateISO + 'T00:00:00');
+      nextDay.setDate(nextDay.getDate() + 1);
+      var nextDayPart = nextDay.getFullYear() + icsPad2(nextDay.getMonth() + 1) + icsPad2(nextDay.getDate());
+      dtLines = ['DTSTART;VALUE=DATE:' + datePart, 'DTEND;VALUE=DATE:' + nextDayPart];
+    }
+
+    var descriptionParts = [];
+    if (event.description) descriptionParts.push(event.description);
+    descriptionParts.push('Dettagli su nduma: ' + SITE_URL + '/evento.html?id=' + event.id);
+
+    var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//nduma//IT', 'BEGIN:VEVENT']
+      .concat(['UID:' + event.id + '@nduma.it', 'DTSTAMP:' + icsDateStamp()])
+      .concat(dtLines)
+      .concat([
+        'SUMMARY:' + icsEscape(event.name),
+        event.locationAddress ? 'LOCATION:' + icsEscape(event.locationAddress) : null,
+        'DESCRIPTION:' + icsEscape(descriptionParts.join('\n\n'))
+      ].filter(function (l) { return l !== null; }))
+      .concat(['END:VEVENT', 'END:VCALENDAR']);
+
+    return lines.join('\r\n');
+  }
+
   function escapeHTML(str) {
     var div = document.createElement('div');
     div.textContent = str == null ? '' : String(str);
@@ -1141,7 +1229,7 @@
     + 'locationLat:location_lat, locationLng:location_lng, '
     + 'createdBy:created_by, createdByAccountId:created_by_account_id, friendListId:friend_list_id, createdAt:created_at, '
     + 'cancelledAt:cancelled_at, shareToken:share_token, openInvite:open_invite, '
-    + 'confirmedDateOptionId:confirmed_date_option_id, manuallyCancelled:manually_cancelled, '
+    + 'confirmedDateOptionId:confirmed_date_option_id, manuallyCancelled:manually_cancelled, eventTime:event_time, '
     + 'dateOptions:date_options!date_options_event_id_fkey(id, dateISO:date_iso), '
     + 'participants(name, availableDateOptionIds:available_date_option_ids, accountId:account_id, createdAt:created_at, hiddenFromHome:hidden_from_home), '
     + 'invitees:event_invitees(id, name, accountId:account_id, claimedAt:claimed_at)';
@@ -1286,6 +1374,16 @@
     return { name: (entry || '').trim(), accountId: null };
   }
 
+  // Orario facoltativo dell'evento (Fil, 2026-07-20): UNO solo per tutto
+  // l'evento, non per singolo giorno proposto. Da <input type="time">
+  // arriva già "HH:MM" (a volte "HH:MM:SS"), va bene così com'è per la
+  // colonna Postgres "time" — qui si toglie solo lo spazio e si azzera se
+  // vuoto (evento "senza ora", diventa "tutto il giorno" sul calendario).
+  function normalizeEventTime(t) {
+    var v = (t || '').trim();
+    return v || null;
+  }
+
   async function createEvent(input) {
     var creatorAcc = getAccount();
     var insertRes = await supabase
@@ -1301,7 +1399,8 @@
         location_place_id: input.locationPlaceId || null,
         location_lat: (input.locationLat === undefined || input.locationLat === null) ? null : input.locationLat,
         location_lng: (input.locationLng === undefined || input.locationLng === null) ? null : input.locationLng,
-        open_invite: !!input.openInvite
+        open_invite: !!input.openInvite,
+        event_time: normalizeEventTime(input.eventTime)
       })
       .select('id')
       .single();
@@ -1593,7 +1692,8 @@
       location_place_id: input.locationPlaceId || null,
       location_lat: (input.locationLat === undefined || input.locationLat === null) ? null : input.locationLat,
       location_lng: (input.locationLng === undefined || input.locationLng === null) ? null : input.locationLng,
-      open_invite: !!input.openInvite
+      open_invite: !!input.openInvite,
+      event_time: normalizeEventTime(input.eventTime)
     }).eq('id', eventId);
     if (updateRes.error) throw new Error(updateRes.error.message);
 
@@ -2423,6 +2523,9 @@
     buildMapsUrl: buildMapsUrl,
     formatDateLabel: formatDateLabel,
     shortDateLabel: shortDateLabel,
+    formatTimeLabel: formatTimeLabel,
+    formatDateTimeLabel: formatDateTimeLabel,
+    buildEventICS: buildEventICS,
     escapeHTML: escapeHTML,
     renderEventCardHTML: renderEventCardHTML,
     STATUS_LABELS: STATUS_LABELS,

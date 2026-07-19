@@ -753,12 +753,18 @@
           .filter(function (p) { return (p.availableDateOptionIds || []).indexOf(info.bestOption.id) !== -1; })
           .map(function (p) { return p.name; });
 
+        // Tocca la data per aggiungerla al calendario del telefono (Fil,
+        // 2026-07-20): solo su un evento ancora da tenersi, non ha senso
+        // per uno "passato". Vedi initCalendarExport più sotto per il tap.
+        var canAddToCalendar = info.status !== 'passato';
         var dateCardHTML = ''
-          + '<div class="confirmed-date-card' + (info.status === 'passato' ? ' passato' : '') + '">'
+          + '<div class="confirmed-date-card' + (info.status === 'passato' ? ' passato' : '') + '"'
+          + (canAddToCalendar ? ' id="confirmedDateCard" style="cursor:pointer;"' : '') + '>'
           + '<div class="confirmed-date-icon">' + (info.status === 'passato' ? '📖' : '📅') + '</div>'
           + '<div>'
           + '<div class="confirmed-date-label">' + (info.status === 'passato' ? 'Si è tenuto' : 'Si terrà') + '</div>'
-          + '<div class="confirmed-date-value">' + NdumaData.escapeHTML(NdumaData.formatDateLabel(info.bestOption.dateISO)) + '</div>'
+          + '<div class="confirmed-date-value">' + NdumaData.escapeHTML(NdumaData.formatDateTimeLabel(info.bestOption.dateISO, event.eventTime)) + '</div>'
+          + (canAddToCalendar ? '<div class="confirmed-date-add-cal">＋ Aggiungi al calendario</div>' : '')
           + '</div>'
           + '</div>';
 
@@ -1215,6 +1221,30 @@
         if (eventPhotoImg) {
           eventPhotoImg.addEventListener('click', function () {
             openPhotoLightbox(event.photoUrl);
+          });
+        }
+
+        // Tocca la data confermata per aggiungerla al calendario del
+        // telefono (Fil, 2026-07-20): genera un .ics al volo (con l'orario
+        // se l'evento ce l'ha, altrimenti "tutto il giorno", vedi
+        // buildEventICS in data.js) e lo apre -- su iOS/Android questo
+        // basta di solito a far comparire la schermata "Aggiungi evento"
+        // del calendario nativo, senza scaricare davvero un file visibile.
+        var confirmedDateCard = document.getElementById('confirmedDateCard');
+        if (confirmedDateCard) {
+          confirmedDateCard.addEventListener('click', function () {
+            var info = NdumaData.computeEventStatus(event);
+            if (!info.bestOption) return;
+            var ics = NdumaData.buildEventICS(event, info.bestOption.dateISO);
+            var blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = (event.name || 'evento').replace(/[^\w\- ]/g, '').trim() + '.ics';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
           });
         }
 
