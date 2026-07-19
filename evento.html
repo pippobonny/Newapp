@@ -1238,9 +1238,17 @@
             var ics = NdumaData.buildEventICS(event, info.bestOption.dateISO);
             var blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
             var url = URL.createObjectURL(blob);
+
+            // Fil, 2026-07-20: NIENTE a.download -- forzava un salvataggio
+            // di file (su Samsung finiva nei Download e andava riaperto a
+            // mano; probabilmente causava anche la stranezza su iPhone,
+            // dove il "vero" flusso di Calendario non partiva). Senza
+            // download, il browser gestisce il blob text/calendar come
+            // contenuto calendario vero: apre direttamente "Aggiungi
+            // evento" invece di scaricare un file da riaprire dopo.
             var a = document.createElement('a');
             a.href = url;
-            a.download = (event.name || 'evento').replace(/[^\w\- ]/g, '').trim() + '.ics';
+            a.target = '_blank';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
