@@ -635,17 +635,15 @@
       function buildAvailabilitySectionHTML() {
         var existingParticipant = findExistingParticipant();
 
-        // stato di base, mai toccato: messaggio fisso + un tasto per modificarlo
-        // (utile se dopo aver creato l'evento salta fuori un impegno un giorno).
-        // Il bottone per cambiarla ora vive nel menu ⋮ dell'header ("📅 I
-        // giorni in cui ci sei", vedi setupHeaderMenu e render() più sotto
-        // per la sua visibilità) — qui resta solo il messaggio informativo
-        // (Fil, 2026-07-19: prima il bottone era in mezzo alla pagina,
-        // ridondante con Modifica/Elimina che erano già nel menu).
+        // stato di base, mai toccato: niente da mostrare qui (Fil,
+        // 2026-07-19: anche il messaggio informativo tolto, non solo il
+        // bottone — troppa carne al fuoco in mezzo alla pagina per
+        // un'informazione implicita, "sei tu che organizzi quindi ci sei".
+        // Chi vuole cambiarlo trova "📅 I giorni in cui ci sei" nel menu ⋮
+        // dell'header, vedi setupHeaderMenu e render() per la sua
+        // visibilità).
         if (isOrganizer && !editingAvailability && !organizerHasCustomAvailability(existingParticipant)) {
-          return ''
-            + '<div class="section-title">La tua disponibilità</div>'
-            + '<div class="card-date" style="margin:0 2px 14px;">Sei tu che organizzi: sei già conteggiato come presente in tutte le date proposte. Per cambiarlo, vai su ⋮ in alto → "I giorni in cui ci sei".</div>';
+          return '';
         }
 
         if (!guestName) {
