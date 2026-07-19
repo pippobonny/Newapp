@@ -1976,6 +1976,30 @@
       : 'Rimuovere "' + eventName + '" dalla tua home? Non potrai più vederlo qui, l\'azione non si può annullare.';
   }
 
+  /* "Segnala problema" (Fil, 2026-07-20): bottone temporaneo per il giro di
+     test con gli amici, da togliere più avanti (vedi initReportProblem in
+     script.js, che crea il bottone/popup su ogni pagina). Oltre al testo
+     scritto dalla persona, manda da sola tutto il contesto che altrimenti
+     bisognerebbe chiedere a voce: pagina aperta, chi è (se loggato),
+     dispositivo/browser, e gli ultimi errori JavaScript intercettati da
+     script.js (extraCtx.recentErrors) — così capita spesso di avere già il
+     messaggio d'errore vero, non solo "non mi funzionava". Nessuno legge
+     questa tabella dall'app (niente policy SELECT lato server): solo Fil
+     dal pannello Supabase. */
+  async function reportProblem(message, extraCtx) {
+    var acc = getAccount();
+    var res = await supabase.from('problem_reports').insert({
+      message: (message || '').trim(),
+      page_url: window.location.href,
+      username: getGuestName() || null,
+      account_id: acc ? acc.id : null,
+      user_agent: navigator.userAgent,
+      recent_errors: (extraCtx && extraCtx.recentErrors) || []
+    });
+    if (res.error) throwSupabaseError(res.error);
+    return true;
+  }
+
   /* Calcola stato, percentuale di risposta e "miglior data" di un evento.
      Fil, 2026-07-19: tolta la quota ("quante persone servono per
      confermare") — troppo complicata da spiegare. Ora un evento si conferma
@@ -2389,6 +2413,7 @@
     withdrawFromEvent: withdrawFromEvent,
     removeEventFromHome: removeEventFromHome,
     buildRemoveFromHomeConfirmMessage: buildRemoveFromHomeConfirmMessage,
+    reportProblem: reportProblem,
     buildNotifications: buildNotifications,
     getNotificationsSeenAt: getNotificationsSeenAt,
     markNotificationsSeen: markNotificationsSeen,

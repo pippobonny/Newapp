@@ -5,6 +5,39 @@
 
 (function () {
 
+  /* ---------- cattura automatica errori (per "Segnala problema") ----------
+     Fil, 2026-07-20: attaccati SUBITO, prima di ogni altra cosa in questo
+     file, per intercettare quanti più errori possibile durante la sessione.
+     LIMITE noto: script.js è l'ultimo script caricato in ogni pagina (dopo
+     data.js e dopo lo script inline della pagina), quindi un errore
+     capitato PRIMA che script.js arrivi ad eseguire questa riga (es. nello
+     script inline durante il primissimo caricamento) non viene visto —
+     comunque meglio di niente per gli errori "mentre uso l'app" che sono
+     la maggioranza di quelli utili da segnalare. Tenuti solo gli ultimi 5,
+     letti da initReportProblem qui sotto quando si invia una segnalazione. */
+  var recentClientErrors = [];
+  function recordClientError(entry) {
+    entry.time = new Date().toISOString();
+    recentClientErrors.push(entry);
+    if (recentClientErrors.length > 5) recentClientErrors.shift();
+  }
+  window.addEventListener('error', function (e) {
+    recordClientError({
+      message: e.message,
+      source: e.filename,
+      line: e.lineno,
+      col: e.colno,
+      stack: e.error && e.error.stack
+    });
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    var reason = e.reason;
+    recordClientError({
+      message: (reason && (reason.message || String(reason))) || 'Promise rejection senza messaggio',
+      stack: reason && reason.stack
+    });
+  });
+
   /* ---------- 1. Transizioni di pagina: slide direzionale ---------- */
   // Il bordo del telefono (.phone) non si muove mai: scorre solo .screen
   // (header + content). La direzione (sinistra/destra) dipende dalla posizione
@@ -1185,6 +1218,85 @@
     await showPushPrompt();
   }
 
+  /* ---------- "Segnala problema" ----------
+     Fil, 2026-07-20: bottone temporaneo per il giro di test con gli amici
+     (da togliere più avanti — basterà cancellare questa funzione e la sua
+     chiamata più sotto, niente da toccare nelle pagine HTML). Iniettato in
+     JS su OGNI pagina invece che nell'HTML di ognuna, appunto per poterlo
+     togliere da un solo punto quando non servirà più. Riusa
+     .signup-overlay/.signup-modal (stesso stile dei popup già in evento.html)
+     per il popup, mentre il bottone vive dentro .phone (vedi .report-
+     problem-btn in style.css, ancorato appena sopra la navbar). */
+  function initReportProblem() {
+    if (document.getElementById('reportProblemBtn')) return; // già creato (non dovrebbe capitare, ma per sicurezza)
+    var phone = document.querySelector('.phone');
+    if (!phone) return;
+
+    var btn = document.createElement('div');
+    btn.className = 'report-problem-btn';
+    btn.id = 'reportProblemBtn';
+    btn.title = 'Segnala un problema';
+    btn.textContent = '🐞';
+    phone.appendChild(btn);
+
+    var overlay = document.createElement('div');
+    overlay.className = 'signup-overlay';
+    overlay.id = 'reportProblemOverlay';
+    overlay.style.display = 'none';
+    overlay.innerHTML = ''
+      + '<div class="signup-modal" style="text-align:left;">'
+      + '<div class="list-header" style="margin-bottom:14px;">'
+      + '<div class="card-title">Segnala un problema</div>'
+      + '<div class="list-delete" id="reportProblemCloseBtn">Chiudi ✕</div>'
+      + '</div>'
+      + '<div class="signup-modal-text" style="text-align:left; margin-bottom:10px;">Scrivi cosa è successo: pagina, dispositivo e (se ci sono stati) gli ultimi errori vengono allegati da soli.</div>'
+      + '<textarea class="report-problem-textarea" id="reportProblemText" placeholder="Es. ho premuto Conferma e non è successo niente..."></textarea>'
+      + '<div class="field-hint" id="reportProblemError" style="color:var(--cancel); min-height:16px; margin-top:6px;"></div>'
+      + '<button type="button" class="primary-btn" id="reportProblemSendBtn" style="margin-top:14px;">Invia segnalazione</button>'
+      + '</div>';
+    document.body.appendChild(overlay);
+
+    var textEl = overlay.querySelector('#reportProblemText');
+    var errorEl = overlay.querySelector('#reportProblemError');
+    var sendBtn = overlay.querySelector('#reportProblemSendBtn');
+    var closeBtn = overlay.querySelector('#reportProblemCloseBtn');
+
+    function openModal() {
+      errorEl.textContent = '';
+      textEl.value = '';
+      overlay.style.display = 'flex';
+      window.setTimeout(function () { textEl.focus(); }, 50);
+    }
+    function closeModal() { overlay.style.display = 'none'; }
+
+    btn.addEventListener('click', openModal);
+    closeBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
+
+    sendBtn.addEventListener('click', async function () {
+      var message = textEl.value.trim();
+      if (!message) { errorEl.textContent = 'Scrivi qualcosa prima di inviare.'; return; }
+      if (!window.NdumaData) return;
+
+      errorEl.textContent = '';
+      sendBtn.disabled = true;
+      var originalText = sendBtn.textContent;
+      sendBtn.textContent = 'Invio...';
+      try {
+        await window.NdumaData.reportProblem(message, { recentErrors: recentClientErrors });
+      } catch (err) {
+        errorEl.textContent = 'Non sono riuscito a inviarla (' + err.message + '). Riprova.';
+        sendBtn.disabled = false;
+        sendBtn.textContent = originalText;
+        return;
+      }
+      sendBtn.disabled = false;
+      sendBtn.textContent = originalText;
+      closeModal();
+      showToast('Segnalazione inviata, grazie! 🙏');
+    });
+  }
+
   window.NdumaUI = {
     refresh: refreshDynamicContent,
     toast: showToast,
@@ -1209,6 +1321,7 @@
     initKeyboardAwareNavbar();
     initSplashScreen();
     initIosInstallHint();
+    initReportProblem();
   });
 
   // Gestisce il tasto "indietro" del browser (bfcache): la pagina torna dalla cache
