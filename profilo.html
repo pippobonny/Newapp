@@ -203,6 +203,14 @@
           <div class="left">📝 Dati del profilo (nome, email...)</div>
           <div>›</div>
         </div>
+        <!-- Visibile solo a chi ha un account (serve per collegare l'iscrizione
+             a una riga di push_subscriptions) e solo se il browser/dispositivo
+             supporta le notifiche push: su iPhone, ad esempio, solo se l'app è
+             stata aggiunta alla schermata Home (Fil, 2026-07-19). -->
+        <div class="settings-row" id="pushNotifRow" style="display:none;">
+          <div class="left" id="pushNotifLabel">🔔 Attiva notifiche push</div>
+          <div>›</div>
+        </div>
         <div class="settings-row danger" id="forgetMeRow">
           <div class="left">🚪 Esci</div>
           <div>›</div>
@@ -252,6 +260,8 @@
       var nameInput = document.getElementById('profileNameInput');
       var profileSaveRow = document.getElementById('profileSaveRow');
       var myEventsList = document.getElementById('myEventsList');
+      var pushNotifRow = document.getElementById('pushNotifRow');
+      var pushNotifLabel = document.getElementById('pushNotifLabel');
       var createAvatarEl = document.getElementById('createProfileAvatar');
       var avatarFileInput = document.getElementById('createAvatarFile');
 
@@ -585,7 +595,47 @@
 
         // rianima/rende cliccabile il contenuto appena creato
         if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+
+        await refreshPushRow();
       }
+
+      /* Riga "Attiva/Disattiva notifiche push": visibile solo a chi ha un
+         account (l'iscrizione va collegata a una riga di push_subscriptions,
+         serve auth.uid()) e solo se il browser la supporta — su iPhone, ad
+         esempio, solo dentro l'app aggiunta alla schermata Home, non in
+         Safari normale (Fil, 2026-07-19). */
+      async function refreshPushRow() {
+        if (!CiSiamoData.hasAccount() || !CiSiamoData.isPushSupported()) {
+          pushNotifRow.style.display = 'none';
+          return;
+        }
+        pushNotifRow.style.display = '';
+        var subscribed = false;
+        try {
+          subscribed = await CiSiamoData.isPushSubscribed();
+        } catch (err) { /* se il controllo fallisce, si riparte da "non attive" */ }
+        pushNotifLabel.textContent = subscribed ? '🔔 Notifiche push attive' : '🔕 Attiva notifiche push';
+        pushNotifRow.dataset.subscribed = subscribed ? '1' : '0';
+      }
+
+      pushNotifRow.addEventListener('click', async function () {
+        var isSubscribed = pushNotifRow.dataset.subscribed === '1';
+        pushNotifLabel.textContent = isSubscribed ? 'Disattivo...' : 'Attivo...';
+        try {
+          if (isSubscribed) {
+            await CiSiamoData.unsubscribeFromPush();
+          } else {
+            await CiSiamoData.subscribeToPush();
+          }
+        } catch (err) {
+          if (window.CiSiamoUI) {
+            window.CiSiamoUI.toast('Non sono riuscito: ' + err.message);
+          } else {
+            window.alert('Non sono riuscito: ' + err.message);
+          }
+        }
+        await refreshPushRow();
+      });
 
       createBtn.addEventListener('click', async function () {
         if (!isEditMode && authMode === 'login') {

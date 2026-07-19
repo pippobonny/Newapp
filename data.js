@@ -68,6 +68,14 @@
      crea.html) invece di rompersi. */
   var GOOGLE_MAPS_API_KEY = 'AIzaSyDxpmS5OTFUdC5SnQio15gaWvXBELrw45Q';
 
+  /* Chiave pubblica VAPID per le notifiche push: come per Maps sopra, è
+     normale che stia qui — è la chiave PUBBLICA (il browser la usa per
+     dire al push service, es. FCM/Mozilla, "le notifiche per questa
+     iscrizione le manderà solo chi ha la chiave privata corrispondente").
+     La chiave privata vera sta solo lato server (secret dell'Edge
+     Function), mai nel client. */
+  var VAPID_PUBLIC_KEY = 'BHIjeQlnFINP3HzXZXfVkp8fNdvjmAuNovD2xtVcKYayTQkPtD8qXSGxlQn1IZyFf_gsUg5dTG7jiZvoWJPQfDk';
+
   var GUEST_KEY = 'ci-siamo:guestName';
   var ACCOUNT_KEY = 'ci-siamo:account'; // cache locale minima: { id, username, avatarUrl }, mai la password
   var GUEST_LOCK_KEY = 'ci-siamo:guestLock'; // { type: 'event'|'list', id, name?, ownerName? }
@@ -564,6 +572,101 @@
 
     var publicRes = supabase.storage.from('event-audio').getPublicUrl(path);
     return publicRes.data.publicUrl;
+  }
+
+  /* ---------- notifiche push (Web Push) ----------
+     Fil, 2026-07-19: notifiche vere anche ad app chiusa, non solo mentre è
+     aperta. Funzionano su Android ovunque; su iPhone SOLO se l'app è stata
+     "aggiunta alla schermata Home" (Safari normale, in scheda, non le
+     manda — limite di iOS, non nostro). L'iscrizione (endpoint + chiavi)
+     viene salvata in push_subscriptions; a mandare le notifiche vere
+     pensano le Edge Function, quando succede qualcosa (invito, evento
+     modificato/confermato/cancellato...). */
+
+  function isPushSupported() {
+    return !!(global.navigator && 'serviceWorker' in global.navigator && global.PushManager);
+  }
+
+  // Il browser vuole la chiave VAPID come Uint8Array, non come la stringa
+  // base64-url che genera il tool che l'ha creata: questa la converte.
+  function urlBase64ToUint8Array(base64String) {
+    var padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    var rawData = global.atob(base64);
+    var outputArray = new Uint8Array(rawData.length);
+    for (var i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+    return outputArray;
+  }
+
+  async function ensureServiceWorkerRegistered() {
+    if (!isPushSupported()) return null;
+    return global.navigator.serviceWorker.register('sw.js');
+  }
+
+  // Registrato in background appena il file si carica (non serve aver
+  // dato il permesso per le notifiche): così quando l'utente preme
+  // "Attiva" nel profilo non deve aspettare la registrazione del service
+  // worker, è già pronta.
+  if (global.navigator && global.navigator.serviceWorker) {
+    ensureServiceWorkerRegistered().catch(function () { /* silenzioso: se fallisce qui, si vedrà comunque quando l'utente prova ad attivarle */ });
+  }
+
+  async function isPushSubscribed() {
+    if (!isPushSupported()) return false;
+    var reg = await global.navigator.serviceWorker.getRegistration('sw.js');
+    if (!reg) return false;
+    var sub = await reg.pushManager.getSubscription();
+    return !!sub;
+  }
+
+  async function subscribeToPush() {
+    if (!isPushSupported()) throw new Error('Le notifiche push non sono supportate su questo browser o dispositivo.');
+    if (!hasAccount()) throw new Error('Serve un account per attivare le notifiche push.');
+
+    var permission = await global.Notification.requestPermission();
+    if (permission !== 'granted') throw new Error('Permesso per le notifiche non concesso.');
+
+    var reg = await ensureServiceWorkerRegistered();
+    if (!reg) throw new Error('Non sono riuscito a registrare il service worker.');
+    await global.navigator.serviceWorker.ready;
+
+    var sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+
+    var acc = getAccount();
+    var subJSON = sub.toJSON();
+    var upsertRes = await supabase.from('push_subscriptions').upsert({
+      account_id: acc.id,
+      endpoint: sub.endpoint,
+      p256dh: subJSON.keys && subJSON.keys.p256dh,
+      auth: subJSON.keys && subJSON.keys.auth,
+      user_agent: global.navigator.userAgent || null
+    }, { onConflict: 'account_id,endpoint' });
+
+    if (upsertRes.error) throw new Error(upsertRes.error.message);
+    return true;
+  }
+
+  async function unsubscribeFromPush() {
+    if (!isPushSupported()) return;
+    var reg = await global.navigator.serviceWorker.getRegistration('sw.js');
+    if (!reg) return;
+    var sub = await reg.pushManager.getSubscription();
+    if (!sub) return;
+
+    var endpoint = sub.endpoint;
+    await sub.unsubscribe();
+
+    if (hasAccount()) {
+      var acc = getAccount();
+      var deleteRes = await supabase.from('push_subscriptions').delete().eq('account_id', acc.id).eq('endpoint', endpoint);
+      if (deleteRes.error) throw new Error(deleteRes.error.message);
+    }
   }
 
   /* ---------- liste amici ----------
@@ -2056,6 +2159,10 @@
     uploadAvatar: uploadAvatar,
     uploadEventPhoto: uploadEventPhoto,
     uploadEventAudio: uploadEventAudio,
+    isPushSupported: isPushSupported,
+    isPushSubscribed: isPushSubscribed,
+    subscribeToPush: subscribeToPush,
+    unsubscribeFromPush: unsubscribeFromPush,
     getEvents: getEvents,
     getEventById: getEventById,
     createEvent: createEvent,
@@ -2134,7 +2241,8 @@
     'updateEvent', 'deleteEvent', 'confirmEventDate', 'upsertParticipant', 'withdrawFromEvent',
     'markNotificationsSeen', 'updateEventExpense', 'deleteEventExpense',
     'deleteFriendList', 'removeFriendFromList', 'respondFriendRequest',
-    'loginAccount', 'resetPassword', 'completeGoogleProfile'
+    'loginAccount', 'resetPassword', 'completeGoogleProfile',
+    'subscribeToPush', 'unsubscribeFromPush'
   ].forEach(function (name) {
     var original = global.CiSiamoData[name];
     if (typeof original !== 'function') return;
