@@ -47,6 +47,7 @@
         <span class="menu-dot" id="menuDot" style="display:none;"></span>
         <div class="menu-dropdown" id="eventMenuDropdown" style="display:none;">
           <a class="menu-dropdown-item" id="menuEditLink" href="#">✏️ Modifica</a>
+          <div class="menu-dropdown-item" id="menuEditAvailabilityBtn" style="display:none;">📅 I giorni in cui ci sei</div>
           <div class="menu-dropdown-item danger" id="menuDeleteBtn">🗑️ Elimina</div>
         </div>
       </div>
@@ -636,11 +637,15 @@
 
         // stato di base, mai toccato: messaggio fisso + un tasto per modificarlo
         // (utile se dopo aver creato l'evento salta fuori un impegno un giorno).
+        // Il bottone per cambiarla ora vive nel menu ⋮ dell'header ("📅 I
+        // giorni in cui ci sei", vedi setupHeaderMenu e render() più sotto
+        // per la sua visibilità) — qui resta solo il messaggio informativo
+        // (Fil, 2026-07-19: prima il bottone era in mezzo alla pagina,
+        // ridondante con Modifica/Elimina che erano già nel menu).
         if (isOrganizer && !editingAvailability && !organizerHasCustomAvailability(existingParticipant)) {
           return ''
             + '<div class="section-title">La tua disponibilità</div>'
-            + '<div class="card-date" style="margin:0 2px 14px;">Sei tu che organizzi: sei già conteggiato come presente in tutte le date proposte.</div>'
-            + '<div class="add-date-btn" id="editOrganizerAvailabilityBtn" style="margin-bottom:0;">✏️ Modifica i giorni in cui ci sei</div>';
+            + '<div class="card-date" style="margin:0 2px 14px;">Sei tu che organizzi: sei già conteggiato come presente in tutte le date proposte. Per cambiarlo, vai su ⋮ in alto → "I giorni in cui ci sei".</div>';
         }
 
         if (!guestName) {
@@ -986,6 +991,19 @@
           : info.status === 'cancelled' ? ''
           : (claimCandidates ? buildClaimPromptHTML(claimCandidates) : buildAvailabilitySectionHTML());
         var confirmedSummaryHTML = isConfirmedSimple ? buildConfirmedSummaryHTML(info) : '';
+
+        // "📅 I giorni in cui ci sei" nel menu ⋮ (Fil, 2026-07-19): stessa
+        // condizione della vecchia versione inline (branch "sei tu che
+        // organizzi" in buildAvailabilitySectionHTML), verificata qui perché
+        // la voce di menu è statica fuori da contentEl e la sua visibilità
+        // va aggiornata ad ogni render() come per eventMenuWrap più sopra.
+        var menuEditAvailabilityBtn = document.getElementById('menuEditAvailabilityBtn');
+        if (menuEditAvailabilityBtn) {
+          var showMenuEditAvailability = isOrganizer && !editingAvailability && !isConfirmedSimple
+            && info.status !== 'cancelled' && !claimCandidates
+            && !organizerHasCustomAvailability(findExistingParticipant());
+          menuEditAvailabilityBtn.style.display = showMenuEditAvailability ? '' : 'none';
+        }
         var expensesSectionHTML = buildExpensesSectionHTML();
 
         // Fil, 2026-07-19: "chi c'è" e "quando sei disponibile" spostati
@@ -1087,53 +1105,61 @@
           if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
         }
 
-        function paint() {
-          var cardsHTML = options.map(function (opt) {
-            var count = (event.participants || []).filter(function (p) {
-              return (p.availableDateOptionIds || []).indexOf(opt.id) !== -1;
-            }).length;
-            var parts = shortDateParts(opt.dateISO);
-            var selected = opt.id === selectedId;
-            return '<div class="chip day-card' + (selected ? ' selected' : '') + '" data-day-option-id="' + opt.id + '">'
-              + '<div class="day-dow">' + CiSiamoData.escapeHTML(parts.dow) + '</div>'
-              + '<div class="day-num">' + CiSiamoData.escapeHTML(parts.day) + '</div>'
-              + '<div class="day-month">' + CiSiamoData.escapeHTML(parts.month) + '</div>'
-              + '<div class="day-bar-badge" style="margin:4px auto 0; width:fit-content;"><span aria-hidden="true">👤</span>' + count + '</div>'
-              + '</div>';
-          }).join('');
-
-          overlay.innerHTML = ''
-            + '<div class="signup-modal confirm-day-modal">'
-            + '<div class="signup-modal-title">Quale giorno confermi?</div>'
-            + '<div class="day-grid">' + cardsHTML + '</div>'
-            + '<button type="button" class="primary-btn" id="confirmDaySubmitBtn"' + (selectedId ? '' : ' disabled') + '>Conferma evento</button>'
-            + '<div style="text-align:center;"><span class="signup-skip-link" id="confirmDayCancelLink">Annulla</span></div>'
+        // Costruito una volta sola: prima la selezione di un giorno faceva
+        // ricreare tutto il popup da capo (overlay.innerHTML riassegnato ad
+        // ogni tap), il che rifaceva ripartire l'animazione di apertura
+        // .signup-modal ("signupModalIn") e dava l'effetto "si ricarica"
+        // notato da Fil (2026-07-19). Ora il tap su un giorno tocca solo la
+        // classe "selected" sulle card e lo stato del bottone, senza
+        // toccare il resto del DOM.
+        var cardsHTML = options.map(function (opt) {
+          var count = (event.participants || []).filter(function (p) {
+            return (p.availableDateOptionIds || []).indexOf(opt.id) !== -1;
+          }).length;
+          var parts = shortDateParts(opt.dateISO);
+          return '<div class="chip day-card" data-day-option-id="' + opt.id + '">'
+            + '<div class="day-dow">' + CiSiamoData.escapeHTML(parts.dow) + '</div>'
+            + '<div class="day-num">' + CiSiamoData.escapeHTML(parts.day) + '</div>'
+            + '<div class="day-month">' + CiSiamoData.escapeHTML(parts.month) + '</div>'
+            + '<div class="day-bar-badge" style="margin:4px auto 0; width:fit-content;"><span aria-hidden="true">👤</span>' + count + '</div>'
             + '</div>';
+        }).join('');
 
-          overlay.querySelectorAll('[data-day-option-id]').forEach(function (card) {
-            card.addEventListener('click', function () {
-              selectedId = card.getAttribute('data-day-option-id');
-              paint();
+        overlay.innerHTML = ''
+          + '<div class="signup-modal confirm-day-modal">'
+          + '<div class="signup-modal-title">Quale giorno confermi?</div>'
+          + '<div class="day-grid">' + cardsHTML + '</div>'
+          + '<button type="button" class="primary-btn" id="confirmDaySubmitBtn" disabled>Conferma evento</button>'
+          + '<div style="text-align:center;"><span class="signup-skip-link" id="confirmDayCancelLink">Annulla</span></div>'
+          + '</div>';
+
+        var submitBtn = overlay.querySelector('#confirmDaySubmitBtn');
+        var dayCards = overlay.querySelectorAll('[data-day-option-id]');
+
+        dayCards.forEach(function (card) {
+          card.addEventListener('click', function () {
+            selectedId = card.getAttribute('data-day-option-id');
+            dayCards.forEach(function (c) {
+              c.classList.toggle('selected', c === card);
             });
+            if (submitBtn) submitBtn.disabled = false;
           });
+        });
 
-          var submitBtn = document.getElementById('confirmDaySubmitBtn');
-          if (submitBtn) {
-            submitBtn.addEventListener('click', function () {
-              if (!selectedId) return;
-              confirmDateOption(selectedId, submitBtn, closePopup);
-            });
-          }
-
-          var cancelLink = document.getElementById('confirmDayCancelLink');
-          if (cancelLink) cancelLink.addEventListener('click', closePopup);
-
-          var modalEl = overlay.querySelector('.confirm-day-modal');
-          if (modalEl) modalEl.addEventListener('click', function (e) { e.stopPropagation(); });
+        if (submitBtn) {
+          submitBtn.addEventListener('click', function () {
+            if (!selectedId) return;
+            confirmDateOption(selectedId, submitBtn, closePopup);
+          });
         }
 
+        var cancelLink = overlay.querySelector('#confirmDayCancelLink');
+        if (cancelLink) cancelLink.addEventListener('click', closePopup);
+
+        var modalEl = overlay.querySelector('.confirm-day-modal');
+        if (modalEl) modalEl.addEventListener('click', function (e) { e.stopPropagation(); });
+
         overlay.addEventListener('click', closePopup);
-        paint();
         phone.appendChild(overlay);
       }
 
@@ -1322,14 +1348,6 @@
           });
         }
 
-        var editOrganizerAvailabilityBtn = document.getElementById('editOrganizerAvailabilityBtn');
-        if (editOrganizerAvailabilityBtn) {
-          editOrganizerAvailabilityBtn.addEventListener('click', function () {
-            editingAvailability = true;
-            render();
-          });
-        }
-
         var repeatEventBtn = document.getElementById('repeatEventBtn');
         if (repeatEventBtn) {
           repeatEventBtn.addEventListener('click', function () {
@@ -1486,11 +1504,25 @@
         var menuBtn = document.getElementById('eventMenuBtn');
         var dropdown = document.getElementById('eventMenuDropdown');
         var editLink = document.getElementById('menuEditLink');
+        var editAvailabilityBtn = document.getElementById('menuEditAvailabilityBtn');
         var deleteBtn = document.getElementById('menuDeleteBtn');
         var menuDot = document.getElementById('menuDot');
         if (!menuBtn || !dropdown) return;
 
         if (editLink) editLink.setAttribute('href', 'crea.html?edit=' + encodeURIComponent(event.id));
+
+        // "📅 I giorni in cui ci sei" (Fil, 2026-07-19): stesso
+        // comportamento del vecchio bottone inline "✏️ Modifica i giorni in
+        // cui ci sei" — entra in modalità modifica disponibilità e
+        // ridisegna. La visibilità (solo organizzatore, solo se non ha
+        // ancora personalizzato) è gestita in render(), non qui.
+        if (editAvailabilityBtn) {
+          editAvailabilityBtn.addEventListener('click', function () {
+            dropdown.style.display = 'none';
+            editingAvailability = true;
+            render();
+          });
+        }
 
         // puntino "c'è qualcosa qui", non un fumetto di testo: meno invasivo
         // per far notare il menu ⋮ la prima volta che un organizzatore
