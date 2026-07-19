@@ -336,7 +336,10 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--cancel);
+  /* Rosso vero (Fil, 2026-07-20), non var(--cancel) (#B8654A, terracotta):
+     qui serve il segnale "elimina" immediato di uno swipe-to-delete, il
+     resto dell'app usa apposta un rosso smorzato ma qui va più diretto. */
+  background: #E5484D;
   color: #fff;
   font-size: 22px;
   border-radius: 22px;
