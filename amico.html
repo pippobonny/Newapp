@@ -120,6 +120,33 @@
         el.appendChild(img);
       }
 
+      /* ---------- passo 0: schermata di benvenuto (Fil, 2026-07-19) ----------
+         Solo per chi apre un link di invito senza avere già un account su
+         questo telefono: prima di chiedergli qualsiasi cosa, si presenta
+         l'app (finora il nome "Ci siamo" non compariva mai in questa pagina)
+         e si spiega perché vale la pena continuare (gratis, niente
+         pubblicità). Chi ha già un account salta dritto alla scelta del
+         nome: la conosce già, non ha senso ripresentargliela ogni volta che
+         apre un invito. Niente "vista una volta sola" con localStorage qui
+         (a differenza dei fumetti hint): è legata al link specifico appena
+         aperto, non a un concetto da spiegare una volta per tutte. */
+      function renderWelcome() {
+        contentEl.innerHTML = ''
+          + '<div style="text-align:center; padding:14px 6px 4px;">'
+          + '<div style="font-size:38px; margin-bottom:14px;">🎉</div>'
+          + '<div style="font-family:\'Fraunces\',serif; font-weight:700; font-size:12.5px; letter-spacing:0.06em; color:var(--peach); text-transform:uppercase; margin-bottom:14px;">Ci siamo</div>'
+          + '<div style="font-family:\'Fraunces\',serif; font-weight:600; font-size:19px; line-height:1.35; margin-bottom:14px;">'
+          + CiSiamoData.escapeHTML(ownerLabel) + ' ti ha invitato a<br>"' + CiSiamoData.escapeHTML(event.name) + '"'
+          + '</div>'
+          + '<div style="font-size:13.5px; line-height:1.55; color:var(--lavender); margin-bottom:22px; padding:0 6px;">Ci siamo è una nuova app per organizzare eventi con gli amici senza i mille messaggi nel gruppo: rispondi con due tap quando puoi, gratis, senza pubblicità.</div>'
+          + '<button type="button" class="primary-btn" id="welcomeContinueBtn">Scopri l\'evento →</button>'
+          + '</div>';
+
+        if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+
+        document.getElementById('welcomeContinueBtn').addEventListener('click', renderSelection);
+      }
+
       /* ---------- passo 1: "chi sei tra questi?" ----------
          Un solo link per tutta la lista: chi lo apre sceglie quale dei nomi
          (messi dal creatore della lista) è lui. I nomi già confermati da
@@ -493,7 +520,11 @@
         window.location.href = 'evento.html?id=' + encodeURIComponent(eventId);
       }
 
-      renderSelection();
+      if (CiSiamoData.hasAccount()) {
+        renderSelection();
+      } else {
+        renderWelcome();
+      }
     })();
   </script>
   <script src="script.js"></script>
