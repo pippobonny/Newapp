@@ -2338,10 +2338,18 @@
     var myParticipant = (event.participants || []).filter(function (p) { return p.accountId === myAccountId; })[0];
     var wasAvailable = !!(myParticipant && (myParticipant.availableDateOptionIds || []).length > 0);
 
+    // Il cestino viene DOPO la card nel markup (Fil, 2026-07-20: prima era
+    // prima, e restava visibile a piena opacità mentre la card sopra faceva
+    // ancora il suo fade-in di ".reveal" — si vedeva un lampo rosso finché
+    // la card non arrivava a opacità piena). Lo z-index tiene comunque la
+    // card sopra il cestino indipendentemente dall'ordine nel markup; questo
+    // ordine invece permette al CSS di tenere il cestino invisibile finché
+    // la card non ha finito il suo reveal (vedi .card-swipe-trash e
+    // .card.in-view + .card-swipe-trash in style.css).
     return ''
       + '<div class="card-swipe-wrap">'
-      + '<div class="card-swipe-trash" data-remove-event="' + escapeHTML(event.id) + '" data-event-name="' + escapeHTML(event.name) + '" data-was-available="' + (wasAvailable ? '1' : '0') + '">🗑️</div>'
       + cardHTML
+      + '<div class="card-swipe-trash" data-remove-event="' + escapeHTML(event.id) + '" data-event-name="' + escapeHTML(event.name) + '" data-was-available="' + (wasAvailable ? '1' : '0') + '">🗑️</div>'
       + '</div>';
   }
 

@@ -343,6 +343,16 @@ a { text-decoration: none; color: inherit; }
   color: #fff;
   font-size: 22px;
   border-radius: 22px;
+  /* Fil, 2026-07-20: la card sopra fa il fade-in di .reveal (parte da
+     opacità 0), e per quella mezza/un secondo il rosso pieno qui sotto si
+     vedeva a piena forza attraverso — un lampo rosso a ogni apertura
+     dell'app. Resta invisibile finché la card non ha finito il suo reveal
+     (.card.in-view qui sotto), poi appare con la sua stessa dissolvenza. */
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+.card-swipe-wrap .card.in-view + .card-swipe-trash {
+  opacity: 1;
 }
 
 /* Evento confermato: alone verde sfocato dentro la card, per capire a colpo d'occhio che è chiuso. */
