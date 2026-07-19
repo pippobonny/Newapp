@@ -380,25 +380,21 @@
             silenziosa della prima inserita — si mostrano solo le date in
             pareggio e l'organizzatore ne sceglie una lui.
          Non visibile a chi non organizza, né su un evento già chiuso
-         (confermato/passato/annullato): lì non c'è più nulla da scegliere. */
+         (confermato/passato/annullato): lì non c'è più nulla da scegliere.
+
+         Fil, 2026-07-19: la vecchia lista verticale (una riga "Conferma →"
+         per ogni data) occupava troppo spazio con più di 2-3 date proposte.
+         Ora restano solo due bottoni, "Conferma" e "Annulla evento": se le
+         date papabili (tiedOptions in caso di pareggio, altrimenti tutte
+         event.dateOptions) sono una sola, "Conferma" chiude subito su
+         quella; se sono di più, apre il popup openConfirmDayPopup() con la
+         scelta a quadrati (vedi bindEvents per la logica). */
       function buildManualConfirmSectionHTML(info) {
         if (!isOrganizer) return '';
         if (info.status === 'done' || info.status === 'passato' || info.status === 'cancelled') return '';
 
         var isTie = info.status === 'tie';
         var hasDates = event.dateOptions && event.dateOptions.length;
-        var optionsToShow = isTie ? info.tiedOptions : (event.dateOptions || []);
-
-        var rowsHTML = !hasDates ? '' : optionsToShow.map(function (opt) {
-          var count = (event.participants || []).filter(function (p) {
-            return (p.availableDateOptionIds || []).indexOf(opt.id) !== -1;
-          }).length;
-          return ''
-            + '<div class="settings-row" style="margin-bottom:8px;">'
-            + '<div class="left">' + CiSiamoData.escapeHTML(CiSiamoData.formatDateLabel(opt.dateISO)) + ' · ' + count + (count === 1 ? ' disponibile' : ' disponibili') + '</div>'
-            + '<span class="signup-skip-link" data-confirm-option="' + opt.id + '" style="margin-top:0;">Conferma →</span>'
-            + '</div>';
-        }).join('');
 
         var introHTML = !hasDates ? ''
           : isTie
@@ -407,19 +403,15 @@
             + '<div class="card-date" style="margin:0 2px 10px;">Queste date hanno lo stesso numero di persone disponibili — l\'evento resta in sospeso finché non ne confermi una.</div>'
           : ''
             + '<div class="section-title">Vuoi confermare tu, senza aspettare?</div>'
-            + '<div class="card-date" style="margin:0 2px 10px;">Puoi fissare subito una di queste date, anche prima che rispondano tutti.</div>';
+            + '<div class="card-date" style="margin:0 2px 10px;">Puoi fissare subito una data, anche prima che rispondano tutti.</div>';
 
-        // "Annulla evento" a mano, sempre disponibile qui per l'organizzatore
-        // (Fil, 2026-07-19): tolta la quota, l'unico modo che un evento si
-        // annullasse da solo era che rispondessero proprio tutti gli
-        // invitati — se un paio restano in silenzio per settimane, senza
-        // questo pulsante l'organizzatore resterebbe bloccato in attesa.
-        var cancelHTML = ''
-          + '<div style="text-align:center; margin-top:' + (hasDates ? '14px' : '0') + ';">'
-          + '<span class="signup-skip-link" id="cancelEventManuallyLink" style="color:var(--cancel);">Annulla evento →</span>'
+        var buttonsHTML = ''
+          + '<div class="manual-confirm-btn-row">'
+          + (hasDates ? '<button type="button" class="primary-btn" id="manualConfirmBtn">Conferma</button>' : '')
+          + '<button type="button" class="manual-confirm-cancel-btn" id="cancelEventManuallyLink">Annulla evento</button>'
           + '</div>';
 
-        return introHTML + rowsHTML + cancelHTML;
+        return introHTML + buttonsHTML;
       }
 
       /* Trascinamento con mouse (touch funziona già da solo con
@@ -1045,6 +1037,106 @@
         document.body.appendChild(overlay);
       }
 
+      /* Chiude l'evento su una data precisa: usato sia dal tasto "Conferma"
+         quando c'è una sola data papabile, sia dal bottone "Conferma
+         evento" dentro il popup di scelta giorno (openConfirmDayPopup, qui
+         sotto). btnEl è il bottone da rietichettare/disabilitare durante la
+         chiamata; onDone (opzionale) gira solo in caso di successo, prima
+         di render() — serve a openConfirmDayPopup per chiudersi. */
+      async function confirmDateOption(optionId, btnEl, onDone) {
+        var label = CiSiamoData.formatDateLabel(
+          (event.dateOptions.filter(function (o) { return o.id === optionId; })[0] || {}).dateISO || ''
+        );
+        var sure = window.confirm('Confermare "' + label + '"? Questa data diventa subito quella definitiva dell\'evento, anche se non tutti hanno ancora risposto. Non si può annullare da qui.');
+        if (!sure) return;
+
+        var originalText = btnEl.textContent;
+        btnEl.textContent = 'Confermo...';
+        btnEl.disabled = true;
+        try {
+          event = await CiSiamoData.confirmEventDate(event.id, optionId);
+        } catch (err) {
+          btnEl.textContent = originalText;
+          btnEl.disabled = false;
+          window.alert('Non sono riuscito a confermare (' + err.message + '). Riprova.');
+          return;
+        }
+        if (onDone) onDone();
+        render();
+      }
+
+      /* Popup "quale giorno confermi?" (evento.html, Fil 2026-07-19): si
+         apre dal tasto "Conferma" quando c'è più di una data papabile
+         (altrimenti si conferma subito, vedi bindEvents). Stessa griglia a
+         quadrati 3 per riga di "Quando sei disponibile?" (.day-grid/
+         .day-card), ma a scelta singola invece che multipla, e con in più
+         il conteggio amici disponibili per ogni giorno (.day-bar-badge, lo
+         stesso pallino "👤 N" delle barre più sotto in pagina). Stesso
+         overlay/modale (.signup-overlay/.signup-modal) del popup "Evento
+         confermato!" — qui però interattivo, quindi il tap sul modale non
+         deve chiuderlo (solo il tap sullo sfondo, o "Annulla"). */
+      function openConfirmDayPopup(options) {
+        var phone = document.querySelector('.phone');
+        if (!phone) return;
+
+        var selectedId = null;
+        var overlay = document.createElement('div');
+        overlay.className = 'signup-overlay';
+
+        function closePopup() {
+          if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        }
+
+        function paint() {
+          var cardsHTML = options.map(function (opt) {
+            var count = (event.participants || []).filter(function (p) {
+              return (p.availableDateOptionIds || []).indexOf(opt.id) !== -1;
+            }).length;
+            var parts = shortDateParts(opt.dateISO);
+            var selected = opt.id === selectedId;
+            return '<div class="chip day-card' + (selected ? ' selected' : '') + '" data-day-option-id="' + opt.id + '">'
+              + '<div class="day-dow">' + CiSiamoData.escapeHTML(parts.dow) + '</div>'
+              + '<div class="day-num">' + CiSiamoData.escapeHTML(parts.day) + '</div>'
+              + '<div class="day-month">' + CiSiamoData.escapeHTML(parts.month) + '</div>'
+              + '<div class="day-bar-badge" style="margin:4px auto 0; width:fit-content;"><span aria-hidden="true">👤</span>' + count + '</div>'
+              + '</div>';
+          }).join('');
+
+          overlay.innerHTML = ''
+            + '<div class="signup-modal confirm-day-modal">'
+            + '<div class="signup-modal-title">Quale giorno confermi?</div>'
+            + '<div class="day-grid">' + cardsHTML + '</div>'
+            + '<button type="button" class="primary-btn" id="confirmDaySubmitBtn"' + (selectedId ? '' : ' disabled') + '>Conferma evento</button>'
+            + '<div style="text-align:center;"><span class="signup-skip-link" id="confirmDayCancelLink">Annulla</span></div>'
+            + '</div>';
+
+          overlay.querySelectorAll('[data-day-option-id]').forEach(function (card) {
+            card.addEventListener('click', function () {
+              selectedId = card.getAttribute('data-day-option-id');
+              paint();
+            });
+          });
+
+          var submitBtn = document.getElementById('confirmDaySubmitBtn');
+          if (submitBtn) {
+            submitBtn.addEventListener('click', function () {
+              if (!selectedId) return;
+              confirmDateOption(selectedId, submitBtn, closePopup);
+            });
+          }
+
+          var cancelLink = document.getElementById('confirmDayCancelLink');
+          if (cancelLink) cancelLink.addEventListener('click', closePopup);
+
+          var modalEl = overlay.querySelector('.confirm-day-modal');
+          if (modalEl) modalEl.addEventListener('click', function (e) { e.stopPropagation(); });
+        }
+
+        overlay.addEventListener('click', closePopup);
+        paint();
+        phone.appendChild(overlay);
+      }
+
       function bindEvents() {
         var eventPhotoImg = document.getElementById('eventPhotoImg');
         if (eventPhotoImg) {
@@ -1053,27 +1145,22 @@
           });
         }
 
-        document.querySelectorAll('[data-confirm-option]').forEach(function (btn) {
-          btn.addEventListener('click', async function () {
-            var optionId = btn.getAttribute('data-confirm-option');
-            var label = CiSiamoData.formatDateLabel(
-              (event.dateOptions.filter(function (o) { return o.id === optionId; })[0] || {}).dateISO || ''
-            );
-            var sure = window.confirm('Confermare "' + label + '"? Questa data diventa subito quella definitiva dell\'evento, anche se non tutti hanno ancora risposto. Non si può annullare da qui.');
-            if (!sure) return;
-
-            var originalText = btn.textContent;
-            btn.textContent = 'Confermo...';
-            try {
-              event = await CiSiamoData.confirmEventDate(event.id, optionId);
-            } catch (err) {
-              btn.textContent = originalText;
-              window.alert('Non sono riuscito a confermare (' + err.message + '). Riprova.');
-              return;
+        // "Conferma" (evento.html, Fil 2026-07-19): con una sola data
+        // papabile chiude subito, con più di una apre il popup a quadrati
+        // per scegliere quale (vedi openConfirmDayPopup più sotto).
+        var manualConfirmBtn = document.getElementById('manualConfirmBtn');
+        if (manualConfirmBtn) {
+          manualConfirmBtn.addEventListener('click', function () {
+            var info = CiSiamoData.computeEventStatus(event);
+            var isTie = info.status === 'tie';
+            var optionsToShow = isTie ? info.tiedOptions : (event.dateOptions || []);
+            if (optionsToShow.length === 1) {
+              confirmDateOption(optionsToShow[0].id, manualConfirmBtn);
+            } else if (optionsToShow.length > 1) {
+              openConfirmDayPopup(optionsToShow);
             }
-            render();
           });
-        });
+        }
 
         // "Annulla evento" a mano (Fil, 2026-07-19): l'organizzatore non deve
         // aspettare che rispondano proprio tutti gli invitati se l'evento è

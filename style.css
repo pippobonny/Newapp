@@ -912,6 +912,59 @@ label.event-photo-preview {
   margin: 0 auto;
 }
 
+/* Riga "Conferma / Annulla evento" a mano dell'organizzatore (evento.html,
+   Fil 2026-07-19): sostituisce la vecchia lista verticale con una data per
+   riga, troppo lunga con tanti giorni proposti. Ora restano solo due
+   bottoni affiancati in fondo alla sezione; la scelta del giorno (se ce n'è
+   più di uno) si fa nel popup .confirm-day-modal qui sotto. */
+.manual-confirm-btn-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.manual-confirm-btn-row .primary-btn {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.manual-confirm-cancel-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  border: 1.5px solid var(--cancel);
+  color: var(--cancel);
+  font-weight: 600;
+  font-size: 14.5px;
+  font-family: 'Inter', sans-serif;
+  background: none;
+  cursor: pointer;
+  padding: 10px;
+  text-align: center;
+}
+
+.primary-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+  box-shadow: none;
+}
+
+/* Popup "quale giorno confermi?" (evento.html): stesso overlay/modale di
+   .signup-overlay/.signup-modal, con dentro la griglia .day-grid già usata
+   per "Quando sei disponibile?" — qui però ogni quadrato è selezionabile
+   uno alla volta (non multiplo) e mostra quanti amici sono disponibili
+   quel giorno, non solo la data. */
+.confirm-day-modal {
+  max-height: 88%;
+  overflow-y: auto;
+}
+
+.confirm-day-modal .day-grid {
+  margin-top: 4px;
+}
+
 /* Liste amici (amici.html) */
 .list-header {
   display: flex;
