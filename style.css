@@ -543,6 +543,7 @@ a { text-decoration: none; color: inherit; }
 .field input[type="text"],
 .field input[type="number"],
 .field input[type="date"],
+.field input[type="time"],
 .field input[type="email"],
 .field input[type="password"],
 .field select,
@@ -621,6 +622,45 @@ a { text-decoration: none; color: inherit; }
 .field input[type="date"]::-webkit-datetime-edit-month-field,
 .field input[type="date"]::-webkit-datetime-edit-day-field,
 .field input[type="date"]::-webkit-datetime-edit-year-field {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Stesso trattamento dell'input data qui sopra, applicato all'orario
+   (Fil, 2026-07-20): senza queste regole restava con la grafica grezza del
+   sistema -- piccola su iPhone, un rettangolo spoglio in stile anni 2000 su
+   Android/Samsung. */
+.field input[type="time"] {
+  position: relative;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  text-align: left;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236B3F73' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpolyline points='12 7 12 12 15.5 14'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 16px;
+  padding-right: 40px;
+}
+
+.field input[type="time"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 40px;
+  height: 100%;
+  cursor: pointer;
+}
+
+.field input[type="time"]::-webkit-datetime-edit {
+  color: var(--ink);
+}
+
+.field input[type="time"]::-webkit-datetime-edit-fields-wrapper,
+.field input[type="time"]::-webkit-datetime-edit-text,
+.field input[type="time"]::-webkit-datetime-edit-hour-field,
+.field input[type="time"]::-webkit-datetime-edit-minute-field,
+.field input[type="time"]::-webkit-datetime-edit-ampm-field {
   font-family: 'Inter', sans-serif;
 }
 

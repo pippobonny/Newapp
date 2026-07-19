@@ -1239,20 +1239,37 @@
             var blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
             var url = URL.createObjectURL(blob);
 
-            // Fil, 2026-07-20: NIENTE a.download -- forzava un salvataggio
-            // di file (su Samsung finiva nei Download e andava riaperto a
-            // mano; probabilmente causava anche la stranezza su iPhone,
-            // dove il "vero" flusso di Calendario non partiva). Senza
-            // download, il browser gestisce il blob text/calendar come
-            // contenuto calendario vero: apre direttamente "Aggiungi
-            // evento" invece di scaricare un file da riaprire dopo.
+            // Fil, 2026-07-20: iOS e Android vogliono trattamenti OPPOSTI.
+            // Su Safari/iPhone, a.download su un blob non è affidabile: con
+            // download impostato la pagina restava bianca invece di aprire
+            // "Aggiungi evento" (che invece funzionava navigando diretto al
+            // blob, senza download, in target="_blank"). Su Chrome/Samsung
+            // Internet è il contrario: navigare diretto al blob non apre
+            // nessun calendario, scarica comunque il file ma con un nome a
+            // caso tipo "723744" se non c'è download a dargli nome+estensione.
+            // Stessa rilevazione iOS già usata in initIosInstallHint
+            // (script.js): /iphone|ipad|ipod/i su navigator.userAgent.
+            var isIos = /iphone|ipad|ipod/i.test(navigator.userAgent || '');
+            var safeName = (event.name || 'evento').replace(/[^\w\- ]/g, '').trim() || 'evento';
+            var fileName = safeName + '.ics';
             var a = document.createElement('a');
             a.href = url;
-            a.target = '_blank';
+            if (isIos) {
+              a.target = '_blank';
+            } else {
+              a.download = fileName;
+            }
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             window.setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+
+            // Solo su Android/Chrome resta un tocco in più (apri il file
+            // scaricato): lo si dice chiaramente. Su iOS parte già la
+            // schermata nativa "Aggiungi evento", nessun avviso serve.
+            if (!isIos && window.NdumaUI) {
+              window.NdumaUI.toast('Scaricato "' + fileName + '": aprilo dai tuoi Download per aggiungerlo al calendario 📅');
+            }
           });
         }
 
