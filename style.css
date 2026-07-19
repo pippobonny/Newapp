@@ -311,6 +311,37 @@ a { text-decoration: none; color: inherit; }
   display: block;
 }
 
+/* Swipe per rimuovere una card dalla Home (Fil, 2026-07-20, solo Home:
+   vedi renderEventCardHTML in data.js e initSwipeToRemove in script.js).
+   Il cestino sta SOTTO la card, a destra, e si vede solo quando la card
+   viene trascinata verso sinistra (transform sulla card stessa). */
+.card-swipe-wrap {
+  position: relative;
+  border-radius: 22px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.card-swipe-wrap .card {
+  margin-bottom: 0; /* lo spazio sotto lo dà il wrapper, non la card */
+  position: relative;
+  z-index: 1;
+  touch-action: pan-y; /* lo scroll verticale resta libero, si cattura solo il drag orizzontale */
+}
+.card-swipe-trash {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--cancel);
+  color: #fff;
+  font-size: 22px;
+  border-radius: 22px;
+}
+
 /* Evento confermato: alone verde sfocato dentro la card, per capire a colpo d'occhio che è chiuso. */
 .card.is-done {
   box-shadow: inset 0 0 0 1px rgba(52, 199, 89, 0.28), inset 0 0 34px 4px rgba(52, 199, 89, 0.4), 0 4px 16px rgba(58,50,90,0.06);

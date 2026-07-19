@@ -170,16 +170,24 @@
         return status === 'done';
       });
 
+      // swipeToRemove: true solo qui in Home (Fil, 2026-07-20) — vedi il
+      // commento su renderEventCardHTML in data.js sul perché serve questa
+      // funzione wrapper invece di passare NdumaData.renderEventCardHTML
+      // direttamente a .map().
+      function renderHomeCard(event) {
+        return NdumaData.renderEventCardHTML(event, { swipeToRemove: true });
+      }
+
       var upcomingList = document.getElementById('upcomingList');
       if (upcoming.length) {
-        upcomingList.innerHTML = upcoming.map(NdumaData.renderEventCardHTML).join('');
+        upcomingList.innerHTML = upcoming.map(renderHomeCard).join('');
       } else {
         upcomingList.innerHTML = '<div class="empty-hint">Nessun evento da confermare al momento.<br><a href="crea.html">Proponine uno tu →</a></div>';
       }
 
       var closedSection = document.getElementById('closedSection');
       if (closed.length) {
-        closedSection.innerHTML = '<div class="section-title">Organizzazione chiusa</div>' + closed.map(NdumaData.renderEventCardHTML).join('');
+        closedSection.innerHTML = '<div class="section-title">Organizzazione chiusa</div>' + closed.map(renderHomeCard).join('');
       }
 
       // le card sopra sono state create ora, dopo il caricamento pagina: bisogna

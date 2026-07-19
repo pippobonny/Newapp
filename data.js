@@ -17,6 +17,18 @@
   var SUPABASE_KEY = 'sb_publishable_WU-op4b5mEoqOZpzOYFSaA_P5ElM1y_';
   var supabase = global.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+  /* Dominio vero dell'app (Fil, 2026-07-20): qualunque link che ESCE
+     dall'app (condividi evento, redirect dopo login Google, email...) deve
+     puntare sempre qui, MAI a window.location.origin/.href. Chi ha ancora
+     un segnalibro/PWA installata dal vecchio link Vercel
+     (test-livid-eight-13.vercel.app, o simili) continuerebbe a generare e
+     spedire in giro link su quel dominio vecchio altrimenti — è proprio
+     quello che stava succedendo (link "Condividi" copiati mentre si era
+     ancora sul vecchio dominio). Vale anche per l'app installata sul
+     telefono: se non è stata reinstallata da nduma.it, resta puntata al
+     vecchio indirizzo finché non viene tolta e rimessa da qui. */
+  var SITE_URL = 'https://nduma.it';
+
   /* Fil, 2026-07-19: bug osservato da Virginia — modifica un evento, preme
      "Conferma", riceve "non sono riuscito a salvare", preme di nuovo e va
      tutto bene. Causa quasi certa: Safari su iOS sospende i timer delle
@@ -1010,11 +1022,18 @@
   /* Apre la schermata di consenso Google. redirectTo torna sulla STESSA
      pagina (profilo.html): dopo il consenso Supabase aggiunge da solo i
      parametri della sessione nell'URL e il client li legge in automatico
-     (detectSessionInUrl, comportamento di default di supabase-js). */
+     (detectSessionInUrl, comportamento di default di supabase-js).
+     Fil, 2026-07-20: prima era window.location.origin, quindi chi partiva
+     da un segnalibro/PWA sul vecchio dominio Vercel tornava lì anche dopo
+     Google — usa sempre SITE_URL (il dominio vero), non da dove si è
+     partiti. NB: perché funzioni davvero, nduma.it deve anche essere nella
+     lista "Redirect URLs" del pannello Supabase (Authentication → URL
+     Configuration) — altrimenti Supabase ignora questo valore e torna comunque
+     al suo "Site URL" configurato lì, non qui nel codice. */
   async function signInWithGoogle() {
     var res = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin + window.location.pathname }
+      options: { redirectTo: SITE_URL + window.location.pathname }
     });
     if (res.error) throwSupabaseError(res.error);
     // Non c'è altro da fare qui: signInWithOAuth porta via dalla pagina
@@ -1948,6 +1967,15 @@
     return res.data;
   }
 
+  /* Stesso messaggio di conferma sia dal menu ⋮ di evento.html sia dallo
+     swipe in Home (initSwipeToRemove in script.js, Fil, 2026-07-20): tenuto
+     qui in un punto solo per non farli disallineare in futuro. */
+  function buildRemoveFromHomeConfirmMessage(eventName, wasAvailable) {
+    return wasAvailable
+      ? 'Rimuovendo "' + eventName + '" dalla tua home risulterai non disponibile per tutti gli invitati. L\'azione non si può annullare: continuare?'
+      : 'Rimuovere "' + eventName + '" dalla tua home? Non potrai più vederlo qui, l\'azione non si può annullare.';
+  }
+
   /* Calcola stato, percentuale di risposta e "miglior data" di un evento.
      Fil, 2026-07-19: tolta la quota ("quante persone servono per
      confermare") — troppo complicata da spiegare. Ora un evento si conferma
@@ -2242,8 +2270,17 @@
   };
 
   /* Genera l'HTML di una card evento, usato sia in Home che in Eventi (e in
-     Profilo, solo per gli eventi "passato": vedi profilo.html). */
-  function renderEventCardHTML(event) {
+     Profilo, solo per gli eventi "passato": vedi profilo.html).
+     opts.swipeToRemove (Fil, 2026-07-20, solo Home): avvolge la card in un
+     wrapper con un cestino rivelato dallo swipe verso sinistra (vedi
+     initSwipeToRemove in script.js), stessa azione del bottone "Rimuovi
+     dalla home" nel menu ⋮ di evento.html — non per l'organizzatore (non ha
+     senso rimuoversi dal proprio evento) né per chi non ha un account.
+     ATTENZIONE: chiamata da index.html con .map(function (e) { return
+     NdumaData.renderEventCardHTML(e, {swipeToRemove:true}); }), MAI con
+     .map(NdumaData.renderEventCardHTML) diretto — Array.map passerebbe
+     l'indice come secondo argomento al posto di opts. */
+  function renderEventCardHTML(event, opts) {
     var info = computeEventStatus(event);
     var colorVar = info.status === 'waiting' ? 'var(--sky)'
       : info.status === 'almost' ? 'var(--butter)'
@@ -2278,7 +2315,7 @@
       ? '<div class="add-date-btn" data-repeat-event="' + event.id + '" style="margin-top:10px; margin-bottom:0; text-align:center;">🔁 Ripeti questo evento</div>'
       : '';
 
-    return ''
+    var cardHTML = ''
       + '<a class="card reveal' + (info.status === 'done' ? ' is-done' : '') + (info.status === 'cancelled' ? ' is-cancelled' : '') + '" href="evento.html?id=' + encodeURIComponent(event.id) + '">'
       + '<div class="card-top" style="' + (showProgress ? '' : 'margin-bottom:0;') + '">'
       + '<div style="display:flex; align-items:center; gap:10px;">'
@@ -2293,6 +2330,19 @@
       + progressHTML
       + repeatBtnHTML
       + '</a>';
+
+    var canSwipeRemove = !!(opts && opts.swipeToRemove) && !isOrganizer && hasAccount();
+    if (!canSwipeRemove) return cardHTML;
+
+    var myAccountId = (getAccount() || {}).id || null;
+    var myParticipant = (event.participants || []).filter(function (p) { return p.accountId === myAccountId; })[0];
+    var wasAvailable = !!(myParticipant && (myParticipant.availableDateOptionIds || []).length > 0);
+
+    return ''
+      + '<div class="card-swipe-wrap">'
+      + '<div class="card-swipe-trash" data-remove-event="' + escapeHTML(event.id) + '" data-event-name="' + escapeHTML(event.name) + '" data-was-available="' + (wasAvailable ? '1' : '0') + '">🗑️</div>'
+      + cardHTML
+      + '</div>';
   }
 
   global.NdumaData = {
@@ -2330,6 +2380,7 @@
     upsertParticipant: upsertParticipant,
     withdrawFromEvent: withdrawFromEvent,
     removeEventFromHome: removeEventFromHome,
+    buildRemoveFromHomeConfirmMessage: buildRemoveFromHomeConfirmMessage,
     buildNotifications: buildNotifications,
     getNotificationsSeenAt: getNotificationsSeenAt,
     markNotificationsSeen: markNotificationsSeen,
@@ -2348,6 +2399,7 @@
     deleteEventExpense: deleteEventExpense,
     formatEuro: formatEuro,
     computeExpenseBalances: computeExpenseBalances,
+    SITE_URL: SITE_URL,
     GOOGLE_MAPS_API_KEY: GOOGLE_MAPS_API_KEY,
     getFriendLists: getFriendLists,
     getFriendListById: getFriendListById,

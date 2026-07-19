@@ -936,7 +936,12 @@
         // condividere l'indirizzo diretto della pagina, chi lo apre senza
         // essere già riconosciuto viene mandato da solo a "chi sei tra questi
         // nomi" (vedi il redirect più sopra, sul gate 'block').
-        var shareUrl = window.location.href;
+        // Fil, 2026-07-20: prima era window.location.href, quindi chi
+        // organizzava da un segnalibro/PWA sul vecchio dominio Vercel
+        // copiava e spediva in giro link su quel dominio vecchio — sempre
+        // NdumaData.SITE_URL (il dominio vero), non da dove si sta
+        // guardando la pagina in quel momento.
+        var shareUrl = NdumaData.SITE_URL + window.location.pathname + window.location.search;
         var shareLabel = 'Condividi questo link con gli amici';
 
         // il link da condividere lo vede solo chi organizza, e solo finché
@@ -1601,10 +1606,7 @@
             // disponibile" e stia solo pulendo la sua home (Fil, 2026-07-20).
             var existingParticipant = findExistingParticipant();
             var wasAvailable = !!(existingParticipant && (existingParticipant.availableDateOptionIds || []).length > 0);
-            var confirmMsg = wasAvailable
-              ? 'Rimuovendo "' + event.name + '" dalla tua home risulterai non disponibile per tutti gli invitati. L\'azione non si può annullare: continuare?'
-              : 'Rimuovere "' + event.name + '" dalla tua home? Non potrai più vederlo qui, l\'azione non si può annullare.';
-            var sure = window.confirm(confirmMsg);
+            var sure = window.confirm(NdumaData.buildRemoveFromHomeConfirmMessage(event.name, wasAvailable));
             if (!sure) return;
 
             var originalText = removeFromHomeBtn.textContent;

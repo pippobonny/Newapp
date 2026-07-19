@@ -569,6 +569,7 @@
     initConfetti();
     initChipPop();
     initRepeatShortcuts();
+    initSwipeToRemove();
   }
 
   /* ---------- scorciatoia "Ripeti" sulla card di un evento annullato ----------
@@ -620,6 +621,147 @@
         } catch (err) { /* ignora: nel peggiore dei casi si riparte da un form vuoto */ }
 
         window.location.href = 'crea.html';
+      });
+    });
+  }
+
+  /* ---------- swipe per rimuovere una card dalla Home ----------
+     Fil, 2026-07-20: stessa azione del bottone "Rimuovi dalla home" nel
+     menu ⋮ di evento.html (NdumaData.removeEventFromHome), raggiungibile
+     anche trascinando la card verso sinistra qui in Home — solo qui, vedi
+     opts.swipeToRemove in NdumaData.renderEventCardHTML/index.html. Pointer
+     Events (non touch/mouse separati): un solo set di listener funziona sia
+     col dito che col mouse. touch-action:pan-y in style.css lascia lo
+     scroll verticale della lista al browser, si cattura solo il trascina-
+     mento orizzontale. */
+  var SWIPE_OPEN_X = -76; // larghezza del cestino, vedi .card-swipe-trash in style.css
+  var SWIPE_OPEN_THRESHOLD = -38; // oltre metà, si "scatta" aperto al rilascio
+  var swipeOutsideCloseBound = false;
+
+  function closeSwipeCard(card) {
+    card.style.transition = 'transform 0.22s cubic-bezier(0.22,1,0.36,1)';
+    card.style.transform = 'translateX(0px)';
+    card.setAttribute('data-swipe-open', '0');
+  }
+
+  function initSwipeToRemove() {
+    if (!swipeOutsideCloseBound) {
+      swipeOutsideCloseBound = true;
+      // Tap fuori da qualunque card-swipe-wrap: richiude quella eventualmente
+      // aperta, altrimenti resterebbe aperta finché non si ricarica la pagina.
+      document.addEventListener('pointerdown', function (e) {
+        document.querySelectorAll('.card-swipe-wrap .card[data-swipe-open="1"]').forEach(function (openCard) {
+          if (!openCard.closest('.card-swipe-wrap').contains(e.target)) closeSwipeCard(openCard);
+        });
+      });
+    }
+
+    document.querySelectorAll('.card-swipe-wrap:not([data-swipe-init])').forEach(function (wrap) {
+      wrap.setAttribute('data-swipe-init', '1');
+      var card = wrap.querySelector('.card');
+      var trash = wrap.querySelector('.card-swipe-trash');
+      if (!card || !trash) return;
+
+      var startX = 0, startY = 0, currentX = 0, dragging = false, decided = false, isHorizontal = false;
+
+      function setX(x, animate) {
+        currentX = x;
+        card.style.transition = animate ? 'transform 0.22s cubic-bezier(0.22,1,0.36,1)' : 'none';
+        card.style.transform = 'translateX(' + x + 'px)';
+      }
+
+      card.addEventListener('pointerdown', function (e) {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        startX = e.clientX;
+        startY = e.clientY;
+        dragging = true;
+        decided = false;
+        isHorizontal = false;
+      });
+
+      card.addEventListener('pointermove', function (e) {
+        if (!dragging) return;
+        var dx = e.clientX - startX;
+        var dy = e.clientY - startY;
+
+        if (!decided) {
+          if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+          decided = true;
+          isHorizontal = Math.abs(dx) > Math.abs(dy);
+          if (!isHorizontal) { dragging = false; return; } // verticale: allo scroll ci pensa il browser
+          document.querySelectorAll('.card-swipe-wrap .card[data-swipe-open="1"]').forEach(function (openCard) {
+            if (openCard !== card) closeSwipeCard(openCard);
+          });
+          try { card.setPointerCapture(e.pointerId); } catch (err) { /* ignora */ }
+        }
+        if (!isHorizontal) return;
+
+        e.preventDefault();
+        var base = card.getAttribute('data-swipe-open') === '1' ? SWIPE_OPEN_X : 0;
+        var x = base + dx;
+        if (x > 0) x = 0;
+        if (x < SWIPE_OPEN_X) x = SWIPE_OPEN_X + (x - SWIPE_OPEN_X) * 0.25; // piccola resistenza oltre il cestino
+        setX(x, false);
+      });
+
+      function endDrag() {
+        if (!dragging) return;
+        dragging = false;
+        if (!isHorizontal) return;
+        var open = currentX <= SWIPE_OPEN_THRESHOLD;
+        setX(open ? SWIPE_OPEN_X : 0, true);
+        card.setAttribute('data-swipe-open', open ? '1' : '0');
+      }
+      card.addEventListener('pointerup', endDrag);
+      card.addEventListener('pointercancel', endDrag);
+
+      // Se la card è aperta (cestino visibile) e viene ritoccata senza
+      // trascinare, il tap la richiude invece di aprire l'evento sotto.
+      card.addEventListener('click', function (e) {
+        if (card.getAttribute('data-swipe-open') === '1') {
+          e.preventDefault();
+          closeSwipeCard(card);
+        }
+      });
+
+      trash.addEventListener('click', async function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!window.NdumaData || trash.getAttribute('data-busy') === '1') return;
+
+        var eventId = trash.getAttribute('data-remove-event');
+        var eventName = trash.getAttribute('data-event-name') || '';
+        var wasAvailable = trash.getAttribute('data-was-available') === '1';
+        var sure = window.confirm(NdumaData.buildRemoveFromHomeConfirmMessage(eventName, wasAvailable));
+        if (!sure) {
+          closeSwipeCard(card);
+          return;
+        }
+
+        trash.setAttribute('data-busy', '1');
+        var originalText = trash.textContent;
+        trash.textContent = '⏳';
+        try {
+          await NdumaData.removeEventFromHome(eventId);
+        } catch (err) {
+          trash.setAttribute('data-busy', '0');
+          trash.textContent = originalText;
+          window.alert('Non sono riuscito a rimuovere l\'evento dalla tua home (' + err.message + '). Riprova.');
+          closeSwipeCard(card);
+          return;
+        }
+
+        // La card sparisce con un collasso morbido, non un reload della Home.
+        wrap.style.transition = 'max-height 0.28s ease, opacity 0.28s ease, margin-bottom 0.28s ease';
+        wrap.style.maxHeight = wrap.offsetHeight + 'px';
+        wrap.style.overflow = 'hidden';
+        wrap.getBoundingClientRect(); // forza il reflow prima di animare
+        wrap.style.maxHeight = '0px';
+        wrap.style.opacity = '0';
+        wrap.style.marginBottom = '0px';
+        window.setTimeout(function () {
+          if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+        }, 300);
       });
     });
   }
@@ -1060,6 +1202,7 @@
     initConfetti();
     initChipPop();
     initRepeatShortcuts();
+    initSwipeToRemove();
     initTodayDate();
     initAttendanceBadge();
     initPendingToast();
