@@ -105,18 +105,30 @@
 
       <div class="wizard-step" id="wizardStep2" style="display:none;">
         <div class="field">
-          <label>Manda l'invito a</label>
+          <label>Lista amici (opzionale)</label>
           <select id="friendListSelect"></select>
         </div>
 
-        <div class="field" id="manualNamesField" style="display:none;">
-          <label>Scrivi i nomi degli invitati (uno alla volta)</label>
+        <!-- Riepilogo della lista scelta, solo se ne hai scelta una vera
+             (non "Nessuna lista"): serve a ricordare chi c'è già dentro,
+             visto che sotto puoi comunque aggiungere altre persone (Fil,
+             2026-07-19: prima era "o lista o nomi a mano", mai insieme). -->
+        <div class="card" id="selectedListPreview" style="display:none; margin-bottom:16px; padding:14px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:2px;">
+            <span style="font-family:'Fraunces',serif; font-weight:600; font-size:15px;" id="selectedListPreviewName"></span>
+            <span style="font-size:12px; color:var(--ink-soft);" id="selectedListPreviewCount"></span>
+          </div>
+          <div style="font-size:12px; color:var(--ink-soft); line-height:1.5;" id="selectedListPreviewNames"></div>
+        </div>
+
+        <div class="field" id="manualNamesField">
+          <label id="manualNamesLabel">Scrivi i nomi degli invitati (uno alla volta)</label>
           <div class="inline-add-row">
             <input type="text" id="manualNameInput" placeholder="Nome">
             <button type="button" id="manualNameAddBtn">+</button>
           </div>
           <div id="manualNamesList"></div>
-          <div class="field-hint">Il link che ricevi dopo aver creato l'evento è unico: chi lo apre sceglie il proprio nome tra questi, poi entra come ospite o con un account.</div>
+          <div class="field-hint" id="totalInviteesHint">Il link che ricevi dopo aver creato l'evento è unico: chi lo apre sceglie il proprio nome tra questi, poi entra come ospite o con un account.</div>
         </div>
 
         <div class="form-error" id="step2Error"></div>
@@ -532,6 +544,7 @@
 
       var friendListSelect = document.getElementById('friendListSelect');
       var manualNamesField = document.getElementById('manualNamesField');
+      var manualNamesLabel = document.getElementById('manualNamesLabel');
       var manualNamesListEl = document.getElementById('manualNamesList');
       var manualNameInput = document.getElementById('manualNameInput');
       var manualNameAddBtn = document.getElementById('manualNameAddBtn');
@@ -540,7 +553,11 @@
       var saveAsListCheckbox = document.getElementById('saveAsListCheckbox');
       var optionGroupDivider = document.getElementById('optionGroupDivider');
       var openInviteCheckbox = document.getElementById('openInviteCheckbox');
-      var MANUAL_VALUE = '__manual__';
+      var selectedListPreview = document.getElementById('selectedListPreview');
+      var selectedListPreviewName = document.getElementById('selectedListPreviewName');
+      var selectedListPreviewCount = document.getElementById('selectedListPreviewCount');
+      var selectedListPreviewNames = document.getElementById('selectedListPreviewNames');
+      var totalInviteesHint = document.getElementById('totalInviteesHint');
       var manualNames = []; // { name, accountId } — accountId null finché non scegli un suggerimento
 
       // Suggerimenti username+foto mentre scrivi (documento "ci-siamo-omonimi.pdf",
@@ -552,6 +569,19 @@
       }
 
       var CREATE_LIST_VALUE = '__create_list__';
+      var NONE_VALUE = '';
+
+      /* Fil, 2026-07-19: prima era "o una lista o nomi a mano", mai insieme
+         (voce apposita "Scrivi i nomi a mano" nello stesso menu). Ora la
+         lista è del tutto opzionale (si può anche non sceglierne nessuna, è
+         il default) e il campo "aggiungi nomi" sotto resta SEMPRE
+         disponibile: puoi scegliere una lista e aggiungere qualche persona
+         in più fuori da quella, o non scegliere nessuna lista e scrivere
+         tutti i nomi a mano come prima. */
+      var noneOption = document.createElement('option');
+      noneOption.value = NONE_VALUE;
+      noneOption.textContent = 'Nessuna lista — scrivi i nomi qui sotto';
+      friendListSelect.appendChild(noneOption);
 
       friendLists.forEach(function (list) {
         var opt = document.createElement('option');
@@ -565,16 +595,35 @@
       createListOption.textContent = '+ Crea una lista amici';
       friendListSelect.appendChild(createListOption);
 
-      var manualOption = document.createElement('option');
-      manualOption.value = MANUAL_VALUE;
-      manualOption.textContent = '✏️ Scrivi i nomi a mano (senza lista)';
-      friendListSelect.appendChild(manualOption);
+      // Parte sempre da "Nessuna lista" (Fil, 2026-07-19: "vorrei che di
+      // base stesse sull'opzione aggiungi persone a mano"), anche per chi ha
+      // già delle liste salvate — prima si partiva già sulla prima lista.
+      friendListSelect.value = NONE_VALUE;
 
-      // se non hai ancora nessuna lista amici, ha senso partire già dalla
-      // modalità "nomi a mano" invece che su un select vuoto
-      if (!friendLists.length) friendListSelect.value = MANUAL_VALUE;
+      function getSelectedList() {
+        var val = friendListSelect.value;
+        if (val === NONE_VALUE || val === CREATE_LIST_VALUE) return null;
+        return friendLists.filter(function (l) { return l.id === val; })[0] || null;
+      }
 
-      function isManualMode() { return friendListSelect.value === MANUAL_VALUE; }
+      function totalInviteesCount() {
+        var list = getSelectedList();
+        var namesLower = {};
+        var total = 0;
+        (list ? list.friends : []).forEach(function (f) {
+          var lower = f.name.trim().toLowerCase();
+          if (namesLower[lower]) return;
+          namesLower[lower] = true;
+          total++;
+        });
+        manualNames.forEach(function (entry) {
+          var lower = entry.name.trim().toLowerCase();
+          if (namesLower[lower]) return;
+          namesLower[lower] = true;
+          total++;
+        });
+        return total;
+      }
 
       function renderManualNamesList() {
         if (!manualNames.length) {
@@ -603,11 +652,37 @@
         }).join('');
       }
 
-      function updateManualPanelsVisibility() {
-        var manual = isManualMode();
-        manualNamesField.style.display = manual ? '' : 'none';
-        saveAsListField.style.display = manual ? '' : 'none';
-        optionGroupDivider.style.display = manual ? '' : 'none';
+      /* Aggiorna tutto quello che dipende da "quale lista è scelta adesso":
+         il riepilogo della lista, l'etichetta del campo nomi a mano (cambia
+         testo se stai aggiungendo "tutti gli invitati" o solo "qualcuno in
+         più oltre alla lista"), la spunta "Salva come lista" (ha senso solo
+         senza una lista già scelta, deciso con Fil il 2026-07-19) e il
+         totale invitati in fondo al campo. Va richiamata ogni volta che
+         cambia la lista scelta O l'elenco dei nomi a mano. */
+      function updateInviteUIState() {
+        var list = getSelectedList();
+
+        if (list) {
+          selectedListPreview.style.display = '';
+          selectedListPreviewName.textContent = list.name;
+          selectedListPreviewCount.textContent = list.friends.length + (list.friends.length === 1 ? ' persona' : ' persone');
+          var previewNames = list.friends.slice(0, 3).map(function (f) { return f.name; });
+          var extra = list.friends.length - previewNames.length;
+          selectedListPreviewNames.textContent = previewNames.join(', ') + (extra > 0 ? ' +' + extra + ' altri' : '');
+        } else {
+          selectedListPreview.style.display = 'none';
+        }
+
+        manualNamesLabel.textContent = list ? 'Aggiungi qualcun altro fuori dalla lista' : 'Scrivi i nomi degli invitati (uno alla volta)';
+        saveAsListField.style.display = list ? 'none' : '';
+        optionGroupDivider.style.display = list ? 'none' : '';
+
+        var total = totalInviteesCount();
+        if (list && manualNames.length) {
+          totalInviteesHint.textContent = 'In tutto saranno invitate ' + total + (total === 1 ? ' persona' : ' persone') + ': la lista «' + list.name + '» più ' + manualNames.length + (manualNames.length === 1 ? ' persona aggiunta qui.' : ' persone aggiunte qui.');
+        } else {
+          totalInviteesHint.textContent = 'Il link che ricevi dopo aver creato l\'evento è unico: chi lo apre sceglie il proprio nome tra questi, poi entra come ospite o con un account.';
+        }
       }
 
       friendListSelect.addEventListener('change', function () {
@@ -615,9 +690,9 @@
           goCreateFriendList();
           return;
         }
-        updateManualPanelsVisibility();
+        updateInviteUIState();
       });
-      updateManualPanelsVisibility();
+      updateInviteUIState();
 
       /* ---------- form a step: 3 schede (evento / inviti / date) ----------
          Stesso form di sempre, solo diviso in 3 "schede" per non mostrare
@@ -665,7 +740,7 @@
 
       document.getElementById('step2NextBtn').addEventListener('click', function () {
         step2Error.textContent = '';
-        if (isManualMode() && !manualNames.length) { step2Error.textContent = 'Aggiungi almeno un invitato.'; return; }
+        if (totalInviteesCount() === 0) { step2Error.textContent = 'Aggiungi almeno un invitato.'; return; }
         showStep(3);
       });
 
@@ -694,6 +769,7 @@
         delete manualNameInput.dataset.linkedUsername;
         delete manualNameInput.dataset.linkedAvatarUrl;
         renderManualNamesList();
+        updateInviteUIState();
       }
 
       // Prima di aggiungere aspetta che la ricerca account per il nome
@@ -733,6 +809,7 @@
         if (idx === null) return;
         manualNames.splice(parseInt(idx, 10), 1);
         renderManualNamesList();
+        updateInviteUIState();
       });
 
       function makeDateRow() {
@@ -888,8 +965,8 @@
           return;
         }
 
-        var manual = isManualMode();
-        if (manual && !manualNames.length) {
+        var selectedListForSubmit = getSelectedList();
+        if (totalInviteesCount() === 0) {
           formError.textContent = 'Aggiungi almeno un invitato.';
           return;
         }
@@ -898,16 +975,36 @@
 
         var event;
         try {
-          var friendListId = manual ? null : friendListSelect.value;
+          var friendListId = selectedListForSubmit ? selectedListForSubmit.id : null;
           var inviteeNames;
 
-          if (manual) {
+          if (selectedListForSubmit) {
+            // Lista scelta, più eventuali persone aggiunte a mano sopra
+            // (Fil, 2026-07-19: prima erano alternative, ora si combinano):
+            // stesso nome scritto anche a mano non crea un doppione, vince
+            // chi è già nella lista.
+            var seenLower = {};
+            inviteeNames = [];
+            selectedListForSubmit.friends.forEach(function (f) {
+              var lower = f.name.trim().toLowerCase();
+              if (seenLower[lower]) return;
+              seenLower[lower] = true;
+              inviteeNames.push({ name: f.name, accountId: f.accountId || null });
+            });
+            manualNames.forEach(function (entry) {
+              var lower = entry.name.trim().toLowerCase();
+              if (seenLower[lower]) return;
+              seenLower[lower] = true;
+              inviteeNames.push({ name: entry.name, accountId: entry.accountId || null });
+            });
+          } else {
             inviteeNames = manualNames.slice();
             // "Salva anche come lista amici": crea una lista vera e propria a
             // parte con questi stessi nomi, per riusarla nei prossimi eventi.
             // Da qui in poi non ha più nulla a che fare con QUESTO evento
             // (che tiene comunque la sua copia indipendente degli invitati).
-            // Non disponibile in modifica: il checkbox resta nascosto lì.
+            // Non disponibile se hai già scelto una lista, né in modifica:
+            // il checkbox resta nascosto in entrambi i casi.
             if (saveAsListCheckbox.checked) {
               createEventBtn.textContent = 'Salvo la lista...';
               var newList = await CiSiamoData.createFriendList(name);
@@ -916,9 +1013,6 @@
               }
               friendListId = newList.id;
             }
-          } else {
-            var selectedListForInvitees = friendLists.filter(function (l) { return l.id === friendListId; })[0];
-            inviteeNames = selectedListForInvitees ? selectedListForInvitees.friends.map(function (f) { return { name: f.name, accountId: f.accountId || null }; }) : [];
           }
 
           var photoUrl = carriedPhotoUrl || null;
@@ -1140,7 +1234,7 @@
           }
         }
 
-        updateManualPanelsVisibility();
+        updateInviteUIState();
 
         // torna alla scheda dove eri rimasto (di solito la 2, da cui si crea
         // la lista amici), non si riparte sempre dalla prima
@@ -1207,10 +1301,10 @@
         // (vedi il commento in data.js su event_invitees). Si nasconde tutto il
         // selettore di lista, non serve più scegliere.
         manualNames = (editingEvent.invitees || []).map(function (f) { return { name: f.name, accountId: f.accountId || null, avatarUrl: null }; });
-        friendListSelect.value = MANUAL_VALUE;
+        friendListSelect.value = NONE_VALUE;
         var friendListField = friendListSelect.closest('.field');
         if (friendListField) friendListField.style.display = 'none';
-        updateManualPanelsVisibility();
+        updateInviteUIState();
         if (saveAsListField) saveAsListField.style.display = 'none';
         if (optionGroupDivider) optionGroupDivider.style.display = 'none';
         renderManualNamesList();
