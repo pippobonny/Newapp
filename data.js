@@ -2450,8 +2450,17 @@
     // forza aprire il dettaglio. Il tap è intercettato e fermato (vedi
     // initRepeatShortcuts in script.js) prima che raggiunga il link della
     // card, altrimenti aprirebbe anche il dettaglio dell'evento.
-    var isOrganizer = (event.createdBy || '').trim().toLowerCase() === (getGuestName() || '').trim().toLowerCase();
-    var repeatBtnHTML = (info.status === 'cancelled' && isOrganizer)
+    // 2026-07-20 (Fil): estesa anche agli eventi "passato" — non solo per chi
+    // l'ha organizzato ma anche per chi c'era davvero (disponibile per la
+    // data poi confermata, vedi getConfirmedParticipantNames): ripetendolo lo
+    // crea a nome proprio, come un evento nuovo, non tocca in nessun modo
+    // quello vecchio.
+    var myNameLower = (getGuestName() || '').trim().toLowerCase();
+    var isOrganizer = (event.createdBy || '').trim().toLowerCase() === myNameLower;
+    var wasThere = info.status === 'passato' && getConfirmedParticipantNames(event).some(function (n) {
+      return (n || '').trim().toLowerCase() === myNameLower;
+    });
+    var repeatBtnHTML = ((info.status === 'cancelled' && isOrganizer) || (info.status === 'passato' && (isOrganizer || wasThere)))
       ? '<div class="add-date-btn" data-repeat-event="' + event.id + '" style="margin-top:10px; margin-bottom:0; text-align:center;">🔁 Ripeti questo evento</div>'
       : '';
 

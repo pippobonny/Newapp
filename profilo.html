@@ -586,9 +586,18 @@
         // un po'): quelli ancora aperti/in attesa/annullati si vedono in Home
         // e in Eventi, non anche qui — il Profilo è l'archivio di quello che
         // è già successo, non un doppione delle altre due pagine.
+        // 2026-07-20 (Fil): prima si vedevano qui SOLO gli eventi organizzati
+        // da te — ora anche quelli a cui hai partecipato davvero (disponibile
+        // per la data poi confermata, vedi getConfirmedParticipantNames), non
+        // solo chi li ha creati. Chi aveva detto "non ci sono" non li vede.
+        var myNameLower = (guestName || '').trim().toLowerCase();
         var mine = events.filter(function (e) {
-          if (!guestName || !e.createdBy || e.createdBy.toLowerCase() !== guestName.toLowerCase()) return false;
-          return NdumaData.computeEventStatus(e).status === 'passato';
+          if (!guestName || NdumaData.computeEventStatus(e).status !== 'passato') return false;
+          var isOrganizer = !!(e.createdBy && e.createdBy.trim().toLowerCase() === myNameLower);
+          var wasThere = NdumaData.getConfirmedParticipantNames(e).some(function (n) {
+            return (n || '').trim().toLowerCase() === myNameLower;
+          });
+          return isOrganizer || wasThere;
         });
 
         if (mine.length) {
