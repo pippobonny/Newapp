@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Ci siamo — Amici</title>
+<title>nduma — Amici</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Ci siamo">
+<meta name="apple-mobile-web-app-title" content="nduma">
 <script>
   /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
      Android/Chrome 100dvh non combacia col vero window.innerHeight quando
@@ -129,20 +129,20 @@
          Un ospite bloccato da un invito (checkAccessGate) viene invece
          rimandato al suo evento/lista, dato che Amici non è mai un posto
          consentito per lui. */
-      var gate = CiSiamoData.checkAccessGate(null);
+      var gate = NdumaData.checkAccessGate(null);
       if (gate.action === 'redirect') {
         window.location.href = gate.url;
         return;
       }
       if (gate.action === 'block') {
-        pageContent.innerHTML = CiSiamoData.accountRequiredBlockHTML(
+        pageContent.innerHTML = NdumaData.accountRequiredBlockHTML(
           'Per creare liste amici devi prima creare un profilo.'
         );
         document.querySelector('.navbar').style.display = 'none';
         return;
       }
 
-      await CiSiamoData.renderSessionWarningIfNeeded(pageContent);
+      await NdumaData.renderSessionWarningIfNeeded(pageContent);
 
       var listsContainer = document.getElementById('listsContainer');
       var newListInput = document.getElementById('newListInput');
@@ -150,8 +150,8 @@
       var formError = document.getElementById('formError');
 
       /* ---------- ritorno a crea.html dopo "+ Crea una lista amici" ---------- */
-      var RETURN_FLAG_KEY = 'ci-siamo:returnToEventCreation';
-      var JUST_CREATED_LIST_KEY = 'ci-siamo:justCreatedListId';
+      var RETURN_FLAG_KEY = 'nduma:returnToEventCreation';
+      var JUST_CREATED_LIST_KEY = 'nduma:justCreatedListId';
       var returningToEvent = false;
       try { returningToEvent = sessionStorage.getItem(RETURN_FLAG_KEY) === '1'; } catch (err) { /* ignora */ }
 
@@ -180,8 +180,8 @@
       // Cliccare un suggerimento aggiunge subito l'amico (Fil, 2026-07-10),
       // niente più "+" da premere dopo.
       var friendModalSearch = null;
-      if (window.CiSiamoUI && CiSiamoUI.attachAccountSearch) {
-        friendModalSearch = CiSiamoUI.attachAccountSearch(friendModalInput, function () { addFriendFromInput(); });
+      if (window.NdumaUI && NdumaUI.attachAccountSearch) {
+        friendModalSearch = NdumaUI.attachAccountSearch(friendModalInput, function () { addFriendFromInput(); });
       }
 
       var currentLists = [];
@@ -212,8 +212,8 @@
         var avatarUrl = (friend.linkStatus === 'accepted' && friend.accountId) ? friendAvatarCache[friend.accountId] : null;
         var gradient = AVATAR_GRADIENTS[gradientIndex % AVATAR_GRADIENTS.length];
         var inner = avatarUrl
-          ? '<img src="' + CiSiamoData.escapeHTML(avatarUrl) + '" alt="">'
-          : CiSiamoData.escapeHTML(initial);
+          ? '<img src="' + NdumaData.escapeHTML(avatarUrl) + '" alt="">'
+          : NdumaData.escapeHTML(initial);
         var bgStyle = avatarUrl ? '' : ' style="background:linear-gradient(135deg,' + gradient[0] + ',' + gradient[1] + ');"';
         return '<div class="friend-list-avatar' + (extraClass ? ' ' + extraClass : '') + '"' + bgStyle + '>' + inner + '</div>';
       }
@@ -228,7 +228,7 @@
         return ''
           + '<div class="card reveal friend-list-card" data-manage-list="' + list.id + '">'
           + '<div class="friend-list-card-top">'
-          + '<div class="friend-list-card-name">' + CiSiamoData.escapeHTML(list.name) + '</div>'
+          + '<div class="friend-list-card-name">' + NdumaData.escapeHTML(list.name) + '</div>'
           + '<div class="list-delete" data-delete-list="' + list.id + '">✕</div>'
           + '</div>'
           + '<div>'
@@ -244,9 +244,9 @@
 
         var lists;
         try {
-          lists = await CiSiamoData.getFriendLists();
+          lists = await NdumaData.getFriendLists();
         } catch (err) {
-          listsContainer.innerHTML = '<div class="empty-hint">Non riesco a caricare le liste (' + CiSiamoData.escapeHTML(err.message) + ').</div>';
+          listsContainer.innerHTML = '<div class="empty-hint">Non riesco a caricare le liste (' + NdumaData.escapeHTML(err.message) + ').</div>';
           return;
         }
 
@@ -270,13 +270,13 @@
               }
             });
           });
-          if (neededIds.length && window.CiSiamoData && CiSiamoData.getAvatarsForAccountIds) {
-            CiSiamoData.getAvatarsForAccountIds(neededIds).then(function (avatarMap) {
+          if (neededIds.length && window.NdumaData && NdumaData.getAvatarsForAccountIds) {
+            NdumaData.getAvatarsForAccountIds(neededIds).then(function (avatarMap) {
               neededIds.forEach(function (id) {
                 friendAvatarCache[id] = (avatarMap[id] && avatarMap[id].avatarUrl) || null;
               });
               listsContainer.innerHTML = lists.map(friendListCardHTML).join('');
-              if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+              if (window.NdumaUI) window.NdumaUI.refresh();
             }).catch(function () { /* niente foto, restano le iniziali: non blocca nulla */ });
           }
         }
@@ -292,7 +292,7 @@
         }
 
         // rianima/rende cliccabile il contenuto appena creato
-        if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+        if (window.NdumaUI) window.NdumaUI.refresh();
       }
 
       // Cache locale { accountId: avatarUrl|null }, così non richiediamo di
@@ -319,14 +319,14 @@
             var avatarUrl = friendAvatarCache[f.accountId];
             var initial = (f.name.trim().charAt(0) || '?').toUpperCase();
             linkedMarker = avatarUrl
-              ? '<span class="linked-mini-avatar" title="Amicizia confermata"><img src="' + CiSiamoData.escapeHTML(avatarUrl) + '" alt=""></span>'
-              : '<span class="linked-mini-avatar" title="Amicizia confermata">' + CiSiamoData.escapeHTML(initial) + '</span>';
+              ? '<span class="linked-mini-avatar" title="Amicizia confermata"><img src="' + NdumaData.escapeHTML(avatarUrl) + '" alt=""></span>'
+              : '<span class="linked-mini-avatar" title="Amicizia confermata">' + NdumaData.escapeHTML(initial) + '</span>';
           } else if (f.linkStatus === 'pending') {
             linkedMarker = '<span class="linked-mini-avatar" style="background:var(--butter-soft); color:var(--ink);" title="In attesa che confermi lui/lei">⏳</span>';
           }
           return ''
             + '<div class="settings-row" style="margin-bottom:8px;">'
-            + '<div class="left" style="display:flex; align-items:center;">' + linkedMarker + CiSiamoData.escapeHTML(f.name) + '</div>'
+            + '<div class="left" style="display:flex; align-items:center;">' + linkedMarker + NdumaData.escapeHTML(f.name) + '</div>'
             + '<span class="friend-remove" data-remove-friend="' + f.id + '">✕</span>'
             + '</div>';
         }).join('');
@@ -335,8 +335,8 @@
           .filter(function (f) { return f.linkStatus === 'accepted'; })
           .map(function (f) { return f.accountId; })
           .filter(function (id) { return id && !(id in friendAvatarCache); });
-        if (missingIds.length && window.CiSiamoData && CiSiamoData.getAvatarsForAccountIds) {
-          CiSiamoData.getAvatarsForAccountIds(missingIds).then(function (avatarMap) {
+        if (missingIds.length && window.NdumaData && NdumaData.getAvatarsForAccountIds) {
+          NdumaData.getAvatarsForAccountIds(missingIds).then(function (avatarMap) {
             missingIds.forEach(function (id) {
               friendAvatarCache[id] = (avatarMap[id] && avatarMap[id].avatarUrl) || null;
             });
@@ -368,7 +368,7 @@
         }
         var newList;
         try {
-          newList = await CiSiamoData.createFriendList(name);
+          newList = await NdumaData.createFriendList(name);
         } catch (err) {
           formError.textContent = 'Non sono riuscito a creare la lista (' + err.message + ').';
           return;
@@ -388,9 +388,9 @@
           // una lista, è il momento giusto per spiegare cos'è — non prima,
           // quando la lista ancora non esiste. Sparisce appena tocchi il
           // campo per aggiungere il primo amico (a quel punto arriva anche
-          // il fumetto di CiSiamoUI.attachAccountSearch, in sequenza).
-          if (window.CiSiamoUI && CiSiamoUI.showOnceHint) {
-            CiSiamoUI.showOnceHint('friendListConcept', friendModalList.parentElement,
+          // il fumetto di NdumaUI.attachAccountSearch, in sequenza).
+          if (window.NdumaUI && NdumaUI.showOnceHint) {
+            NdumaUI.showOnceHint('friendListConcept', friendModalList.parentElement,
               'Una lista amici è solo un elenco di nomi pronti da riusare: non invita nessuno adesso, serve solo per compilare più in fretta i prossimi eventi.',
               friendModalInput, ['focus']);
           }
@@ -408,7 +408,7 @@
         if (deleteEl) {
           var deleteListId = deleteEl.getAttribute('data-delete-list');
           if (window.confirm('Eliminare questa lista di amici?')) {
-            await CiSiamoData.deleteFriendList(deleteListId);
+            await NdumaData.deleteFriendList(deleteListId);
             renderLists();
           }
           return;
@@ -428,7 +428,7 @@
       });
 
       // Estratta in una funzione a sé (non solo il click del "+") perché la
-      // richiama anche CiSiamoUI.attachAccountSearch qui sotto: cliccare un
+      // richiama anche NdumaUI.attachAccountSearch qui sotto: cliccare un
       // profilo trovato nel menu di ricerca deve aggiungerlo subito, senza
       // dover premere "+" un'altra volta (Fil, 2026-07-10).
       async function addFriendFromInput() {
@@ -441,13 +441,13 @@
 
         // Se il testo combacia ancora con un suggerimento scelto (username+foto),
         // il collegamento resta sull'amico per sempre (Fil, 2026-07-07) — vedi
-        // CiSiamoUI.attachAccountSearch: si annulla da solo se modifichi il testo.
+        // NdumaUI.attachAccountSearch: si annulla da solo se modifichi il testo.
         var linkedAccountId = (friendModalInput.dataset.linkedUsername === name)
           ? (friendModalInput.dataset.linkedAccountId || null)
           : null;
 
         try {
-          await CiSiamoData.addFriendToList(openListId, name, linkedAccountId);
+          await NdumaData.addFriendToList(openListId, name, linkedAccountId);
         } catch (err) {
           friendModalError.textContent = 'Non sono riuscito ad aggiungere l\'amico (' + err.message + ').';
           return;
@@ -493,7 +493,7 @@
       friendModalList.addEventListener('click', async function (e) {
         var removeFriendId = e.target.getAttribute('data-remove-friend');
         if (removeFriendId) {
-          await CiSiamoData.removeFriendFromList(openListId, removeFriendId);
+          await NdumaData.removeFriendFromList(openListId, removeFriendId);
           renderLists();
         }
       });

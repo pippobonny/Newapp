@@ -1,5 +1,5 @@
 /* =========================================================
-   Ci siamo — animazioni
+   nduma — animazioni
    Tutto vanilla JS, nessuna libreria esterna.
    ========================================================= */
 
@@ -339,7 +339,7 @@
   // mostra quell'evento (Home, elenco eventi, dettaglio...). Ora si ricorda
   // per device, evento per evento, se li ha già visti: festeggia una volta
   // sola nella vita di quell'evento, non a ogni caricamento di pagina.
-  var CONFETTI_SHOWN_KEY = 'ci-siamo:confettiShown';
+  var CONFETTI_SHOWN_KEY = 'nduma:confettiShown';
 
   function hasShownConfetti(eventId) {
     try {
@@ -426,13 +426,13 @@
   }
 
   async function showRealAttendanceBadge(el) {
-    var guestName = CiSiamoData.getGuestName() || '';
+    var guestName = NdumaData.getGuestName() || '';
     if (!guestName) return;
     var lower = guestName.toLowerCase();
 
     var events;
     try {
-      events = await CiSiamoData.getEvents();
+      events = await NdumaData.getEvents();
     } catch (err) {
       return;
     }
@@ -441,7 +441,7 @@
     // hai risposto in qualche modo (anche "non ci sono mai": conta come assenza,
     // non va escluso, altrimenti la statistica premierebbe chi ignora l'invito)
     var attended = events
-      .map(function (e) { return { event: e, info: CiSiamoData.computeEventStatus(e) }; })
+      .map(function (e) { return { event: e, info: NdumaData.computeEventStatus(e) }; })
       .filter(function (x) { return x.info.status === 'done' || x.info.status === 'passato'; })
       .filter(function (x) {
         return (x.event.participants || []).some(function (p) { return p.name.toLowerCase() === lower; });
@@ -485,9 +485,9 @@
 
   function initAttendanceBadge() {
     var el = document.getElementById('attendanceBadge');
-    if (!el || typeof CiSiamoData === 'undefined') return;
+    if (!el || typeof NdumaData === 'undefined') return;
 
-    if (!CiSiamoData.hasAccount()) {
+    if (!NdumaData.hasAccount()) {
       showGuestAttendanceBadge(el);
       return;
     }
@@ -520,7 +520,7 @@
      aver mandato l'utente altrove chiama solo sessionStorage.setItem(TOAST_KEY, msg)
      prima di cambiare pagina; initPendingToast() (chiamata ad ogni caricamento)
      lo trova, lo consuma e lo mostra una volta sola. */
-  var TOAST_KEY = 'ci-siamo:toast';
+  var TOAST_KEY = 'nduma:toast';
 
   function showToast(message) {
     var phone = document.querySelector('.phone');
@@ -574,7 +574,7 @@
   /* ---------- scorciatoia "Ripeti" sulla card di un evento annullato ----------
      Fil, 2026-07-10: prima "Ripeti questo evento" viveva solo dentro il
      dettaglio (evento.html); questo bottone compare direttamente sulla card
-     in Home/Eventi/Profilo (vedi CiSiamoData.renderEventCardHTML) per chi
+     in Home/Eventi/Profilo (vedi NdumaData.renderEventCardHTML) per chi
      l'ha organizzato. La card è un <a> che punta al dettaglio: preventDefault
      + stopPropagation fermano quel click prima che apra l'evento, poi si
      ricostruisce la stessa bozza che usava il bottone dentro evento.html e
@@ -586,7 +586,7 @@
       btn.addEventListener('click', async function (e) {
         e.preventDefault();
         e.stopPropagation();
-        if (!window.CiSiamoData) return;
+        if (!window.NdumaData) return;
 
         var eventId = btn.getAttribute('data-repeat-event');
         var originalText = btn.textContent;
@@ -594,7 +594,7 @@
 
         var ev;
         try {
-          ev = await CiSiamoData.getEventById(eventId);
+          ev = await NdumaData.getEventById(eventId);
         } catch (err) {
           btn.textContent = originalText;
           return;
@@ -615,7 +615,7 @@
           currentStep: 1
         };
         try {
-          sessionStorage.setItem('ci-siamo:eventDraft', JSON.stringify(repeatDraft));
+          sessionStorage.setItem('nduma:eventDraft', JSON.stringify(repeatDraft));
           sessionStorage.setItem('cs-nav-direction', 'forward');
         } catch (err) { /* ignora: nel peggiore dei casi si riparte da un form vuoto */ }
 
@@ -675,7 +675,7 @@
       window.setTimeout(function () { splash.style.display = 'none'; }, 400);
     }, 550);
 
-    try { localStorage.setItem('ci-siamo:splashLastShown', String(Date.now())); } catch (err) { /* ignora */ }
+    try { localStorage.setItem('nduma:splashLastShown', String(Date.now())); } catch (err) { /* ignora */ }
   }
 
   /* ---------- suggerimento "Aggiungi alla schermata Home" per iPhone/iPad ----------
@@ -699,22 +699,22 @@
     // Niente banner finché non c'è un account: su chi deve ancora registrarsi
     // (passaggio obbligatorio) non ha senso proporre di installare l'app
     // prima ancora che possa usarla (Fil, 2026-07-10).
-    if (window.CiSiamoData && typeof CiSiamoData.hasAccount === 'function' && !CiSiamoData.hasAccount()) return;
+    if (window.NdumaData && typeof NdumaData.hasAccount === 'function' && !NdumaData.hasAccount()) return;
 
     var dismissed;
-    try { dismissed = localStorage.getItem('ci-siamo:iosInstallHintDismissed'); } catch (err) { dismissed = null; }
+    try { dismissed = localStorage.getItem('nduma:iosInstallHintDismissed'); } catch (err) { dismissed = null; }
     if (dismissed) return;
 
     var hint = document.createElement('div');
     hint.className = 'install-hint';
     hint.innerHTML = ''
-      + '<div>📲 Aggiungi Ci siamo alla schermata Home: tocca <b>Condividi</b> ⬆️, poi <b>"Aggiungi alla schermata Home"</b>.</div>'
+      + '<div>📲 Aggiungi nduma alla schermata Home: tocca <b>Condividi</b> ⬆️, poi <b>"Aggiungi alla schermata Home"</b>.</div>'
       + '<div class="dismiss" id="installHintDismiss">✕</div>';
     mount.insertBefore(hint, mount.firstChild);
 
     function dismissInstallHint() {
       if (hint.parentNode) hint.remove();
-      try { localStorage.setItem('ci-siamo:iosInstallHintDismissed', '1'); } catch (err) { /* ignora */ }
+      try { localStorage.setItem('nduma:iosInstallHintDismissed', '1'); } catch (err) { /* ignora */ }
     }
 
     var dismissBtn = document.getElementById('installHintDismiss');
@@ -742,9 +742,9 @@
      dopo aver scelto un suggerimento, quel collegamento non è più affidabile
      e si annulla da solo). Se non scegli nessun suggerimento, il nome resta
      "libero" come è sempre stato — Fil ha confermato che deve restare
-     sempre possibile, per chi non ha ancora un account su Ci siamo. */
+     sempre possibile, per chi non ha ancora un account su nduma. */
   function attachAccountSearch(inputEl, onSelect) {
-    if (!inputEl || !window.CiSiamoData || typeof CiSiamoData.searchAccounts !== 'function') return null;
+    if (!inputEl || !window.NdumaData || typeof NdumaData.searchAccounts !== 'function') return null;
 
     var parent = inputEl.parentElement;
     if (parent && window.getComputedStyle(parent).position === 'static') {
@@ -788,7 +788,7 @@
       if (!lastResults.length) {
         // Fil, 2026-07-19: prima spariva tutto in silenzio, come se non
         // fosse successo nulla — chi cercava un amico non capiva se non
-        // l'aveva trovato perché non è registrato su Ci siamo, o se la
+        // l'aveva trovato perché non è registrato su nduma, o se la
         // ricerca semplicemente non era ancora partita. Il nome resta
         // comunque valido come invitato "libero" (senza account collegato,
         // vedi commento in cima al file): questo è solo per chiarire perché
@@ -798,12 +798,12 @@
         dropdown.innerHTML = lastResults.map(function (acc) {
           var initial = (acc.username.trim().charAt(0) || '?').toUpperCase();
           var circle = acc.avatarUrl
-            ? '<img src="' + CiSiamoData.escapeHTML(acc.avatarUrl) + '" alt="">'
-            : CiSiamoData.escapeHTML(initial);
+            ? '<img src="' + NdumaData.escapeHTML(acc.avatarUrl) + '" alt="">'
+            : NdumaData.escapeHTML(initial);
           return ''
-            + '<div class="account-search-item" data-account-id="' + acc.id + '" data-username="' + CiSiamoData.escapeHTML(acc.username) + '" data-avatar-url="' + CiSiamoData.escapeHTML(acc.avatarUrl || '') + '">'
+            + '<div class="account-search-item" data-account-id="' + acc.id + '" data-username="' + NdumaData.escapeHTML(acc.username) + '" data-avatar-url="' + NdumaData.escapeHTML(acc.avatarUrl || '') + '">'
             + '<div class="account-search-avatar">' + circle + '</div>'
-            + '<div>' + CiSiamoData.escapeHTML(acc.username) + '</div>'
+            + '<div>' + NdumaData.escapeHTML(acc.username) + '</div>'
             + '</div>';
         }).join('');
       }
@@ -831,7 +831,7 @@
     // più del necessario (Fil, 2026-07-13).
     function runSearch(query) {
       lastQuery = query;
-      var p = CiSiamoData.searchAccounts(query).then(function (results) {
+      var p = NdumaData.searchAccounts(query).then(function (results) {
         if (query !== lastQuery) return lastResults; // superata da una ricerca più recente
         renderResults(results);
         return results;
@@ -947,7 +947,7 @@
      chiama in catena: se questo non si mostra, si passa subito al prossimo. */
   function showOnceHint(storageKey, containerEl, text, dismissTriggerEl, dismissEvents, onDismissed) {
     if (!containerEl || !text) return false;
-    var fullKey = 'ci-siamo:hintSeen:' + storageKey;
+    var fullKey = 'nduma:hintSeen:' + storageKey;
     try {
       if (localStorage.getItem(fullKey)) return false;
     } catch (e) { return false; }
@@ -979,7 +979,7 @@
   }
 
   /* Popup "Attiva le notifiche", proposto attivamente a chi si registra o fa
-     login (solo nell'app da Home schermo, vedi CiSiamoData.shouldOfferPushPrompt)
+     login (solo nell'app da Home schermo, vedi NdumaData.shouldOfferPushPrompt)
      -- Fil, 2026-07-19: "sono molto importanti per noi". Stesso stile visivo
      del popup "serve un profilo" (.signup-overlay/.signup-modal), sopra il
      contenuto della pagina corrente. Ritorna una Promise che si risolve
@@ -1014,7 +1014,7 @@
         enableBtn.disabled = true;
         enableBtn.textContent = 'Attivo...';
         try {
-          await window.CiSiamoData.subscribeToPush();
+          await window.NdumaData.subscribeToPush();
           showToast('Notifiche attivate! 🔔');
         } catch (err) {
           // Permesso negato dal browser o errore: niente da fare qui, si
@@ -1034,16 +1034,16 @@
   // ha senso proporre le notifiche (vedi shouldOfferPushPrompt in data.js) e
   // mostra il popup solo se sì -- chi chiama non deve sapere altro.
   async function offerPushPromptIfNeeded() {
-    if (!window.CiSiamoData || typeof window.CiSiamoData.shouldOfferPushPrompt !== 'function') return;
+    if (!window.NdumaData || typeof window.NdumaData.shouldOfferPushPrompt !== 'function') return;
     var should = false;
     try {
-      should = await window.CiSiamoData.shouldOfferPushPrompt();
+      should = await window.NdumaData.shouldOfferPushPrompt();
     } catch (err) { return; }
     if (!should) return;
     await showPushPrompt();
   }
 
-  window.CiSiamoUI = {
+  window.NdumaUI = {
     refresh: refreshDynamicContent,
     toast: showToast,
     attachAccountSearch: attachAccountSearch,

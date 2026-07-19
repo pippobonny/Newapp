@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Ci siamo — Notifiche</title>
+<title>nduma — Notifiche</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Ci siamo">
+<meta name="apple-mobile-web-app-title" content="nduma">
 <script>
   /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
      Android/Chrome 100dvh non combacia col vero window.innerHeight quando
@@ -85,23 +85,23 @@
       /* Stessa regola d'accesso di tutta l'app: Notifiche non è mai il "posto
          giusto" per un ospite bloccato su un invito, quindi qui basta sapere
          se bisogna rimandarlo altrove o mostrare "serve un profilo". */
-      var gate = CiSiamoData.checkAccessGate(null);
+      var gate = NdumaData.checkAccessGate(null);
       if (gate.action === 'redirect') {
         window.location.href = gate.url;
         return;
       }
       if (gate.action === 'block') {
         document.querySelector('.navbar').style.display = 'none';
-        listEl.innerHTML = CiSiamoData.accountRequiredBlockHTML(
+        listEl.innerHTML = NdumaData.accountRequiredBlockHTML(
           'Per vedere le notifiche dei tuoi eventi e delle tue liste devi prima creare un profilo.'
         );
-        if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+        if (window.NdumaUI) window.NdumaUI.refresh();
         return;
       }
 
-      await CiSiamoData.renderSessionWarningIfNeeded();
+      await NdumaData.renderSessionWarningIfNeeded();
 
-      var myUsername = (CiSiamoData.getGuestName() || '').toLowerCase();
+      var myUsername = (NdumaData.getGuestName() || '').toLowerCase();
 
       /* "2 ore fa" / "Ieri" / "3 giorni fa" ecc. a partire da un timestamp
          Postgres (es. event.createdAt o friend.claimedAt). */
@@ -128,7 +128,7 @@
       async function loadFriendRequests() {
         var requests = [];
         try {
-          requests = await CiSiamoData.getMyPendingFriendRequests();
+          requests = await NdumaData.getMyPendingFriendRequests();
         } catch (err) { /* niente richieste mostrate, il resto della pagina non si blocca */ }
 
         var section = document.getElementById('friendRequestsSection');
@@ -143,7 +143,7 @@
               + '<div class="notif-item reveal" style="align-items:center;">'
               + '<div class="notif-icon friend">👋</div>'
               + '<div style="flex:1;">'
-              + '<div class="notif-text"><b>' + CiSiamoData.escapeHTML(r.ownerUsername) + '</b> vuole aggiungerti come amico vero nella sua lista "' + CiSiamoData.escapeHTML(r.friendListName) + '".</div>'
+              + '<div class="notif-text"><b>' + NdumaData.escapeHTML(r.ownerUsername) + '</b> vuole aggiungerti come amico vero nella sua lista "' + NdumaData.escapeHTML(r.friendListName) + '".</div>'
               + '<div class="notif-time">' + timeAgo(r.requestedAt) + '</div>'
               + '<div style="display:flex; gap:8px; margin-top:8px;">'
               + '<button type="button" class="primary-btn" style="margin:0; padding:8px 14px; font-size:14px;" data-accept-friend="' + r.friendId + '">Accetta</button>'
@@ -159,7 +159,7 @@
         section.querySelectorAll('[data-decline-friend]').forEach(function (btn) {
           btn.addEventListener('click', function () { respondToRequest(btn.getAttribute('data-decline-friend'), false, btn); });
         });
-        if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+        if (window.NdumaUI) window.NdumaUI.refresh();
       }
 
       async function respondToRequest(friendId, accept, btn) {
@@ -167,7 +167,7 @@
         var buttons = row ? row.querySelectorAll('button') : [];
         buttons.forEach(function (b) { b.disabled = true; });
         try {
-          await CiSiamoData.respondFriendRequest(friendId, accept);
+          await NdumaData.respondFriendRequest(friendId, accept);
         } catch (err) {
           window.alert('Non sono riuscito a rispondere (' + err.message + ').');
           buttons.forEach(function (b) { b.disabled = false; });
@@ -180,9 +180,9 @@
 
       var events;
       try {
-        events = await CiSiamoData.getEvents();
+        events = await NdumaData.getEvents();
       } catch (err) {
-        notifBodyEl.innerHTML = '<div class="empty-hint">Non riesco a caricare le notifiche (' + CiSiamoData.escapeHTML(err.message) + ').</div>';
+        notifBodyEl.innerHTML = '<div class="empty-hint">Non riesco a caricare le notifiche (' + NdumaData.escapeHTML(err.message) + ').</div>';
         return;
       }
 
@@ -193,7 +193,7 @@
          notifiche restano comunque visibili. */
       var eventNotices = [];
       try {
-        eventNotices = await CiSiamoData.getEventNotices(CiSiamoData.getGuestName());
+        eventNotices = await NdumaData.getEventNotices(NdumaData.getGuestName());
       } catch (err) { /* ignora: solo queste notifiche in più si perdono */ }
 
       // getEvents() torna già solo gli eventi "miei" (organizzatore, invitato
@@ -202,11 +202,11 @@
       // liste non sono più collegate agli eventi dopo la creazione.
       //
       // La costruzione vera (stati evento + avvisi congelati, ordinati per
-      // attività più recente) vive in CiSiamoData.buildNotifications: unica
+      // attività più recente) vive in NdumaData.buildNotifications: unica
       // fonte di verità, così anche il pallino "hai notifiche nuove?" in Home
       // usa esattamente la stessa lista, senza duplicare la logica qui
       // (Fil, 2026-07-17).
-      var notifications = CiSiamoData.buildNotifications(events, eventNotices, myUsername);
+      var notifications = NdumaData.buildNotifications(events, eventNotices, myUsername);
 
       if (!notifications.length) {
         notifBodyEl.innerHTML = '<div class="empty-hint">Nessuna notifica per ora.</div>';
@@ -222,7 +222,7 @@
         // l'abbia notata almeno una volta. Riuso lo stesso accordion già
         // usato per le spese (expense-accordion in style.css), stesso
         // comportamento, contenuto diverso.
-        var previousSeenAt = CiSiamoData.getNotificationsSeenAt();
+        var previousSeenAt = NdumaData.getNotificationsSeenAt();
         var previousSeenTime = previousSeenAt ? new Date(previousSeenAt).getTime() : null;
         var OLD_NOTIF_THRESHOLD_MS = 2 * 24 * 60 * 60 * 1000; // due giorni
         var now = Date.now();
@@ -280,12 +280,12 @@
         }
       }
 
-      if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+      if (window.NdumaUI) window.NdumaUI.refresh();
 
       // Segna "vista fino a qui" solo ora che la pagina è davvero disegnata
       // (notifiche vere + richieste amicizia): è quello che spegne il
       // pallino sulla campanella in Home (Fil, 2026-07-17).
-      CiSiamoData.markNotificationsSeen();
+      NdumaData.markNotificationsSeen();
     })();
   </script>
   <script src="script.js"></script>

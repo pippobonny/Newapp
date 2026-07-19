@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Ci siamo — Invito</title>
+<title>nduma — Invito</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Ci siamo">
+<meta name="apple-mobile-web-app-title" content="nduma">
 <script>
   /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
      Android/Chrome 100dvh non combacia col vero window.innerHeight quando
@@ -88,9 +88,9 @@
       // invitati quando l'evento viene creato.
       var event;
       try {
-        event = await CiSiamoData.getEventInviteInfo(token);
+        event = await NdumaData.getEventInviteInfo(token);
       } catch (err) {
-        contentEl.innerHTML = '<div class="empty-hint">Non riesco a verificare questo invito (' + CiSiamoData.escapeHTML(err.message) + ').</div>';
+        contentEl.innerHTML = '<div class="empty-hint">Non riesco a verificare questo invito (' + NdumaData.escapeHTML(err.message) + ').</div>';
         return;
       }
 
@@ -123,7 +123,7 @@
       /* ---------- passo 0: schermata di benvenuto (Fil, 2026-07-19) ----------
          Solo per chi apre un link di invito senza avere già un account su
          questo telefono: prima di chiedergli qualsiasi cosa, si presenta
-         l'app (finora il nome "Ci siamo" non compariva mai in questa pagina)
+         l'app (finora il nome "nduma" non compariva mai in questa pagina)
          e si spiega perché vale la pena continuare (gratis, niente
          pubblicità). Chi ha già un account salta dritto alla scelta del
          nome: la conosce già, non ha senso ripresentargliela ogni volta che
@@ -134,15 +134,15 @@
         contentEl.innerHTML = ''
           + '<div style="text-align:center; padding:14px 6px 4px;">'
           + '<div style="font-size:38px; margin-bottom:14px;">🎉</div>'
-          + '<div style="font-family:\'Fraunces\',serif; font-weight:700; font-size:12.5px; letter-spacing:0.06em; color:var(--peach); text-transform:uppercase; margin-bottom:14px;">Ci siamo</div>'
+          + '<div style="font-family:\'Fraunces\',serif; font-weight:700; font-size:12.5px; letter-spacing:0.06em; color:var(--peach); text-transform:uppercase; margin-bottom:14px;">nduma</div>'
           + '<div style="font-family:\'Fraunces\',serif; font-weight:600; font-size:19px; line-height:1.35; margin-bottom:14px;">'
-          + CiSiamoData.escapeHTML(ownerLabel) + ' ti ha invitato a<br>"' + CiSiamoData.escapeHTML(event.name) + '"'
+          + NdumaData.escapeHTML(ownerLabel) + ' ti ha invitato a<br>"' + NdumaData.escapeHTML(event.name) + '"'
           + '</div>'
-          + '<div style="font-size:13.5px; line-height:1.55; color:var(--lavender); margin-bottom:22px; padding:0 6px;">Ci siamo è una nuova app per organizzare eventi con gli amici senza i mille messaggi nel gruppo: rispondi con due tap quando puoi, gratis, senza pubblicità.</div>'
+          + '<div style="font-size:13.5px; line-height:1.55; color:var(--lavender); margin-bottom:22px; padding:0 6px;">nduma è una nuova app per organizzare eventi con gli amici senza i mille messaggi nel gruppo: rispondi con due tap quando puoi, gratis, senza pubblicità.</div>'
           + '<button type="button" class="primary-btn" id="welcomeContinueBtn">Scopri l\'evento →</button>'
           + '</div>';
 
-        if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+        if (window.NdumaUI) window.NdumaUI.refresh();
 
         document.getElementById('welcomeContinueBtn').addEventListener('click', renderSelection);
       }
@@ -158,12 +158,12 @@
           if (f.isClaimed) {
             return ''
               + '<div class="settings-row" style="opacity:0.55;">'
-              + '<div class="left">' + CiSiamoData.escapeHTML(f.name) + ' <span class="badge done">Confermato</span></div>'
+              + '<div class="left">' + NdumaData.escapeHTML(f.name) + ' <span class="badge done">Confermato</span></div>'
               + '</div>';
           }
           return ''
             + '<div class="settings-row reveal" data-select-friend="' + f.id + '" style="cursor:pointer;">'
-            + '<div class="left">' + CiSiamoData.escapeHTML(f.name) + '</div>'
+            + '<div class="left">' + NdumaData.escapeHTML(f.name) + '</div>'
             + '<div style="color:var(--ink-soft);">Sono io →</div>'
             + '</div>';
         }).join('');
@@ -183,10 +183,10 @@
         contentEl.innerHTML = ''
           + '<div class="header" style="margin:0 0 18px;">'
           + '<div class="profile">'
-          + '<div class="avatar">' + CiSiamoData.escapeHTML(ownerInitial) + '</div>'
+          + '<div class="avatar">' + NdumaData.escapeHTML(ownerInitial) + '</div>'
           + '<div class="greeting">'
-          + '<div class="name">' + CiSiamoData.escapeHTML(ownerLabel) + '</div>'
-          + '<div class="date">ti ha invitato all\'evento "' + CiSiamoData.escapeHTML(event.name) + '"</div>'
+          + '<div class="name">' + NdumaData.escapeHTML(ownerLabel) + '</div>'
+          + '<div class="date">ti ha invitato all\'evento "' + NdumaData.escapeHTML(event.name) + '"</div>'
           + '</div>'
           + '</div>'
           + '</div>'
@@ -195,7 +195,7 @@
           + addSelfRow
           + (anySelectable || event.openInvite ? '' : '<div class="empty-hint">Sono già stati confermati tutti i nomi di questo invito.<br><a href="index.html">Vai alla Home →</a></div>');
 
-        if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+        if (window.NdumaUI) window.NdumaUI.refresh();
 
         contentEl.querySelectorAll('[data-select-friend]').forEach(function (row) {
           row.addEventListener('click', function () {
@@ -222,7 +222,7 @@
           + '<button type="button" class="primary-btn" id="selfNameContinueBtn">Continua →</button>'
           + '<div class="signup-skip-link" id="selfNameBackLink">← Torna alla lista</div>';
 
-        if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+        if (window.NdumaUI) window.NdumaUI.refresh();
 
         document.getElementById('selfNameBackLink').addEventListener('click', renderSelection);
         document.getElementById('selfNameContinueBtn').addEventListener('click', function () {
@@ -238,19 +238,19 @@
       /* ---------- passo 2: accedi / registrati (se non hai già un account su questo
          dispositivo), oppure conferma diretta se ce l'hai già ---------- */
       function renderConfirm(friend) {
-        var hasAcc = CiSiamoData.hasAccount();
-        var existingGuestName = CiSiamoData.getGuestName() || '';
+        var hasAcc = NdumaData.hasAccount();
+        var existingGuestName = NdumaData.getGuestName() || '';
 
         if (hasAcc) {
           contentEl.innerHTML = ''
-            + '<div class="card-date" style="margin:0 2px 16px;">Hai scelto <b>' + CiSiamoData.escapeHTML(friend.name) + '</b>. Sei registrato come <b>' + CiSiamoData.escapeHTML(existingGuestName) + '</b>: verrai aggiunto alla lista con questo nome.</div>'
+            + '<div class="card-date" style="margin:0 2px 16px;">Hai scelto <b>' + NdumaData.escapeHTML(friend.name) + '</b>. Sei registrato come <b>' + NdumaData.escapeHTML(existingGuestName) + '</b>: verrai aggiunto alla lista con questo nome.</div>'
             + '<div class="form-error" id="inviteError"></div>'
             + '<button type="button" class="primary-btn" id="inviteConfirmBtn">Conferma →</button>'
             + '<div class="signup-skip-link" id="backLink">← Scegli un altro nome</div>';
 
           document.getElementById('backLink').addEventListener('click', renderSelection);
           document.getElementById('inviteConfirmBtn').addEventListener('click', function () {
-            confirmClaim(friend, null, CiSiamoData.getAccount().id, this);
+            confirmClaim(friend, null, NdumaData.getAccount().id, this);
           });
           return;
         }
@@ -260,7 +260,7 @@
            apposta per essere meno in vista. La registrazione si apre qui sotto,
            nella stessa pagina: nessuna navigazione verso profilo.html. */
         contentEl.innerHTML = ''
-          + '<div class="card-date" style="margin:0 2px 16px;">Hai scelto <b>' + CiSiamoData.escapeHTML(friend.name) + '</b>. Vuoi accedere con un account già esistente o registrarne uno nuovo?</div>'
+          + '<div class="card-date" style="margin:0 2px 16px;">Hai scelto <b>' + NdumaData.escapeHTML(friend.name) + '</b>. Vuoi accedere con un account già esistente o registrarne uno nuovo?</div>'
           + '<div style="display:flex; gap:10px; margin-bottom:8px;">'
           + '<button type="button" class="primary-btn" id="goLoginBtn" style="flex:1; margin-bottom:0;">Accedi</button>'
           + '<button type="button" class="primary-btn" id="goRegisterBtn" style="flex:1; margin-bottom:0; background:var(--card); color:var(--ink); box-shadow:0 2px 8px rgba(58,50,90,0.06);">Registrati</button>'
@@ -286,13 +286,13 @@
           + '<div class="field"><label>Data di nascita</label><input type="date" id="regBirthdate"></div>'
           + '</div>'
           + '<div id="guestPanel" style="display:none;">'
-          + '<div class="field"><label>Come ti chiami?</label><input type="text" id="guestNameInput" placeholder="Il tuo nome" value="' + CiSiamoData.escapeHTML(friend.name) + '"></div>'
+          + '<div class="field"><label>Come ti chiami?</label><input type="text" id="guestNameInput" placeholder="Il tuo nome" value="' + NdumaData.escapeHTML(friend.name) + '"></div>'
           + '</div>'
           + '<div class="form-error" id="inviteError"></div>'
           + '<button type="button" class="primary-btn" id="inviteConfirmBtn">Conferma →</button>'
           + '<div class="signup-skip-link" id="backLink">← Scegli un altro nome</div>';
 
-        if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+        if (window.NdumaUI) window.NdumaUI.refresh();
 
         var activeMode = 'login';
         var pendingAvatarFile = null;
@@ -384,7 +384,7 @@
           var originalText = forgotPasswordLink.textContent;
           forgotPasswordLink.textContent = 'Invio...';
           try {
-            await CiSiamoData.requestPasswordReset(email);
+            await NdumaData.requestPasswordReset(email);
           } catch (err) {
             errorEl.textContent = 'Non sono riuscito a inviare la richiesta (' + err.message + '). Riprova.';
             forgotPasswordLink.textContent = originalText;
@@ -392,8 +392,8 @@
           }
           forgotPasswordLink.textContent = originalText;
 
-          if (window.CiSiamoUI) {
-            window.CiSiamoUI.toast('Se quell\'indirizzo esiste, ti abbiamo mandato un\'email col link per scegliere una nuova password.');
+          if (window.NdumaUI) {
+            window.NdumaUI.toast('Se quell\'indirizzo esiste, ti abbiamo mandato un\'email col link per scegliere una nuova password.');
           } else {
             window.alert('Se quell\'indirizzo esiste, ti abbiamo mandato un\'email col link per scegliere una nuova password.');
           }
@@ -416,7 +416,7 @@
             btn.textContent = 'Accesso...';
             var account;
             try {
-              account = await CiSiamoData.loginAccount(email, password);
+              account = await NdumaData.loginAccount(email, password);
             } catch (err) {
               errorEl.textContent = err.message;
               btn.disabled = false;
@@ -450,10 +450,10 @@
               var avatarUrl;
               if (pendingAvatarFile) {
                 btn.textContent = 'Carico la foto...';
-                avatarUrl = await CiSiamoData.uploadAvatar(pendingAvatarFile);
+                avatarUrl = await NdumaData.uploadAvatar(pendingAvatarFile);
                 btn.textContent = 'Creo il profilo...';
               }
-              newAccount = await CiSiamoData.createAccount({
+              newAccount = await NdumaData.createAccount({
                 firstName: firstName,
                 lastName: lastName,
                 username: regUsername,
@@ -494,8 +494,8 @@
           // stiamo confermando un invitato già in lista, ne stiamo creando
           // uno nuovo. L'RPC ricontrolla comunque open_invite lato server.
           result = friend.id
-            ? await CiSiamoData.claimEventInvitee(token, friend.id, name, accountId)
-            : await CiSiamoData.addSelfAsInvitee(token, name, accountId);
+            ? await NdumaData.claimEventInvitee(token, friend.id, name, accountId)
+            : await NdumaData.addSelfAsInvitee(token, name, accountId);
         } catch (err) {
           errorEl.textContent = err.message;
           btn.disabled = false;
@@ -504,23 +504,23 @@
         }
 
         if (!accountId) {
-          CiSiamoData.setGuestName(name);
+          NdumaData.setGuestName(name);
           // Ha scelto esplicitamente "senza login": da qui in poi resta
           // confinato solo a questo evento finché non si registra o accede —
           // vedi checkAccessGate in data.js, controllato da tutte le altre
           // pagine dell'app.
-          CiSiamoData.setGuestLock({ type: 'event', id: eventId });
+          NdumaData.setGuestLock({ type: 'event', id: eventId });
         }
 
         // invece di restare qui, si rimbalza subito sull'evento: il messaggio
         // di conferma appare come un popup dal basso che sparisce da solo
         // (vedi initPendingToast in script.js)
         var toastMessage = 'Sei entrato come ' + result.name + '. Segna la tua disponibilità!';
-        try { sessionStorage.setItem('ci-siamo:toast', toastMessage); } catch (err) { /* ignora */ }
+        try { sessionStorage.setItem('nduma:toast', toastMessage); } catch (err) { /* ignora */ }
         window.location.href = 'evento.html?id=' + encodeURIComponent(eventId);
       }
 
-      if (CiSiamoData.hasAccount()) {
+      if (NdumaData.hasAccount()) {
         renderSelection();
       } else {
         renderWelcome();

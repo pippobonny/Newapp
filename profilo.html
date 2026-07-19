@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Ci siamo — Profilo</title>
+<title>nduma — Profilo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Ci siamo">
+<meta name="apple-mobile-web-app-title" content="nduma">
 <script>
   /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
      Android/Chrome 100dvh non combacia col vero window.innerHeight quando
@@ -160,7 +160,7 @@
            silenzioso. -->
       <div id="welcomeView" style="display:none; text-align:center; padding: 24px 4px;">
         <div class="avatar large welcome-avatar-pop" id="welcomeAvatar" style="margin: 0 auto 18px;">?</div>
-        <div class="section-title first welcome-fade-up" style="text-align:center; animation-delay:0.35s;" id="welcomeTitle">Benvenuto/a in Ci siamo!</div>
+        <div class="section-title first welcome-fade-up" style="text-align:center; animation-delay:0.35s;" id="welcomeTitle">Benvenuto/a in nduma!</div>
         <div class="card-date welcome-fade-up" style="margin:0 2px 24px; text-align:center; animation-delay:0.5s;" id="welcomeSubtitle">Grazie di cuore per esserti registrato/a! Da qui puoi iniziare a organizzare eventi e ritrovarti con i tuoi amici, senza più il caos dei gruppi WhatsApp.</div>
         <button type="button" class="primary-btn welcome-fade-up" style="animation-delay:0.65s;" id="welcomeEnterBtn">Entra nell'app →</button>
       </div>
@@ -357,7 +357,7 @@
         if (navbarEl) navbarEl.style.display = 'none';
 
         var username = (acc && acc.username) || '';
-        welcomeTitle.textContent = username ? 'Benvenuto/a, ' + username + '!' : 'Benvenuto/a in Ci siamo!';
+        welcomeTitle.textContent = username ? 'Benvenuto/a, ' + username + '!' : 'Benvenuto/a in nduma!';
         if (acc && acc.avatarUrl) {
           showAvatarImage(welcomeAvatar, acc.avatarUrl);
         } else {
@@ -374,7 +374,7 @@
         // Copre sia la registrazione normale sia il primo accesso Google
         // (entrambe passano da qui): punto giusto per proporre le notifiche
         // push a chi si è appena registrato (Fil, 2026-07-19).
-        if (window.CiSiamoUI) await window.CiSiamoUI.offerPushPromptIfNeeded();
+        if (window.NdumaUI) await window.NdumaUI.offerPushPromptIfNeeded();
         window.location.href = 'index.html';
       });
 
@@ -390,7 +390,7 @@
          chi arriva sapendo di avere gia' un account, dal link "Accedi" in
          fondo pagina o da ?mode=login altrove nell'app). "Accedi" collega
          questo telefono a un account gia' esistente su un altro telefono,
-         con lo stesso username+password: usa CiSiamoData.loginAccount(),
+         con lo stesso username+password: usa NdumaData.loginAccount(),
          la stessa funzione gia' usata dal flusso di invito in amico.html.
          Ridisegnato il 2026-07-12: prima c'era un toggle Registrati/Accedi
          sempre visibile sopra il form, ridondante col blocco "serve un
@@ -447,7 +447,7 @@
       /* Avatar vuoto ("?") finche' non scrivi nulla: appena inizi a scrivere il nome
          utente (o il nome, se il nome utente e' ancora vuoto) mostra l'iniziale.
          Il nome utente ha la precedenza perche' e' l'identita' pubblica usata nel
-         resto dell'app (vedi CiSiamoData.getGuestName). Se e' gia' stata scelta una
+         resto dell'app (vedi NdumaData.getGuestName). Se e' gia' stata scelta una
          foto, questa ha sempre la priorita' sull'iniziale testuale. */
       function updateCreateAvatarPreview() {
         if (createAvatarEl.querySelector('img')) return;
@@ -472,7 +472,7 @@
       async function fillCreateFormFromAccount() {
         var acc;
         try {
-          acc = await CiSiamoData.fetchOwnAccount();
+          acc = await NdumaData.fetchOwnAccount();
         } catch (err) {
           createError.textContent = 'Non sono riuscito a caricare il profilo (' + err.message + ').';
           return;
@@ -506,7 +506,7 @@
         // niente navbar in basso, tutto il resto dell'app è comunque
         // irraggiungibile finché non crei un profilo (Fil, 2026-07-10).
         var navbarEl = document.querySelector('.navbar');
-        if (navbarEl) navbarEl.style.display = (!isEdit && !CiSiamoData.hasAccount()) ? 'none' : '';
+        if (navbarEl) navbarEl.style.display = (!isEdit && !NdumaData.hasAccount()) ? 'none' : '';
 
         // Le scelte iniziali (Registrati con email / Google) e il link
         // "Accedi" in fondo hanno senso solo per un profilo nuovo su questo
@@ -547,12 +547,12 @@
         normalView.style.display = '';
         var navbarEl = document.querySelector('.navbar');
         if (navbarEl) navbarEl.style.display = '';
-        await CiSiamoData.renderSessionWarningIfNeeded();
+        await NdumaData.renderSessionWarningIfNeeded();
         await refreshProfile();
       }
 
       async function refreshProfile() {
-        var guestName = CiSiamoData.getGuestName() || '';
+        var guestName = NdumaData.getGuestName() || '';
         nameInput.value = guestName;
 
         // Chi ha un account non può più cambiare il nome utente da nessuna parte
@@ -560,11 +560,11 @@
         // di sola lettura e il pulsante "Salva nome utente" sparisce del tutto,
         // perché non ci sarebbe nulla da salvare. Chi non ha ancora un account
         // (ospite) può invece continuare a scrivere/cambiare il proprio nome qui.
-        var isAccountHolder = CiSiamoData.hasAccount();
+        var isAccountHolder = NdumaData.hasAccount();
         nameInput.disabled = isAccountHolder;
         profileSaveRow.style.display = isAccountHolder ? 'none' : '';
 
-        var acc = CiSiamoData.getAccount();
+        var acc = NdumaData.getAccount();
         if (acc && acc.avatarUrl) {
           showAvatarImage(avatarEl, acc.avatarUrl);
         } else {
@@ -576,9 +576,9 @@
 
         var events;
         try {
-          events = await CiSiamoData.getEvents();
+          events = await NdumaData.getEvents();
         } catch (err) {
-          myEventsList.innerHTML = '<div class="empty-hint">Non riesco a caricare i tuoi eventi (' + CiSiamoData.escapeHTML(err.message) + ').</div>';
+          myEventsList.innerHTML = '<div class="empty-hint">Non riesco a caricare i tuoi eventi (' + NdumaData.escapeHTML(err.message) + ').</div>';
           return;
         }
 
@@ -588,17 +588,17 @@
         // è già successo, non un doppione delle altre due pagine.
         var mine = events.filter(function (e) {
           if (!guestName || !e.createdBy || e.createdBy.toLowerCase() !== guestName.toLowerCase()) return false;
-          return CiSiamoData.computeEventStatus(e).status === 'passato';
+          return NdumaData.computeEventStatus(e).status === 'passato';
         });
 
         if (mine.length) {
-          myEventsList.innerHTML = mine.map(CiSiamoData.renderEventCardHTML).join('');
+          myEventsList.innerHTML = mine.map(NdumaData.renderEventCardHTML).join('');
         } else {
           myEventsList.innerHTML = '<div class="empty-hint">Nessun evento passato ancora: qui trovi l\'archivio di quelli tuoi già conclusi.</div>';
         }
 
         // rianima/rende cliccabile il contenuto appena creato
-        if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+        if (window.NdumaUI) window.NdumaUI.refresh();
 
         await refreshPushRow();
       }
@@ -609,14 +609,14 @@
          esempio, solo dentro l'app aggiunta alla schermata Home, non in
          Safari normale (Fil, 2026-07-19). */
       async function refreshPushRow() {
-        if (!CiSiamoData.hasAccount() || !CiSiamoData.isPushSupported()) {
+        if (!NdumaData.hasAccount() || !NdumaData.isPushSupported()) {
           pushNotifRow.style.display = 'none';
           return;
         }
         pushNotifRow.style.display = '';
         var subscribed = false;
         try {
-          subscribed = await CiSiamoData.isPushSubscribed();
+          subscribed = await NdumaData.isPushSubscribed();
         } catch (err) { /* se il controllo fallisce, si riparte da "non attive" */ }
         pushNotifLabel.textContent = subscribed ? '🔔 Notifiche push attive' : '🔕 Attiva notifiche push';
         pushNotifRow.dataset.subscribed = subscribed ? '1' : '0';
@@ -627,13 +627,13 @@
         pushNotifLabel.textContent = isSubscribed ? 'Disattivo...' : 'Attivo...';
         try {
           if (isSubscribed) {
-            await CiSiamoData.unsubscribeFromPush();
+            await NdumaData.unsubscribeFromPush();
           } else {
-            await CiSiamoData.subscribeToPush();
+            await NdumaData.subscribeToPush();
           }
         } catch (err) {
-          if (window.CiSiamoUI) {
-            window.CiSiamoUI.toast('Non sono riuscito: ' + err.message);
+          if (window.NdumaUI) {
+            window.NdumaUI.toast('Non sono riuscito: ' + err.message);
           } else {
             window.alert('Non sono riuscito: ' + err.message);
           }
@@ -653,7 +653,7 @@
           createBtn.disabled = true;
           createBtn.textContent = 'Accesso...';
           try {
-            await CiSiamoData.loginAccount(loginEmail, loginPassword);
+            await NdumaData.loginAccount(loginEmail, loginPassword);
           } catch (err) {
             createError.textContent = err.message;
             createBtn.disabled = false;
@@ -666,7 +666,7 @@
           // Login esplicito con un account già esistente: punto giusto per
           // proporre le notifiche push (Fil, 2026-07-19), se ha senso farlo
           // su questo dispositivo (vedi offerPushPromptIfNeeded).
-          if (window.CiSiamoUI) await window.CiSiamoUI.offerPushPromptIfNeeded();
+          if (window.NdumaUI) await window.NdumaUI.offerPushPromptIfNeeded();
           return;
         }
 
@@ -693,13 +693,13 @@
           var avatarUrl = currentAvatarUrl || undefined;
           if (pendingAvatarFile) {
             createBtn.textContent = 'Carico la foto...';
-            avatarUrl = await CiSiamoData.uploadAvatar(pendingAvatarFile);
+            avatarUrl = await NdumaData.uploadAvatar(pendingAvatarFile);
             createBtn.textContent = isEditMode ? 'Salvo...' : 'Creo il profilo...';
           }
 
           var newAccount = null;
           if (isEditMode) {
-            await CiSiamoData.updateAccount({
+            await NdumaData.updateAccount({
               firstName: firstName,
               lastName: lastName,
               username: username,
@@ -709,7 +709,7 @@
               avatarUrl: avatarUrl
             });
           } else {
-            newAccount = await CiSiamoData.createAccount({
+            newAccount = await NdumaData.createAccount({
               firstName: firstName,
               lastName: lastName,
               username: username,
@@ -738,7 +738,7 @@
 
       cancelLink.addEventListener('click', async function (e) {
         e.preventDefault();
-        if (CiSiamoData.hasAccount()) await showNormalView();
+        if (NdumaData.hasAccount()) await showNormalView();
       });
 
       /* "Password dimenticata?" manda l'email di reset (Edge Function +
@@ -757,7 +757,7 @@
         var originalText = forgotPasswordLink.textContent;
         forgotPasswordLink.textContent = 'Invio...';
         try {
-          await CiSiamoData.requestPasswordReset(email);
+          await NdumaData.requestPasswordReset(email);
         } catch (err) {
           createError.textContent = 'Non sono riuscito a inviare la richiesta (' + err.message + '). Riprova.';
           forgotPasswordLink.textContent = originalText;
@@ -765,8 +765,8 @@
         }
         forgotPasswordLink.textContent = originalText;
 
-        if (window.CiSiamoUI) {
-          window.CiSiamoUI.toast('Se quell\'indirizzo esiste, ti abbiamo mandato un\'email col link per scegliere una nuova password.');
+        if (window.NdumaUI) {
+          window.NdumaUI.toast('Se quell\'indirizzo esiste, ti abbiamo mandato un\'email col link per scegliere una nuova password.');
         } else {
           window.alert('Se quell\'indirizzo esiste, ti abbiamo mandato un\'email col link per scegliere una nuova password.');
         }
@@ -788,7 +788,7 @@
         createError.textContent = '';
         googleSignInBtn.disabled = true;
         try {
-          await CiSiamoData.signInWithGoogle();
+          await NdumaData.signInWithGoogle();
         } catch (err) {
           createError.textContent = 'Non sono riuscito ad aprire l\'accesso Google (' + err.message + ').';
           googleSignInBtn.disabled = false;
@@ -830,7 +830,7 @@
         googleProfileBtn.disabled = true;
         googleProfileBtn.textContent = 'Salvo...';
         try {
-          var newAccount = await CiSiamoData.completeGoogleProfile({
+          var newAccount = await NdumaData.completeGoogleProfile({
             username: username,
             firstName: pendingGoogleSuggestion.firstName || '',
             lastName: pendingGoogleSuggestion.lastName || '',
@@ -858,7 +858,7 @@
         resetPasswordBtn.disabled = true;
         resetPasswordBtn.textContent = 'Salvo...';
         try {
-          await CiSiamoData.resetPassword(token, newPassword);
+          await NdumaData.resetPassword(token, newPassword);
         } catch (err) {
           resetPasswordError.textContent = err.message;
           resetPasswordBtn.disabled = false;
@@ -873,15 +873,15 @@
 
       document.getElementById('saveNameBtn').addEventListener('click', async function () {
         var newName = nameInput.value.trim();
-        if (CiSiamoData.hasAccount()) {
+        if (NdumaData.hasAccount()) {
           try {
-            await CiSiamoData.updateAccount({ username: newName });
+            await NdumaData.updateAccount({ username: newName });
           } catch (err) {
             window.alert('Non sono riuscito a salvare il nome utente: ' + err.message);
             return;
           }
         } else {
-          CiSiamoData.setGuestName(newName);
+          NdumaData.setGuestName(newName);
         }
         await refreshProfile();
       });
@@ -899,7 +899,7 @@
       document.getElementById('forgetMeRow').addEventListener('click', async function () {
         var sure = window.confirm('Uscire da questo profilo su questo telefono? Il profilo resta salvato online: per riusare l\'app da qui dovrai accedere di nuovo con email e password (o Google).');
         if (!sure) return;
-        await CiSiamoData.logOut();
+        await NdumaData.logOut();
         window.location.href = 'profilo.html';
       });
 
@@ -908,14 +908,14 @@
         // Arrivo dal link nell'email di reset: mostra solo il form nuova
         // password, non toccare login/registrazione/vista normale.
         showResetPasswordView();
-      } else if (CiSiamoData.hasAccount()) {
+      } else if (NdumaData.hasAccount()) {
         await showNormalView();
       } else {
         // Nessun profilo salvato su QUESTO dispositivo: potrebbe comunque
         // esistere già una sessione Supabase Auth vera se si sta tornando
         // proprio ora dal consenso Google (redirect di ritorno). Un solo
         // controllo in più, silenzioso, prima di mostrare "crea profilo".
-        var googleState = await CiSiamoData.getGoogleSignupState();
+        var googleState = await NdumaData.getGoogleSignupState();
         if (googleState && !googleState.needsProfile) {
           // Accesso con Google di un account già completo (non la primissima
           // registrazione): va dritto in Home come un login normale via
@@ -923,7 +923,7 @@
           // È comunque un login esplicito con un account esistente: si
           // propone le notifiche push (se ha senso) prima di lasciare la
           // pagina, stesso punto del login via email (Fil, 2026-07-19).
-          if (window.CiSiamoUI) await window.CiSiamoUI.offerPushPromptIfNeeded();
+          if (window.NdumaUI) await window.NdumaUI.offerPushPromptIfNeeded();
           window.location.href = 'index.html';
         } else if (googleState && googleState.needsProfile) {
           showGoogleProfileView(googleState.suggested);

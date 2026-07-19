@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Ci siamo — Home</title>
+<title>nduma — Home</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Ci siamo">
+<meta name="apple-mobile-web-app-title" content="nduma">
 <script>
   /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
      Android/Chrome 100dvh non combacia col vero window.innerHeight quando
@@ -48,7 +48,7 @@
     (function () {
       try {
         var SPLASH_MIN_GAP_MS = 3 * 60 * 60 * 1000; // 3 ore: quanto deve passare prima di rivederla
-        var last = parseInt(localStorage.getItem('ci-siamo:splashLastShown'), 10);
+        var last = parseInt(localStorage.getItem('nduma:splashLastShown'), 10);
         if (last && (Date.now() - last) < SPLASH_MIN_GAP_MS) {
           document.getElementById('splashScreen').style.display = 'none';
         }
@@ -118,7 +118,7 @@
          evento o su una lista viene rimandato lì; chi non ha proprio nessun
          account e nessun invito attivo vede la schermata "serve un profilo"
          al posto della Home. */
-      var gate = CiSiamoData.checkAccessGate(null);
+      var gate = NdumaData.checkAccessGate(null);
       if (gate.action === 'redirect') {
         window.location.href = gate.url;
         return;
@@ -128,20 +128,20 @@
         document.querySelector('.top-badge-wrap').style.display = 'none';
         document.querySelector('.header').style.display = 'none';
         document.querySelector('.navbar').style.display = 'none';
-        document.querySelector('.content').innerHTML = CiSiamoData.accountRequiredBlockHTML(
+        document.querySelector('.content').innerHTML = NdumaData.accountRequiredBlockHTML(
           'Per vedere gli eventi e organizzarti con gli amici devi prima creare un profilo.'
         );
-        if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+        if (window.NdumaUI) window.NdumaUI.refresh();
         return;
       }
 
-      await CiSiamoData.renderSessionWarningIfNeeded();
+      await NdumaData.renderSessionWarningIfNeeded();
 
-      var guestName = CiSiamoData.getGuestName();
+      var guestName = NdumaData.getGuestName();
       document.getElementById('homeGreeting').textContent = 'Ciao, ' + (guestName || 'Ospite');
 
       var homeAvatarEl = document.getElementById('homeAvatar');
-      var homeAcc = CiSiamoData.getAccount();
+      var homeAcc = NdumaData.getAccount();
       if (homeAcc && homeAcc.avatarUrl) {
         homeAvatarEl.innerHTML = '';
         var homeAvatarImg = document.createElement('img');
@@ -155,39 +155,39 @@
         homeAvatarEl.textContent = guestName ? guestName.trim().charAt(0).toUpperCase() : '👋';
       }
 
-      var events = await CiSiamoData.getEvents();
+      var events = await NdumaData.getEvents();
       // Gli eventi annullati NON compaiono più in Home (Fil, 2026-07-10): restano
       // solo nel tab "Annullati" di Eventi, così la Home mostra solo cose ancora
       // rilevanti (da confermare, o confermate). "closed" quindi ora è solo
       // "done". Gli eventi "passato" (confermati e già successi da un po') non
       // vanno in nessuna delle due sezioni: restano solo nell'archivio del Profilo.
       var upcoming = events.filter(function (e) {
-        var status = CiSiamoData.computeEventStatus(e).status;
+        var status = NdumaData.computeEventStatus(e).status;
         return status !== 'done' && status !== 'cancelled' && status !== 'passato';
       });
       var closed = events.filter(function (e) {
-        var status = CiSiamoData.computeEventStatus(e).status;
+        var status = NdumaData.computeEventStatus(e).status;
         return status === 'done';
       });
 
       var upcomingList = document.getElementById('upcomingList');
       if (upcoming.length) {
-        upcomingList.innerHTML = upcoming.map(CiSiamoData.renderEventCardHTML).join('');
+        upcomingList.innerHTML = upcoming.map(NdumaData.renderEventCardHTML).join('');
       } else {
         upcomingList.innerHTML = '<div class="empty-hint">Nessun evento da confermare al momento.<br><a href="crea.html">Proponine uno tu →</a></div>';
       }
 
       var closedSection = document.getElementById('closedSection');
       if (closed.length) {
-        closedSection.innerHTML = '<div class="section-title">Organizzazione chiusa</div>' + closed.map(CiSiamoData.renderEventCardHTML).join('');
+        closedSection.innerHTML = '<div class="section-title">Organizzazione chiusa</div>' + closed.map(NdumaData.renderEventCardHTML).join('');
       }
 
       // le card sopra sono state create ora, dopo il caricamento pagina: bisogna
       // dire a script.js di (ri)animarle, altrimenti restano invisibili
-      if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+      if (window.NdumaUI) window.NdumaUI.refresh();
 
       // Pallino "hai notifiche nuove?" sulla campanella (Fil, 2026-07-17):
-      // stessa lista costruita da notifiche.html (CiSiamoData.buildNotifications,
+      // stessa lista costruita da notifiche.html (NdumaData.buildNotifications,
       // unica fonte di verità), confrontata con l'ultima visita salvata su
       // questo dispositivo. Tutto "best effort": se una delle due letture in
       // più fallisce, il pallino semplicemente non si accende, non deve mai
@@ -196,14 +196,14 @@
         var myUsernameForBell = (guestName || '').toLowerCase();
         var eventNoticesForBell = [];
         var pendingFriendRequestsForBell = [];
-        try { eventNoticesForBell = await CiSiamoData.getEventNotices(guestName); } catch (err) { /* ignora */ }
-        try { pendingFriendRequestsForBell = await CiSiamoData.getMyPendingFriendRequests(); } catch (err) { /* ignora */ }
+        try { eventNoticesForBell = await NdumaData.getEventNotices(guestName); } catch (err) { /* ignora */ }
+        try { pendingFriendRequestsForBell = await NdumaData.getMyPendingFriendRequests(); } catch (err) { /* ignora */ }
 
-        var notificationsForBell = CiSiamoData.buildNotifications(events, eventNoticesForBell, myUsernameForBell);
+        var notificationsForBell = NdumaData.buildNotifications(events, eventNoticesForBell, myUsernameForBell);
         // Fil, 2026-07-19: prima solo un pallino vuoto ("hai qualcosa"), ora
         // il numero vero di non lette dentro — più visibile e fa capire
         // subito quanto c'è da vedere, non solo che c'è qualcosa.
-        var unreadCount = CiSiamoData.countUnreadNotifications(notificationsForBell, pendingFriendRequestsForBell);
+        var unreadCount = NdumaData.countUnreadNotifications(notificationsForBell, pendingFriendRequestsForBell);
         if (unreadCount > 0) {
           var bellBadge = document.getElementById('bellBadge');
           if (bellBadge) {

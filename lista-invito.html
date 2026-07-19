@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Ci siamo — Sei nella lista</title>
+<title>nduma — Sei nella lista</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Ci siamo">
+<meta name="apple-mobile-web-app-title" content="nduma">
 <script>
   /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
      Android/Chrome 100dvh non combacia col vero window.innerHeight quando
@@ -40,7 +40,7 @@
   <div class="phone">
    <div class="screen">
     <div class="header simple">
-      <div class="header-title">Ci siamo</div>
+      <div class="header-title">nduma</div>
     </div>
 
     <!-- Unica vista per un ospite (senza account) invitato solo a una lista
@@ -61,12 +61,12 @@
     (function () {
       var pageContent = document.getElementById('pageContent');
 
-      if (CiSiamoData.hasAccount()) {
+      if (NdumaData.hasAccount()) {
         window.location.href = 'index.html';
         return;
       }
 
-      var lock = CiSiamoData.getGuestLock();
+      var lock = NdumaData.getGuestLock();
       if (!lock || lock.type !== 'list') {
         // niente da mostrare qui: o non sei mai stato bloccato su una lista,
         // o il lock è scaduto/è stato tolto — la strada giusta resta comunque
@@ -75,16 +75,16 @@
         return;
       }
 
-      var guestName = CiSiamoData.getGuestName() || '';
+      var guestName = NdumaData.getGuestName() || '';
 
       pageContent.innerHTML = ''
         + '<div style="text-align:center; padding: 30px 12px;">'
         + '<div class="signup-modal-icon">🎉</div>'
         + '<div class="signup-modal-title">Sei entrato nella lista</div>'
-        + '<div class="signup-modal-text">Sei stato aggiunto come <b>' + CiSiamoData.escapeHTML(guestName) + '</b> alla lista'
-        + (lock.name ? ' "' + CiSiamoData.escapeHTML(lock.name) + '"' : '')
-        + (lock.ownerName ? ' di <b>' + CiSiamoData.escapeHTML(lock.ownerName) + '</b>' : '')
-        + '. Per vedere gli eventi, rispondere alle proposte e usare tutto Ci siamo ti basta creare un profilo: si fa in un minuto.</div>'
+        + '<div class="signup-modal-text">Sei stato aggiunto come <b>' + NdumaData.escapeHTML(guestName) + '</b> alla lista'
+        + (lock.name ? ' "' + NdumaData.escapeHTML(lock.name) + '"' : '')
+        + (lock.ownerName ? ' di <b>' + NdumaData.escapeHTML(lock.ownerName) + '</b>' : '')
+        + '. Per vedere gli eventi, rispondere alle proposte e usare tutto nduma ti basta creare un profilo: si fa in un minuto.</div>'
         + '<a class="primary-btn" href="profilo.html" style="display:block; text-decoration:none;">Crea il tuo profilo →</a>'
         + '<a class="signup-skip-link" href="profilo.html?mode=login" style="text-decoration:underline;">Hai già un account? Accedi</a>'
         + '</div>';

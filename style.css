@@ -377,7 +377,7 @@ a { text-decoration: none; color: inherit; }
 }
 
 /* mini-avatar (foto o iniziale) davanti a un nome collegato a un account,
-   nelle righe di lista amici/invitati — vedi CiSiamoUI.attachAccountSearch
+   nelle righe di lista amici/invitati — vedi NdumaUI.attachAccountSearch
    e amici.html/crea.html. Sostituisce il vecchio pallino verde muto: si vede
    subito la persona vera invece di un indicatore senza spiegazione. */
 .linked-mini-avatar {
@@ -444,7 +444,7 @@ a { text-decoration: none; color: inherit; }
   font-weight: 600;
 }
 
-/* Fumetto informativo "una volta sola" — vedi CiSiamoUI.showOnceHint in
+/* Fumetto informativo "una volta sola" — vedi NdumaUI.showOnceHint in
    script.js. Sempre nel flusso normale del documento (mai position:absolute):
    dopo il bug del menu ⋮ finito sotto la foto per colpa di stacking context,
    qui si preferisce spingere giù il contenuto sotto invece di sovrapporsi a
@@ -1203,6 +1203,7 @@ label.event-photo-preview {
 .notif-icon.confirmed { background: var(--mint-soft); }
 .notif-icon.cancelled { background: var(--cancel-soft); }
 .notif-icon.friend { background: var(--lavender-soft); }
+.notif-icon.tie { background: var(--peach-soft); }
 
 .notif-text { font-size: 13.5px; line-height: 1.4; }
 .notif-text b { font-weight: 600; }
@@ -1704,7 +1705,7 @@ label.event-photo-preview {
 
 /* Popup dal basso (toast), tipo "sei stato aggiunto come Marco alla lista di Fil":
    compare da sotto la navbar, resta qualche secondo e scompare da solo.
-   window.CiSiamoUI.toast(messaggio) in script.js lo gestisce. */
+   window.NdumaUI.toast(messaggio) in script.js lo gestisce. */
 .toast {
   position: absolute;
   left: 22px;

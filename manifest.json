@@ -1,6 +1,6 @@
 {
-  "name": "Ci siamo",
-  "short_name": "Ci siamo",
+  "name": "nduma",
+  "short_name": "nduma",
   "description": "Organizza eventi con i tuoi amici",
   "start_url": "index.html",
   "scope": ".",

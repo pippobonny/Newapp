@@ -1,5 +1,5 @@
 /* =========================================================
-   Ci siamo — livello dati.
+   nduma — livello dati.
    Ora parla con Supabase (Postgres reale) invece che con localStorage:
    eventi, liste amici, partecipanti sono condivisi davvero tra chi apre
    il link. Login/password passano dal vero Supabase Auth (auth.users), non
@@ -76,9 +76,9 @@
      Function), mai nel client. */
   var VAPID_PUBLIC_KEY = 'BHIjeQlnFINP3HzXZXfVkp8fNdvjmAuNovD2xtVcKYayTQkPtD8qXSGxlQn1IZyFf_gsUg5dTG7jiZvoWJPQfDk';
 
-  var GUEST_KEY = 'ci-siamo:guestName';
-  var ACCOUNT_KEY = 'ci-siamo:account'; // cache locale minima: { id, username, avatarUrl }, mai la password
-  var GUEST_LOCK_KEY = 'ci-siamo:guestLock'; // { type: 'event'|'list', id, name?, ownerName? }
+  var GUEST_KEY = 'nduma:guestName';
+  var ACCOUNT_KEY = 'nduma:account'; // cache locale minima: { id, username, avatarUrl }, mai la password
+  var GUEST_LOCK_KEY = 'nduma:guestLock'; // { type: 'event'|'list', id, name?, ownerName? }
 
   /* ---------- utility di base ---------- */
 
@@ -294,7 +294,7 @@
       + '<div style="text-align:center; padding: 40px 12px;">'
       + '<div class="signup-modal-icon">🔒</div>'
       + '<div class="signup-modal-title">Serve un profilo</div>'
-      + '<div class="signup-modal-text">' + escapeHTML(message || 'Per usare Ci siamo devi prima creare un profilo: ti basta un nome utente, si fa in un minuto.') + '</div>'
+      + '<div class="signup-modal-text">' + escapeHTML(message || 'Per usare nduma devi prima creare un profilo: ti basta un nome utente, si fa in un minuto.') + '</div>'
       + '<a class="primary-btn" href="profilo.html" style="display:block; text-decoration:none;">Crea il tuo profilo →</a>'
       + '<a class="signup-skip-link" href="profilo.html?mode=login" style="text-decoration:underline;">Hai già un account? Accedi</a>'
       + '</div>';
@@ -704,7 +704,7 @@
 
   /* ---------- liste amici ----------
      Solo chi ha un account può creare liste (ed eventi): lo si controlla lato
-     client (CiSiamoData.hasAccount()) prima di mostrare i form, dato che
+     client (NdumaData.hasAccount()) prima di mostrare i form, dato che
      l'app non ha un vero login/sessione a livello di database.
 
      Una lista è solo un elenco privato di nomi ad uso di chi la crea (Fil +
@@ -823,7 +823,7 @@
   }
 
   /* accountId (opzionale) è il collegamento scelto dalla ricerca username+foto
-     (vedi CiSiamoUI.attachAccountSearch in script.js e il documento
+     (vedi NdumaUI.attachAccountSearch in script.js e il documento
      "ci-siamo-omonimi.pdf"). Aggiornamento 2026-07-12 (Opzione B, "amicizia
      vera"): scegliere un account qui NON lo collega più subito per sempre —
      parte una richiesta ("pending"), e resta un collegamento debole finché
@@ -1383,6 +1383,19 @@
           icon: 'almost', emoji: '🎉', time: latestEventActivityTime(event),
           text: '<b>' + escapeHTML(event.name) + '</b> è quasi risolto: manca' + (missing === 1 ? '' : 'no') + ' ' + missing + (missing === 1 ? ' risposta' : ' risposte') + '.'
         });
+      } else if (info.status === 'tie') {
+        // Mancava del tutto (Fil, 2026-07-19): hanno risposto tutti ma più
+        // date sono appaiate al primo posto, quindi l'evento resta bloccato
+        // finché l'organizzatore non ne sceglie una a mano (vedi il popup
+        // di scelta giorno in evento.html). Solo lui può sbloccarlo, quindi
+        // è l'unico ad avere qualcosa da fare qui — nessuna notifica per
+        // gli invitati, che hanno già risposto tutti.
+        if (iAmOrganizer) {
+          notifications.push({
+            icon: 'tie', emoji: '⚖️', time: latestEventActivityTime(event),
+            text: '<b>' + escapeHTML(event.name) + '</b> è in pareggio tra più date: tocca a te scegliere quale confermare.'
+          });
+        }
       } else if (!iAmOrganizer) {
         notifications.push({
           icon: 'new', emoji: '📅', time: ts,
@@ -1420,7 +1433,7 @@
      dispositivo, aggiornato ogni volta che si apre notifiche.html. Il
      pallino si accende confrontando quel timestamp con la più recente tra le
      notifiche vere e le richieste di amicizia in sospeso (Fil, 2026-07-17). */
-  var NOTIFICATIONS_SEEN_KEY = 'ci-siamo:notificationsSeenAt';
+  var NOTIFICATIONS_SEEN_KEY = 'nduma:notificationsSeenAt';
 
   function getNotificationsSeenAt() {
     try { return localStorage.getItem(NOTIFICATIONS_SEEN_KEY); } catch (err) { return null; }
@@ -2226,7 +2239,7 @@
       + '</a>';
   }
 
-  global.CiSiamoData = {
+  global.NdumaData = {
     getGuestName: getGuestName,
     setGuestName: setGuestName,
     getAccount: getAccount,
@@ -2332,9 +2345,9 @@
     'loginAccount', 'resetPassword', 'completeGoogleProfile',
     'subscribeToPush', 'unsubscribeFromPush'
   ].forEach(function (name) {
-    var original = global.CiSiamoData[name];
+    var original = global.NdumaData[name];
     if (typeof original !== 'function') return;
-    global.CiSiamoData[name] = function () {
+    global.NdumaData[name] = function () {
       var args = arguments;
       return withAuthRetry(function () { return original.apply(null, args); });
     };

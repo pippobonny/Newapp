@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Ci siamo — Crea evento</title>
+<title>nduma — Crea evento</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Ci siamo">
+<meta name="apple-mobile-web-app-title" content="nduma">
 <script>
   /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
      Android/Chrome 100dvh non combacia col vero window.innerHeight quando
@@ -253,20 +253,20 @@
          con un messaggio bloccante che invita a crearne uno. Un ospite
          bloccato da un invito (checkAccessGate) viene invece rimandato al
          suo evento/lista, dato che Crea non è mai un posto consentito per lui. */
-      var gate = CiSiamoData.checkAccessGate(null);
+      var gate = NdumaData.checkAccessGate(null);
       if (gate.action === 'redirect') {
         window.location.href = gate.url;
         return;
       }
       if (gate.action === 'block') {
-        document.getElementById('pageContent').innerHTML = CiSiamoData.accountRequiredBlockHTML(
+        document.getElementById('pageContent').innerHTML = NdumaData.accountRequiredBlockHTML(
           'Per creare un evento devi prima creare un profilo.'
         );
         document.querySelector('.navbar').style.display = 'none';
         return;
       }
 
-      await CiSiamoData.renderSessionWarningIfNeeded(document.getElementById('pageContent'));
+      await NdumaData.renderSessionWarningIfNeeded(document.getElementById('pageContent'));
 
       // Modalità modifica: crea.html?edit=<id> riusa lo stesso wizard invece
       // di duplicarlo in una pagina a parte (Fil, 2026-07-07 — "aggiungerei
@@ -282,7 +282,7 @@
       // mano" nel select). In entrambi i casi i nomi vengono solo COPIATI
       // sull'evento alla creazione (vedi createEventBtn più sotto): la lista
       // resta un elenco tuo, scollegato dall'evento da quel momento in poi.
-      var friendLists = await CiSiamoData.getFriendLists();
+      var friendLists = await NdumaData.getFriendLists();
 
       var dateRowList = document.getElementById('dateRowList');
       var addDateBtn = document.getElementById('addDateBtn');
@@ -294,7 +294,7 @@
       // qui sopra): l'organizzatore è sempre e solo il nome utente del tuo account,
       // non un campo da compilare, quindi non c'è più un input per questo — si
       // mostra semplicemente nel titolo della pagina.
-      var savedGuestName = CiSiamoData.getGuestName();
+      var savedGuestName = NdumaData.getGuestName();
       var pageTitleEl = document.getElementById('pageTitle');
       if (savedGuestName && pageTitleEl) pageTitleEl.textContent = 'Nuova proposta di ' + savedGuestName;
 
@@ -488,7 +488,7 @@
 
       /* ---------- posizione dell'evento (opzionale) ----------
          Campo di testo semplice di base; se è configurata una chiave Google
-         Maps (CiSiamoData.GOOGLE_MAPS_API_KEY) si aggiunge sopra
+         Maps (NdumaData.GOOGLE_MAPS_API_KEY) si aggiunge sopra
          l'autocompletamento vero, ma anche senza chiave il campo funziona lo
          stesso come semplice indirizzo scritto a mano — non blocca mai nulla. */
       var eventLocationInput = document.getElementById('eventLocationInput');
@@ -505,7 +505,7 @@
       });
 
       (function setupLocationAutocomplete() {
-        var apiKey = CiSiamoData.GOOGLE_MAPS_API_KEY;
+        var apiKey = NdumaData.GOOGLE_MAPS_API_KEY;
         if (!apiKey) {
           locationHint.style.display = '';
           locationHint.textContent = 'Suggerimenti automatici non ancora attivi: per ora scrivi l\'indirizzo a mano.';
@@ -564,8 +564,8 @@
       // Opzione A, Fil 2026-07-07): riduce il rischio di invitare per sbaglio uno
       // sconosciuto omonimo invece del tuo vero amico. Cliccare un suggerimento
       // aggiunge subito l'invitato (Fil, 2026-07-10), come in amici.html.
-      if (window.CiSiamoUI && CiSiamoUI.attachAccountSearch) {
-        manualNameSearch = CiSiamoUI.attachAccountSearch(manualNameInput, function () { addManualName(); });
+      if (window.NdumaUI && NdumaUI.attachAccountSearch) {
+        manualNameSearch = NdumaUI.attachAccountSearch(manualNameInput, function () { addManualName(); });
       }
 
       var CREATE_LIST_VALUE = '__create_list__';
@@ -641,12 +641,12 @@
           if (entry.accountId) {
             var initial = (entry.name.trim().charAt(0) || '?').toUpperCase();
             linkedMarker = entry.avatarUrl
-              ? '<span class="linked-mini-avatar" title="Collegato a un account"><img src="' + CiSiamoData.escapeHTML(entry.avatarUrl) + '" alt=""></span>'
-              : '<span class="linked-mini-avatar" title="Collegato a un account">' + CiSiamoData.escapeHTML(initial) + '</span>';
+              ? '<span class="linked-mini-avatar" title="Collegato a un account"><img src="' + NdumaData.escapeHTML(entry.avatarUrl) + '" alt=""></span>'
+              : '<span class="linked-mini-avatar" title="Collegato a un account">' + NdumaData.escapeHTML(initial) + '</span>';
           }
           return ''
             + '<div class="settings-row" style="margin-top:8px;">'
-            + '<div class="left" style="display:flex; align-items:center;">' + linkedMarker + CiSiamoData.escapeHTML(entry.name) + '</div>'
+            + '<div class="left" style="display:flex; align-items:center;">' + linkedMarker + NdumaData.escapeHTML(entry.name) + '</div>'
             + '<span class="friend-remove" data-remove-manual="' + idx + '">✕</span>'
             + '</div>';
         }).join('');
@@ -722,8 +722,8 @@
 
         // fumetto "una volta sola" (Fil, 2026-07-07) che spiega l'invito
         // aperto, mostrato appena si arriva sul passo 2.
-        if (n === 2 && window.CiSiamoUI && CiSiamoUI.showOnceHint) {
-          CiSiamoUI.showOnceHint('openInvite', openInviteCheckbox.closest('.option-group'),
+        if (n === 2 && window.NdumaUI && NdumaUI.showOnceHint) {
+          NdumaUI.showOnceHint('openInvite', openInviteCheckbox.closest('.option-group'),
             'Attivalo solo se vuoi che chiunque abbia il link possa aggiungersi da solo, anche se non l\'hai scritto qui sopra. Comodo per eventi aperti a un gruppo largo, ma il link diventa di fatto un accesso libero.',
             openInviteCheckbox, ['focus', 'change']);
         }
@@ -758,7 +758,7 @@
 
         // Se il testo combacia ancora con un suggerimento scelto (username+foto),
         // l'invitato nasce già collegato (Fil, 2026-07-07) — si annulla da solo
-        // se modifichi il testo dopo aver scelto (CiSiamoUI.attachAccountSearch).
+        // se modifichi il testo dopo aver scelto (NdumaUI.attachAccountSearch).
         var isLinked = manualNameInput.dataset.linkedUsername === name;
         var linkedAccountId = isLinked ? (manualNameInput.dataset.linkedAccountId || null) : null;
         var linkedAvatarUrl = isLinked ? (manualNameInput.dataset.linkedAvatarUrl || null) : null;
@@ -850,7 +850,7 @@
       /* ---------- modalità di scelta data: range / date singole / ricorrenza ----------
          Le 3 modalità sono alternative: solo quella attiva viene letta al momento
          di creare l'evento. In tutti i casi il risultato è lo stesso: un elenco di
-         date ISO, che passa a CiSiamoData.createEvent esattamente come prima —
+         date ISO, che passa a NdumaData.createEvent esattamente come prima —
          così evento.html/data.js non devono sapere in che modo sono state scelte. */
       var dateModeTabs = document.getElementById('dateModeTabs');
       var datePanels = document.querySelectorAll('.date-mode-panel');
@@ -1007,9 +1007,9 @@
             // il checkbox resta nascosto in entrambi i casi.
             if (saveAsListCheckbox.checked) {
               createEventBtn.textContent = 'Salvo la lista...';
-              var newList = await CiSiamoData.createFriendList(name);
+              var newList = await NdumaData.createFriendList(name);
               for (var mi = 0; mi < manualNames.length; mi++) {
-                await CiSiamoData.addFriendToList(newList.id, manualNames[mi].name, manualNames[mi].accountId);
+                await NdumaData.addFriendToList(newList.id, manualNames[mi].name, manualNames[mi].accountId);
               }
               friendListId = newList.id;
             }
@@ -1018,13 +1018,13 @@
           var photoUrl = carriedPhotoUrl || null;
           if (pendingEventPhotoFile) {
             createEventBtn.textContent = 'Carico la foto...';
-            photoUrl = await CiSiamoData.uploadEventPhoto(pendingEventPhotoFile);
+            photoUrl = await NdumaData.uploadEventPhoto(pendingEventPhotoFile);
           }
 
           var descriptionAudioUrl = descriptionMode === 'audio' ? (carriedAudioUrl || null) : null;
           if (descriptionMode === 'audio' && pendingAudioBlob) {
             createEventBtn.textContent = 'Carico il vocale...';
-            descriptionAudioUrl = await CiSiamoData.uploadEventAudio(pendingAudioBlob);
+            descriptionAudioUrl = await NdumaData.uploadEventAudio(pendingAudioBlob);
           }
 
           var locationAddress = selectedLocation.address || eventLocationInput.value.trim() || null;
@@ -1047,10 +1047,10 @@
 
           if (isEditMode) {
             createEventBtn.textContent = 'Salvo le modifiche...';
-            event = await CiSiamoData.updateEvent(editEventId, payload);
+            event = await NdumaData.updateEvent(editEventId, payload);
           } else {
             createEventBtn.textContent = 'Creo l\'evento...';
-            event = await CiSiamoData.createEvent(payload);
+            event = await NdumaData.createEvent(payload);
           }
         } catch (err) {
           formError.textContent = 'Non sono riuscito a salvare l\'evento (' + err.message + '). Riprova.';
@@ -1091,7 +1091,7 @@
         if (!phone) { window.location.replace(href); return; }
 
         var dateLabels = (event.dateOptions || []).map(function (o) {
-          return CiSiamoData.formatDateLabel(o.dateISO);
+          return NdumaData.formatDateLabel(o.dateISO);
         });
         var dateText = dateLabels.length === 1
           ? dateLabels[0]
@@ -1103,8 +1103,8 @@
         overlay.innerHTML = ''
           + '<div class="signup-modal">'
           + '<div class="signup-modal-icon">🎉</div>'
-          + '<div class="signup-modal-title">' + CiSiamoData.escapeHTML(event.name) + '</div>'
-          + '<div class="signup-modal-text" style="margin-bottom:6px;">📅 ' + CiSiamoData.escapeHTML(dateText) + '</div>'
+          + '<div class="signup-modal-title">' + NdumaData.escapeHTML(event.name) + '</div>'
+          + '<div class="signup-modal-text" style="margin-bottom:6px;">📅 ' + NdumaData.escapeHTML(dateText) + '</div>'
           + (inviteesCount
               ? '<div class="signup-modal-text">👥 ' + inviteesCount + (inviteesCount === 1 ? ' invitato' : ' invitati') + '</div>'
               : '<div class="signup-modal-text">Nessun invitato ancora: puoi aggiungerne dopo.</div>')
@@ -1131,9 +1131,9 @@
          amici.html a creare la lista (restandoci: puoi anche aggiungere
          subito gli amici, poi torni tu quando vuoi). Al ritorno la bozza si
          ripristina da sola e la lista appena creata è già selezionata. */
-      var DRAFT_KEY = 'ci-siamo:eventDraft';
-      var JUST_CREATED_LIST_KEY = 'ci-siamo:justCreatedListId';
-      var RETURN_FLAG_KEY = 'ci-siamo:returnToEventCreation';
+      var DRAFT_KEY = 'nduma:eventDraft';
+      var JUST_CREATED_LIST_KEY = 'nduma:justCreatedListId';
+      var RETURN_FLAG_KEY = 'nduma:returnToEventCreation';
 
       function collectDraft() {
         return {
@@ -1220,7 +1220,7 @@
         // già online, non un file da caricare di nuovo, la mostriamo così com'è
         if (draft.carriedPhotoUrl) {
           carriedPhotoUrl = draft.carriedPhotoUrl;
-          eventPhotoPreview.innerHTML = '<img src="' + CiSiamoData.escapeHTML(draft.carriedPhotoUrl) + '" alt="">';
+          eventPhotoPreview.innerHTML = '<img src="' + NdumaData.escapeHTML(draft.carriedPhotoUrl) + '" alt="">';
           showRemovePhotoBtn();
         }
 
@@ -1246,7 +1246,7 @@
       /* ---------- popolamento in modalità modifica ---------- */
       if (isEditMode) {
         try {
-          editingEvent = await CiSiamoData.getEventById(editEventId);
+          editingEvent = await NdumaData.getEventById(editEventId);
         } catch (err) {
           editingEvent = null;
         }
@@ -1282,7 +1282,7 @@
 
         if (editingEvent.photoUrl) {
           carriedPhotoUrl = editingEvent.photoUrl;
-          eventPhotoPreview.innerHTML = '<img src="' + CiSiamoData.escapeHTML(editingEvent.photoUrl) + '" alt="">';
+          eventPhotoPreview.innerHTML = '<img src="' + NdumaData.escapeHTML(editingEvent.photoUrl) + '" alt="">';
           showRemovePhotoBtn();
         }
 
@@ -1314,7 +1314,7 @@
         // qui manca ancora l'avatarUrl finché non lo recuperiamo per id).
         var editLinkedIds = manualNames.map(function (e) { return e.accountId; }).filter(function (id) { return !!id; });
         if (editLinkedIds.length) {
-          CiSiamoData.getAvatarsForAccountIds(editLinkedIds).then(function (avatarMap) {
+          NdumaData.getAvatarsForAccountIds(editLinkedIds).then(function (avatarMap) {
             manualNames.forEach(function (e) {
               if (e.accountId && avatarMap[e.accountId]) e.avatarUrl = avatarMap[e.accountId].avatarUrl || null;
             });

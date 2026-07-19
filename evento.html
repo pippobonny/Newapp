@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Ci siamo — Evento</title>
+<title>nduma — Evento</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Ci siamo">
+<meta name="apple-mobile-web-app-title" content="nduma">
 <script>
   /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
      Android/Chrome 100dvh non combacia col vero window.innerHeight quando
@@ -168,7 +168,7 @@
          invito attivo. Chi è bloccato qui a ragione (isLockedGuest) perde
          navbar e freccia indietro: l'unica via d'uscita resta il bottone
          "crea il tuo profilo" mostrato dentro la pagina (vedi render()). */
-      var gate = CiSiamoData.checkAccessGate(eventId ? { type: 'event', id: eventId } : null);
+      var gate = NdumaData.checkAccessGate(eventId ? { type: 'event', id: eventId } : null);
       if (gate.action === 'redirect') {
         window.location.href = gate.url;
         return;
@@ -176,10 +176,10 @@
 
       var event;
       try {
-        event = eventId ? await CiSiamoData.getEventById(eventId) : null;
+        event = eventId ? await NdumaData.getEventById(eventId) : null;
       } catch (err) {
         titleEl.textContent = 'Errore';
-        contentEl.innerHTML = '<div class="empty-hint">Non riesco a caricare questo evento (' + CiSiamoData.escapeHTML(err.message) + ').<br><a href="eventi.html">Torna agli eventi →</a></div>';
+        contentEl.innerHTML = '<div class="empty-hint">Non riesco a caricare questo evento (' + NdumaData.escapeHTML(err.message) + ').<br><a href="eventi.html">Torna agli eventi →</a></div>';
         return;
       }
 
@@ -205,14 +205,14 @@
           return;
         }
         titleEl.textContent = 'Evento';
-        contentEl.innerHTML = CiSiamoData.accountRequiredBlockHTML(
+        contentEl.innerHTML = NdumaData.accountRequiredBlockHTML(
           'Per vedere questo evento devi prima creare un profilo, oppure aprirlo dal link di invito che hai ricevuto.'
         );
         document.querySelector('.navbar').style.display = 'none';
         if (backBtn) backBtn.style.display = 'none';
         return;
       }
-      await CiSiamoData.renderSessionWarningIfNeeded(contentEl);
+      await NdumaData.renderSessionWarningIfNeeded(contentEl);
 
       var isLockedGuest = gate.action === 'allowLocked';
       if (isLockedGuest) {
@@ -220,10 +220,10 @@
         if (backBtn) backBtn.style.display = 'none';
       }
 
-      document.title = 'Ci siamo — ' + event.name;
+      document.title = 'nduma — ' + event.name;
       titleEl.textContent = event.name;
 
-      var guestName = CiSiamoData.getGuestName() || '';
+      var guestName = NdumaData.getGuestName() || '';
 
       /* Chi organizza è per forza presente (viene contato in automatico su
          tutte le date già alla creazione, vedi createEvent in data.js): non
@@ -268,7 +268,7 @@
          il device o passa tempo può ripresentarsi, va bene così, non è
          invasivo). */
       function findClaimCandidates() {
-        if (isOrganizer || !guestName || !CiSiamoData.hasAccount()) return null;
+        if (isOrganizer || !guestName || !NdumaData.hasAccount()) return null;
         if (findExistingParticipant()) return null;
 
         var mine = guestName.toLowerCase();
@@ -280,7 +280,7 @@
         if (!unclaimed.length) return null;
 
         try {
-          if (sessionStorage.getItem('ci-siamo:claimDismissed:' + event.id)) return null;
+          if (sessionStorage.getItem('nduma:claimDismissed:' + event.id)) return null;
         } catch (err) { /* ignora */ }
 
         return unclaimed;
@@ -290,30 +290,30 @@
         var rowsHTML = candidates.map(function (f) {
           return ''
             + '<div class="settings-row reveal" data-claim-invitee="' + f.id + '" style="cursor:pointer;">'
-            + '<div class="left">' + CiSiamoData.escapeHTML(f.name) + '</div>'
+            + '<div class="left">' + NdumaData.escapeHTML(f.name) + '</div>'
             + '<div style="color:var(--ink-soft);">Sono io →</div>'
             + '</div>';
         }).join('');
 
         return ''
           + '<div class="section-title">Sei tu uno di questi?</div>'
-          + '<div class="card-date" style="margin:0 2px 12px;">Sei registrato come <b>' + CiSiamoData.escapeHTML(guestName) + '</b>. Se chi organizza ti aveva invitato con un altro nome, scegli quale sei: così la tua risposta resta collegata a te.</div>'
+          + '<div class="card-date" style="margin:0 2px 12px;">Sei registrato come <b>' + NdumaData.escapeHTML(guestName) + '</b>. Se chi organizza ti aveva invitato con un altro nome, scegli quale sei: così la tua risposta resta collegata a te.</div>'
           + '<div id="claimPromptList">' + rowsHTML + '</div>'
-          + '<div style="text-align:center; margin-top:8px;"><span class="signup-skip-link" id="claimSkipLink">Nessuno di questi, continua come ' + CiSiamoData.escapeHTML(guestName) + ' →</span></div>';
+          + '<div style="text-align:center; margin-top:8px;"><span class="signup-skip-link" id="claimSkipLink">Nessuno di questi, continua come ' + NdumaData.escapeHTML(guestName) + ' →</span></div>';
       }
 
       async function claimInviteeAs(inviteeId) {
         try {
-          await CiSiamoData.claimEventInvitee(event.shareToken, inviteeId, null, CiSiamoData.getAccount().id);
+          await NdumaData.claimEventInvitee(event.shareToken, inviteeId, null, NdumaData.getAccount().id);
         } catch (err) {
-          if (window.CiSiamoUI && CiSiamoUI.toast) {
-            CiSiamoUI.toast('Non sono riuscito a collegarti (' + err.message + ').');
+          if (window.NdumaUI && NdumaUI.toast) {
+            NdumaUI.toast('Non sono riuscito a collegarti (' + err.message + ').');
           } else {
             window.alert('Non sono riuscito a collegarti (' + err.message + ').');
           }
           return;
         }
-        event = await CiSiamoData.getEventById(event.id);
+        event = await NdumaData.getEventById(event.id);
         render();
       }
 
@@ -340,7 +340,7 @@
             .filter(function (p) { return (p.availableDateOptionIds || []).indexOf(opt.id) !== -1; })
             .map(function (p) { return p.name; });
           var count = names.length;
-          var namesLabel = names.length ? names.map(CiSiamoData.escapeHTML).join(', ') : 'Nessuno ancora';
+          var namesLabel = names.length ? names.map(NdumaData.escapeHTML).join(', ') : 'Nessuno ancora';
 
           // ha senso solo se c'è più di una data proposta (altrimenti "spicca"
           // rispetto a cosa?) e se qualcuno ha già risposto almeno una volta
@@ -363,7 +363,7 @@
             + '<div class="day-bar-bubble" style="display:none;">' + namesLabel + '</div>'
             + '<div class="day-bar-badge' + (isLeader ? ' leader' : '') + '"><span aria-hidden="true">👤</span>' + count + '</div>'
             + '<div class="day-bar-track' + (isLeader ? ' leader' : '') + '"><div class="day-bar-fill" style="height:' + fillH + 'px;"></div></div>'
-            + '<div class="day-bar-label">' + CiSiamoData.escapeHTML(weekday) + '<br><span class="sub">' + CiSiamoData.escapeHTML(dayMonth) + '</span></div>'
+            + '<div class="day-bar-label">' + NdumaData.escapeHTML(weekday) + '<br><span class="sub">' + NdumaData.escapeHTML(dayMonth) + '</span></div>'
             + '</div>';
         }).join('');
 
@@ -604,7 +604,7 @@
         var rowsHTML = rows.map(function (row) {
           return ''
             + '<div class="settings-row" style="margin-bottom:6px;">'
-            + '<div class="left">' + CiSiamoData.escapeHTML(row.name) + '</div>'
+            + '<div class="left">' + NdumaData.escapeHTML(row.name) + '</div>'
             + '<div style="font-size:12.5px; font-weight:600;">' + row.statusHTML + '</div>'
             + '</div>';
         }).join('');
@@ -629,7 +629,7 @@
       }
 
       /* ---------- sezione "quando sei disponibile" ----------
-         Niente più campo "il tuo nome": l'identità arriva da CiSiamoData
+         Niente più campo "il tuo nome": l'identità arriva da NdumaData
          (account o nome ospite già impostato altrove). Se non c'è ancora
          nessun nome su questo dispositivo, non si può rispondere da qui. */
       function buildAvailabilitySectionHTML() {
@@ -658,8 +658,8 @@
           if (ids.length) {
             var labels = event.dateOptions
               .filter(function (o) { return ids.indexOf(o.id) !== -1; })
-              .map(function (o) { return CiSiamoData.formatDateLabel(o.dateISO); });
-            summaryText = 'Sei disponibile: <b>' + labels.map(CiSiamoData.escapeHTML).join(', ') + '</b>';
+              .map(function (o) { return NdumaData.formatDateLabel(o.dateISO); });
+            summaryText = 'Sei disponibile: <b>' + labels.map(NdumaData.escapeHTML).join(', ') + '</b>';
           } else {
             summaryText = 'Hai indicato di <b>non essere mai disponibile</b> per questo evento.';
           }
@@ -691,9 +691,9 @@
           var selected = preselected.indexOf(opt.id) !== -1;
           var parts = shortDateParts(opt.dateISO);
           return '<div class="chip day-card' + (selected ? ' selected' : '') + '" data-option-id="' + opt.id + '">'
-            + '<div class="day-dow">' + CiSiamoData.escapeHTML(parts.dow) + '</div>'
-            + '<div class="day-num">' + CiSiamoData.escapeHTML(parts.day) + '</div>'
-            + '<div class="day-month">' + CiSiamoData.escapeHTML(parts.month) + '</div>'
+            + '<div class="day-dow">' + NdumaData.escapeHTML(parts.dow) + '</div>'
+            + '<div class="day-num">' + NdumaData.escapeHTML(parts.day) + '</div>'
+            + '<div class="day-month">' + NdumaData.escapeHTML(parts.month) + '</div>'
             + '<div class="chip-check">✓</div>'
             + '</div>';
         }).join('');
@@ -707,7 +707,7 @@
       }
 
       /* Giorno/numero/mese abbreviati per le card quadrate della griglia
-         disponibilità (vedi sopra) — CiSiamoData.formatDateLabel/shortDateLabel
+         disponibilità (vedi sopra) — NdumaData.formatDateLabel/shortDateLabel
          restituiscono invece la data per esteso ("Sabato 25 luglio"), pensata
          per il resto dell'app dove lo spazio non è così stretto. */
       function shortDateParts(dateISO) {
@@ -740,25 +740,25 @@
           + '<div class="confirmed-date-icon">' + (info.status === 'passato' ? '📖' : '📅') + '</div>'
           + '<div>'
           + '<div class="confirmed-date-label">' + (info.status === 'passato' ? 'Si è tenuto' : 'Si terrà') + '</div>'
-          + '<div class="confirmed-date-value">' + CiSiamoData.escapeHTML(CiSiamoData.formatDateLabel(info.bestOption.dateISO)) + '</div>'
+          + '<div class="confirmed-date-value">' + NdumaData.escapeHTML(NdumaData.formatDateLabel(info.bestOption.dateISO)) + '</div>'
           + '</div>'
           + '</div>';
 
         // Foto vera se la persona ha un account con avatar (vedi
         // attendeeAvatars, caricato una volta prima del primo render con
-        // CiSiamoData.getAvatarsForNames), altrimenti l'iniziale del nome su
+        // NdumaData.getAvatarsForNames), altrimenti l'iniziale del nome su
         // sfondo sfumato — stesso stile dell'avatar generico del profilo.
         var bubblesHTML = attendeeNames.length
           ? '<div class="attendee-bubbles">' + attendeeNames.map(function (name) {
               var avatarUrl = attendeeAvatars[name.toLowerCase()];
               var initial = (name.trim().charAt(0) || '?').toUpperCase();
               var circleInner = avatarUrl
-                ? '<img src="' + CiSiamoData.escapeHTML(avatarUrl) + '" alt="">'
-                : CiSiamoData.escapeHTML(initial);
+                ? '<img src="' + NdumaData.escapeHTML(avatarUrl) + '" alt="">'
+                : NdumaData.escapeHTML(initial);
               return ''
                 + '<div class="attendee-bubble">'
                 + '<div class="attendee-bubble-circle">' + circleInner + '</div>'
-                + '<div class="attendee-bubble-name">' + CiSiamoData.escapeHTML(name) + '</div>'
+                + '<div class="attendee-bubble-name">' + NdumaData.escapeHTML(name) + '</div>'
                 + '</div>';
             }).join('') + '</div>'
           : '<div class="empty-hint" style="padding:10px 0;">Nessuno segnato per questa data.</div>';
@@ -798,15 +798,15 @@
          rivalidano comunque tutto): un ospite senza account vede il conto
          ma non i pulsanti per toccarlo. */
       function buildExpensesSectionHTML() {
-        var info = CiSiamoData.computeEventStatus(event);
+        var info = NdumaData.computeEventStatus(event);
         var isConfirmedSimple = (info.status === 'done' || info.status === 'passato') && !!info.bestOption;
         if (!isConfirmedSimple) return '';
-        var confirmedNames = CiSiamoData.getConfirmedParticipantNames(event);
+        var confirmedNames = NdumaData.getConfirmedParticipantNames(event);
         if (!confirmedNames.length) return '';
 
-        var myAccountId = (CiSiamoData.getAccount() || {}).id || null;
+        var myAccountId = (NdumaData.getAccount() || {}).id || null;
         var isOrganizerAccount = !!(myAccountId && event.createdByAccountId && myAccountId === event.createdByAccountId);
-        var canWrite = CiSiamoData.hasAccount();
+        var canWrite = NdumaData.hasAccount();
 
         var expenses = event.expenses || [];
         var rowsHTML = expenses.length
@@ -816,19 +816,19 @@
                 ? '<span class="expense-edit" data-edit-expense="' + ex.id + '" style="cursor:pointer;">✏️</span><span class="expense-remove" data-remove-expense="' + ex.id + '" style="cursor:pointer;">✕</span>'
                 : '';
               var emojiHTML = ex.emoji
-                ? '<div class="expense-emoji-chip">' + CiSiamoData.escapeHTML(ex.emoji) + '</div>'
+                ? '<div class="expense-emoji-chip">' + NdumaData.escapeHTML(ex.emoji) + '</div>'
                 : '';
               return ''
                 + '<div class="expense-row">'
                 + '<div class="expense-row-left">'
                 + emojiHTML
                 + '<div>'
-                + '<div class="expense-desc">' + CiSiamoData.escapeHTML(ex.description) + '</div>'
-                + '<div class="expense-meta">Pagato da ' + CiSiamoData.escapeHTML(ex.paidByName) + ' · diviso tra ' + (ex.shareNames || []).length + '</div>'
+                + '<div class="expense-desc">' + NdumaData.escapeHTML(ex.description) + '</div>'
+                + '<div class="expense-meta">Pagato da ' + NdumaData.escapeHTML(ex.paidByName) + ' · diviso tra ' + (ex.shareNames || []).length + '</div>'
                 + '</div>'
                 + '</div>'
                 + '<div class="expense-row-right">'
-                + '<div class="expense-amount">' + CiSiamoData.formatEuro(ex.amount) + '</div>'
+                + '<div class="expense-amount">' + NdumaData.formatEuro(ex.amount) + '</div>'
                 + '<div class="expense-actions">' + actionsHTML + '</div>'
                 + '</div>'
                 + '</div>';
@@ -841,7 +841,7 @@
 
         var balanceHTML = '';
         if (expenses.length) {
-          var calc = CiSiamoData.computeExpenseBalances(event);
+          var calc = NdumaData.computeExpenseBalances(event);
           // Stessa logica foto-vera-o-iniziale delle bolle "Chi ci sarà"
           // (attendeeAvatars, già caricato una volta prima del primo
           // render): Fil ha notato giustamente che qui mancava, era rimasta
@@ -850,18 +850,18 @@
             var avatarUrl = attendeeAvatars[name.toLowerCase()];
             var initial = (name.trim().charAt(0) || '?').toUpperCase();
             return avatarUrl
-              ? '<img src="' + CiSiamoData.escapeHTML(avatarUrl) + '" alt="">'
-              : CiSiamoData.escapeHTML(initial);
+              ? '<img src="' + NdumaData.escapeHTML(avatarUrl) + '" alt="">'
+              : NdumaData.escapeHTML(initial);
           };
 
           var balRows = calc.balances.map(function (b) {
             var cls = b.net > 0.01 ? 'balance-pill-amount-positive' : (b.net < -0.01 ? 'balance-pill-amount-negative' : 'balance-pill-amount-neutral');
-            var amountLabel = b.net > 0.01 ? '+' + CiSiamoData.formatEuro(b.net)
-              : (b.net < -0.01 ? '-' + CiSiamoData.formatEuro(-b.net) : CiSiamoData.formatEuro(0));
+            var amountLabel = b.net > 0.01 ? '+' + NdumaData.formatEuro(b.net)
+              : (b.net < -0.01 ? '-' + NdumaData.formatEuro(-b.net) : NdumaData.formatEuro(0));
             return ''
               + '<div class="balance-pill-row">'
               + '<div class="balance-pill-avatar">' + avatarChipHTML(b.name) + '</div>'
-              + '<div class="balance-pill-name">' + CiSiamoData.escapeHTML(b.name) + '</div>'
+              + '<div class="balance-pill-name">' + NdumaData.escapeHTML(b.name) + '</div>'
               + '<div class="balance-pill-amount ' + cls + '">' + amountLabel + '</div>'
               + '</div>';
           }).join('');
@@ -871,7 +871,7 @@
                 return ''
                   + '<div class="settlement-sentence-row">'
                   + '<div class="settlement-sentence-avatar">' + avatarChipHTML(s.fromName) + '</div>'
-                  + '<div class="settlement-sentence-text">' + CiSiamoData.escapeHTML(s.fromName) + ' deve dare <b>' + CiSiamoData.formatEuro(s.amount) + '</b> a ' + CiSiamoData.escapeHTML(s.toName) + '</div>'
+                  + '<div class="settlement-sentence-text">' + NdumaData.escapeHTML(s.fromName) + ' deve dare <b>' + NdumaData.formatEuro(s.amount) + '</b> a ' + NdumaData.escapeHTML(s.toName) + '</div>'
                   + '</div>';
               }).join('')
             : '<div class="empty-hint" style="padding:6px 0;">Conti già in pari.</div>';
@@ -885,7 +885,7 @@
 
         var totalAmount = expenses.reduce(function (sum, ex) { return sum + Number(ex.amount || 0); }, 0);
         var subtitleText = expenses.length
-          ? expenses.length + (expenses.length === 1 ? ' spesa' : ' spese') + ' · ' + CiSiamoData.formatEuro(totalAmount) + ' in totale'
+          ? expenses.length + (expenses.length === 1 ? ' spesa' : ' spese') + ' · ' + NdumaData.formatEuro(totalAmount) + ' in totale'
           : 'Nessuna spesa ancora';
 
         // Niente icona nell'intestazione (Fil non voleva la bustina di soldi):
@@ -911,7 +911,7 @@
       }
 
       function render() {
-        var info = CiSiamoData.computeEventStatus(event);
+        var info = NdumaData.computeEventStatus(event);
         var isConfirmedSimple = (info.status === 'done' || info.status === 'passato') && !!info.bestOption;
 
         // Ogni evento ha ormai il suo link di invito (event.shareToken): basta
@@ -927,8 +927,8 @@
         var shareSectionHTML = (isOrganizer && !isConfirmedSimple)
           ? ''
             + '<div class="share-box" id="shareBox">'
-            + '<div class="share-label" id="shareLabel">' + CiSiamoData.escapeHTML(shareLabel) + '</div>'
-            + '<div class="share-row"><input type="text" id="shareLinkInput" readonly value="' + CiSiamoData.escapeHTML(shareUrl) + '"><button type="button" id="shareActionBtn">Condividi</button></div>'
+            + '<div class="share-label" id="shareLabel">' + NdumaData.escapeHTML(shareLabel) + '</div>'
+            + '<div class="share-row"><input type="text" id="shareLinkInput" readonly value="' + NdumaData.escapeHTML(shareUrl) + '"><button type="button" id="shareActionBtn">Condividi</button></div>'
             + '</div>'
           : '';
 
@@ -942,15 +942,15 @@
         // Tap per vederla a schermo intero (Fil, 2026-07-10): cursor:zoom-in
         // per far capire che è cliccabile, vedi openPhotoLightbox più sotto.
         var photoHTML = event.photoUrl
-          ? '<img id="eventPhotoImg" src="' + CiSiamoData.escapeHTML(event.photoUrl) + '" alt="" style="width:100%; height:160px; object-fit:cover; border-radius:18px; margin-bottom:16px; box-shadow:0 6px 18px rgba(58,50,90,0.14); cursor:zoom-in;">'
+          ? '<img id="eventPhotoImg" src="' + NdumaData.escapeHTML(event.photoUrl) + '" alt="" style="width:100%; height:160px; object-fit:cover; border-radius:18px; margin-bottom:16px; box-shadow:0 6px 18px rgba(58,50,90,0.14); cursor:zoom-in;">'
           : '';
 
-        var mapsUrl = CiSiamoData.buildMapsUrl(event);
+        var mapsUrl = NdumaData.buildMapsUrl(event);
         var locationHTML = event.locationAddress
           ? '<div class="card-date" style="margin:2px 2px 16px;">📍 '
             + (mapsUrl
-              ? '<a href="' + CiSiamoData.escapeHTML(mapsUrl) + '" target="_blank" rel="noopener" style="color:var(--lavender); font-weight:600;">' + CiSiamoData.escapeHTML(event.locationAddress) + '</a>'
-              : CiSiamoData.escapeHTML(event.locationAddress))
+              ? '<a href="' + NdumaData.escapeHTML(mapsUrl) + '" target="_blank" rel="noopener" style="color:var(--lavender); font-weight:600;">' + NdumaData.escapeHTML(event.locationAddress) + '</a>'
+              : NdumaData.escapeHTML(event.locationAddress))
             + '</div>'
           : '';
 
@@ -979,6 +979,17 @@
           + buildDayBreakdownHTML();
 
         var manualConfirmSectionHTML = buildManualConfirmSectionHTML(info);
+
+        // In pareggio (Fil, 2026-07-19) la scelta del giorno non è più un
+        // dettaglio in fondo alla pagina: è l'unica cosa bloccante rimasta,
+        // quindi la sezione (titolo "Pareggio: scegli tu la data" + tasti
+        // Conferma/Annulla) sale subito sotto "Invitati", prima di
+        // conferma/disponibilità/spese/"chi c'è per ogni giorno". Nel caso
+        // normale (non pareggio) resta invece in fondo, come sempre — è lì
+        // che vive manualConfirmBottomHTML più sotto in contentEl.innerHTML.
+        var isTieState = info.status === 'tie';
+        var manualConfirmTopHTML = isTieState ? manualConfirmSectionHTML : '';
+        var manualConfirmBottomHTML = isTieState ? '' : manualConfirmSectionHTML;
 
         // Su un evento già annullato non ha più senso lasciar scegliere una
         // data (bug segnalato da Fil, 2026-07-10: "mi fa selezionare la
@@ -1010,7 +1021,9 @@
         // grafica dei giorni. La grafica "chi c'è per ogni giorno" e il
         // box di conferma manuale dell'organizzatore restano in fondo:
         // sono dettagli/strumenti, non la prima cosa che un ospite deve
-        // fare aprendo la pagina.
+        // fare aprendo la pagina. Eccezione: in pareggio manualConfirmTopHTML
+        // (vedi sopra) sale subito sotto Invitati, perché lì è l'unica cosa
+        // bloccante rimasta, non un dettaglio.
         var cancelledMessageHTML = info.status !== 'cancelled' ? '' : '<div class="card-date" style="margin:2px 2px 16px; color:var(--cancel);">'
           + (info.cancelledManually
               ? 'L\'organizzatore ha annullato l\'evento.'
@@ -1023,19 +1036,20 @@
           + cancelledMessageHTML
           + repeatBoxHTML
           + (event.descriptionAudioUrl
-              ? '<audio controls src="' + CiSiamoData.escapeHTML(event.descriptionAudioUrl) + '" style="width:100%; margin:2px 2px 16px;"></audio>'
-              : (event.description ? '<div class="card-date" style="margin:2px 2px 16px;">' + CiSiamoData.escapeHTML(event.description) + '</div>' : ''))
+              ? '<audio controls src="' + NdumaData.escapeHTML(event.descriptionAudioUrl) + '" style="width:100%; margin:2px 2px 16px;"></audio>'
+              : (event.description ? '<div class="card-date" style="margin:2px 2px 16px;">' + NdumaData.escapeHTML(event.description) + '</div>' : ''))
           + locationHTML
           + shareSectionHTML
           + inviteesRosterHTML
+          + manualConfirmTopHTML
           + confirmedSummaryHTML
           + availabilityHTML
           + expensesSectionHTML
           + breakdownSectionHTML
-          + manualConfirmSectionHTML;
+          + manualConfirmBottomHTML;
 
         // rianima/rende cliccabile il contenuto appena creato
-        if (window.CiSiamoUI) window.CiSiamoUI.refresh();
+        if (window.NdumaUI) window.NdumaUI.refresh();
 
         bindEvents();
         bindDayBars();
@@ -1048,7 +1062,7 @@
         if (!url) return;
         var overlay = document.createElement('div');
         overlay.className = 'photo-lightbox';
-        overlay.innerHTML = '<img src="' + CiSiamoData.escapeHTML(url) + '" alt="">';
+        overlay.innerHTML = '<img src="' + NdumaData.escapeHTML(url) + '" alt="">';
         overlay.addEventListener('click', function () { overlay.remove(); });
         document.body.appendChild(overlay);
       }
@@ -1060,7 +1074,7 @@
          chiamata; onDone (opzionale) gira solo in caso di successo, prima
          di render() — serve a openConfirmDayPopup per chiudersi. */
       async function confirmDateOption(optionId, btnEl, onDone) {
-        var label = CiSiamoData.formatDateLabel(
+        var label = NdumaData.formatDateLabel(
           (event.dateOptions.filter(function (o) { return o.id === optionId; })[0] || {}).dateISO || ''
         );
         var sure = window.confirm('Confermare "' + label + '"? Questa data diventa subito quella definitiva dell\'evento, anche se non tutti hanno ancora risposto. Non si può annullare da qui.');
@@ -1070,7 +1084,7 @@
         btnEl.textContent = 'Confermo...';
         btnEl.disabled = true;
         try {
-          event = await CiSiamoData.confirmEventDate(event.id, optionId);
+          event = await NdumaData.confirmEventDate(event.id, optionId);
         } catch (err) {
           btnEl.textContent = originalText;
           btnEl.disabled = false;
@@ -1116,9 +1130,9 @@
           }).length;
           var parts = shortDateParts(opt.dateISO);
           return '<div class="chip day-card" data-day-option-id="' + opt.id + '">'
-            + '<div class="day-dow">' + CiSiamoData.escapeHTML(parts.dow) + '</div>'
-            + '<div class="day-num">' + CiSiamoData.escapeHTML(parts.day) + '</div>'
-            + '<div class="day-month">' + CiSiamoData.escapeHTML(parts.month) + '</div>'
+            + '<div class="day-dow">' + NdumaData.escapeHTML(parts.dow) + '</div>'
+            + '<div class="day-num">' + NdumaData.escapeHTML(parts.day) + '</div>'
+            + '<div class="day-month">' + NdumaData.escapeHTML(parts.month) + '</div>'
             + '<div class="day-bar-badge" style="margin:4px auto 0; width:fit-content;"><span aria-hidden="true">👤</span>' + count + '</div>'
             + '</div>';
         }).join('');
@@ -1175,7 +1189,7 @@
         var manualConfirmBtn = document.getElementById('manualConfirmBtn');
         if (manualConfirmBtn) {
           manualConfirmBtn.addEventListener('click', function () {
-            var info = CiSiamoData.computeEventStatus(event);
+            var info = NdumaData.computeEventStatus(event);
             var isTie = info.status === 'tie';
             var optionsToShow = isTie ? info.tiedOptions : (event.dateOptions || []);
             if (optionsToShow.length === 1) {
@@ -1198,7 +1212,7 @@
             var originalText = cancelEventManuallyLink.textContent;
             cancelEventManuallyLink.textContent = 'Annullo...';
             try {
-              event = await CiSiamoData.cancelEventManually(event.id);
+              event = await NdumaData.cancelEventManually(event.id);
             } catch (err) {
               cancelEventManuallyLink.textContent = originalText;
               window.alert('Non sono riuscito ad annullare (' + err.message + '). Riprova.');
@@ -1223,7 +1237,7 @@
             var originalText = withdrawLink.textContent;
             withdrawLink.textContent = 'Segnalo...';
             try {
-              event = await CiSiamoData.withdrawFromEvent(event.id, guestName);
+              event = await NdumaData.withdrawFromEvent(event.id, guestName);
             } catch (err) {
               withdrawLink.textContent = originalText;
               window.alert('Non sono riuscito a segnalarlo (' + err.message + '). Riprova.');
@@ -1239,13 +1253,13 @@
         var rejoinLink = document.getElementById('rejoinEventLink');
         if (rejoinLink) {
           rejoinLink.addEventListener('click', async function () {
-            var info = CiSiamoData.computeEventStatus(event);
+            var info = NdumaData.computeEventStatus(event);
             if (!info.bestOption) return;
 
             var originalText = rejoinLink.textContent;
             rejoinLink.textContent = 'Aggiorno...';
             try {
-              event = await CiSiamoData.upsertParticipant(event.id, guestName, [info.bestOption.id]);
+              event = await NdumaData.upsertParticipant(event.id, guestName, [info.bestOption.id]);
             } catch (err) {
               rejoinLink.textContent = originalText;
               window.alert('Non sono riuscito ad aggiornare la tua risposta (' + err.message + '). Riprova.');
@@ -1266,7 +1280,7 @@
             var input = document.getElementById('shareLinkInput');
 
             if (navigator.share) {
-              navigator.share({ title: 'Ci siamo — ' + event.name, url: input.value })
+              navigator.share({ title: 'nduma — ' + event.name, url: input.value })
                 .catch(function () { /* utente ha annullato il foglio di condivisione: nessun errore da mostrare */ });
               return;
             }
@@ -1301,7 +1315,7 @@
         var claimSkipLink = document.getElementById('claimSkipLink');
         if (claimSkipLink) {
           claimSkipLink.addEventListener('click', function () {
-            try { sessionStorage.setItem('ci-siamo:claimDismissed:' + event.id, '1'); } catch (err) { /* ignora */ }
+            try { sessionStorage.setItem('nduma:claimDismissed:' + event.id, '1'); } catch (err) { /* ignora */ }
             render();
           });
         }
@@ -1367,7 +1381,7 @@
               currentStep: 1
             };
             try {
-              sessionStorage.setItem('ci-siamo:eventDraft', JSON.stringify(repeatDraft));
+              sessionStorage.setItem('nduma:eventDraft', JSON.stringify(repeatDraft));
               sessionStorage.setItem('cs-nav-direction', 'forward');
             } catch (err) { /* ignora: nel peggiore dei casi si riparte da un form vuoto */ }
 
@@ -1414,12 +1428,12 @@
             var sure = window.confirm('Cancellare questa spesa? Non si può annullare.');
             if (!sure) return;
             try {
-              await CiSiamoData.deleteEventExpense(id);
+              await NdumaData.deleteEventExpense(id);
             } catch (err) {
               window.alert('Non sono riuscito a cancellare la spesa (' + err.message + ').');
               return;
             }
-            event = await CiSiamoData.getEventById(event.id);
+            event = await NdumaData.getEventById(event.id);
             render();
           });
         });
@@ -1436,14 +1450,14 @@
         // già prima e lo è dopo, chi ha appena risposto ha "chiuso" l'evento
         // e merita lo stesso popup di festa di chi lo crea, non solo il
         // riepilogo silenzioso che si vede ricaricando la pagina più tardi.
-        var wasConfirmed = CiSiamoData.computeEventStatus(event).status === 'done';
+        var wasConfirmed = NdumaData.computeEventStatus(event).status === 'done';
 
         var originalText = btnEl.textContent;
         btnEl.disabled = true;
         btnEl.textContent = 'Salvo...';
 
         try {
-          event = await CiSiamoData.upsertParticipant(event.id, guestName, selectedIds);
+          event = await NdumaData.upsertParticipant(event.id, guestName, selectedIds);
         } catch (err) {
           if (formError) formError.textContent = 'Non sono riuscito a salvare la tua disponibilità (' + err.message + '). Riprova.';
           btnEl.disabled = false;
@@ -1454,7 +1468,7 @@
         editingAvailability = false;
         render();
 
-        var infoAfter = CiSiamoData.computeEventStatus(event);
+        var infoAfter = NdumaData.computeEventStatus(event);
         if (!wasConfirmed && infoAfter.status === 'done' && infoAfter.bestOption) {
           showEventConfirmedPopup(infoAfter);
         }
@@ -1475,8 +1489,8 @@
           + '<div class="signup-modal">'
           + '<div class="signup-modal-icon">🎉</div>'
           + '<div class="signup-modal-title">Evento confermato!</div>'
-          + '<div class="signup-modal-text" style="margin-bottom:6px;">' + CiSiamoData.escapeHTML(event.name) + '</div>'
-          + '<div class="signup-modal-text">📅 ' + CiSiamoData.escapeHTML(CiSiamoData.formatDateLabel(info.bestOption.dateISO)) + '</div>'
+          + '<div class="signup-modal-text" style="margin-bottom:6px;">' + NdumaData.escapeHTML(event.name) + '</div>'
+          + '<div class="signup-modal-text">📅 ' + NdumaData.escapeHTML(NdumaData.formatDateLabel(info.bestOption.dateISO)) + '</div>'
           + '</div>';
 
         var dismissed = false;
@@ -1526,7 +1540,7 @@
         // per far notare il menu ⋮ la prima volta che un organizzatore
         // rivede un suo evento (Fil, 2026-07-07). Sparisce per sempre al
         // primo click sul menu, su qualunque evento (non serve per ognuno).
-        var MENU_DOT_KEY = 'ci-siamo:hintSeen:menuDot';
+        var MENU_DOT_KEY = 'nduma:hintSeen:menuDot';
         if (menuDot) {
           try {
             if (!localStorage.getItem(MENU_DOT_KEY)) menuDot.style.display = '';
@@ -1551,7 +1565,7 @@
           deleteBtn.addEventListener('click', async function () {
             // Non annullabile: conferma esplicita prima di procedere (Fil,
             // 2026-07-07). Chi aveva risposto disponibile riceve email +
-            // notifica in-app da CiSiamoData.deleteEvent() stesso.
+            // notifica in-app da NdumaData.deleteEvent() stesso.
             dropdown.style.display = 'none';
             var sure = window.confirm('Eliminare "' + event.name + '"? Chi aveva già risposto disponibile riceverà un avviso. Non si può annullare.');
             if (!sure) return;
@@ -1559,7 +1573,7 @@
             var originalText = deleteBtn.textContent;
             deleteBtn.textContent = 'Elimino...';
             try {
-              await CiSiamoData.deleteEvent(event.id);
+              await NdumaData.deleteEvent(event.id);
             } catch (err) {
               deleteBtn.textContent = originalText;
               window.alert('Non sono riuscito a eliminare l\'evento (' + err.message + '). Riprova.');
@@ -1626,9 +1640,9 @@
         renderExpenseEmojiSlot();
         expenseEmojiPicker.style.display = 'none';
 
-        var confirmedNames = CiSiamoData.getConfirmedParticipantNames(event);
+        var confirmedNames = NdumaData.getConfirmedParticipantNames(event);
         expensePaidBySelect.innerHTML = confirmedNames.map(function (n) {
-          return '<option value="' + CiSiamoData.escapeHTML(n) + '">' + CiSiamoData.escapeHTML(n) + '</option>';
+          return '<option value="' + NdumaData.escapeHTML(n) + '">' + NdumaData.escapeHTML(n) + '</option>';
         }).join('');
         // Di base propone te stesso come chi ha pagato, se sei tra i
         // partecipanti confermati: il caso più comune è che chi registra la
@@ -1647,8 +1661,8 @@
           var checked = includedLower ? includedLower.indexOf(n.toLowerCase()) !== -1 : true;
           return ''
             + '<label class="option-row">'
-            + '<input type="checkbox" class="expense-include-checkbox" value="' + CiSiamoData.escapeHTML(n) + '"' + (checked ? ' checked' : '') + '>'
-            + '<span class="option-row-title">' + CiSiamoData.escapeHTML(n) + '</span>'
+            + '<input type="checkbox" class="expense-include-checkbox" value="' + NdumaData.escapeHTML(n) + '"' + (checked ? ' checked' : '') + '>'
+            + '<span class="option-row-title">' + NdumaData.escapeHTML(n) + '</span>'
             + '</label>';
         }).join('');
 
@@ -1689,11 +1703,11 @@
           expenseSaveBtn.textContent = 'Salvo...';
           try {
             if (editingExpenseId) {
-              await CiSiamoData.updateEventExpense(editingExpenseId, {
+              await NdumaData.updateEventExpense(editingExpenseId, {
                 description: description, amount: amount, paidByName: paidByName, includedNames: includedNames, emoji: selectedExpenseEmoji
               });
             } else {
-              await CiSiamoData.addEventExpense(event.id, {
+              await NdumaData.addEventExpense(event.id, {
                 description: description, amount: amount, paidByName: paidByName, includedNames: includedNames, emoji: selectedExpenseEmoji
               });
             }
@@ -1705,7 +1719,7 @@
           }
           expenseSaveBtn.disabled = false;
           expenseSaveBtn.textContent = originalText;
-          event = await CiSiamoData.getEventById(event.id);
+          event = await NdumaData.getEventById(event.id);
           closeExpenseModal();
           render();
         });
@@ -1718,14 +1732,14 @@
          buildConfirmedSummaryHTML). */
       var attendeeAvatars = {};
       async function loadAttendeeAvatarsIfNeeded() {
-        var info = CiSiamoData.computeEventStatus(event);
+        var info = NdumaData.computeEventStatus(event);
         if ((info.status !== 'done' && info.status !== 'passato') || !info.bestOption) return;
         var names = (event.participants || [])
           .filter(function (p) { return (p.availableDateOptionIds || []).indexOf(info.bestOption.id) !== -1; })
           .map(function (p) { return p.name; });
         if (!names.length) return;
         try {
-          var rows = await CiSiamoData.getAvatarsForNames(names);
+          var rows = await NdumaData.getAvatarsForNames(names);
           rows.forEach(function (r) {
             if (r.avatarUrl && r.username) attendeeAvatars[r.username.toLowerCase()] = r.avatarUrl;
           });
