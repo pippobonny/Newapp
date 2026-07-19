@@ -1145,7 +1145,7 @@ label.event-photo-preview {
   flex-shrink: 0;
 }
 
-.notif-icon.quota { background: var(--butter-soft); }
+.notif-icon.almost { background: var(--butter-soft); }
 .notif-icon.new { background: var(--sky-soft); }
 .notif-icon.confirmed { background: var(--mint-soft); }
 .notif-icon.cancelled { background: var(--cancel-soft); }

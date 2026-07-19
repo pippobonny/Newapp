@@ -1086,13 +1086,13 @@
      ora punta sempre a un evento, non più a una lista amici (Fil + Virgi,
      2026-07-05). */
 
-  var EVENT_SELECT = 'id, name, description, descriptionAudioUrl:description_audio_url, quota, '
+  var EVENT_SELECT = 'id, name, description, descriptionAudioUrl:description_audio_url, '
     + 'photoUrl:photo_url, '
     + 'locationAddress:location_address, locationPlaceId:location_place_id, '
     + 'locationLat:location_lat, locationLng:location_lng, '
     + 'createdBy:created_by, createdByAccountId:created_by_account_id, friendListId:friend_list_id, createdAt:created_at, '
     + 'cancelledAt:cancelled_at, shareToken:share_token, openInvite:open_invite, '
-    + 'confirmedDateOptionId:confirmed_date_option_id, '
+    + 'confirmedDateOptionId:confirmed_date_option_id, manuallyCancelled:manually_cancelled, '
     + 'dateOptions:date_options!date_options_event_id_fkey(id, dateISO:date_iso), '
     + 'participants(name, availableDateOptionIds:available_date_option_ids, accountId:account_id, createdAt:created_at), '
     + 'invitees:event_invitees(id, name, accountId:account_id, claimedAt:claimed_at)';
@@ -1235,7 +1235,6 @@
       .insert({
         name: (input.name || 'Evento senza nome').trim(),
         description: (input.description || '').trim(),
-        quota: Math.max(1, parseInt(input.quota, 10) || 1),
         created_by: (input.createdBy || '').trim() || null,
         created_by_account_id: creatorAcc && creatorAcc.id ? creatorAcc.id : null,
         friend_list_id: input.friendListId || null,
@@ -1369,7 +1368,9 @@
       if (info.status === 'cancelled') {
         notifications.push({
           icon: 'cancelled', emoji: '🚫', time: event.cancelledAt || latestEventActivityTime(event),
-          text: '<b>' + escapeHTML(event.name) + '</b> è stato annullato: non si è raggiunta la quota minima.'
+          text: info.cancelledManually
+            ? '<b>' + escapeHTML(event.name) + '</b> è stato annullato dall\'organizzatore.'
+            : '<b>' + escapeHTML(event.name) + '</b> è stato annullato: hanno risposto tutti ma nessuno era disponibile.'
         });
       } else if (info.status === 'done') {
         notifications.push({
@@ -1377,10 +1378,10 @@
           text: '<b>' + escapeHTML(event.name) + '</b> è confermato!'
         });
       } else if (info.status === 'almost') {
-        var missing = info.quota - info.count;
+        var missing = info.totalInvited - info.totalResponded;
         notifications.push({
-          icon: 'quota', emoji: '🎉', time: latestEventActivityTime(event),
-          text: '<b>' + escapeHTML(event.name) + '</b> ha quasi raggiunto la quota: manca' + (missing === 1 ? '' : 'no') + ' ' + missing + (missing === 1 ? ' persona' : ' persone') + '.'
+          icon: 'almost', emoji: '🎉', time: latestEventActivityTime(event),
+          text: '<b>' + escapeHTML(event.name) + '</b> è quasi risolto: manca' + (missing === 1 ? '' : 'no') + ' ' + missing + (missing === 1 ? ' risposta' : ' risposte') + '.'
         });
       } else if (!iAmOrganizer) {
         notifications.push({
@@ -1505,7 +1506,7 @@
   }
 
   /* Aggiorna un evento esistente: nome, descrizione (testo O vocale),
-     foto, luogo, quota, date proposte e invitati. input ha la stessa forma
+     foto, luogo, date proposte e invitati. input ha la stessa forma
      di createEvent(); input.dates è la lista COMPLETA e finale delle date
      (non solo quelle nuove), stesso discorso per input.inviteeNames. */
   async function updateEvent(eventId, input) {
@@ -1516,7 +1517,6 @@
       name: (input.name || 'Evento senza nome').trim(),
       description: (input.description || '').trim(),
       description_audio_url: input.descriptionAudioUrl || null,
-      quota: Math.max(1, parseInt(input.quota, 10) || 1),
       photo_url: input.photoUrl || null,
       location_address: (input.locationAddress || '').trim() || null,
       location_place_id: input.locationPlaceId || null,
@@ -1713,15 +1713,36 @@
   }
 
   /* Conferma manualmente una data, scavalcando il calcolo automatico
-     (quota/pareggio) — pensata per l'organizzatore, in due casi (Fil,
+     (risposte/pareggio) — pensata per l'organizzatore, in due casi (Fil,
      2026-07-10): chiudere subito senza aspettare che rispondano tutti, o
-     sciogliere un pareggio quando più date arrivano appaiate alla quota.
-     Vince su tutto il resto in computeEventStatus, qualunque sia lo stato
-     attuale (anche prima che la quota sia raggiunta). */
+     sciogliere un pareggio quando più date arrivano appaiate. Vince su
+     tutto il resto in computeEventStatus, qualunque sia lo stato attuale.
+     Pulisce anche manually_cancelled: se l'organizzatore aveva annullato a
+     mano e ci ripensa, confermare una data qui lo "riapre" senza bisogno di
+     un'azione separata (Fil, 2026-07-19). */
   async function confirmEventDate(eventId, dateOptionId) {
     var res = await supabase
       .from('events')
-      .update({ confirmed_date_option_id: dateOptionId })
+      .update({ confirmed_date_option_id: dateOptionId, manually_cancelled: false })
+      .eq('id', eventId);
+    if (res.error) throw new Error(res.error.message);
+    return getEventById(eventId);
+  }
+
+  /* Annulla un evento a mano, senza aspettare che rispondano tutti gli
+     invitati (Fil, 2026-07-19: tolta la quota, l'unico modo che un evento si
+     annullasse da solo era che rispondessero proprio tutti — se un paio di
+     invitati restano in silenzio per settimane, l'organizzatore altrimenti
+     resterebbe bloccato). Pulisce anche confirmed_date_option_id, così i due
+     stati (confermato/annullato manualmente) restano sempre mutuamente
+     esclusivi lato dati, non solo lato calcolo in computeEventStatus.
+     cancelled_at viene scritto subito (non aspetta il prossimo giro di
+     pruneCancelledEvents): stessa scadenza di una settimana degli annullati
+     automatici, vedi pruneCancelledEvents. */
+  async function cancelEventManually(eventId) {
+    var res = await supabase
+      .from('events')
+      .update({ manually_cancelled: true, confirmed_date_option_id: null, cancelled_at: new Date().toISOString() })
       .eq('id', eventId);
     if (res.error) throw new Error(res.error.message);
     return getEventById(eventId);
@@ -1842,8 +1863,9 @@
      mentre l'evento aspetta ancora risposte), questo si usa DOPO che una
      data è già stata fissata — un imprevisto capitato a chi aveva già detto
      di esserci. Sempre azzera la disponibilità di chi lo chiama; se con lui
-     tolto la data confermata scende sotto quota, l'evento si riapre da solo
-     (torna "in attesa" per tutti, vedi withdraw_from_event lato server) e
+     tolto non resta più nessuno disponibile per la data confermata, l'evento
+     si riapre da solo (torna "in attesa" per tutti, vedi withdraw_from_event
+     lato server) e
      l'organizzatore riceve una notifica in ogni caso, riaperto o no. Tornare
      indietro ("ci sarò dopotutto") non serve una funzione dedicata: basta
      rispondere di nuovo disponibile con upsertParticipant, come sempre. */
@@ -1857,12 +1879,16 @@
     return getEventById(eventId);
   }
 
-  /* Calcola stato, percentuale di riempimento e "miglior data" di un evento.
-     Chi ha risposto "non ci sono mai" (available_date_option_ids vuoto, salvato
-     con un click esplicito, non una non-risposta) resta un partecipante a tutti
-     gli effetti ma NON conta per la quota: non potrà mai essere tra le persone
-     che confermano una data, quindi contarlo farebbe sembrare l'evento più
-     vicino alla conferma di quanto non sia davvero. */
+  /* Calcola stato, percentuale di risposta e "miglior data" di un evento.
+     Fil, 2026-07-19: tolta la quota ("quante persone servono per
+     confermare") — troppo complicata da spiegare. Ora un evento si conferma
+     o si annulla DA SOLO solo quando hanno risposto tutti gli invitati (sì o
+     no), oppure l'organizzatore lo chiude a mano in qualunque momento
+     (conferma una data, o annulla) tramite confirmEventDate/
+     cancelEventManually. Chi ha risposto "non ci sono mai"
+     (available_date_option_ids vuoto, salvato con un click esplicito, non
+     una non-risposta) resta un partecipante a tutti gli effetti ma non vota
+     per nessuna data. */
   function computeEventStatus(event) {
     var participants = event.participants || [];
     var neverAvailable = participants.filter(function (p) {
@@ -1873,14 +1899,14 @@
     });
 
     var count = activeParticipants.length;
-    var quota = event.quota || 1;
-    var percent = Math.max(0, Math.min(100, Math.round((count / quota) * 100)));
 
     // Quante persone risultano invitate in tutto: il numero di invitati
-    // copiati sull'evento alla creazione. Serve solo per capire quando TUTTI
-    // hanno risposto (vedi sotto); se l'evento non ha invitati (creato prima
-    // che diventasse obbligatorio), questo resta null e l'evento non si
-    // annulla mai da solo.
+    // copiati sull'evento alla creazione. Serve per capire quando TUTTI
+    // hanno risposto (vedi sotto) e per il conteggio "N di M hanno
+    // risposto" nelle card; se l'evento non ha invitati (creato prima che
+    // diventasse obbligatorio), questo resta null e l'evento non si
+    // annulla/conferma mai da solo — resta solo la conferma/annullamento
+    // manuale dell'organizzatore.
     var totalInvited = (event.invitees && event.invitees.length) ? event.invitees.length : null;
 
     // IMPORTANTE: l'organizzatore NON è mai tra gli invitati (event.invitees
@@ -1892,6 +1918,17 @@
     // finivano "annullati" subito dopo la creazione).
     var organizerLower = (event.createdBy || '').trim().toLowerCase();
     var totalResponded = participants.filter(function (p) {
+      return (p.name || '').trim().toLowerCase() !== organizerLower;
+    }).length;
+
+    // Serve a capire se, oltre a te che organizzi (sempre "disponibile" su
+    // tutte le date fin dalla creazione), c'è ALMENO un vero invitato che ha
+    // detto di esserci: senza la quota a fare da rete di sicurezza, un
+    // evento a data singola dove tutti rispondono "no" si confermerebbe lo
+    // stesso con te come unico partecipante, se non lo escludessimo qui
+    // (deciso con Fil, 2026-07-19: in quel caso l'evento si deve annullare,
+    // non confermare).
+    var activeNonOrganizerCount = activeParticipants.filter(function (p) {
       return (p.name || '').trim().toLowerCase() !== organizerLower;
     }).length;
 
@@ -1921,29 +1958,43 @@
         })
       : [];
 
-    // L'organizzatore può confermare una data a mano in qualunque momento
-    // (bottone in evento.html), sia per chiudere subito senza aspettare
-    // tutti, sia per sciogliere un pareggio arrivato a quota raggiunta: in
-    // entrambi i casi questo vince su tutto il resto (Fil, 2026-07-10).
+    // L'organizzatore può confermare una data o annullare l'evento a mano in
+    // qualunque momento (bottoni in evento.html): entrambi vincono su tutto
+    // il resto in computeEventStatus, qualunque sia lo stato calcolato
+    // (Fil, 2026-07-10 per la conferma, 2026-07-19 per l'annullamento).
+    // confirmEventDate/cancelEventManually si puliscono sempre a vicenda lato
+    // dati, quindi qui non dovrebbero mai essere vere insieme — ma se
+    // capitasse, la conferma vince (è la scelta più "attiva" delle due).
     var confirmedOption = event.confirmedDateOptionId
       ? (event.dateOptions || []).filter(function (o) { return o.id === event.confirmedDateOptionId; })[0]
       : null;
 
     var status = 'waiting';
+    var cancelledManually = false;
     if (confirmedOption) {
       status = 'done';
       bestOption = confirmedOption;
-    } else if (count >= quota) {
-      // Quota raggiunta ma più di una data appaiata al primo posto: si
-      // resta in sospeso finché l'organizzatore non ne sceglie una (invece
-      // di far vincere in automatico e silenziosamente la prima inserita).
-      status = tiedOptions.length > 1 ? 'tie' : 'done';
+    } else if (event.manuallyCancelled) {
+      status = 'cancelled';
+      cancelledManually = true;
     } else if (totalInvited !== null && totalResponded >= totalInvited) {
       // Hanno risposto tutti quelli della lista (disponibili o "non ci sono
-      // mai") e non si è comunque raggiunta la quota: non ha più senso restare
-      // in attesa, l'evento si annulla da solo.
-      status = 'cancelled';
-    } else if (quota - count <= 1) {
+      // mai"): a questo punto l'evento si risolve da solo, non ha più senso
+      // restare in attesa di qualcun altro.
+      if (activeNonOrganizerCount === 0) {
+        // Nessun vero invitato disponibile per nessuna data (solo tu, se
+        // proprio nessuno ha risposto "sì" a niente): si annulla.
+        status = 'cancelled';
+      } else if (tiedOptions.length > 1) {
+        // Più date appaiate al primo posto: si resta in sospeso finché
+        // l'organizzatore non ne sceglie una a mano (invece di far vincere
+        // in automatico e silenziosamente la prima inserita).
+        status = 'tie';
+      } else {
+        status = 'done';
+      }
+    } else if (totalInvited !== null && totalInvited - totalResponded <= 1) {
+      // Manca la risposta di una sola persona: l'evento è quasi risolto.
       status = 'almost';
     }
 
@@ -1979,15 +2030,17 @@
 
     return {
       status: status,
+      cancelledManually: cancelledManually,
       count: count,
-      quota: quota,
-      // Quanti hanno risposto disponibili su quanti invitati in tutto (non la
-      // soglia minima per confermare): usato nelle card per mostrare "N di M
-      // partecipanti" in modo che si capisca di che numero si tratta (Fil,
-      // 2026-07-10). Se l'evento non ha una lista invitati (dati vecchi),
-      // ripiega sulla quota, l'unico altro numero "totale" che abbiamo.
-      totalInvited: totalInvited !== null ? totalInvited : quota,
-      percent: percent,
+      // Quanti hanno risposto (disponibili o "non ci sono mai") su quanti
+      // invitati in tutto: usato nelle card per "N di M hanno risposto"
+      // (Fil, 2026-07-19 — prima era "N di M partecipanti" contro la
+      // quota). Se l'evento non ha una lista invitati (dati vecchi), non
+      // c'è un totale sensato: si ripiega sul numero di chi ha comunque
+      // risposto, così la frazione resta sempre "piena" invece di rompersi.
+      totalResponded: totalResponded,
+      totalInvited: totalInvited !== null ? totalInvited : totalResponded,
+      percent: totalInvited ? Math.max(0, Math.min(100, Math.round((totalResponded / totalInvited) * 100))) : (totalResponded ? 100 : 0),
       bestOption: bestOption,
       tiedOptions: tiedOptions,
       dateLabel: dateLabel,
@@ -2142,7 +2195,7 @@
       ? ''
         + '<div class="progress-row">'
         + '<div class="progress-track"><div class="progress-fill" data-progress="' + info.percent + '" data-color="' + colorVar + '"></div></div>'
-        + '<div class="progress-label"><span class="count-up" data-target="' + info.count + '">0</span> di ' + info.totalInvited + ' partecipanti</div>'
+        + '<div class="progress-label"><span class="count-up" data-target="' + info.totalResponded + '">0</span> di ' + info.totalInvited + ' hanno risposto</div>'
         + '</div>'
       : '';
 
@@ -2203,6 +2256,7 @@
     updateEvent: updateEvent,
     deleteEvent: deleteEvent,
     confirmEventDate: confirmEventDate,
+    cancelEventManually: cancelEventManually,
     getEventNotices: getEventNotices,
     upsertParticipant: upsertParticipant,
     withdrawFromEvent: withdrawFromEvent,
@@ -2272,7 +2326,7 @@
      e tocchi di nuovo lui, come già faceva prima. */
   [
     'updateAccount', 'uploadAvatar', 'uploadEventPhoto', 'uploadEventAudio',
-    'updateEvent', 'deleteEvent', 'confirmEventDate', 'upsertParticipant', 'withdrawFromEvent',
+    'updateEvent', 'deleteEvent', 'confirmEventDate', 'cancelEventManually', 'upsertParticipant', 'withdrawFromEvent',
     'markNotificationsSeen', 'updateEventExpense', 'deleteEventExpense',
     'deleteFriendList', 'removeFriendFromList', 'respondFriendRequest',
     'loginAccount', 'resetPassword', 'completeGoogleProfile',

@@ -384,12 +384,12 @@
       function buildManualConfirmSectionHTML(info) {
         if (!isOrganizer) return '';
         if (info.status === 'done' || info.status === 'passato' || info.status === 'cancelled') return '';
-        if (!event.dateOptions || !event.dateOptions.length) return '';
 
         var isTie = info.status === 'tie';
-        var optionsToShow = isTie ? info.tiedOptions : event.dateOptions;
+        var hasDates = event.dateOptions && event.dateOptions.length;
+        var optionsToShow = isTie ? info.tiedOptions : (event.dateOptions || []);
 
-        var rowsHTML = optionsToShow.map(function (opt) {
+        var rowsHTML = !hasDates ? '' : optionsToShow.map(function (opt) {
           var count = (event.participants || []).filter(function (p) {
             return (p.availableDateOptionIds || []).indexOf(opt.id) !== -1;
           }).length;
@@ -400,7 +400,8 @@
             + '</div>';
         }).join('');
 
-        var introHTML = isTie
+        var introHTML = !hasDates ? ''
+          : isTie
           ? ''
             + '<div class="section-title">Pareggio: scegli tu la data</div>'
             + '<div class="card-date" style="margin:0 2px 10px;">Queste date hanno lo stesso numero di persone disponibili — l\'evento resta in sospeso finché non ne confermi una.</div>'
@@ -408,7 +409,17 @@
             + '<div class="section-title">Vuoi confermare tu, senza aspettare?</div>'
             + '<div class="card-date" style="margin:0 2px 10px;">Puoi fissare subito una di queste date, anche prima che rispondano tutti.</div>';
 
-        return introHTML + rowsHTML;
+        // "Annulla evento" a mano, sempre disponibile qui per l'organizzatore
+        // (Fil, 2026-07-19): tolta la quota, l'unico modo che un evento si
+        // annullasse da solo era che rispondessero proprio tutti gli
+        // invitati — se un paio restano in silenzio per settimane, senza
+        // questo pulsante l'organizzatore resterebbe bloccato in attesa.
+        var cancelHTML = ''
+          + '<div style="text-align:center; margin-top:' + (hasDates ? '14px' : '0') + ';">'
+          + '<span class="signup-skip-link" id="cancelEventManuallyLink" style="color:var(--cancel);">Annulla evento →</span>'
+          + '</div>';
+
+        return introHTML + rowsHTML + cancelHTML;
       }
 
       /* Trascinamento con mouse (touch funziona già da solo con
@@ -907,12 +918,6 @@
       function render() {
         var info = CiSiamoData.computeEventStatus(event);
         var isConfirmedSimple = (info.status === 'done' || info.status === 'passato') && !!info.bestOption;
-        var colorVar = info.status === 'waiting' ? 'var(--sky)'
-          : info.status === 'almost' ? 'var(--butter)'
-          : info.status === 'cancelled' ? 'var(--cancel)'
-          : info.status === 'passato' ? 'var(--ink-soft)'
-          : info.status === 'tie' ? 'var(--butter)'
-          : 'var(--mint)';
 
         // Ogni evento ha ormai il suo link di invito (event.shareToken): basta
         // condividere l'indirizzo diretto della pagina, chi lo apre senza
@@ -972,21 +977,6 @@
             + '</div>'
           : '';
 
-        var quotaCardHTML = isConfirmedSimple ? '' : ''
-          + '<div class="card reveal">'
-          + '<div class="card-top">'
-          + '<div>'
-          + '<div class="card-title">Quante persone servono</div>'
-          + '<div class="card-date">Quando ' + info.quota + (info.quota === 1 ? ' persona conferma' : ' persone confermano') + ' la stessa data, quella diventa la data definitiva dell\'evento</div>'
-          + '</div>'
-          + '<div class="badge ' + info.status + '" data-event-id="' + CiSiamoData.escapeHTML(event.id) + '">' + CiSiamoData.STATUS_LABELS[info.status] + '</div>'
-          + '</div>'
-          + '<div class="progress-row">'
-          + '<div class="progress-track"><div class="progress-fill" data-progress="' + info.percent + '" data-color="' + colorVar + '"></div></div>'
-          + '<div class="progress-label"><span class="count-up" data-target="' + info.count + '">0</span> di ' + info.quota + ' confermati</div>'
-          + '</div>'
-          + '</div>';
-
         var inviteesRosterHTML = isConfirmedSimple ? '' : buildInviteesRosterHTML();
 
         var breakdownSectionHTML = isConfirmedSimple ? '' : ''
@@ -1013,11 +1003,16 @@
         // box di conferma manuale dell'organizzatore restano in fondo:
         // sono dettagli/strumenti, non la prima cosa che un ospite deve
         // fare aprendo la pagina.
+        var cancelledMessageHTML = info.status !== 'cancelled' ? '' : '<div class="card-date" style="margin:2px 2px 16px; color:var(--cancel);">'
+          + (info.cancelledManually
+              ? 'L\'organizzatore ha annullato l\'evento.'
+              : 'Hanno risposto tutti gli invitati ma nessuno era disponibile: l\'evento si è annullato automaticamente.')
+          + ' Resta visibile qui per una settimana, poi viene eliminato.</div>';
+
         contentEl.innerHTML = ''
           + guestLockBannerHTML
           + photoHTML
-          + quotaCardHTML
-          + (info.status === 'cancelled' ? '<div class="card-date" style="margin:2px 2px 16px; color:var(--cancel);">Hanno risposto tutti gli invitati ma non si è raggiunta la quota minima: l\'evento si è annullato automaticamente. Resta visibile qui per una settimana, poi viene eliminato.</div>' : '')
+          + cancelledMessageHTML
           + repeatBoxHTML
           + (event.descriptionAudioUrl
               ? '<audio controls src="' + CiSiamoData.escapeHTML(event.descriptionAudioUrl) + '" style="width:100%; margin:2px 2px 16px;"></audio>'
@@ -1080,11 +1075,34 @@
           });
         });
 
+        // "Annulla evento" a mano (Fil, 2026-07-19): l'organizzatore non deve
+        // aspettare che rispondano proprio tutti gli invitati se l'evento è
+        // chiaramente morto.
+        var cancelEventManuallyLink = document.getElementById('cancelEventManuallyLink');
+        if (cancelEventManuallyLink) {
+          cancelEventManuallyLink.addEventListener('click', async function () {
+            var sure = window.confirm('Annullare "' + event.name + '"? Chi aveva già risposto disponibile riceverà un avviso. Potrai sempre ripeterlo con nuove date in seguito.');
+            if (!sure) return;
+
+            var originalText = cancelEventManuallyLink.textContent;
+            cancelEventManuallyLink.textContent = 'Annullo...';
+            try {
+              event = await CiSiamoData.cancelEventManually(event.id);
+            } catch (err) {
+              cancelEventManuallyLink.textContent = originalText;
+              window.alert('Non sono riuscito ad annullare (' + err.message + '). Riprova.');
+              return;
+            }
+            render();
+          });
+        }
+
         // "Non potrò esserci" su un evento già confermato: azzera la propria
-        // disponibilità e avvisa l'organizzatore; se con te tolto la data
-        // scende sotto quota, l'evento si riapre da solo per tutti (vedi
-        // withdrawFromEvent in data.js). Nessuna conferma testuale sul
-        // perché: basta il conferma/annulla del browser (Fil, 2026-07-17).
+        // disponibilità e avvisa l'organizzatore; se con te tolto la data non
+        // resta più nessuno disponibile, l'evento si riapre da solo per
+        // tutti (vedi withdrawFromEvent in data.js). Nessuna conferma
+        // testuale sul perché: basta il conferma/annulla del browser
+        // (Fil, 2026-07-17).
         var withdrawLink = document.getElementById('withdrawFromEventLink');
         if (withdrawLink) {
           withdrawLink.addEventListener('click', async function () {
