@@ -1308,6 +1308,23 @@
     });
   }
 
+  /* Quante, non solo "ce n'è almeno una" (Fil, 2026-07-19: pallino sulla
+     campanella troppo piccolo/poco visibile, meglio un numero dentro).
+     Stessa logica di hasUnreadNotifications sopra ma senza fermarsi al primo
+     risultato: qui serve contarle tutte, notifiche vere + richieste di
+     amicizia in sospeso più recenti dell'ultima visita a notifiche.html. */
+  function countUnreadNotifications(notifications, pendingFriendRequests) {
+    var notifList = notifications || [];
+    var reqList = pendingFriendRequests || [];
+    var seenAt = getNotificationsSeenAt();
+    if (!seenAt) return notifList.length + reqList.length;
+
+    var seenTime = new Date(seenAt).getTime();
+    var unreadNotifs = notifList.filter(function (n) { return new Date(n.time).getTime() > seenTime; }).length;
+    var unreadRequests = reqList.filter(function (r) { return r.requestedAt && new Date(r.requestedAt).getTime() > seenTime; }).length;
+    return unreadNotifs + unreadRequests;
+  }
+
   /* Email "una data che avevi confermato è stata tolta" (Edge Function
      "notify-date-removed" + Resend). Tutta l'informazione necessaria viaggia
      nel corpo della chiamata (non la rilegge dal DB): l'evento nel frattempo
@@ -2013,7 +2030,7 @@
       + '<div class="card-date">' + escapeHTML(info.dateLabel) + '</div>'
       + '</div>'
       + '</div>'
-      + '<div class="badge ' + info.status + '">' + STATUS_LABELS[info.status] + '</div>'
+      + '<div class="badge ' + info.status + '" data-event-id="' + escapeHTML(event.id) + '">' + STATUS_LABELS[info.status] + '</div>'
       + '</div>'
       + progressHTML
       + repeatBtnHTML
@@ -2052,6 +2069,7 @@
     getNotificationsSeenAt: getNotificationsSeenAt,
     markNotificationsSeen: markNotificationsSeen,
     hasUnreadNotifications: hasUnreadNotifications,
+    countUnreadNotifications: countUnreadNotifications,
     computeEventStatus: computeEventStatus,
     buildMapsUrl: buildMapsUrl,
     formatDateLabel: formatDateLabel,

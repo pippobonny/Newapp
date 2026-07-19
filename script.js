@@ -331,16 +331,59 @@
     window.requestAnimationFrame(frame);
   }
 
+  // Fil, 2026-07-19: "vedo i coriandoli ogni volta che cambio pagina" — il
+  // controllo precedente (data-confetti-init sull'elemento DOM del badge)
+  // non bastava perché ogni pagina ricostruisce il DOM da zero a ogni
+  // render/navigazione: un badge "confermato" nuovo di zecca non ha mai
+  // quell'attributo, quindi i coriandoli ripartivano su ogni pagina che
+  // mostra quell'evento (Home, elenco eventi, dettaglio...). Ora si ricorda
+  // per device, evento per evento, se li ha già visti: festeggia una volta
+  // sola nella vita di quell'evento, non a ogni caricamento di pagina.
+  var CONFETTI_SHOWN_KEY = 'ci-siamo:confettiShown';
+
+  function hasShownConfetti(eventId) {
+    try {
+      var raw = localStorage.getItem(CONFETTI_SHOWN_KEY);
+      var shown = raw ? JSON.parse(raw) : [];
+      return shown.indexOf(eventId) !== -1;
+    } catch (err) { return false; }
+  }
+
+  function markConfettiShown(eventId) {
+    try {
+      var raw = localStorage.getItem(CONFETTI_SHOWN_KEY);
+      var shown = raw ? JSON.parse(raw) : [];
+      if (shown.indexOf(eventId) === -1) {
+        shown.push(eventId);
+        if (shown.length > 200) shown = shown.slice(shown.length - 200); // non deve crescere all'infinito
+        localStorage.setItem(CONFETTI_SHOWN_KEY, JSON.stringify(shown));
+      }
+    } catch (err) { /* ignora: nel peggiore dei casi i coriandoli si rivedono */ }
+  }
+
   function initConfetti() {
-    var doneBadges = document.querySelectorAll('.badge.done:not([data-confetti-init])');
+    var doneBadges = document.querySelectorAll('.badge.done[data-event-id]:not([data-confetti-init])');
     if (!doneBadges.length) return;
 
     doneBadges.forEach(function (b) { b.setAttribute('data-confetti-init', '1'); });
 
+    // Il primo badge "confermato" di un evento MAI festeggiato prima su
+    // questo device, per non esagerare anche quando ce n'è più di uno in
+    // pagina (es. Home con più eventi confermati insieme).
+    var toCelebrate = null;
+    for (var i = 0; i < doneBadges.length; i++) {
+      var eventId = doneBadges[i].getAttribute('data-event-id');
+      if (eventId && !hasShownConfetti(eventId)) {
+        toCelebrate = doneBadges[i];
+        markConfettiShown(eventId);
+        break;
+      }
+    }
+    if (!toCelebrate) return;
+
     // Piccolo ritardo per farlo partire dopo l'entrata della card
     window.setTimeout(function () {
-      // Solo il primo badge "confermato" trovato nella pagina, per non esagerare
-      burstConfetti(doneBadges[0]);
+      burstConfetti(toCelebrate);
     }, 700);
   }
 

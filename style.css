@@ -257,19 +257,29 @@ a { text-decoration: none; color: inherit; }
   box-shadow: 0 2px 8px rgba(58,50,90,0.06);
 }
 
-/* Pallino "hai notifiche nuove?" sulla campanella (Fil, 2026-07-17): dentro
-   ai bordi (top/right positivi, non negativi come .menu-dot) perché .bell ha
-   overflow:hidden per contenere il ripple del click — un posizionamento a
-   cavallo del bordo verrebbe tagliato via. */
-.bell-dot {
+/* Badge "hai N notifiche nuove?" sulla campanella (Fil, 2026-07-17, numero
+   dentro aggiunto 2026-07-19 — prima solo un pallino vuoto, poco visibile e
+   non diceva quante). Dentro ai bordi (top/right positivi, non negativi come
+   .menu-dot) perché .bell ha overflow:hidden per contenere il ripple del
+   click — un posizionamento a cavallo del bordo verrebbe tagliato via. */
+.bell-badge {
   position: absolute;
-  top: 5px;
-  right: 5px;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
+  top: 3px;
+  right: 3px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 9px;
   background: var(--cancel, #E0637A);
   border: 2px solid var(--card, #fff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
 }
 
 /* Scrollable content */

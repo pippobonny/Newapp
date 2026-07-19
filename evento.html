@@ -979,7 +979,7 @@
           + '<div class="card-title">Quante persone servono</div>'
           + '<div class="card-date">Quando ' + info.quota + (info.quota === 1 ? ' persona conferma' : ' persone confermano') + ' la stessa data, quella diventa la data definitiva dell\'evento</div>'
           + '</div>'
-          + '<div class="badge ' + info.status + '">' + CiSiamoData.STATUS_LABELS[info.status] + '</div>'
+          + '<div class="badge ' + info.status + '" data-event-id="' + CiSiamoData.escapeHTML(event.id) + '">' + CiSiamoData.STATUS_LABELS[info.status] + '</div>'
           + '</div>'
           + '<div class="progress-row">'
           + '<div class="progress-track"><div class="progress-fill" data-progress="' + info.percent + '" data-color="' + colorVar + '"></div></div>'

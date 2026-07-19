@@ -211,7 +211,32 @@
       if (!notifications.length) {
         notifBodyEl.innerHTML = '<div class="empty-hint">Nessuna notifica per ora.</div>';
       } else {
-        notifBodyEl.innerHTML = notifications.map(function (n) {
+        // Fil, 2026-07-19: dopo mesi d'uso l'elenco diventa lungo e
+        // confusionario. Quelle più vecchie di un paio di giorni E che avevi
+        // già visto (il dispositivo lo sa dal timestamp "vista fino a qui",
+        // lo stesso che spegne il pallino sulla campanella, letto qui PRIMA
+        // che markNotificationsSeen() più sotto lo aggiorni a adesso)
+        // finiscono in un accordion chiuso "Notifiche precedenti" invece di
+        // restare tutte in fila. Una non ancora vista non ci finisce mai,
+        // anche se vecchia: non deve sparire dalla vista prima che tu
+        // l'abbia notata almeno una volta. Riuso lo stesso accordion già
+        // usato per le spese (expense-accordion in style.css), stesso
+        // comportamento, contenuto diverso.
+        var previousSeenAt = CiSiamoData.getNotificationsSeenAt();
+        var previousSeenTime = previousSeenAt ? new Date(previousSeenAt).getTime() : null;
+        var OLD_NOTIF_THRESHOLD_MS = 2 * 24 * 60 * 60 * 1000; // due giorni
+        var now = Date.now();
+
+        var recentNotifs = [];
+        var olderReadNotifs = [];
+        notifications.forEach(function (n) {
+          var notifTime = new Date(n.time).getTime();
+          var isRead = previousSeenTime !== null && notifTime <= previousSeenTime;
+          var isOld = (now - notifTime) > OLD_NOTIF_THRESHOLD_MS;
+          (isRead && isOld ? olderReadNotifs : recentNotifs).push(n);
+        });
+
+        function notifItemHTML(n) {
           return ''
             + '<div class="notif-item reveal">'
             + '<div class="notif-icon ' + n.icon + '">' + n.emoji + '</div>'
@@ -220,7 +245,39 @@
             + '<div class="notif-time">' + timeAgo(n.time) + '</div>'
             + '</div>'
             + '</div>';
-        }).join('');
+        }
+
+        var recentHTML = recentNotifs.length
+          ? recentNotifs.map(notifItemHTML).join('')
+          : '<div class="empty-hint">Nessuna notifica recente.</div>';
+
+        var olderAccordionHTML = olderReadNotifs.length
+          ? ''
+            + '<div class="expense-accordion" style="margin-top:14px;">'
+            + '<div class="expense-accordion-header" id="olderNotifHeader">'
+            + '<div class="expense-accordion-titles">'
+            + '<div class="expense-accordion-title">Notifiche precedenti</div>'
+            + '<div class="expense-accordion-subtitle">' + olderReadNotifs.length + (olderReadNotifs.length === 1 ? ' già letta' : ' già lette') + '</div>'
+            + '</div>'
+            + '<div class="expense-accordion-chevron" id="olderNotifChevron">&#9662;</div>'
+            + '</div>'
+            + '<div class="expense-accordion-body" id="olderNotifBody">'
+            + '<div class="expense-accordion-inner">'
+            + olderReadNotifs.map(notifItemHTML).join('')
+            + '</div>'
+            + '</div>'
+            + '</div>'
+          : '';
+
+        notifBodyEl.innerHTML = recentHTML + olderAccordionHTML;
+
+        var olderNotifHeader = document.getElementById('olderNotifHeader');
+        if (olderNotifHeader) {
+          olderNotifHeader.addEventListener('click', function () {
+            document.getElementById('olderNotifBody').classList.toggle('open');
+            document.getElementById('olderNotifChevron').classList.toggle('open');
+          });
+        }
       }
 
       if (window.CiSiamoUI) window.CiSiamoUI.refresh();

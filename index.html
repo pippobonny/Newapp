@@ -77,7 +77,7 @@
           <div class="date" id="todayDate">Oggi</div>
         </div>
       </div>
-      <a class="bell" href="notifiche.html" id="homeBell">🔔<span class="bell-dot" id="bellDot" style="display:none;"></span></a>
+      <a class="bell" href="notifiche.html" id="homeBell">🔔<span class="bell-badge" id="bellBadge" style="display:none;"></span></a>
     </div>
 
     <div class="content">
@@ -200,9 +200,16 @@
         try { pendingFriendRequestsForBell = await CiSiamoData.getMyPendingFriendRequests(); } catch (err) { /* ignora */ }
 
         var notificationsForBell = CiSiamoData.buildNotifications(events, eventNoticesForBell, myUsernameForBell);
-        if (CiSiamoData.hasUnreadNotifications(notificationsForBell, pendingFriendRequestsForBell)) {
-          var bellDot = document.getElementById('bellDot');
-          if (bellDot) bellDot.style.display = '';
+        // Fil, 2026-07-19: prima solo un pallino vuoto ("hai qualcosa"), ora
+        // il numero vero di non lette dentro — più visibile e fa capire
+        // subito quanto c'è da vedere, non solo che c'è qualcosa.
+        var unreadCount = CiSiamoData.countUnreadNotifications(notificationsForBell, pendingFriendRequestsForBell);
+        if (unreadCount > 0) {
+          var bellBadge = document.getElementById('bellBadge');
+          if (bellBadge) {
+            bellBadge.textContent = unreadCount > 9 ? '9+' : String(unreadCount);
+            bellBadge.style.display = '';
+          }
         }
       } catch (err) { /* ignora: il pallino resta semplicemente spento */ }
     })();
