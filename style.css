@@ -1901,20 +1901,9 @@ label.event-photo-preview {
 .install-hint .dismiss:active { opacity: 1; }
 
 .splash-logo {
-  width: 76px;
-  height: 76px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--peach), var(--lavender));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #FFF8F0;
-  font-family: 'Fraunces', serif;
-  font-weight: 600;
-  font-size: 14px;
-  letter-spacing: 0.3px;
-  text-transform: lowercase;
-  box-shadow: 0 10px 26px rgba(58, 50, 90, 0.22);
+  width: 108px;
+  height: auto;
+  filter: drop-shadow(0 10px 22px rgba(58, 50, 90, 0.22));
 }
 
 /* ---------- evento confermato/passato: card "Quando" + bolle "Chi ci sarà" ----------

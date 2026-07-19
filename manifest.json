@@ -5,7 +5,7 @@
   "start_url": "index.html",
   "scope": ".",
   "display": "standalone",
-  "background_color": "#EDE3E6",
+  "background_color": "#FFFFFF",
   "theme_color": "#FF7A29",
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
