@@ -978,11 +978,77 @@
     return true;
   }
 
+  /* Popup "Attiva le notifiche", proposto attivamente a chi si registra o fa
+     login (solo nell'app da Home schermo, vedi CiSiamoData.shouldOfferPushPrompt)
+     -- Fil, 2026-07-19: "sono molto importanti per noi". Stesso stile visivo
+     del popup "serve un profilo" (.signup-overlay/.signup-modal), sopra il
+     contenuto della pagina corrente. Ritorna una Promise che si risolve
+     quando il popup si chiude (attivate o "Non ora"), così chi chiama può
+     aspettarlo prima di navigare altrove. */
+  function showPushPrompt() {
+    return new Promise(function (resolve) {
+      var screenEl = document.querySelector('.screen');
+      if (!screenEl) { resolve(); return; }
+
+      var overlay = document.createElement('div');
+      overlay.className = 'signup-overlay';
+      overlay.innerHTML = ''
+        + '<div class="signup-modal">'
+        + '<div class="signup-modal-icon">🔔</div>'
+        + '<div class="signup-modal-title">Attiva le notifiche</div>'
+        + '<div class="signup-modal-text">Ti avvisiamo quando qualcuno ti invita, conferma o cambia un evento — senza dover controllare l\'app di continuo.</div>'
+        + '<button type="button" class="primary-btn" id="pushPromptEnableBtn" style="width:100%;">Attiva notifiche</button>'
+        + '<a class="signup-skip-link" id="pushPromptSkipLink">Non ora</a>'
+        + '</div>';
+      screenEl.appendChild(overlay);
+
+      function close() {
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        resolve();
+      }
+
+      var enableBtn = overlay.querySelector('#pushPromptEnableBtn');
+      var skipLink = overlay.querySelector('#pushPromptSkipLink');
+
+      enableBtn.addEventListener('click', async function () {
+        enableBtn.disabled = true;
+        enableBtn.textContent = 'Attivo...';
+        try {
+          await window.CiSiamoData.subscribeToPush();
+          showToast('Notifiche attivate! 🔔');
+        } catch (err) {
+          // Permesso negato dal browser o errore: niente da fare qui, si
+          // può sempre riattivare dal Profilo in un secondo momento.
+        }
+        close();
+      });
+
+      skipLink.addEventListener('click', function (e) {
+        e.preventDefault();
+        close();
+      });
+    });
+  }
+
+  // Punto unico da chiamare dopo login/registrazione: controlla da solo se
+  // ha senso proporre le notifiche (vedi shouldOfferPushPrompt in data.js) e
+  // mostra il popup solo se sì -- chi chiama non deve sapere altro.
+  async function offerPushPromptIfNeeded() {
+    if (!window.CiSiamoData || typeof window.CiSiamoData.shouldOfferPushPrompt !== 'function') return;
+    var should = false;
+    try {
+      should = await window.CiSiamoData.shouldOfferPushPrompt();
+    } catch (err) { return; }
+    if (!should) return;
+    await showPushPrompt();
+  }
+
   window.CiSiamoUI = {
     refresh: refreshDynamicContent,
     toast: showToast,
     attachAccountSearch: attachAccountSearch,
-    showOnceHint: showOnceHint
+    showOnceHint: showOnceHint,
+    offerPushPromptIfNeeded: offerPushPromptIfNeeded
   };
 
   document.addEventListener('DOMContentLoaded', function () {

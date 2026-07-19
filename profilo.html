@@ -370,7 +370,11 @@
       // Entra nell'app: dopo il benvenuto si finisce in Home, non sul
       // profilo (Fil, 2026-07-12) — Home è dove si vede subito cosa c'è
       // da fare, il profilo lo si raggiunge comunque dalla navbar.
-      welcomeEnterBtn.addEventListener('click', function () {
+      welcomeEnterBtn.addEventListener('click', async function () {
+        // Copre sia la registrazione normale sia il primo accesso Google
+        // (entrambe passano da qui): punto giusto per proporre le notifiche
+        // push a chi si è appena registrato (Fil, 2026-07-19).
+        if (window.CiSiamoUI) await window.CiSiamoUI.offerPushPromptIfNeeded();
         window.location.href = 'index.html';
       });
 
@@ -659,6 +663,10 @@
 
           createBtn.disabled = false;
           await showNormalView();
+          // Login esplicito con un account già esistente: punto giusto per
+          // proporre le notifiche push (Fil, 2026-07-19), se ha senso farlo
+          // su questo dispositivo (vedi offerPushPromptIfNeeded).
+          if (window.CiSiamoUI) await window.CiSiamoUI.offerPushPromptIfNeeded();
           return;
         }
 
@@ -912,6 +920,10 @@
           // Accesso con Google di un account già completo (non la primissima
           // registrazione): va dritto in Home come un login normale via
           // email, non deve fermarsi sulla vista profilo (Fil, 2026-07-17).
+          // È comunque un login esplicito con un account esistente: si
+          // propone le notifiche push (se ha senso) prima di lasciare la
+          // pagina, stesso punto del login via email (Fil, 2026-07-19).
+          if (window.CiSiamoUI) await window.CiSiamoUI.offerPushPromptIfNeeded();
           window.location.href = 'index.html';
         } else if (googleState && googleState.needsProfile) {
           showGoogleProfileView(googleState.suggested);

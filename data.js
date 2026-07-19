@@ -652,6 +652,39 @@
     return true;
   }
 
+  // Stesso controllo duplicato nell'head di ogni pagina (per --app-height):
+  // qui serve per decidere SE proporre le notifiche push, non per lo stile.
+  // Solo dentro l'app aggiunta alla schermata Home ha senso chiederle: in
+  // una scheda normale di Safari su iPhone non arriverebbero comunque
+  // (limite di iOS), su desktop/scheda normale il permesso del browser è
+  // già sufficiente da solo, senza bisogno di un nostro popup aggiuntivo.
+  function isStandaloneApp() {
+    return !!((global.matchMedia && global.matchMedia('(display-mode: standalone)').matches) || global.navigator.standalone === true);
+  }
+
+  /* Fil, 2026-07-19: "le notifiche sono molto importanti per noi" -- oltre
+     al toggle in Profilo, si propone attivamente l'attivazione a chi si
+     registra o fa login (solo nell'app da Home, vedi isStandaloneApp).
+     Non si richiede mai se: non siamo in standalone, il browser non supporta
+     le push, non c'è un account, sono già attive, o il permesso è già stato
+     negato in modo permanente dal browser (in quel caso richiedere di nuovo
+     non farebbe comparire nulla, solo un altro "no" automatico). Chi invece
+     chiude il nostro popup senza scegliere ("Non ora") NON viene segnato da
+     nessuna parte: la prossima volta che fa login gli si ripropone, come
+     deciso esplicitamente da Fil (mai più dopo un rifiuto vero, sempre se
+     ignorata). */
+  async function shouldOfferPushPrompt() {
+    if (!isStandaloneApp()) return false;
+    if (!isPushSupported()) return false;
+    if (!hasAccount()) return false;
+    if (global.Notification && global.Notification.permission === 'denied') return false;
+    var alreadySubscribed = false;
+    try {
+      alreadySubscribed = await isPushSubscribed();
+    } catch (err) { /* in dubbio, meglio proporla che tenerla nascosta */ }
+    return !alreadySubscribed;
+  }
+
   async function unsubscribeFromPush() {
     if (!isPushSupported()) return;
     var reg = await global.navigator.serviceWorker.getRegistration('sw.js');
@@ -2163,6 +2196,7 @@
     isPushSubscribed: isPushSubscribed,
     subscribeToPush: subscribeToPush,
     unsubscribeFromPush: unsubscribeFromPush,
+    shouldOfferPushPrompt: shouldOfferPushPrompt,
     getEvents: getEvents,
     getEventById: getEventById,
     createEvent: createEvent,
