@@ -29,19 +29,17 @@ self.addEventListener('push', function (event) {
   var options = {
     body: data.body || '',
     // "icon" e' l'immagine grande mostrata quando la notifica e' espansa
-    // (a tutti gli effetti va bene anche a colori, e infatti li' si vede
-    // gia' giusta): il logo vero e proprio, con lo sfondo colorato.
+    // (a tutti gli effetti va bene anche a colori): il logo vero "nd",
+    // sfondo bianco (Fil, 2026-07-19).
     icon: 'icon-192.png',
     // "badge" invece e' la sagoma piccola nella barra di stato (Android):
     // il sistema la trasforma SEMPRE in una silhouette monocroma usando il
     // canale alpha del file. icon-192.png e' un PNG opaco (nessuna
-    // trasparenza, e' ancora il placeholder "logo" su sfondo sfumato), per
-    // cui Android non trova nessuna sagoma da ritagliare e mostra un
-    // quadratino bianco pieno. badge-96.png e' un file dedicato, con sfondo
-    // trasparente e solo un segno di spunta bianco: quello sì che Android
-    // riesce a mostrare come icona nella barra di stato (Fil, 2026-07-19).
-    // Da rifare quando ci sarà il logo vero, con una sagoma semplice presa
-    // da quello.
+    // trasparenza), per cui Android non trova nessuna sagoma da ritagliare
+    // e mostra un quadratino bianco pieno. badge-96.png e' un file dedicato,
+    // con sfondo trasparente e la sagoma bianca del segno "nd" ritagliata
+    // dal logo vero: quella sì che Android riesce a mostrare come icona
+    // nella barra di stato (Fil, 2026-07-19).
     badge: 'badge-96.png',
     data: { url: data.url || 'index.html' }
   };
