@@ -1021,6 +1021,37 @@
     // (redirect vero verso Google), il resto succede al ritorno.
   }
 
+  /* Aspetta che supabase-js abbia finito di leggere un eventuale redirect di
+     ritorno da Google prima di guardare la sessione. supabase.auth.getSession()
+     chiamato subito al caricamento della pagina può arrivare PRIMA che il
+     client abbia processato i parametri che Google ha appena messo nell'URL:
+     in quel caso la sessione risulta ancora "assente" anche se in realtà è
+     appena arrivata, e chi ha appena fatto accesso con Google si ritrova
+     rimandato sulla schermata Registrati/Accedi invece di entrare (bug
+     osservato da Fil, 2026-07-20: al secondo tentativo su "Accedi" entra
+     subito, senza chiedere niente, perché nel frattempo la sessione si è
+     stabilita). onAuthStateChange, appena ci si iscrive, consegna lo stato
+     vero e proprio DOPO che l'inizializzazione (compresa la lettura
+     dell'URL) è finita: aspettarlo risolve la corsa. Timeout di sicurezza
+     breve per non bloccare chi non sta affatto tornando da Google. */
+  function waitForAuthReady() {
+    return new Promise(function (resolve) {
+      var settled = false;
+      var timer = setTimeout(function () { finish(null); }, 2500);
+      var sub = null;
+      function finish(session) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (sub) { try { sub.data.subscription.unsubscribe(); } catch (e) {} }
+        resolve(session);
+      }
+      sub = supabase.auth.onAuthStateChange(function (event, session) {
+        finish(session || null);
+      });
+    });
+  }
+
   /* Da chiamare a ogni caricamento di profilo.html PRIMA di guardare
      hasAccount(): capisce se questo dispositivo sta tornando da un login
      Google appena fatto. Tre casi:
@@ -1030,8 +1061,7 @@
      - sessione attiva ma NESSUN profilo ancora → prima volta con Google,
        serve completare username + data di nascita (vedi completeGoogleProfile) */
   async function getGoogleSignupState() {
-    var sessionRes = await supabase.auth.getSession();
-    var session = sessionRes.data && sessionRes.data.session;
+    var session = await waitForAuthReady();
     if (!session || !session.user) return null;
 
     var res = await supabase.rpc('get_own_account');
@@ -1094,7 +1124,7 @@
     + 'cancelledAt:cancelled_at, shareToken:share_token, openInvite:open_invite, '
     + 'confirmedDateOptionId:confirmed_date_option_id, manuallyCancelled:manually_cancelled, '
     + 'dateOptions:date_options!date_options_event_id_fkey(id, dateISO:date_iso), '
-    + 'participants(name, availableDateOptionIds:available_date_option_ids, accountId:account_id, createdAt:created_at), '
+    + 'participants(name, availableDateOptionIds:available_date_option_ids, accountId:account_id, createdAt:created_at, hiddenFromHome:hidden_from_home), '
     + 'invitees:event_invitees(id, name, accountId:account_id, claimedAt:claimed_at)';
 
   /* ---------- visibilità eventi ----------
@@ -1115,6 +1145,15 @@
   function isEventVisibleToMe(event, myAccountId) {
     if (!myAccountId) return false;
     if (event.createdByAccountId && event.createdByAccountId === myAccountId) return true;
+
+    // "Rimuovi dalla home" (Fil, 2026-07-20): un partecipante può nascondere
+    // dalla propria home un evento a cui non sarà presente, senza toccare i
+    // conteggi che vede l'organizzatore (vedi remove_event_from_home lato
+    // server). Chi organizza non passa mai da qui: è già intercettato dal
+    // controllo sopra. Va controllato PRIMA di invitees/participants qui
+    // sotto, altrimenti il match per accountId lo farebbe ricomparire.
+    var myParticipant = (event.participants || []).filter(function (p) { return p.accountId === myAccountId; })[0];
+    if (myParticipant && myParticipant.hiddenFromHome) return false;
 
     var invitees = event.invitees || [];
     if (invitees.some(function (f) { return f.accountId === myAccountId; })) return true;
@@ -1892,6 +1931,23 @@
     return getEventById(eventId);
   }
 
+  /* "Rimuovi dalla home" (Fil, 2026-07-20): per chi ha un evento nella
+     propria home ma tanto non ci sarà — che l'abbia già detto o cambi idea
+     proprio ora. Diverso da withdrawFromEvent: oltre ad azzerare la
+     disponibilità (e riaprire l'evento se serve, e avvisare l'organizzatore
+     — ma SOLO se la risposta stava davvero cambiando, non per chi era già
+     "non disponibile" e sta solo riordinando la sua home), imposta anche
+     hidden_from_home, che è quello che fa sparire l'evento da QUESTA home
+     (vedi isEventVisibleToMe). Solo per chi ha un account (niente "home" da
+     pulire per un ospite senza profilo) e mai per l'organizzatore (lo
+     blocca già la funzione lato server). Azione definitiva: niente per
+     tornare indietro da qui, se cambia idea deve farsi reinvitare. */
+  async function removeEventFromHome(eventId) {
+    var res = await supabase.rpc('remove_event_from_home', { p_event_id: eventId });
+    if (res.error) throwSupabaseError(res.error);
+    return res.data;
+  }
+
   /* Calcola stato, percentuale di risposta e "miglior data" di un evento.
      Fil, 2026-07-19: tolta la quota ("quante persone servono per
      confermare") — troppo complicata da spiegare. Ora un evento si conferma
@@ -2273,6 +2329,7 @@
     getEventNotices: getEventNotices,
     upsertParticipant: upsertParticipant,
     withdrawFromEvent: withdrawFromEvent,
+    removeEventFromHome: removeEventFromHome,
     buildNotifications: buildNotifications,
     getNotificationsSeenAt: getNotificationsSeenAt,
     markNotificationsSeen: markNotificationsSeen,

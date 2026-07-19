@@ -46,9 +46,14 @@
         <div class="back-btn" id="eventMenuBtn" style="cursor:pointer;">⋮</div>
         <span class="menu-dot" id="menuDot" style="display:none;"></span>
         <div class="menu-dropdown" id="eventMenuDropdown" style="display:none;">
-          <a class="menu-dropdown-item" id="menuEditLink" href="#">✏️ Modifica</a>
+          <a class="menu-dropdown-item" id="menuEditLink" href="#" style="display:none;">✏️ Modifica</a>
           <div class="menu-dropdown-item" id="menuEditAvailabilityBtn" style="display:none;">📅 I giorni in cui ci sei</div>
-          <div class="menu-dropdown-item danger" id="menuDeleteBtn">🗑️ Elimina</div>
+          <div class="menu-dropdown-item danger" id="menuDeleteBtn" style="display:none;">🗑️ Elimina</div>
+          <!-- Solo per chi NON organizza (Fil, 2026-07-20): rimuove l'evento
+               dalla propria home perché tanto non ci sarà. Non tocca i
+               conteggi che vede l'organizzatore, azione definitiva (vedi
+               removeEventFromHome in data.js). -->
+          <div class="menu-dropdown-item danger" id="menuRemoveFromHomeBtn" style="display:none;">🗑️ Rimuovi dalla home</div>
         </div>
       </div>
     </div>
@@ -143,14 +148,27 @@
          pulsante. Se il link è stato aperto direttamente (da WhatsApp, senza
          passare da un'altra pagina dell'app) o veniva da un'altra pagina
          "di passaggio" (l'invito di amico.html, o questa stessa pagina),
-         resta l'href statico già nell'HTML: la Home. */
+         resta l'href statico già nell'HTML: la Home.
+
+         Bug osservato da Fil (2026-07-20): aprendo l'evento da una notifica
+         push, a volte document.referrer risultava "sw.js" invece di una
+         pagina vera — il service worker, quando la scheda dell'app era già
+         aperta, la naviga con client.navigate(url) e in quel caso alcuni
+         browser registrano come "pagina precedente" lo script del service
+         worker stesso, non una pagina reale. La freccia indietro ci finiva
+         dritta, mostrando il codice sorgente invece di tornare in Home.
+         Prima qui c'era una lista di ESCLUSIONI (referrer accettato a meno
+         che non fosse uno dei pochi casi noti) — troppo fragile, un domani
+         basta un altro file statico a ripetere lo stesso bug. Ora è una
+         lista di pagine vere dell'app: si accetta il referrer solo se è
+         una di queste. */
       var backBtn = document.getElementById('backBtn');
       if (backBtn) {
         var ref = document.referrer || '';
         var cameFromApp = ref.indexOf(window.location.origin) === 0;
         var refPath = cameFromApp ? ref.split('/').pop().split('?')[0].split('#')[0] : '';
-        var NOT_A_REAL_BACK_TARGET = ['', 'amico.html', 'evento.html'];
-        if (NOT_A_REAL_BACK_TARGET.indexOf(refPath) === -1) {
+        var REAL_APP_PAGES = ['index.html', 'eventi.html', 'crea.html', 'amici.html', 'notifiche.html', 'lista-invito.html', 'profilo.html'];
+        if (REAL_APP_PAGES.indexOf(refPath) !== -1) {
           backBtn.setAttribute('href', refPath);
         }
       }
@@ -935,9 +953,21 @@
         // Modifica/elimina ora vivono nel menu ⋮ dell'header (vedi
         // setupHeaderMenu più sotto, legato una sola volta): qui si aggiorna
         // solo se il menu deve essere visibile, stesso criterio di prima
-        // (organizzatore, evento non ancora passato).
+        // (organizzatore, evento non ancora passato). "Rimuovi dalla home"
+        // (Fil, 2026-07-20) apre lo stesso menu ⋮ anche a chi NON organizza
+        // (prima era solo per l'organizzatore): le voci Modifica/Elimina
+        // restano riservate a lui, per questo vanno nascoste esplicitamente
+        // ora che il menu può comparire anche per un semplice invitato.
+        var canRemoveFromHome = !isOrganizer && NdumaData.hasAccount();
         var eventMenuWrap = document.getElementById('eventMenuWrap');
-        if (eventMenuWrap) eventMenuWrap.style.display = (isOrganizer && info.status !== 'passato') ? '' : 'none';
+        if (eventMenuWrap) eventMenuWrap.style.display = ((isOrganizer && info.status !== 'passato') || canRemoveFromHome) ? '' : 'none';
+
+        var menuEditLinkEl = document.getElementById('menuEditLink');
+        if (menuEditLinkEl) menuEditLinkEl.style.display = isOrganizer ? '' : 'none';
+        var menuDeleteBtnEl = document.getElementById('menuDeleteBtn');
+        if (menuDeleteBtnEl) menuDeleteBtnEl.style.display = isOrganizer ? '' : 'none';
+        var menuRemoveFromHomeBtnEl = document.getElementById('menuRemoveFromHomeBtn');
+        if (menuRemoveFromHomeBtnEl) menuRemoveFromHomeBtnEl.style.display = canRemoveFromHome ? '' : 'none';
 
         // Tap per vederla a schermo intero (Fil, 2026-07-10): cursor:zoom-in
         // per far capire che è cliccabile, vedi openPhotoLightbox più sotto.
@@ -1560,6 +1590,35 @@
           dropdown.style.display = 'none';
         });
         dropdown.addEventListener('click', function (e) { e.stopPropagation(); });
+
+        var removeFromHomeBtn = document.getElementById('menuRemoveFromHomeBtn');
+        if (removeFromHomeBtn) {
+          removeFromHomeBtn.addEventListener('click', async function () {
+            dropdown.style.display = 'none';
+
+            // Messaggio diverso a seconda che stia davvero cambiando risposta
+            // (era disponibile per qualche data) o si sia già detto "non
+            // disponibile" e stia solo pulendo la sua home (Fil, 2026-07-20).
+            var existingParticipant = findExistingParticipant();
+            var wasAvailable = !!(existingParticipant && (existingParticipant.availableDateOptionIds || []).length > 0);
+            var confirmMsg = wasAvailable
+              ? 'Rimuovendo "' + event.name + '" dalla tua home risulterai non disponibile per tutti gli invitati. L\'azione non si può annullare: continuare?'
+              : 'Rimuovere "' + event.name + '" dalla tua home? Non potrai più vederlo qui, l\'azione non si può annullare.';
+            var sure = window.confirm(confirmMsg);
+            if (!sure) return;
+
+            var originalText = removeFromHomeBtn.textContent;
+            removeFromHomeBtn.textContent = 'Rimuovo...';
+            try {
+              await NdumaData.removeEventFromHome(event.id);
+            } catch (err) {
+              removeFromHomeBtn.textContent = originalText;
+              window.alert('Non sono riuscito a rimuovere l\'evento dalla tua home (' + err.message + '). Riprova.');
+              return;
+            }
+            window.location.href = 'eventi.html';
+          });
+        }
 
         if (deleteBtn) {
           deleteBtn.addEventListener('click', async function () {
