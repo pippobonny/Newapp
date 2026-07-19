@@ -2026,7 +2026,23 @@
     });
     if (res.error) throwSupabaseError(res.error);
 
+    // La RPC ha già deciso se la risposta è cambiata davvero e non è
+    // l'organizzatore che risponde a se stesso (vedi upsert_participant):
+    // qui ci si limita a lanciare la push, l'avviso in-app l'ha già scritto
+    // lei nella stessa transazione (Fil, 2026-07-20).
+    if (res.data && res.data.notifyOrganizer) {
+      notifyEventResponse(eventId, res.data.name, !!res.data.available);
+    }
+
     return getEventById(eventId);
+  }
+
+  /* Notifica push "qualcuno ha risposto al tuo evento" (Edge Function
+     "notify-event-response") per il solo organizzatore. Fire and forget
+     come le altre: non deve mai bloccare il salvataggio della risposta. */
+  function notifyEventResponse(eventId, responderName, available) {
+    supabase.functions.invoke('notify-event-response', { body: { eventId: eventId, responderName: responderName, available: available } })
+      .catch(function (err) { /* non blocca: la risposta è comunque salvata */ });
   }
 
   /* "Non potrò esserci" su un evento già confermato (Fil, 2026-07-17): a
