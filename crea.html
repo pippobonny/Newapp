@@ -97,6 +97,14 @@
           <label>Dove sarà (opzionale)</label>
           <input type="text" id="eventLocationInput" placeholder="Scrivi un indirizzo o un luogo">
           <div class="field-hint" id="locationHint" style="display:none;"></div>
+          <!-- Righe in più per proporre più location tra cui far scegliere gli
+               invitati (Fil, 2026-07-21): stesso meccanismo delle date "in
+               più" qui sotto, stesso stile "+ aggiungi". Il campo sopra resta
+               SEMPRE la prima location: se resta l'unica, tutto si comporta
+               esattamente come prima (nessuna riga qui dentro, nessuna
+               location_options creata — vedi createEventBtn). -->
+          <div class="date-row-list" id="extraLocationRowList" style="margin-top:8px;"></div>
+          <div class="add-date-btn" id="addLocationBtn" style="margin-top:8px;">+ Proponi un'altra location (gli invitati sceglieranno)</div>
         </div>
 
         <div class="form-error" id="step1Error"></div>
@@ -516,6 +524,72 @@
         }
       });
 
+      /* ---------- più location tra cui votare (Fil, 2026-07-21) ----------
+         extraLocationRows: una per ogni riga IN PIÙ oltre al campo base
+         qui sopra (che resta sempre la prima) — { input, state }, stesso
+         { address, placeId, lat, lng } della location singola. Al momento
+         di creare l'evento (createEventBtn) si guarda quante location
+         risultano compilate in tutto: 1 sola → comportamento identico a
+         sempre; 2 o più → diventano location_options tra cui gli invitati
+         scelgono (vedi buildLocationOptionsToCreate più sotto). */
+      var extraLocationRowList = document.getElementById('extraLocationRowList');
+      var addLocationBtn = document.getElementById('addLocationBtn');
+      var extraLocationRows = [];
+
+      var mapsReady = false;
+      var pendingAutocompleteAttachments = [];
+
+      function attachLocationAutocomplete(inputEl, state) {
+        if (!mapsReady) { pendingAutocompleteAttachments.push([inputEl, state]); return; }
+        var autocomplete = new google.maps.places.Autocomplete(inputEl, {
+          fields: ['formatted_address', 'place_id', 'geometry']
+        });
+        autocomplete.addListener('place_changed', function () {
+          var place = autocomplete.getPlace();
+          if (!place || (!place.formatted_address && !place.geometry)) return;
+          state.address = place.formatted_address || inputEl.value;
+          state.placeId = place.place_id || null;
+          state.lat = (place.geometry && place.geometry.location) ? place.geometry.location.lat() : null;
+          state.lng = (place.geometry && place.geometry.location) ? place.geometry.location.lng() : null;
+          inputEl.value = state.address;
+        });
+      }
+
+      function makeLocationRow() {
+        var state = { address: null, placeId: null, lat: null, lng: null };
+
+        var row = document.createElement('div');
+        row.className = 'date-row';
+
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = 'Scrivi un altro indirizzo o luogo';
+        input.addEventListener('input', function () {
+          if (input.value !== state.address) {
+            state.address = null; state.placeId = null; state.lat = null; state.lng = null;
+          }
+        });
+
+        var remove = document.createElement('div');
+        remove.className = 'remove-date';
+        remove.textContent = '✕';
+        remove.addEventListener('click', function () {
+          row.remove();
+          extraLocationRows = extraLocationRows.filter(function (r) { return r.input !== input; });
+        });
+
+        row.appendChild(input);
+        row.appendChild(remove);
+
+        extraLocationRows.push({ input: input, state: state });
+        attachLocationAutocomplete(input, state);
+        return row;
+      }
+
+      addLocationBtn.addEventListener('click', function () {
+        extraLocationRowList.appendChild(makeLocationRow());
+      });
+
       (function setupLocationAutocomplete() {
         var apiKey = NdumaData.GOOGLE_MAPS_API_KEY;
         if (!apiKey) {
@@ -524,10 +598,10 @@
           return;
         }
         if (window.google && window.google.maps && window.google.maps.places) {
-          attachAutocomplete();
+          onMapsReady();
           return;
         }
-        window.__ciSiamoMapsReady = attachAutocomplete;
+        window.__ciSiamoMapsReady = onMapsReady;
         var script = document.createElement('script');
         script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(apiKey) + '&libraries=places&loading=async&callback=__ciSiamoMapsReady';
         script.onerror = function () {
@@ -536,23 +610,28 @@
         };
         document.head.appendChild(script);
 
-        function attachAutocomplete() {
-          var autocomplete = new google.maps.places.Autocomplete(eventLocationInput, {
-            fields: ['formatted_address', 'place_id', 'geometry']
-          });
-          autocomplete.addListener('place_changed', function () {
-            var place = autocomplete.getPlace();
-            if (!place || (!place.formatted_address && !place.geometry)) return;
-            selectedLocation = {
-              address: place.formatted_address || eventLocationInput.value,
-              placeId: place.place_id || null,
-              lat: (place.geometry && place.geometry.location) ? place.geometry.location.lat() : null,
-              lng: (place.geometry && place.geometry.location) ? place.geometry.location.lng() : null
-            };
-            eventLocationInput.value = selectedLocation.address;
-          });
+        function onMapsReady() {
+          mapsReady = true;
+          attachLocationAutocomplete(eventLocationInput, selectedLocation);
+          pendingAutocompleteAttachments.forEach(function (pair) { attachLocationAutocomplete(pair[0], pair[1]); });
+          pendingAutocompleteAttachments = [];
         }
       })();
+
+      /* Tutte le location compilate (base + righe extra), nell'ordine in cui
+         compaiono in pagina: se sono 2 o più, questo è l'elenco che diventa
+         location_options; se ne resta una sola, non si crea nessuna riga (si
+         usa solo il campo base, come sempre — vedi createEventBtn). */
+      function buildLocationOptionsToCreate() {
+        var rows = [{ input: eventLocationInput, state: selectedLocation }].concat(extraLocationRows);
+        return rows
+          .map(function (r) {
+            var address = (r.state.address || r.input.value || '').trim();
+            if (!address) return null;
+            return { address: address, placeId: r.state.placeId || null, lat: r.state.lat, lng: r.state.lng };
+          })
+          .filter(function (r) { return !!r; });
+      }
 
       var friendListSelect = document.getElementById('friendListSelect');
       var manualNamesField = document.getElementById('manualNamesField');
@@ -1042,6 +1121,14 @@
 
           var locationAddress = selectedLocation.address || eventLocationInput.value.trim() || null;
 
+          // 2+ location compilate (solo in creazione, vedi sopra): diventano
+          // location_options tra cui votare, e i campi location_* dell'evento
+          // restano vuoti (nessuna location "fissa" finché non si vota — vedi
+          // createEvent in data.js). Con 0 o 1 sola, tutto resta com'era
+          // sempre: solo i campi location_* diretti, nessuna riga in più.
+          var locationsForVoting = (!isEditMode) ? buildLocationOptionsToCreate() : [];
+          var useMultipleLocations = locationsForVoting.length > 1;
+
           var payload = {
             name: name,
             description: description,
@@ -1051,10 +1138,11 @@
             friendListId: friendListId || null,
             inviteeNames: inviteeNames,
             photoUrl: photoUrl,
-            locationAddress: locationAddress,
-            locationPlaceId: selectedLocation.placeId,
-            locationLat: selectedLocation.lat,
-            locationLng: selectedLocation.lng,
+            locationAddress: useMultipleLocations ? null : locationAddress,
+            locationPlaceId: useMultipleLocations ? null : selectedLocation.placeId,
+            locationLat: useMultipleLocations ? null : selectedLocation.lat,
+            locationLng: useMultipleLocations ? null : selectedLocation.lng,
+            locations: useMultipleLocations ? locationsForVoting : [],
             openInvite: openInviteCheckbox.checked,
             eventTime: eventTimeInput.value
           };
@@ -1311,6 +1399,14 @@
             lng: (editingEvent.locationLng === undefined) ? null : editingEvent.locationLng
           };
         }
+
+        // Più location tra cui votare (Fil, 2026-07-21): si propongono solo
+        // alla creazione, non in modifica — updateEvent non sa (ancora)
+        // gestire un diff su location_options come già fa per le date, che
+        // è una logica delicata (notifiche a chi perde una data/location a
+        // cui aveva risposto) da non improvvisare qui. Il bottone sparisce
+        // del tutto in modifica, coerente col fatto che oggi non fa nulla.
+        if (addLocationBtn) addLocationBtn.style.display = 'none';
 
         // orario (Fil, 2026-07-20): eventTime arriva dal DB come "HH:MM:SS",
         // <input type="time"> vuole "HH:MM" -- si taglia ai primi 5 caratteri.

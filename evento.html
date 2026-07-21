@@ -687,6 +687,18 @@
           } else {
             summaryText = 'Hai indicato di <b>non essere mai disponibile</b> per questo evento.';
           }
+          // Location scelta (solo se l'evento ne propone più di una — vedi
+          // buildLocationChipGridHTML): stesso riepilogo della data, tenuto
+          // nella stessa riga invece che a parte.
+          if ((event.locationOptions || []).length > 1) {
+            var locIds = existingParticipant.availableLocationOptionIds || [];
+            var locLabels = event.locationOptions
+              .filter(function (o) { return locIds.indexOf(o.id) !== -1; })
+              .map(function (o) { return o.address; });
+            summaryText += locLabels.length
+              ? '<br>Location che ti vanno bene: <b>' + locLabels.map(NdumaData.escapeHTML).join(', ') + '</b>'
+              : '<br>Non hai indicato nessuna location che ti va bene.';
+          }
           return ''
             + '<div class="section-title">La tua disponibilità</div>'
             + '<div class="card-date" style="margin:0 2px 14px;">' + summaryText + '</div>'
@@ -694,6 +706,7 @@
         }
 
         var preselected = existingParticipant ? (existingParticipant.availableDateOptionIds || []) : [];
+        var preselectedLocations = existingParticipant ? (existingParticipant.availableLocationOptionIds || []) : [];
 
         // Con una sola data proposta non ha senso un selettore "quale giorno":
         // non c'è scelta. Due bottoni semplici (Fil, 2026-07-10) al posto del
@@ -701,6 +714,7 @@
         if (event.dateOptions.length === 1) {
           return ''
             + '<div class="section-title">Ci sarai?</div>'
+            + buildLocationChipGridHTML(preselectedLocations)
             + '<div class="form-error" id="formError"></div>'
             + '<button type="button" class="primary-btn" id="singleDateYesBtn" data-option-id="' + event.dateOptions[0].id + '">✅ Ci sono</button>'
             + '<div class="add-date-btn" id="singleDateNoBtn" style="margin-top:10px;">Non ci sono</div>';
@@ -725,9 +739,34 @@
         return ''
           + '<div class="section-title">Quando sei disponibile?</div>'
           + '<div class="day-grid" id="dayGrid">' + dayCardsHTML + '</div>'
+          + buildLocationChipGridHTML(preselectedLocations)
           + '<div class="form-error" id="formError"></div>'
           + '<button type="button" class="primary-btn" id="confirmBtn">Conferma disponibilità</button>'
           + '<div style="text-align:center;"><span class="signup-skip-link" id="neverAvailableBtn">Non sono mai disponibile</span></div>';
+      }
+
+      /* ---------- voto sulla location (Fil, 2026-07-21) ----------
+         Compare SOLO se l'organizzatore ha proposto più di una location in
+         fase di creazione (event.locationOptions.length > 1) — con una sola
+         (o nessuna) tutto resta esattamente come prima, zero righe in più.
+         Stesso stile "a quadrati" della disponibilità sui giorni qui sopra
+         ("prendi spunto dalla decisione dei giorni", Fil): stesso .day-grid/
+         .chip, solo con l'indirizzo al posto di giorno/numero/mese. Scelta
+         multipla (puoi andar bene con più di una location), sottomessa
+         insieme alla disponibilità sui giorni con lo stesso bottone
+         "Conferma disponibilità" (vedi saveAvailability). */
+      function buildLocationChipGridHTML(preselectedLocationIds) {
+        if ((event.locationOptions || []).length < 2) return '';
+        var cardsHTML = event.locationOptions.map(function (opt) {
+          var selected = preselectedLocationIds.indexOf(opt.id) !== -1;
+          return '<div class="chip day-card' + (selected ? ' selected' : '') + '" data-location-option-id="' + opt.id + '" style="width:100%; height:auto; padding:10px 12px; text-align:left;">'
+            + '<div class="day-num" style="font-size:13px; font-weight:600;">' + NdumaData.escapeHTML(opt.address) + '</div>'
+            + '<div class="chip-check">✓</div>'
+            + '</div>';
+        }).join('');
+        return ''
+          + '<div class="section-title">Quale location ti va bene?</div>'
+          + '<div class="day-grid" id="locationGrid" style="grid-template-columns:1fr;">' + cardsHTML + '</div>';
       }
 
       /* Giorno/numero/mese abbreviati per le card quadrate della griglia
@@ -1070,12 +1109,21 @@
           ? '<img id="eventPhotoImg" src="' + NdumaData.escapeHTML(event.photoUrl) + '" alt="" style="width:100%; height:160px; object-fit:cover; border-radius:18px; margin-bottom:16px; box-shadow:0 6px 18px rgba(58,50,90,0.14); cursor:zoom-in;">'
           : '';
 
+        // Con più location proposte, quella "vera" da mostrare qui non è più
+        // event.locationAddress (resta vuoto apposta, vedi crea.html) ma
+        // quella confermata, o finché non lo è quella in testa ai voti —
+        // stessa idea del "miglior giorno" (Fil, 2026-07-21). Con 0 o 1 sola
+        // location tutto resta identico a sempre.
         var mapsUrl = NdumaData.buildMapsUrl(event);
-        var locationHTML = event.locationAddress
+        var resolvedLocation = NdumaData.resolveEventLocation(event);
+        var isMultiLocation = (event.locationOptions || []).length > 1;
+        var locationNotConfirmedYet = isMultiLocation && !event.confirmedLocationOptionId;
+        var locationHTML = resolvedLocation.address
           ? '<div class="card-date" style="margin:2px 2px 16px;">📍 '
             + (mapsUrl
-              ? '<a href="' + NdumaData.escapeHTML(mapsUrl) + '" target="_blank" rel="noopener" style="color:var(--lavender); font-weight:600;">' + NdumaData.escapeHTML(event.locationAddress) + '</a>'
-              : NdumaData.escapeHTML(event.locationAddress))
+              ? '<a href="' + NdumaData.escapeHTML(mapsUrl) + '" target="_blank" rel="noopener" style="color:var(--lavender); font-weight:600;">' + NdumaData.escapeHTML(resolvedLocation.address) + '</a>'
+              : NdumaData.escapeHTML(resolvedLocation.address))
+            + (locationNotConfirmedYet ? ' <span style="color:var(--ink-soft); font-weight:400;">(in testa ai voti, non ancora definitiva)</span>' : '')
             + '</div>'
           : '';
 
@@ -1207,11 +1255,31 @@
         var sure = window.confirm('Confermare "' + label + '"? Questa data diventa subito quella definitiva dell\'evento, anche se non tutti hanno ancora risposto. Non si può annullare da qui.');
         if (!sure) return;
 
+        // Se ci sono più location proposte, va risolta insieme alla data
+        // (Fil, 2026-07-21): automatica se una è chiaramente in testa ai
+        // voti, a scelta dell'organizzatore solo in caso di pareggio —
+        // stesso principio della data, stesso popup a quadrati qui sotto.
+        if ((event.locationOptions || []).length > 1) {
+          var locInfo = NdumaData.computeLocationLeader(event);
+          if (locInfo.tiedOptions.length > 1) {
+            openConfirmLocationPopup(locInfo.tiedOptions, function (locationOptionId) {
+              finishConfirmDate(optionId, locationOptionId, btnEl, onDone);
+            });
+            return;
+          }
+          finishConfirmDate(optionId, locInfo.bestOption ? locInfo.bestOption.id : null, btnEl, onDone);
+          return;
+        }
+
+        finishConfirmDate(optionId, null, btnEl, onDone);
+      }
+
+      async function finishConfirmDate(optionId, locationOptionId, btnEl, onDone) {
         var originalText = btnEl.textContent;
         btnEl.textContent = 'Confermo...';
         btnEl.disabled = true;
         try {
-          event = await NdumaData.confirmEventDate(event.id, optionId);
+          event = await NdumaData.confirmEventDate(event.id, optionId, locationOptionId);
         } catch (err) {
           btnEl.textContent = originalText;
           btnEl.disabled = false;
@@ -1220,6 +1288,72 @@
         }
         if (onDone) onDone();
         render();
+      }
+
+      /* Popup "pareggio, quale location confermi?" (Fil, 2026-07-21): si apre
+         SOLO se, al momento di confermare la data, più location risultano
+         appaiate al primo posto dei voti — altrimenti la location si risolve
+         da sola (vedi confirmDateOption). Stessa struttura/stile del popup
+         di scelta giorno qui sopra (openConfirmDayPopup), a scelta singola,
+         ma non conferma da sé: richiama onChosen(locationOptionId) e lascia
+         che sia confirmDateOption a finire il salvataggio vero. */
+      function openConfirmLocationPopup(options, onChosen) {
+        var phone = document.querySelector('.phone');
+        if (!phone) return;
+
+        var selectedId = null;
+        var overlay = document.createElement('div');
+        overlay.className = 'signup-overlay';
+
+        function closePopup() {
+          if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        }
+
+        var cardsHTML = options.map(function (opt) {
+          var count = (event.participants || []).filter(function (p) {
+            return (p.availableLocationOptionIds || []).indexOf(opt.id) !== -1;
+          }).length;
+          return '<div class="chip day-card" data-location-option-id="' + opt.id + '" style="width:100%; height:auto; padding:10px 12px; text-align:left;">'
+            + '<div class="day-num" style="font-size:13px; font-weight:600;">' + NdumaData.escapeHTML(opt.address) + '</div>'
+            + '<div class="day-bar-badge" style="margin:4px 0 0;"><span aria-hidden="true">👤</span>' + count + '</div>'
+            + '</div>';
+        }).join('');
+
+        overlay.innerHTML = ''
+          + '<div class="signup-modal confirm-day-modal">'
+          + '<div class="signup-modal-title">Pareggio: quale location confermi?</div>'
+          + '<div class="day-grid" style="grid-template-columns:1fr;">' + cardsHTML + '</div>'
+          + '<button type="button" class="primary-btn" id="confirmLocationSubmitBtn" disabled>Conferma location</button>'
+          + '<div style="text-align:center;"><span class="signup-skip-link" id="confirmLocationCancelLink">Annulla</span></div>'
+          + '</div>';
+
+        var submitBtn = overlay.querySelector('#confirmLocationSubmitBtn');
+        var cards = overlay.querySelectorAll('[data-location-option-id]');
+
+        cards.forEach(function (card) {
+          card.addEventListener('click', function () {
+            selectedId = card.getAttribute('data-location-option-id');
+            cards.forEach(function (c) { c.classList.toggle('selected', c === card); });
+            if (submitBtn) submitBtn.disabled = false;
+          });
+        });
+
+        if (submitBtn) {
+          submitBtn.addEventListener('click', function () {
+            if (!selectedId) return;
+            closePopup();
+            onChosen(selectedId);
+          });
+        }
+
+        var cancelLink = overlay.querySelector('#confirmLocationCancelLink');
+        if (cancelLink) cancelLink.addEventListener('click', closePopup);
+
+        var modalEl = overlay.querySelector('.confirm-day-modal');
+        if (modalEl) modalEl.addEventListener('click', function (e) { e.stopPropagation(); });
+
+        overlay.addEventListener('click', closePopup);
+        phone.appendChild(overlay);
       }
 
       /* Popup "quale giorno confermi?" (evento.html, Fil 2026-07-19): si
@@ -1425,7 +1559,11 @@
             var originalText = rejoinLink.textContent;
             rejoinLink.textContent = 'Aggiorno...';
             try {
-              event = await NdumaData.upsertParticipant(event.id, guestName, [info.bestOption.id]);
+              // La preferenza sulla location non c'entra col "ci sarò
+              // dopotutto": si riusa quella che aveva già dato (se ne aveva
+              // data una), non si tocca qui.
+              var existingLocIds = (findExistingParticipant() || {}).availableLocationOptionIds || [];
+              event = await NdumaData.upsertParticipant(event.id, guestName, [info.bestOption.id], existingLocIds);
             } catch (err) {
               rejoinLink.textContent = originalText;
               window.alert('Non sono riuscito ad aggiornare la tua risposta (' + err.message + '). Riprova.');
@@ -1473,6 +1611,12 @@
           });
         });
 
+        document.querySelectorAll('#locationGrid .chip').forEach(function (chip) {
+          chip.addEventListener('click', function () {
+            chip.classList.toggle('selected');
+          });
+        });
+
         document.querySelectorAll('[data-claim-invitee]').forEach(function (row) {
           row.addEventListener('click', function () {
             claimInviteeAs(row.getAttribute('data-claim-invitee'));
@@ -1486,6 +1630,13 @@
           });
         }
 
+        function selectedLocationIds() {
+          return Array.prototype.map.call(
+            document.querySelectorAll('#locationGrid .chip.selected'),
+            function (c) { return c.getAttribute('data-location-option-id'); }
+          );
+        }
+
         var confirmBtn = document.getElementById('confirmBtn');
         if (confirmBtn) {
           confirmBtn.addEventListener('click', function () {
@@ -1493,28 +1644,28 @@
               document.querySelectorAll('#dayGrid .chip.selected'),
               function (c) { return c.getAttribute('data-option-id'); }
             );
-            saveAvailability(selectedIds, confirmBtn);
+            saveAvailability(selectedIds, selectedLocationIds(), confirmBtn);
           });
         }
 
         var singleDateYesBtn = document.getElementById('singleDateYesBtn');
         if (singleDateYesBtn) {
           singleDateYesBtn.addEventListener('click', function () {
-            saveAvailability([singleDateYesBtn.getAttribute('data-option-id')], singleDateYesBtn);
+            saveAvailability([singleDateYesBtn.getAttribute('data-option-id')], selectedLocationIds(), singleDateYesBtn);
           });
         }
 
         var singleDateNoBtn = document.getElementById('singleDateNoBtn');
         if (singleDateNoBtn) {
           singleDateNoBtn.addEventListener('click', function () {
-            saveAvailability([], singleDateNoBtn);
+            saveAvailability([], [], singleDateNoBtn);
           });
         }
 
         var neverAvailableBtn = document.getElementById('neverAvailableBtn');
         if (neverAvailableBtn) {
           neverAvailableBtn.addEventListener('click', function () {
-            saveAvailability([], neverAvailableBtn);
+            saveAvailability([], [], neverAvailableBtn);
           });
         }
 
@@ -1533,15 +1684,20 @@
             // crea.html (lo stesso della "+ Crea una lista amici"): nome,
             // descrizione, foto e luogo passano così come sono; date, lista
             // invitati e quota restano vuote apposta, da scegliere da capo.
+            // Se l'evento aveva più location tra cui votare, si riporta solo
+            // quella confermata (o in testa ai voti) come punto di partenza:
+            // "Ripeti" riparte comunque da zero su tutto il resto, niente
+            // votazione multipla riportata pari pari (Fil, 2026-07-21).
+            var repeatLocation = NdumaData.resolveEventLocation(event);
             var repeatDraft = {
               eventName: event.name,
               description: event.description,
-              locationValue: event.locationAddress || '',
+              locationValue: repeatLocation.address || '',
               selectedLocation: {
-                address: event.locationAddress || null,
-                placeId: event.locationPlaceId || null,
-                lat: (event.locationLat === undefined) ? null : event.locationLat,
-                lng: (event.locationLng === undefined) ? null : event.locationLng
+                address: repeatLocation.address || null,
+                placeId: repeatLocation.placeId || null,
+                lat: (repeatLocation.lat === undefined) ? null : repeatLocation.lat,
+                lng: (repeatLocation.lng === undefined) ? null : repeatLocation.lng
               },
               carriedPhotoUrl: event.photoUrl || null,
               currentStep: 1
@@ -1691,7 +1847,7 @@
 
       /* Salva su Supabase e torna alla vista compatta: niente più navigazione
          verso la Home, si resta qui a vedere il riepilogo aggiornato. */
-      async function saveAvailability(selectedIds, btnEl) {
+      async function saveAvailability(selectedIds, selectedLocIds, btnEl) {
         var formError = document.getElementById('formError');
         if (formError) formError.textContent = '';
 
@@ -1707,7 +1863,7 @@
         btnEl.textContent = 'Salvo...';
 
         try {
-          event = await NdumaData.upsertParticipant(event.id, guestName, selectedIds);
+          event = await NdumaData.upsertParticipant(event.id, guestName, selectedIds, selectedLocIds);
         } catch (err) {
           if (formError) formError.textContent = 'Non sono riuscito a salvare la tua disponibilità (' + err.message + '). Riprova.';
           btnEl.disabled = false;

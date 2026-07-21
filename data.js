@@ -239,7 +239,7 @@
       .concat(dtLines)
       .concat([
         'SUMMARY:' + icsEscape(event.name),
-        event.locationAddress ? 'LOCATION:' + icsEscape(event.locationAddress) : null,
+        (function () { var loc = resolveEventLocation(event); return loc.address ? 'LOCATION:' + icsEscape(loc.address) : null; })(),
         'DESCRIPTION:' + icsEscape(descriptionParts.join('\n\n'))
       ].filter(function (l) { return l !== null; }))
       .concat(['END:VEVENT', 'END:VCALENDAR']);
@@ -1275,9 +1275,11 @@
     + 'locationLat:location_lat, locationLng:location_lng, '
     + 'createdBy:created_by, createdByAccountId:created_by_account_id, friendListId:friend_list_id, createdAt:created_at, '
     + 'cancelledAt:cancelled_at, shareToken:share_token, openInvite:open_invite, '
-    + 'confirmedDateOptionId:confirmed_date_option_id, manuallyCancelled:manually_cancelled, eventTime:event_time, '
+    + 'confirmedDateOptionId:confirmed_date_option_id, confirmedLocationOptionId:confirmed_location_option_id, '
+    + 'manuallyCancelled:manually_cancelled, eventTime:event_time, itemsEnabled:items_enabled, '
     + 'dateOptions:date_options!date_options_event_id_fkey(id, dateISO:date_iso), '
-    + 'participants(name, availableDateOptionIds:available_date_option_ids, accountId:account_id, createdAt:created_at, hiddenFromHome:hidden_from_home), '
+    + 'locationOptions:location_options(id, address, placeId:place_id, lat, lng), '
+    + 'participants(name, availableDateOptionIds:available_date_option_ids, availableLocationOptionIds:available_location_option_ids, accountId:account_id, createdAt:created_at, hiddenFromHome:hidden_from_home), '
     + 'invitees:event_invitees(id, name, accountId:account_id, claimedAt:claimed_at)';
 
   /* ---------- visibilità eventi ----------
@@ -1357,20 +1359,67 @@
     });
   }
 
+  /* ---------- votare anche la location (Fil, 2026-07-21) ----------
+     Stessa idea del "miglior giorno" (bestOption/tiedOptions in
+     computeEventStatus), ma per event.locationOptions: solo se
+     l'organizzatore ne ha proposte 2 o più in fase di creazione (vedi
+     crea.html), altrimenti non c'è nessun voto da contare — con 0 o 1 sola
+     location non ha senso una "location in testa", quindi bestOption resta
+     semplicemente l'unica che c'è (o null). */
+  function computeLocationLeader(event) {
+    var options = event.locationOptions || [];
+    if (options.length < 2) {
+      return { bestOption: options[0] || null, tiedOptions: [] };
+    }
+    var counts = options.map(function (opt) {
+      return (event.participants || []).filter(function (p) {
+        return (p.availableLocationOptionIds || []).indexOf(opt.id) !== -1;
+      }).length;
+    });
+    var maxCount = Math.max.apply(null, counts.concat([0]));
+    // nessuno ha ancora votato nulla: la prima proposta fa da segnaposto
+    // provvisorio (non c'è ancora nessun "leader" vero da mostrare)
+    if (maxCount <= 0) {
+      return { bestOption: options[0], tiedOptions: [] };
+    }
+    var bestIdx = counts.indexOf(maxCount);
+    var tiedOptions = options.filter(function (opt, idx) { return counts[idx] === maxCount; });
+    return { bestOption: options[bestIdx], tiedOptions: tiedOptions };
+  }
+
+  /* La location "vera" da mostrare/usare per un evento, qualunque sia il suo
+     stato: quella confermata se c'è già (events.confirmed_location_option_id),
+     altrimenti quella in testa ai voti se l'organizzatore ne ha proposte
+     più di una, altrimenti semplicemente i campi location_* diretti
+     dell'evento — che per un evento a location singola sono sempre gli
+     stessi di sempre, questa funzione non cambia nulla in quel caso. */
+  function resolveEventLocation(event) {
+    var options = event.locationOptions || [];
+    if (!options.length) {
+      return { address: event.locationAddress, placeId: event.locationPlaceId, lat: event.locationLat, lng: event.locationLng };
+    }
+    if (event.confirmedLocationOptionId) {
+      var confirmed = options.filter(function (o) { return o.id === event.confirmedLocationOptionId; })[0];
+      if (confirmed) return confirmed;
+    }
+    return computeLocationLeader(event).bestOption || { address: null, placeId: null, lat: null, lng: null };
+  }
+
   /* Link pubblico di Google Maps per una posizione salvata su un evento: usa il
      place_id quando c'è (più preciso, apre proprio quel luogo) altrimenti le
      coordinate, altrimenti l'indirizzo scritto a mano. Torna null se l'evento
      non ha nessuna posizione salvata. */
   function buildMapsUrl(event) {
-    if (event.locationPlaceId) {
-      return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(event.locationAddress || '')
-        + '&query_place_id=' + encodeURIComponent(event.locationPlaceId);
+    var loc = resolveEventLocation(event);
+    if (loc.placeId) {
+      return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(loc.address || '')
+        + '&query_place_id=' + encodeURIComponent(loc.placeId);
     }
-    if (event.locationLat != null && event.locationLng != null) {
-      return 'https://www.google.com/maps/search/?api=1&query=' + event.locationLat + ',' + event.locationLng;
+    if (loc.lat != null && loc.lng != null) {
+      return 'https://www.google.com/maps/search/?api=1&query=' + loc.lat + ',' + loc.lng;
     }
-    if (event.locationAddress) {
-      return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(event.locationAddress);
+    if (loc.address) {
+      return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(loc.address);
     }
     return null;
   }
@@ -1463,6 +1512,20 @@
       var dateRes = await supabase.from('date_options').insert(dateRows).select('id');
       if (dateRes.error) throw new Error(dateRes.error.message);
       createdOptionIds = (dateRes.data || []).map(function (r) { return r.id; });
+    }
+
+    // Più location tra cui votare (Fil, 2026-07-21): solo se ne sono state
+    // proposte 2 o più in crea.html — con 0 o 1 sola, location_address/ecc.
+    // sull'evento (già scritti sopra) restano l'unica fonte, esattamente
+    // come prima, e qui non si crea nessuna riga.
+    var locationRows = (input.locations || [])
+      .filter(function (l) { return l && l.address; })
+      .map(function (l) {
+        return { event_id: eventId, address: l.address, place_id: l.placeId || null, lat: l.lat, lng: l.lng };
+      });
+    if (locationRows.length) {
+      var locationRes = await supabase.from('location_options').insert(locationRows);
+      if (locationRes.error) throw new Error(locationRes.error.message);
     }
 
     var inviteeRows = (input.inviteeNames || [])
@@ -1946,11 +2009,21 @@
      tutto il resto in computeEventStatus, qualunque sia lo stato attuale.
      Pulisce anche manually_cancelled: se l'organizzatore aveva annullato a
      mano e ci ripensa, confermare una data qui lo "riapre" senza bisogno di
-     un'azione separata (Fil, 2026-07-19). */
-  async function confirmEventDate(eventId, dateOptionId) {
+     un'azione separata (Fil, 2026-07-19).
+
+     locationOptionId (Fil, 2026-07-21, opzionale): solo per eventi con più
+     location proposte, risolta insieme alla data dalla stessa azione
+     "Conferma" in evento.html (automatica o scelta a mano in caso di
+     pareggio, vedi computeLocationLeader) — null altrimenti, comportamento
+     identico a sempre per un evento a location singola. */
+  async function confirmEventDate(eventId, dateOptionId, locationOptionId) {
     var res = await supabase
       .from('events')
-      .update({ confirmed_date_option_id: dateOptionId, manually_cancelled: false })
+      .update({
+        confirmed_date_option_id: dateOptionId,
+        confirmed_location_option_id: locationOptionId || null,
+        manually_cancelled: false
+      })
       .eq('id', eventId);
     if (res.error) throw new Error(res.error.message);
     return getEventById(eventId);
@@ -2071,14 +2144,15 @@
      sessione vera si usa account_id come chiave — due persone con lo stesso
      nome sullo stesso evento non si sovrascrivono più a vicenda (Task 6) —
      altrimenti si ripiega sul nome, solo per chi è davvero ospite. */
-  async function upsertParticipant(eventId, guestName, availableDateOptionIds) {
+  async function upsertParticipant(eventId, guestName, availableDateOptionIds, availableLocationOptionIds) {
     var name = (guestName || '').trim();
     if (!name && !hasAccount()) return null;
 
     var res = await supabase.rpc('upsert_participant', {
       p_event_id: eventId,
       p_name: name || null,
-      p_available_date_option_ids: availableDateOptionIds
+      p_available_date_option_ids: availableDateOptionIds,
+      p_available_location_option_ids: availableLocationOptionIds || []
     });
     if (res.error) throwSupabaseError(res.error);
 
@@ -2642,6 +2716,8 @@
     hasUnreadNotifications: hasUnreadNotifications,
     countUnreadNotifications: countUnreadNotifications,
     computeEventStatus: computeEventStatus,
+    computeLocationLeader: computeLocationLeader,
+    resolveEventLocation: resolveEventLocation,
     buildMapsUrl: buildMapsUrl,
     formatDateLabel: formatDateLabel,
     shortDateLabel: shortDateLabel,
