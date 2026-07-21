@@ -1119,15 +1119,24 @@
             descriptionAudioUrl = await NdumaData.uploadEventAudio(pendingAudioBlob);
           }
 
-          var locationAddress = selectedLocation.address || eventLocationInput.value.trim() || null;
-
           // 2+ location compilate (solo in creazione, vedi sopra): diventano
           // location_options tra cui votare, e i campi location_* dell'evento
           // restano vuoti (nessuna location "fissa" finché non si vota — vedi
           // createEvent in data.js). Con 0 o 1 sola, tutto resta com'era
           // sempre: solo i campi location_* diretti, nessuna riga in più.
+          //
+          // Bug corretto (Fil, 2026-07-21, trovato in review): se restava UNA
+          // sola location compilata ma era una di quelle "extra" (campo base
+          // lasciato vuoto), prima si leggeva comunque solo selectedLocation/
+          // eventLocationInput — cioè il campo base — perdendo del tutto
+          // quella scritta altrove. Ora, con una sola location compilata, si
+          // usa SEMPRE quella (qualunque campo fosse), non più per forza il
+          // campo base.
           var locationsForVoting = (!isEditMode) ? buildLocationOptionsToCreate() : [];
           var useMultipleLocations = locationsForVoting.length > 1;
+          var singleLocation = locationsForVoting.length === 1
+            ? locationsForVoting[0]
+            : { address: selectedLocation.address || eventLocationInput.value.trim() || null, placeId: selectedLocation.placeId, lat: selectedLocation.lat, lng: selectedLocation.lng };
 
           var payload = {
             name: name,
@@ -1138,10 +1147,10 @@
             friendListId: friendListId || null,
             inviteeNames: inviteeNames,
             photoUrl: photoUrl,
-            locationAddress: useMultipleLocations ? null : locationAddress,
-            locationPlaceId: useMultipleLocations ? null : selectedLocation.placeId,
-            locationLat: useMultipleLocations ? null : selectedLocation.lat,
-            locationLng: useMultipleLocations ? null : selectedLocation.lng,
+            locationAddress: useMultipleLocations ? null : singleLocation.address,
+            locationPlaceId: useMultipleLocations ? null : singleLocation.placeId,
+            locationLat: useMultipleLocations ? null : singleLocation.lat,
+            locationLng: useMultipleLocations ? null : singleLocation.lng,
             locations: useMultipleLocations ? locationsForVoting : [],
             openInvite: openInviteCheckbox.checked,
             eventTime: eventTimeInput.value

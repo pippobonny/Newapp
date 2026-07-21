@@ -635,15 +635,22 @@
         }
         if (!ev) { btn.textContent = originalText; return; }
 
+        // Fil, 2026-07-21, bug trovato in review: con un evento a più
+        // location (vedi resolveEventLocation in data.js) ev.locationAddress
+        // resta vuoto per design (la location "vera" vive in
+        // ev.locationOptions), quindi "Ripeti" da qui perdeva la location in
+        // silenzio. Stessa funzione già usata dentro evento.html per lo
+        // stesso bottone.
+        var repeatLocation = NdumaData.resolveEventLocation(ev);
         var repeatDraft = {
           eventName: ev.name,
           description: ev.description,
-          locationValue: ev.locationAddress || '',
+          locationValue: repeatLocation.address || '',
           selectedLocation: {
-            address: ev.locationAddress || null,
-            placeId: ev.locationPlaceId || null,
-            lat: (ev.locationLat === undefined) ? null : ev.locationLat,
-            lng: (ev.locationLng === undefined) ? null : ev.locationLng
+            address: repeatLocation.address || null,
+            placeId: repeatLocation.placeId || null,
+            lat: (repeatLocation.lat === undefined) ? null : repeatLocation.lat,
+            lng: (repeatLocation.lng === undefined) ? null : repeatLocation.lng
           },
           carriedPhotoUrl: ev.photoUrl || null,
           eventTimeValue: ev.eventTime ? ev.eventTime.slice(0, 5) : '',
@@ -727,6 +734,13 @@
             if (openCard !== card) closeSwipeCard(openCard);
           });
           try { card.setPointerCapture(e.pointerId); } catch (err) { /* ignora */ }
+          // Fil, 2026-07-21, trovato in review: il refresh automatico di Home
+          // (NdumaData.startAutoRefresh, ogni 30s) ricostruisce la lista con
+          // innerHTML -- se scattasse proprio mentre stai trascinando una
+          // card col dito, la card sotto il dito sparirebbe a metà gesto. Il
+          // flag qui sotto fa saltare quel giro di refresh (il prossimo,
+          // 30s dopo, recupera comunque).
+          window.__ndumaSwipeDragging = true;
         }
         if (!isHorizontal) return;
 
@@ -741,6 +755,7 @@
       function endDrag() {
         if (!dragging) return;
         dragging = false;
+        window.__ndumaSwipeDragging = false;
         if (!isHorizontal) return;
         var open = currentX <= SWIPE_OPEN_THRESHOLD;
         setX(open ? SWIPE_OPEN_X : 0, true);

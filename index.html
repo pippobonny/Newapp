@@ -175,6 +175,12 @@
       // vedere un evento nuovo o una notifica arrivata mentre questa scheda
       // era già aperta — vedi NdumaData.startAutoRefresh in data.js).
       async function refreshHome() {
+        // Salta questo giro se proprio ora stai trascinando una card per
+        // rimuoverla (vedi initSwipeToRemove in script.js): ricostruire la
+        // lista sotto il dito a metà gesto la farebbe sparire di scatto. Il
+        // prossimo giro, 30s dopo, recupera comunque.
+        if (window.__ndumaSwipeDragging) return;
+
         var events;
         try {
           events = await NdumaData.getEvents();
