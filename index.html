@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#FF7A29">
+<meta name="color-scheme" content="light dark">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -155,21 +156,6 @@
         homeAvatarEl.textContent = guestName ? guestName.trim().charAt(0).toUpperCase() : '👋';
       }
 
-      var events = await NdumaData.getEvents();
-      // Gli eventi annullati NON compaiono più in Home (Fil, 2026-07-10): restano
-      // solo nel tab "Annullati" di Eventi, così la Home mostra solo cose ancora
-      // rilevanti (da confermare, o confermate). "closed" quindi ora è solo
-      // "done". Gli eventi "passato" (confermati e già successi da un po') non
-      // vanno in nessuna delle due sezioni: restano solo nell'archivio del Profilo.
-      var upcoming = events.filter(function (e) {
-        var status = NdumaData.computeEventStatus(e).status;
-        return status !== 'done' && status !== 'cancelled' && status !== 'passato';
-      });
-      var closed = events.filter(function (e) {
-        var status = NdumaData.computeEventStatus(e).status;
-        return status === 'done';
-      });
-
       // swipeToRemove: true solo qui in Home (Fil, 2026-07-20) — vedi il
       // commento su renderEventCardHTML in data.js sul perché serve questa
       // funzione wrapper invece di passare NdumaData.renderEventCardHTML
@@ -179,47 +165,80 @@
       }
 
       var upcomingList = document.getElementById('upcomingList');
-      if (upcoming.length) {
-        upcomingList.innerHTML = upcoming.map(renderHomeCard).join('');
-      } else {
-        upcomingList.innerHTML = '<div class="empty-hint">Nessun evento da confermare al momento.<br><a href="crea.html">Proponine uno tu →</a></div>';
-      }
-
       var closedSection = document.getElementById('closedSection');
-      if (closed.length) {
-        closedSection.innerHTML = '<div class="section-title">Organizzazione chiusa</div>' + closed.map(renderHomeCard).join('');
+      var bellBadge = document.getElementById('bellBadge');
+
+      // Eventi (per le card) + pallino notifiche sulla campanella, insieme
+      // in una funzione sola perché usano entrambi la stessa lista eventi:
+      // richiamata al primo caricamento e poi da sola ogni tot secondi
+      // (Fil, 2026-07-21: niente più refresh manuale della pagina per
+      // vedere un evento nuovo o una notifica arrivata mentre questa scheda
+      // era già aperta — vedi NdumaData.startAutoRefresh in data.js).
+      async function refreshHome() {
+        var events;
+        try {
+          events = await NdumaData.getEvents();
+        } catch (err) { return; } // silenzioso: resta quello che c'era già in pagina
+
+        // Gli eventi annullati NON compaiono più in Home (Fil, 2026-07-10): restano
+        // solo nel tab "Annullati" di Eventi, così la Home mostra solo cose ancora
+        // rilevanti (da confermare, o confermate). "closed" quindi ora è solo
+        // "done". Gli eventi "passato" (confermati e già successi da un po') non
+        // vanno in nessuna delle due sezioni: restano solo nell'archivio del Profilo.
+        var upcoming = events.filter(function (e) {
+          var status = NdumaData.computeEventStatus(e).status;
+          return status !== 'done' && status !== 'cancelled' && status !== 'passato';
+        });
+        var closed = events.filter(function (e) {
+          var status = NdumaData.computeEventStatus(e).status;
+          return status === 'done';
+        });
+
+        if (upcoming.length) {
+          upcomingList.innerHTML = upcoming.map(renderHomeCard).join('');
+        } else {
+          upcomingList.innerHTML = '<div class="empty-hint">Nessun evento da confermare al momento.<br><a href="crea.html">Proponine uno tu →</a></div>';
+        }
+
+        closedSection.innerHTML = closed.length
+          ? '<div class="section-title">Organizzazione chiusa</div>' + closed.map(renderHomeCard).join('')
+          : '';
+
+        // le card sopra sono state create ora: bisogna dire a script.js di
+        // (ri)animarle, altrimenti restano invisibili
+        if (window.NdumaUI) window.NdumaUI.refresh();
+
+        // Pallino "hai notifiche nuove?" sulla campanella (Fil, 2026-07-17):
+        // stessa lista costruita da notifiche.html (NdumaData.buildNotifications,
+        // unica fonte di verità), confrontata con l'ultima visita salvata su
+        // questo dispositivo. Tutto "best effort": se una delle due letture in
+        // più fallisce, il pallino semplicemente non si accende, non deve mai
+        // rompere il resto della Home.
+        try {
+          var myUsernameForBell = (guestName || '').toLowerCase();
+          var eventNoticesForBell = [];
+          var pendingFriendRequestsForBell = [];
+          try { eventNoticesForBell = await NdumaData.getEventNotices(guestName); } catch (err) { /* ignora */ }
+          try { pendingFriendRequestsForBell = await NdumaData.getMyPendingFriendRequests(); } catch (err) { /* ignora */ }
+
+          var notificationsForBell = NdumaData.buildNotifications(events, eventNoticesForBell, myUsernameForBell);
+          // Fil, 2026-07-19: prima solo un pallino vuoto ("hai qualcosa"), ora
+          // il numero vero di non lette dentro — più visibile e fa capire
+          // subito quanto c'è da vedere, non solo che c'è qualcosa.
+          var unreadCount = NdumaData.countUnreadNotifications(notificationsForBell, pendingFriendRequestsForBell);
+          if (bellBadge) {
+            if (unreadCount > 0) {
+              bellBadge.textContent = unreadCount > 9 ? '9+' : String(unreadCount);
+              bellBadge.style.display = '';
+            } else {
+              bellBadge.style.display = 'none';
+            }
+          }
+        } catch (err) { /* ignora: il pallino resta semplicemente com'era */ }
       }
 
-      // le card sopra sono state create ora, dopo il caricamento pagina: bisogna
-      // dire a script.js di (ri)animarle, altrimenti restano invisibili
-      if (window.NdumaUI) window.NdumaUI.refresh();
-
-      // Pallino "hai notifiche nuove?" sulla campanella (Fil, 2026-07-17):
-      // stessa lista costruita da notifiche.html (NdumaData.buildNotifications,
-      // unica fonte di verità), confrontata con l'ultima visita salvata su
-      // questo dispositivo. Tutto "best effort": se una delle due letture in
-      // più fallisce, il pallino semplicemente non si accende, non deve mai
-      // rompere il resto della Home.
-      try {
-        var myUsernameForBell = (guestName || '').toLowerCase();
-        var eventNoticesForBell = [];
-        var pendingFriendRequestsForBell = [];
-        try { eventNoticesForBell = await NdumaData.getEventNotices(guestName); } catch (err) { /* ignora */ }
-        try { pendingFriendRequestsForBell = await NdumaData.getMyPendingFriendRequests(); } catch (err) { /* ignora */ }
-
-        var notificationsForBell = NdumaData.buildNotifications(events, eventNoticesForBell, myUsernameForBell);
-        // Fil, 2026-07-19: prima solo un pallino vuoto ("hai qualcosa"), ora
-        // il numero vero di non lette dentro — più visibile e fa capire
-        // subito quanto c'è da vedere, non solo che c'è qualcosa.
-        var unreadCount = NdumaData.countUnreadNotifications(notificationsForBell, pendingFriendRequestsForBell);
-        if (unreadCount > 0) {
-          var bellBadge = document.getElementById('bellBadge');
-          if (bellBadge) {
-            bellBadge.textContent = unreadCount > 9 ? '9+' : String(unreadCount);
-            bellBadge.style.display = '';
-          }
-        }
-      } catch (err) { /* ignora: il pallino resta semplicemente spento */ }
+      await refreshHome();
+      NdumaData.startAutoRefresh(refreshHome);
     })();
   </script>
   <script src="script.js"></script>

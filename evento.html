@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#FF7A29">
+<meta name="color-scheme" content="light dark">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -48,6 +49,11 @@
         <div class="menu-dropdown" id="eventMenuDropdown" style="display:none;">
           <a class="menu-dropdown-item" id="menuEditLink" href="#" style="display:none;">✏️ Modifica</a>
           <div class="menu-dropdown-item" id="menuEditAvailabilityBtn" style="display:none;">📅 I giorni in cui ci sei</div>
+          <!-- Spenta di default su ogni evento nuovo, visibile solo a chi
+               organizza (Fil, 2026-07-21: "rimane nascosta appena crei
+               l'evento e poi da lì se vuoi la metti"). Etichetta e stato
+               aggiornati ad ogni render() in updateItemsToggleMenuLabel(). -->
+          <div class="menu-dropdown-item" id="menuToggleItemsBtn" style="display:none;">🎒 Attiva "chi porta cosa"</div>
           <div class="menu-dropdown-item danger" id="menuDeleteBtn" style="display:none;">🗑️ Elimina</div>
           <!-- Solo per chi NON organizza (Fil, 2026-07-20): rimuove l'evento
                dalla propria home perché tanto non ci sarà. Non tocca i
@@ -934,6 +940,78 @@
           + '</div>';
       }
 
+      /* ---------- "Chi porta cosa" (Fil, 2026-07-21) ----------
+         Spenta di default, si vede solo se l'organizzatore l'ha attivata dal
+         menu ⋮ (vedi voce "🎒" in bindEvents/menuToggleItemsBtn) — quindi
+         niente sezione qui finché event.itemsEnabled non è true, esattamente
+         come richiesto ("rimane nascosta appena crei l'evento"). Stesso
+         stile visivo dell'accordion spese qui sopra, per coerenza. Chiunque
+         veda l'evento e abbia un account può proporre una voce e prenotarla
+         (le RPC lato server rivalidano comunque tutto); un ospite senza
+         account vede solo l'elenco. */
+      function buildItemsSectionHTML(info) {
+        if (!event.itemsEnabled) return '';
+        if (info.status === 'cancelled') return '';
+
+        var items = event.items || [];
+        var myAccountId = (NdumaData.getAccount() || {}).id || null;
+        var isOrganizerAccount = !!(myAccountId && event.createdByAccountId && myAccountId === event.createdByAccountId);
+        var canWrite = NdumaData.hasAccount();
+
+        var rowsHTML = items.length
+          ? items.map(function (it) {
+              var isMineToRelease = canWrite && myAccountId && (it.takenByAccountId === myAccountId || isOrganizerAccount);
+              var actionHTML = '';
+              if (it.takenByAccountId) {
+                if (isMineToRelease) actionHTML = '<span class="expense-edit" data-release-item="' + it.id + '" style="cursor:pointer;">Libera</span>';
+              } else if (canWrite) {
+                actionHTML = '<span class="expense-edit" data-claim-item="' + it.id + '" style="cursor:pointer;">Ci penso io</span>';
+              }
+              var canDelete = canWrite && myAccountId && (it.addedByAccountId === myAccountId || isOrganizerAccount);
+              var deleteHTML = canDelete ? '<span class="expense-remove" data-remove-item="' + it.id + '" style="cursor:pointer;">✕</span>' : '';
+              var metaText = it.takenByAccountId ? 'Porta ' + NdumaData.escapeHTML(it.takenByName) : 'Nessuno ancora';
+              return ''
+                + '<div class="expense-row">'
+                + '<div class="expense-row-left">'
+                + '<div>'
+                + '<div class="expense-desc">' + NdumaData.escapeHTML(it.text) + '</div>'
+                + '<div class="expense-meta">' + metaText + '</div>'
+                + '</div>'
+                + '</div>'
+                + '<div class="expense-row-right">'
+                + '<div class="expense-actions">' + actionHTML + deleteHTML + '</div>'
+                + '</div>'
+                + '</div>';
+            }).join('')
+          : '<div class="empty-hint" style="padding:10px 0;">Nessuna voce ancora.</div>';
+
+        var addHTML = canWrite
+          ? '<div class="field" style="margin-top:10px;"><input type="text" id="newItemInput" maxlength="80" placeholder="Es. ghiaccio, altoparlante, birra..."></div>'
+            + '<div class="add-date-btn" id="addItemBtn" style="margin-top:8px;">+ Aggiungi</div>'
+          : '';
+
+        var subtitleText = items.length
+          ? items.length + (items.length === 1 ? ' voce' : ' voci') + (items.filter(function (it) { return !it.takenByAccountId; }).length ? ' · ' + items.filter(function (it) { return !it.takenByAccountId; }).length + ' da prendere' : '')
+          : 'Nessuna voce ancora';
+
+        return ''
+          + '<div class="expense-accordion">'
+          + '<div class="expense-accordion-header" id="itemsAccordionHeader">'
+          + '<div class="expense-accordion-titles">'
+          + '<div class="expense-accordion-title">🎒 Chi porta cosa</div>'
+          + '<div class="expense-accordion-subtitle">' + subtitleText + '</div>'
+          + '</div>'
+          + '<div class="expense-accordion-chevron" id="itemsAccordionChevron">&#9662;</div>'
+          + '</div>'
+          + '<div class="expense-accordion-body" id="itemsAccordionBody">'
+          + '<div class="expense-accordion-inner">'
+          + rowsHTML
+          + addHTML
+          + '</div>'
+          + '</div>'
+          + '</div>';
+      }
+
       function render() {
         var info = NdumaData.computeEventStatus(event);
         var isConfirmedSimple = (info.status === 'done' || info.status === 'passato') && !!info.bestOption;
@@ -979,6 +1057,12 @@
         if (menuDeleteBtnEl) menuDeleteBtnEl.style.display = isOrganizer ? '' : 'none';
         var menuRemoveFromHomeBtnEl = document.getElementById('menuRemoveFromHomeBtn');
         if (menuRemoveFromHomeBtnEl) menuRemoveFromHomeBtnEl.style.display = canRemoveFromHome ? '' : 'none';
+
+        var menuToggleItemsBtnEl = document.getElementById('menuToggleItemsBtn');
+        if (menuToggleItemsBtnEl) {
+          menuToggleItemsBtnEl.style.display = isOrganizer ? '' : 'none';
+          menuToggleItemsBtnEl.textContent = event.itemsEnabled ? '🎒 Disattiva "chi porta cosa"' : '🎒 Attiva "chi porta cosa"';
+        }
 
         // Tap per vederla a schermo intero (Fil, 2026-07-10): cursor:zoom-in
         // per far capire che è cliccabile, vedi openPhotoLightbox più sotto.
@@ -1055,6 +1139,7 @@
           menuEditAvailabilityBtn.style.display = showMenuEditAvailability ? '' : 'none';
         }
         var expensesSectionHTML = buildExpensesSectionHTML();
+        var itemsSectionHTML = buildItemsSectionHTML(info);
 
         // Fil, 2026-07-19: "chi c'è" e "quando sei disponibile" spostati
         // subito dopo le info dell'evento (prima erano in fondo alla
@@ -1086,6 +1171,7 @@
           + confirmedSummaryHTML
           + availabilityHTML
           + expensesSectionHTML
+          + itemsSectionHTML
           + breakdownSectionHTML
           + manualConfirmBottomHTML;
 
@@ -1517,6 +1603,90 @@
             render();
           });
         });
+
+        var itemsAccordionHeader = document.getElementById('itemsAccordionHeader');
+        var itemsAccordionBody = document.getElementById('itemsAccordionBody');
+        var itemsAccordionChevron = document.getElementById('itemsAccordionChevron');
+        if (itemsAccordionHeader) {
+          if (itemsAccordionOpen) {
+            itemsAccordionBody.classList.add('open');
+            itemsAccordionChevron.classList.add('open');
+          }
+          itemsAccordionHeader.addEventListener('click', function () {
+            itemsAccordionOpen = !itemsAccordionOpen;
+            itemsAccordionBody.classList.toggle('open', itemsAccordionOpen);
+            itemsAccordionChevron.classList.toggle('open', itemsAccordionOpen);
+          });
+        }
+
+        var addItemBtn = document.getElementById('addItemBtn');
+        if (addItemBtn) {
+          addItemBtn.addEventListener('click', async function () {
+            var input = document.getElementById('newItemInput');
+            var text = (input.value || '').trim();
+            if (!text) { input.focus(); return; }
+            addItemBtn.textContent = 'Aggiungo...';
+            try {
+              await NdumaData.addEventItem(event.id, text);
+            } catch (err) {
+              window.alert('Non sono riuscito ad aggiungere la voce (' + err.message + ').');
+              addItemBtn.textContent = '+ Aggiungi';
+              return;
+            }
+            itemsAccordionOpen = true;
+            event = await NdumaData.getEventById(event.id);
+            render();
+          });
+        }
+
+        document.querySelectorAll('[data-claim-item]').forEach(function (el) {
+          el.addEventListener('click', async function () {
+            var id = el.getAttribute('data-claim-item');
+            var got = false;
+            try {
+              got = await NdumaData.claimEventItem(id);
+            } catch (err) {
+              window.alert('Non sono riuscito a prenotarla (' + err.message + ').');
+              return;
+            }
+            if (!got) window.alert('Qualcun altro l\'ha già presa un attimo fa.');
+            itemsAccordionOpen = true;
+            event = await NdumaData.getEventById(event.id);
+            render();
+          });
+        });
+
+        document.querySelectorAll('[data-release-item]').forEach(function (el) {
+          el.addEventListener('click', async function () {
+            var id = el.getAttribute('data-release-item');
+            try {
+              await NdumaData.releaseEventItem(id);
+            } catch (err) {
+              window.alert('Non sono riuscito a liberarla (' + err.message + ').');
+              return;
+            }
+            itemsAccordionOpen = true;
+            event = await NdumaData.getEventById(event.id);
+            render();
+          });
+        });
+
+        document.querySelectorAll('[data-remove-item]').forEach(function (el) {
+          el.addEventListener('click', async function () {
+            var id = el.getAttribute('data-remove-item');
+            var sure = window.confirm('Eliminare questa voce?');
+            if (!sure) return;
+            try {
+              await NdumaData.deleteEventItem(id);
+            } catch (err) {
+              window.alert('Non sono riuscito a eliminarla (' + err.message + ').');
+              return;
+            }
+            itemsAccordionOpen = true;
+            event = await NdumaData.getEventById(event.id);
+            render();
+          });
+        });
       }
 
       /* Salva su Supabase e torna alla vista compatta: niente più navigazione
@@ -1641,6 +1811,25 @@
         });
         dropdown.addEventListener('click', function (e) { e.stopPropagation(); });
 
+        var toggleItemsBtn = document.getElementById('menuToggleItemsBtn');
+        if (toggleItemsBtn) {
+          toggleItemsBtn.addEventListener('click', async function () {
+            dropdown.style.display = 'none';
+            var nextEnabled = !event.itemsEnabled;
+            var originalText = toggleItemsBtn.textContent;
+            toggleItemsBtn.textContent = nextEnabled ? 'Attivo...' : 'Disattivo...';
+            try {
+              await NdumaData.setEventItemsEnabled(event.id, nextEnabled);
+            } catch (err) {
+              toggleItemsBtn.textContent = originalText;
+              window.alert('Non sono riuscito a cambiare la lista "chi porta cosa" (' + err.message + ').');
+              return;
+            }
+            event = await NdumaData.getEventById(event.id);
+            render();
+          });
+        }
+
         var removeFromHomeBtn = document.getElementById('menuRemoveFromHomeBtn');
         if (removeFromHomeBtn) {
           removeFromHomeBtn.addEventListener('click', async function () {
@@ -1710,6 +1899,7 @@
       var editingExpenseId = null;
       var selectedExpenseEmoji = '';
       var expenseAccordionOpen = false;
+      var itemsAccordionOpen = false;
       // Placeholder "faccina" disegnata a linee (SVG, non emoji a colori): Fil
       // la voleva stilizzata e a basso contrasto finché non scegli davvero
       // un'emoji, così si capisce che è un buco vuoto cliccabile senza scritte.

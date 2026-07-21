@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#FF7A29">
+<meta name="color-scheme" content="light dark">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -176,39 +177,48 @@
         await loadFriendRequests();
       }
 
-      await loadFriendRequests();
+      // Tutto il caricamento vero e proprio vive qui dentro, richiamata al
+      // primo caricamento e poi da sola ogni tot secondi (Fil, 2026-07-21:
+      // niente più refresh manuale della pagina per vedere una notifica
+      // arrivata mentre questa scheda era già aperta — vedi
+      // NdumaData.startAutoRefresh in data.js). Effetto collaterale
+      // accettato: se avevi aperto l'accordion "Notifiche precedenti", un
+      // refresh in background lo richiude — capita solo se lasci la pagina
+      // aperta per 30s+ senza toccarla.
+      async function refreshNotifications() {
+        await loadFriendRequests();
 
-      var events;
-      try {
-        events = await NdumaData.getEvents();
-      } catch (err) {
-        notifBodyEl.innerHTML = '<div class="empty-hint">Non riesco a caricare le notifiche (' + NdumaData.escapeHTML(err.message) + ').</div>';
-        return;
-      }
+        var events;
+        try {
+          events = await NdumaData.getEvents();
+        } catch (err) {
+          notifBodyEl.innerHTML = '<div class="empty-hint">Non riesco a caricare le notifiche (' + NdumaData.escapeHTML(err.message) + ').</div>';
+          return;
+        }
 
-      /* Avvisi "congelati" per modifiche/eliminazioni di eventi che nel
-         frattempo potrebbero non esistere più (vedi event_notices in
-         data.js): si aggiungono agli altri, stesso formato, prima di
-         ordinare e tagliare a 20. Se questa lettura fallisce, le altre
-         notifiche restano comunque visibili. */
-      var eventNotices = [];
-      try {
-        eventNotices = await NdumaData.getEventNotices(NdumaData.getGuestName());
-      } catch (err) { /* ignora: solo queste notifiche in più si perdono */ }
+        /* Avvisi "congelati" per modifiche/eliminazioni di eventi che nel
+           frattempo potrebbero non esistere più (vedi event_notices in
+           data.js): si aggiungono agli altri, stesso formato, prima di
+           ordinare e tagliare a 20. Se questa lettura fallisce, le altre
+           notifiche restano comunque visibili. */
+        var eventNotices = [];
+        try {
+          eventNotices = await NdumaData.getEventNotices(NdumaData.getGuestName());
+        } catch (err) { /* ignora: solo queste notifiche in più si perdono */ }
 
-      // getEvents() torna già solo gli eventi "miei" (organizzatore, invitato
-      // per nome, o già partecipante — vedi isEventVisibleToMe in data.js):
-      // non serve più nessun filtro aggiuntivo via lista amici, dato che le
-      // liste non sono più collegate agli eventi dopo la creazione.
-      //
-      // La costruzione vera (stati evento + avvisi congelati, ordinati per
-      // attività più recente) vive in NdumaData.buildNotifications: unica
-      // fonte di verità, così anche il pallino "hai notifiche nuove?" in Home
-      // usa esattamente la stessa lista, senza duplicare la logica qui
-      // (Fil, 2026-07-17).
-      var notifications = NdumaData.buildNotifications(events, eventNotices, myUsername);
+        // getEvents() torna già solo gli eventi "miei" (organizzatore, invitato
+        // per nome, o già partecipante — vedi isEventVisibleToMe in data.js):
+        // non serve più nessun filtro aggiuntivo via lista amici, dato che le
+        // liste non sono più collegate agli eventi dopo la creazione.
+        //
+        // La costruzione vera (stati evento + avvisi congelati, ordinati per
+        // attività più recente) vive in NdumaData.buildNotifications: unica
+        // fonte di verità, così anche il pallino "hai notifiche nuove?" in Home
+        // usa esattamente la stessa lista, senza duplicare la logica qui
+        // (Fil, 2026-07-17).
+        var notifications = NdumaData.buildNotifications(events, eventNotices, myUsername);
 
-      if (!notifications.length) {
+        if (!notifications.length) {
         notifBodyEl.innerHTML = '<div class="empty-hint">Nessuna notifica per ora.</div>';
       } else {
         // Fil, 2026-07-19: dopo mesi d'uso l'elenco diventa lungo e
@@ -278,14 +288,18 @@
             document.getElementById('olderNotifChevron').classList.toggle('open');
           });
         }
+        }
+
+        if (window.NdumaUI) window.NdumaUI.refresh();
+
+        // Segna "vista fino a qui" solo ora che la pagina è davvero disegnata
+        // (notifiche vere + richieste amicizia): è quello che spegne il
+        // pallino sulla campanella in Home (Fil, 2026-07-17).
+        NdumaData.markNotificationsSeen();
       }
 
-      if (window.NdumaUI) window.NdumaUI.refresh();
-
-      // Segna "vista fino a qui" solo ora che la pagina è davvero disegnata
-      // (notifiche vere + richieste amicizia): è quello che spegne il
-      // pallino sulla campanella in Home (Fil, 2026-07-17).
-      NdumaData.markNotificationsSeen();
+      await refreshNotifications();
+      NdumaData.startAutoRefresh(refreshNotifications);
     })();
   </script>
   <script src="script.js"></script>

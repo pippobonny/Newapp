@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#FF7A29">
+<meta name="color-scheme" content="light dark">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -108,6 +109,7 @@
 
       var listEl = document.getElementById('eventsList');
       var pills = document.querySelectorAll('.pill');
+      var currentFilter = 'confermati';
 
       function matches(event, filter) {
         var status = NdumaData.computeEventStatus(event).status;
@@ -133,11 +135,24 @@
         pill.addEventListener('click', function () {
           pills.forEach(function (p) { p.classList.remove('active'); });
           pill.classList.add('active');
-          render(pill.getAttribute('data-filter'));
+          currentFilter = pill.getAttribute('data-filter');
+          render(currentFilter);
         });
       });
 
-      render('confermati');
+      render(currentFilter);
+
+      // Fil, 2026-07-21: niente più refresh manuale della pagina per vedere
+      // un evento nuovo o una risposta arrivata mentre questa scheda era già
+      // aperta — vedi NdumaData.startAutoRefresh in data.js.
+      NdumaData.startAutoRefresh(async function () {
+        var fresh;
+        try {
+          fresh = await NdumaData.getEvents();
+        } catch (err) { return; } // silenzioso: la lista resta quella di prima
+        events = fresh.filter(function (e) { return NdumaData.computeEventStatus(e).status !== 'passato'; });
+        render(currentFilter);
+      });
     })();
   </script>
   <script src="script.js"></script>

@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#FF7A29">
+<meta name="color-scheme" content="light dark">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -213,6 +214,10 @@
         </div>
         <div class="settings-row danger" id="forgetMeRow">
           <div class="left">🚪 Esci</div>
+          <div>›</div>
+        </div>
+        <div class="settings-row danger" id="deleteAccountRow">
+          <div class="left">🗑️ Elimina account</div>
           <div>›</div>
         </div>
       </div>
@@ -911,6 +916,27 @@
         await NdumaData.logOut();
         window.location.href = 'profilo.html';
       });
+
+      // Fil, 2026-07-21: "puoi farlo senza problemi, non ci avevamo pensato".
+      // Cancellazione vera e per sempre (non solo un logout): niente form
+      // in più, un solo window.confirm con le conseguenze scritte chiare,
+      // stesso stile "una sola conferma" già usato per liste amici/eventi.
+      var deleteAccountRow = document.getElementById('deleteAccountRow');
+      if (deleteAccountRow) {
+        deleteAccountRow.addEventListener('click', async function () {
+          var sure = window.confirm('Eliminare per sempre il tuo account? Non potrai più accedere con queste credenziali, e l\'azione non si può annullare. Gli eventi e le spese già condivisi con altri restano visibili a loro.');
+          if (!sure) return;
+          deleteAccountRow.style.pointerEvents = 'none';
+          try {
+            await NdumaData.deleteOwnAccount();
+          } catch (err) {
+            deleteAccountRow.style.pointerEvents = '';
+            window.alert('Non sono riuscito a eliminare l\'account (' + err.message + ').');
+            return;
+          }
+          window.location.href = 'profilo.html';
+        });
+      }
 
       var initParams = new URLSearchParams(window.location.search);
       if (initParams.get('resetToken')) {

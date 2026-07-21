@@ -18,6 +18,58 @@
   --cancel-soft: #F0DEDA;
   --past-soft: #ECE7EE;
   --shadow: 0 20px 60px rgba(58, 50, 90, 0.15);
+  /* Sfondo neutro riusato in 4 punti diversi (barra progresso, spunta chip,
+     "+N altri" avatar, badge del giorno leader): prima erano 4 copie dello
+     stesso #F0E6EA, ora una variabile sola così la dark mode qui sotto la
+     cambia in un posto solo. */
+  --track-soft: #F0E6EA;
+}
+
+/* Dark mode (Fil, 2026-07-21): segue il tema di sistema, nessun tasto/opzione
+   in più da mostrare — coerente con l'idea "il meno possibile da toccare".
+   Cambiano solo le superfici neutre (sfondo pagina, card, testo, ombre):
+   i colori "soft" dei badge/notifiche restano quelli di sempre, con lo
+   stesso testo scuro abbinato — restano leggibili come pillole chiare sopra
+   lo sfondo scuro, senza dover riscrivere ogni singolo abbinamento colore. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #201829;
+    --card: #2C2233;
+    --ink: #F4EEF6;
+    --ink-soft: #B3A3BB;
+    --track-soft: #3B2E44;
+    --shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  }
+
+  body {
+    background: #14101A;
+  }
+
+  .phone {
+    border-color: #14101A;
+  }
+
+  .splash-screen {
+    background: var(--bg);
+  }
+
+  /* Le due "lastre di vetro" dell'app (header con foto profilo, navbar in
+     basso) erano pensate come vetro smerigliato BIANCO sopra uno sfondo
+     chiaro: lasciate così sarebbero rimaste due barre chiare e stonate
+     sopra tutto il resto ormai scuro. Stesso effetto vetro, tinta scura. */
+  .header {
+    background: linear-gradient(135deg, rgba(255, 122, 41, 0.28), rgba(107, 63, 115, 0.5));
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  .navbar {
+    background: linear-gradient(180deg, rgba(44, 34, 51, 0.85), rgba(44, 34, 51, 0.6));
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow:
+      0 18px 40px rgba(0, 0, 0, 0.35),
+      0 2px 6px rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -457,7 +509,7 @@ a { text-decoration: none; color: inherit; }
   flex: 1;
   height: 8px;
   border-radius: 999px;
-  background: #F0E6EA;
+  background: var(--track-soft);
   overflow: hidden;
 }
 
@@ -930,7 +982,7 @@ label.event-photo-preview {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: #F0E6EA;
+  background: var(--track-soft);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1149,7 +1201,7 @@ label.event-photo-preview {
 }
 
 .friend-list-avatar-more {
-  background: #F0E6EA;
+  background: var(--track-soft);
   color: var(--ink-soft);
   font-family: 'Inter', sans-serif;
   font-size: 10px;
@@ -1401,7 +1453,7 @@ label.event-photo-preview {
   display: flex;
   align-items: center;
   gap: 3px;
-  background: #F0E6EA;
+  background: var(--track-soft);
   border-radius: 999px;
   padding: 2px 8px;
   font-size: 11px;

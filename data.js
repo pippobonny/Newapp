@@ -48,6 +48,35 @@
     });
   }
 
+  /* Refresh automatico "silenzioso" (Fil, 2026-07-21): prima bisognava
+     ricaricare la pagina a mano per vedere un evento nuovo o una notifica
+     arrivata mentre l'app era già aperta. Le pagine che mostrano eventi/
+     notifiche chiamano questa funzione passando la propria funzione di
+     ricarica+ridisegno (già usata anche al primo caricamento). Ricontrolla
+     ogni intervalMs, ma SOLO a scheda visibile — inutile e costoso farlo in
+     background — più un controllo extra appena la scheda torna visibile
+     dopo essere stata in pausa, stessa idea del controllo sessione qui
+     sopra. Ritorna una funzione per fermarlo, per ora non usata da nessuna
+     pagina ma comoda da avere pronta. */
+  function startAutoRefresh(reload, intervalMs) {
+    intervalMs = intervalMs || 30000;
+    if (!global.document) return function () {};
+
+    var timer = global.setInterval(function () {
+      if (global.document.visibilityState === 'visible') reload();
+    }, intervalMs);
+
+    function onVisible() {
+      if (global.document.visibilityState === 'visible') reload();
+    }
+    global.document.addEventListener('visibilitychange', onVisible);
+
+    return function stopAutoRefresh() {
+      global.clearInterval(timer);
+      global.document.removeEventListener('visibilitychange', onVisible);
+    };
+  }
+
   /* Riprova UNA volta un'operazione che scrive su Supabase se il primo
      tentativo fallisce per token scaduto (messaggio "JWT expired" o "invalid
      JWT", o errore di rete generico durante il ripristino sessione) — stesso
@@ -466,6 +495,23 @@
     clearGuestLock();
     notifyAccountCreated(acc.id);
     return acc;
+  }
+
+  /* Cancella per sempre l'account di CHI CHIAMA (Edge Function "delete-account",
+     Admin API: solo lei può cancellare un utente Auth vero). Il client non manda
+     nessun id: la function legge da sola chi sta chiamando dal token della
+     sessione corrente, così non si può mai cancellare l'account di qualcun
+     altro. Vedi il commento dentro la function per il perché non è una
+     semplice DELETE — un account ha dati intrecciati con quelli di altre
+     persone (spese di un evento condiviso, inviti) che il database impedisce
+     apposta di rompere in silenzio; la function sistema quei casi prima di
+     cancellare davvero (Fil, 2026-07-21). Dopo, la sessione locale non serve
+     più a niente: la chiudiamo qui stesso invece di lasciarlo fare al
+     chiamante. */
+  async function deleteOwnAccount() {
+    var res = await supabase.functions.invoke('delete-account', { body: {} });
+    if (res.error) throw new Error(await extractFunctionErrorMessage(res, 'Impossibile eliminare l\'account'));
+    await logOut();
   }
 
   /* Email di benvenuto (Edge Function "notify-account-created" + Resend),
@@ -1851,11 +1897,21 @@
   }
 
   /* Elimina del tutto un evento: date_options/participants/event_invitees
-     spariscono da soli (ON DELETE CASCADE sul DB). Prima di cancellare,
-     avvisa (email + notifica in-app) chi aveva risposto disponibile per
-     almeno un giorno — non l'organizzatore (è lui che elimina) e non chi
-     aveva detto "non ci sono mai" (Fil, 2026-07-07: solo chi aveva davvero
-     detto "ci sono" per una data). */
+     spariscono da soli (ON DELETE CASCADE sul DB). Dopo aver cancellato
+     davvero (non prima, vedi sotto), avvisa (email + notifica in-app) chi
+     aveva risposto disponibile per almeno un giorno — non l'organizzatore
+     (è lui che elimina) e non chi aveva detto "non ci sono mai" (Fil,
+     2026-07-07: solo chi aveva davvero detto "ci sono" per una data).
+
+     L'invio delle notifiche va DOPO il delete, non prima: deleteEvent è
+     tra le funzioni con retry automatico su token scaduto (vedi
+     withAuthRetry in fondo al file). Con le notifiche prima del delete, se
+     proprio la delete falliva per token scaduto il retry rilanciava
+     l'intera funzione da capo e rimandava una seconda email/notifica
+     "evento eliminato" a tutti prima di ritentare la cancellazione — lo
+     stesso tipo di doppione per cui createEvent/addEventExpense/ecc. sono
+     state escluse di proposito dal retry (bug trovato in review,
+     2026-07-21). */
   async function deleteEvent(eventId) {
     var event = await getEventById(eventId);
     if (!event) return;
@@ -1865,6 +1921,9 @@
       .filter(function (p) { return (p.availableDateOptionIds || []).length > 0; })
       .filter(function (p) { return p.name.toLowerCase() !== organizerLower; })
       .map(function (p) { return p.name; });
+
+    var delRes = await supabase.from('events').delete().eq('id', eventId);
+    if (delRes.error) throw new Error(delRes.error.message);
 
     if (recipients.length) {
       var noticeRows = recipients.map(function (name) {
@@ -1878,9 +1937,6 @@
       await pushEventNotices(noticeRows);
       notifyEventDeleted(event.name, recipients);
     }
-
-    var delRes = await supabase.from('events').delete().eq('id', eventId);
-    if (delRes.error) throw new Error(delRes.error.message);
   }
 
   /* Conferma manualmente una data, scavalcando il calcolo automatico
@@ -2331,6 +2387,45 @@
     if (res.error) throwSupabaseError(res.error);
   }
 
+  /* ---------- "chi porta cosa" (Fil, 2026-07-21) ----------
+     Spenta di default su ogni evento nuovo (events.items_enabled): niente da
+     vedere finché l'organizzatore non la attiva lui/lei stesso dal menu ⋮ di
+     evento.html — per questo qui non c'è nessuna funzione "create", solo il
+     toggle. Le voci vivono in event.items (via get_event_public/getEventById,
+     come le spese), tutte le scritture passano da funzioni SECURITY DEFINER
+     lato server (mai una insert/update diretta): evita che due persone si
+     "rubino" la stessa voce con due tocchi quasi in contemporanea, e il nome
+     mostrato è sempre quello vero di chi chiama, mai un valore del client. */
+  async function setEventItemsEnabled(eventId, enabled) {
+    var res = await supabase.rpc('toggle_event_items', { p_event_id: eventId, p_enabled: !!enabled });
+    if (res.error) throwSupabaseError(res.error);
+  }
+
+  async function addEventItem(eventId, text) {
+    var res = await supabase.rpc('add_event_item', { p_event_id: eventId, p_text: (text || '').trim() });
+    if (res.error) throwSupabaseError(res.error);
+    return res.data;
+  }
+
+  // true se la voce era libera ed è stata presa da te ora; false se
+  // qualcun altro l'aveva già presa un attimo prima (nessun errore: è un
+  // esito normale, non un guasto).
+  async function claimEventItem(itemId) {
+    var res = await supabase.rpc('claim_event_item', { p_item_id: itemId });
+    if (res.error) throwSupabaseError(res.error);
+    return !!res.data;
+  }
+
+  async function releaseEventItem(itemId) {
+    var res = await supabase.rpc('release_event_item', { p_item_id: itemId });
+    if (res.error) throwSupabaseError(res.error);
+  }
+
+  async function deleteEventItem(itemId) {
+    var res = await supabase.rpc('delete_event_item', { p_item_id: itemId });
+    if (res.error) throwSupabaseError(res.error);
+  }
+
   function formatEuro(amount) {
     var n = Number(amount) || 0;
     return n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
@@ -2516,6 +2611,7 @@
     renderSessionWarningIfNeeded: renderSessionWarningIfNeeded,
     accountRequiredBlockHTML: accountRequiredBlockHTML,
     createAccount: createAccount,
+    deleteOwnAccount: deleteOwnAccount,
     updateAccount: updateAccount,
     fetchOwnAccount: fetchOwnAccount,
     uploadAvatar: uploadAvatar,
@@ -2526,6 +2622,7 @@
     subscribeToPush: subscribeToPush,
     unsubscribeFromPush: unsubscribeFromPush,
     shouldOfferPushPrompt: shouldOfferPushPrompt,
+    startAutoRefresh: startAutoRefresh,
     getEvents: getEvents,
     getEventById: getEventById,
     createEvent: createEvent,
@@ -2558,6 +2655,11 @@
     addEventExpense: addEventExpense,
     updateEventExpense: updateEventExpense,
     deleteEventExpense: deleteEventExpense,
+    setEventItemsEnabled: setEventItemsEnabled,
+    addEventItem: addEventItem,
+    claimEventItem: claimEventItem,
+    releaseEventItem: releaseEventItem,
+    deleteEventItem: deleteEventItem,
     formatEuro: formatEuro,
     computeExpenseBalances: computeExpenseBalances,
     SITE_URL: SITE_URL,

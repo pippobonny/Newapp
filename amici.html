@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#FF7A29">
+<meta name="color-scheme" content="light dark">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -408,7 +409,12 @@
         if (deleteEl) {
           var deleteListId = deleteEl.getAttribute('data-delete-list');
           if (window.confirm('Eliminare questa lista di amici?')) {
-            await NdumaData.deleteFriendList(deleteListId);
+            try {
+              await NdumaData.deleteFriendList(deleteListId);
+            } catch (err) {
+              formError.textContent = 'Non sono riuscito a eliminare la lista (' + err.message + ').';
+              return;
+            }
             renderLists();
           }
           return;
@@ -493,7 +499,12 @@
       friendModalList.addEventListener('click', async function (e) {
         var removeFriendId = e.target.getAttribute('data-remove-friend');
         if (removeFriendId) {
-          await NdumaData.removeFriendFromList(openListId, removeFriendId);
+          try {
+            await NdumaData.removeFriendFromList(openListId, removeFriendId);
+          } catch (err) {
+            friendModalError.textContent = 'Non sono riuscito a rimuovere l\'amico (' + err.message + ').';
+            return;
+          }
           renderLists();
         }
       });
