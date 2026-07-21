@@ -542,12 +542,19 @@
       function attachLocationAutocomplete(inputEl, state) {
         if (!mapsReady) { pendingAutocompleteAttachments.push([inputEl, state]); return; }
         var autocomplete = new google.maps.places.Autocomplete(inputEl, {
-          fields: ['formatted_address', 'place_id', 'geometry']
+          fields: ['formatted_address', 'name', 'place_id', 'geometry']
         });
         autocomplete.addListener('place_changed', function () {
           var place = autocomplete.getPlace();
           if (!place || (!place.formatted_address && !place.geometry)) return;
-          state.address = place.formatted_address || inputEl.value;
+          // Fil, 2026-07-21: se scrivi il nome di un ristorante/locale,
+          // Google Places lo riconosce e in "name" c'è il nome vero
+          // ("Trattoria da Mario"), non solo l'indirizzo — è quello che
+          // vogliono vedere gli invitati tra cui scegliere, non "Via Roma
+          // 12". Per un indirizzo scritto a mano senza corrispondere a
+          // nessuna attività, Google mette in "name" la stessa cosa
+          // dell'indirizzo, quindi qui non cambia nulla in quel caso.
+          state.address = place.name || place.formatted_address || inputEl.value;
           state.placeId = place.place_id || null;
           state.lat = (place.geometry && place.geometry.location) ? place.geometry.location.lat() : null;
           state.lng = (place.geometry && place.geometry.location) ? place.geometry.location.lng() : null;
@@ -1119,11 +1126,13 @@
             descriptionAudioUrl = await NdumaData.uploadEventAudio(pendingAudioBlob);
           }
 
-          // 2+ location compilate (solo in creazione, vedi sopra): diventano
-          // location_options tra cui votare, e i campi location_* dell'evento
-          // restano vuoti (nessuna location "fissa" finché non si vota — vedi
-          // createEvent in data.js). Con 0 o 1 sola, tutto resta com'era
-          // sempre: solo i campi location_* diretti, nessuna riga in più.
+          // 2+ location compilate: diventano location_options tra cui
+          // votare, e i campi location_* dell'evento restano vuoti (nessuna
+          // location "fissa" finché non si vota — vedi createEvent/
+          // updateEvent in data.js). Con 0 o 1 sola, tutto resta com'era
+          // sempre: solo i campi location_* diretti, nessuna riga in più —
+          // modificabile in entrambi i sensi anche dopo la creazione, come
+          // le date (Fil, 2026-07-21).
           //
           // Bug corretto (Fil, 2026-07-21, trovato in review): se restava UNA
           // sola location compilata ma era una di quelle "extra" (campo base
@@ -1132,7 +1141,7 @@
           // quella scritta altrove. Ora, con una sola location compilata, si
           // usa SEMPRE quella (qualunque campo fosse), non più per forza il
           // campo base.
-          var locationsForVoting = (!isEditMode) ? buildLocationOptionsToCreate() : [];
+          var locationsForVoting = buildLocationOptionsToCreate();
           var useMultipleLocations = locationsForVoting.length > 1;
           var singleLocation = locationsForVoting.length === 1
             ? locationsForVoting[0]
@@ -1151,7 +1160,12 @@
             locationPlaceId: useMultipleLocations ? null : singleLocation.placeId,
             locationLat: useMultipleLocations ? null : singleLocation.lat,
             locationLng: useMultipleLocations ? null : singleLocation.lng,
-            locations: useMultipleLocations ? locationsForVoting : [],
+            // In modifica serve sempre l'elenco intero, anche con 0 o 1 sola
+            // location: è quello che permette a updateEvent di capire se
+            // deve tornare ai campi diretti (collassando le location_options
+            // esistenti) — in creazione invece, con 0 o 1 sola, non c'è
+            // proprio nulla da creare (vedi createEvent in data.js).
+            locations: (isEditMode || useMultipleLocations) ? locationsForVoting : [],
             openInvite: openInviteCheckbox.checked,
             eventTime: eventTimeInput.value
           };
@@ -1399,23 +1413,39 @@
           showRemovePhotoBtn();
         }
 
-        if (editingEvent.locationAddress) {
-          eventLocationInput.value = editingEvent.locationAddress;
+        // Più location tra cui votare (Fil, 2026-07-21): modificabili in
+        // modifica esattamente come le date, stesso meccanismo — il campo
+        // base prende la prima, ogni location in più diventa una riga extra
+        // già valorizzata (vedi makeLocationRow). Un evento a location
+        // singola (il caso comune) restaura solo il campo base, come sempre.
+        var editLocations = editingEvent.locationOptions && editingEvent.locationOptions.length
+          ? editingEvent.locationOptions
+          : (editingEvent.locationAddress
+              ? [{ address: editingEvent.locationAddress, placeId: editingEvent.locationPlaceId, lat: editingEvent.locationLat, lng: editingEvent.locationLng }]
+              : []);
+
+        if (editLocations.length) {
+          eventLocationInput.value = editLocations[0].address || '';
           selectedLocation = {
-            address: editingEvent.locationAddress || null,
-            placeId: editingEvent.locationPlaceId || null,
-            lat: (editingEvent.locationLat === undefined) ? null : editingEvent.locationLat,
-            lng: (editingEvent.locationLng === undefined) ? null : editingEvent.locationLng
+            address: editLocations[0].address || null,
+            placeId: editLocations[0].placeId || null,
+            lat: (editLocations[0].lat === undefined) ? null : editLocations[0].lat,
+            lng: (editLocations[0].lng === undefined) ? null : editLocations[0].lng
           };
         }
 
-        // Più location tra cui votare (Fil, 2026-07-21): si propongono solo
-        // alla creazione, non in modifica — updateEvent non sa (ancora)
-        // gestire un diff su location_options come già fa per le date, che
-        // è una logica delicata (notifiche a chi perde una data/location a
-        // cui aveva risposto) da non improvvisare qui. Il bottone sparisce
-        // del tutto in modifica, coerente col fatto che oggi non fa nulla.
-        if (addLocationBtn) addLocationBtn.style.display = 'none';
+        extraLocationRowList.innerHTML = '';
+        extraLocationRows = [];
+        editLocations.slice(1).forEach(function (loc) {
+          var row = makeLocationRow();
+          var entry = extraLocationRows[extraLocationRows.length - 1];
+          entry.input.value = loc.address || '';
+          entry.state.address = loc.address || null;
+          entry.state.placeId = loc.placeId || null;
+          entry.state.lat = (loc.lat === undefined) ? null : loc.lat;
+          entry.state.lng = (loc.lng === undefined) ? null : loc.lng;
+          extraLocationRowList.appendChild(row);
+        });
 
         // orario (Fil, 2026-07-20): eventTime arriva dal DB come "HH:MM:SS",
         // <input type="time"> vuole "HH:MM" -- si taglia ai primi 5 caratteri.

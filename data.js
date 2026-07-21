@@ -1806,6 +1806,62 @@
     }).eq('id', eventId);
     if (updateRes.error) throw new Error(updateRes.error.message);
 
+    /* ---------- location: modificabili come le date (Fil, 2026-07-21) ----------
+       Stessa idea del diff sulle date qui sotto, ma per indirizzo invece che
+       per data ISO (le location non hanno un "valore naturale" più stabile
+       lato client, esattamente come le date non hanno altro che dateISO):
+       0 o 1 sola nel risultato finale → si torna/resta sui campi location_*
+       diretti (già scritti sopra) e si cancellano le location_options
+       eventuali; 2 o più → si tiene/crea una riga per ciascuna. A differenza
+       delle date, qui non c'è nessuna notifica dedicata a chi perde una
+       location votata (basta l'avviso generico "evento modificato" più
+       sotto): una preferenza di location è un dettaglio, non una risposta
+       "ci sarò" da segnalare apposta. */
+    var newLocations = (input.locations || []).filter(function (l) { return l && l.address; });
+    var currentLocationOptions = current.locationOptions || [];
+
+    if (newLocations.length <= 1) {
+      if (currentLocationOptions.length) {
+        var allOldLocIds = currentLocationOptions.map(function (o) { return o.id; });
+        for (var lpi = 0; lpi < (current.participants || []).length; lpi++) {
+          var lp = current.participants[lpi];
+          if (!(lp.availableLocationOptionIds || []).some(function (id) { return allOldLocIds.indexOf(id) !== -1; })) continue;
+          var lStripRes = await supabase.from('participants').update({ available_location_option_ids: [] }).eq('event_id', eventId).ilike('name', lp.name);
+          if (lStripRes.error) throw new Error(lStripRes.error.message);
+        }
+        var delAllLocRes = await supabase.from('location_options').delete().eq('event_id', eventId);
+        if (delAllLocRes.error) throw new Error(delAllLocRes.error.message);
+      }
+    } else {
+      var newAddresses = newLocations.map(function (l) { return l.address; });
+      var keptLocOptions = currentLocationOptions.filter(function (o) { return newAddresses.indexOf(o.address) !== -1; });
+      var removedLocOptions = currentLocationOptions.filter(function (o) { return newAddresses.indexOf(o.address) === -1; });
+      var keptAddresses = keptLocOptions.map(function (o) { return o.address; });
+      var addedLocations = newLocations.filter(function (l) { return keptAddresses.indexOf(l.address) === -1; });
+      var removedLocIds = removedLocOptions.map(function (o) { return o.id; });
+
+      if (removedLocIds.length) {
+        for (var rpi = 0; rpi < (current.participants || []).length; rpi++) {
+          var rp = current.participants[rpi];
+          var rHadRemoved = (rp.availableLocationOptionIds || []).some(function (id) { return removedLocIds.indexOf(id) !== -1; });
+          if (!rHadRemoved) continue;
+          var rStrippedIds = (rp.availableLocationOptionIds || []).filter(function (id) { return removedLocIds.indexOf(id) === -1; });
+          var rStripRes = await supabase.from('participants').update({ available_location_option_ids: rStrippedIds }).eq('event_id', eventId).ilike('name', rp.name);
+          if (rStripRes.error) throw new Error(rStripRes.error.message);
+        }
+        var delLocRes = await supabase.from('location_options').delete().in('id', removedLocIds);
+        if (delLocRes.error) throw new Error(delLocRes.error.message);
+      }
+
+      if (addedLocations.length) {
+        var addLocRows = addedLocations.map(function (l) {
+          return { event_id: eventId, address: l.address, place_id: l.placeId || null, lat: l.lat, lng: l.lng };
+        });
+        var addLocRes = await supabase.from('location_options').insert(addLocRows);
+        if (addLocRes.error) throw new Error(addLocRes.error.message);
+      }
+    }
+
     /* ---------- invitati: diff prima delle date, così un nome tolto non
        finisce anche nella lista "gli ho tolto una data" qui sotto ---------- */
     var newInviteeEntries = (input.inviteeNames || []).map(normalizeInviteeEntry).filter(function (e) { return !!e.name; });
