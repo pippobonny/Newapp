@@ -284,6 +284,14 @@
       document.title = view.title;
       spaTrackedFile = targetFile;
 
+      // Il .content nuovo appena inserito è un elemento DIVERSO da quello
+      // di prima (rimpiazzato con l'innerHTML qui sopra): il pan-y messo
+      // sul vecchio in initTabSwipeNavigation() non lo segue, va rimesso
+      // ogni volta o lo swipe smetterebbe di funzionare dentro il
+      // contenuto dopo il primo cambio tab (Fil, 2026-07-22).
+      var freshContentEl = screen.querySelector('.content');
+      if (freshContentEl) freshContentEl.style.touchAction = 'pan-y';
+
       if (updateHistory) {
         // historyUrl, non targetFile: un'eventuale "?..." nel link cliccato
         // (es. profilo.html?mode=login) deve restare nell'URL vera e
@@ -401,6 +409,20 @@
     // orizzontale delle barre giorno in evento.html, che comunque non passa
     // mai da qui: vedi il return sopra).
     screen.style.touchAction = 'pan-y';
+
+    // Fil, 2026-07-22, trovato con un test reale (S25 Ultra): lo swipe
+    // funzionava solo partendo dall'header, mai partendo da dentro
+    // .content (la parte che scrolla in verticale) — lì il browser
+    // continuava a "vincere" lui il tocco per lo scroll nativo nonostante
+    // pan-y su .screen e setPointerCapture più sotto. .content è DAVVERO
+    // scrollabile (overflow-y:auto), a differenza di .screen che non lo è
+    // mai direttamente: serve pan-y anche qui, sull'elemento vero e
+    // proprio dove parte il tocco — stesso principio già usato per le
+    // card di Home (.card-swipe-wrap .card { touch-action: pan-y } in
+    // style.css, impostato DIRETTAMENTE sulla card, non solo su un
+    // antenato), che infatti funziona.
+    var contentEl = screen.querySelector('.content');
+    if (contentEl) contentEl.style.touchAction = 'pan-y';
 
     var startX = 0, startY = 0, tracking = false, decided = false, isHorizontal = false;
 
