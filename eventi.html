@@ -127,11 +127,16 @@
 
       function render(filter) {
         var filtered = events.filter(function (e) { return matches(e, filter); });
-        if (filtered.length) {
-          listEl.innerHTML = filtered.map(NdumaData.renderEventCardHTML).join('');
-        } else {
-          listEl.innerHTML = '<div class="empty-hint">Nessun evento in questa categoria.</div>';
-        }
+        var newHTML = filtered.length
+          ? filtered.map(NdumaData.renderEventCardHTML).join('')
+          : '<div class="empty-hint">Nessun evento in questa categoria.</div>';
+
+        // Fil, 2026-07-22: se il refresh automatico non ha trovato niente di
+        // nuovo (il caso più comune), non tocca il DOM — altrimenti ogni
+        // card, anche quelle identiche a prima, rifarebbe da capo la sua
+        // animazione di comparsa ogni 30s.
+        if (newHTML === listEl.innerHTML) return;
+        listEl.innerHTML = newHTML;
         // rianima/rende cliccabile il contenuto appena creato
         if (window.NdumaUI) window.NdumaUI.refresh();
       }
@@ -150,7 +155,10 @@
       // Fil, 2026-07-21: niente più refresh manuale della pagina per vedere
       // un evento nuovo o una risposta arrivata mentre questa scheda era già
       // aperta — vedi NdumaData.startAutoRefresh in data.js.
-      NdumaData.startAutoRefresh(async function () {
+      // Fil, 2026-07-22: catturato lo stop su window.__ndumaUnmount, letto
+      // dal router SPA in script.js prima di cambiare tab — vedi lo stesso
+      // commento in index.html.
+      window.__ndumaUnmount = NdumaData.startAutoRefresh(async function () {
         var fresh;
         try {
           fresh = await NdumaData.getEvents();

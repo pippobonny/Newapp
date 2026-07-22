@@ -205,19 +205,26 @@
           return status === 'done';
         });
 
-        if (upcoming.length) {
-          upcomingList.innerHTML = upcoming.map(renderHomeCard).join('');
-        } else {
-          upcomingList.innerHTML = '<div class="empty-hint">Nessun evento da confermare al momento.<br><a href="crea.html">Proponine uno tu →</a></div>';
-        }
-
-        closedSection.innerHTML = closed.length
+        // Fil, 2026-07-22: confronto col contenuto già in pagina PRIMA di
+        // toccare il DOM — se il giro di refresh automatico non ha trovato
+        // niente di nuovo (il caso più comune, dato che gira ogni 30s),
+        // ricostruire comunque l'HTML avrebbe fatto ripartire da capo
+        // l'animazione di comparsa di ogni card, anche di quelle già ferme
+        // lì da prima. Si ridisegna solo se qualcosa è DAVVERO cambiato.
+        var newUpcomingHTML = upcoming.length
+          ? upcoming.map(renderHomeCard).join('')
+          : '<div class="empty-hint">Nessun evento da confermare al momento.<br><a href="crea.html">Proponine uno tu →</a></div>';
+        var newClosedHTML = closed.length
           ? '<div class="section-title">Organizzazione chiusa</div>' + closed.map(renderHomeCard).join('')
           : '';
 
-        // le card sopra sono state create ora: bisogna dire a script.js di
-        // (ri)animarle, altrimenti restano invisibili
-        if (window.NdumaUI) window.NdumaUI.refresh();
+        if (newUpcomingHTML !== upcomingList.innerHTML || newClosedHTML !== closedSection.innerHTML) {
+          upcomingList.innerHTML = newUpcomingHTML;
+          closedSection.innerHTML = newClosedHTML;
+          // le card sopra sono state create ora: bisogna dire a script.js di
+          // (ri)animarle, altrimenti restano invisibili
+          if (window.NdumaUI) window.NdumaUI.refresh();
+        }
 
         // Pallino "hai notifiche nuove?" sulla campanella (Fil, 2026-07-17):
         // stessa lista costruita da notifiche.html (NdumaData.buildNotifications,
@@ -249,7 +256,12 @@
       }
 
       await refreshHome();
-      NdumaData.startAutoRefresh(refreshHome);
+      // Fil, 2026-07-22: catturato lo stop (startAutoRefresh lo ritorna già
+      // da prima) su window.__ndumaUnmount, richiamato dal router SPA in
+      // script.js prima di cambiare tab — altrimenti questo timer
+      // continuerebbe a girare in background anche dopo essere andati via
+      // da Home, dato che ora cambiare tab non ricarica più la pagina.
+      window.__ndumaUnmount = NdumaData.startAutoRefresh(refreshHome);
     })();
   </script>
   <script src="script.js"></script>

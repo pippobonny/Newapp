@@ -1502,6 +1502,14 @@
 
         openInviteCheckbox.checked = !!editingEvent.openInvite;
       }
+
+      // Fil, 2026-07-22: se te ne vai da questa scheda mentre stai
+      // registrando un vocale, il microfono restava acceso in background —
+      // prima non capitava mai (cambiare tab ricaricava la pagina, che si
+      // portava via tutto), ora che non ricarica più serve spegnerlo a
+      // mano. stopRecording() è la stessa funzione del tocco per fermare la
+      // registrazione qui sopra: non fa nulla se non stavi registrando.
+      window.__ndumaUnmount = function () { stopRecording(); };
     })();
   </script>
 

@@ -178,6 +178,20 @@
           if (navbarEl) moveNavIndicatorToItem(navbarEl, link, true);
         }
 
+        // Tra le 5 tab principali (barra in basso), niente più ricarica
+        // vera: solo lo scambio di contenuto via spaNavigate qui sotto
+        // (Fil, 2026-07-22). Qualunque altro link (verso evento.html,
+        // amico.html, o comunque da/verso una pagina fuori dalle 5 tab)
+        // resta una navigazione vera, invariata.
+        if (curIdx !== -1 && destIdx !== -1) {
+          // href intero (non "base"): un eventuale "?..." (es.
+          // profilo.html?mode=login) deve restare nell'URL e restare
+          // leggibile a window.location.search dentro lo script appena
+          // montato, esattamente come su una navigazione vera.
+          spaNavigate(href, base, direction);
+          return;
+        }
+
         screen.classList.remove('slide-in-active');
         screen.classList.add(direction === 'forward' ? 'slide-out-left' : 'slide-out-right');
 
@@ -187,6 +201,161 @@
       });
     });
   }
+
+  /* ---------- 1a-bis. SPA leggera tra le 5 tab principali (Fil, 2026-07-22) ----------
+     Passare da una tab all'altra della barra in basso non ricarica più la
+     pagina per intero: si scambia solo il contenuto di .screen, riusando lo
+     stesso file .html di sempre preso al volo via fetch (nessun duplicato
+     da mantenere) — se apri un link diretto o ricarichi la pagina, tutto
+     resta identico a prima: questo entra in gioco SOLO navigando da dentro
+     l'app tra le 5 tab principali (vedi il branch nel click handler qui
+     sopra e initTabSwipeNavigation più sotto, che ci passa attraverso
+     simulando il click sulla tab giusta).
+
+     Ogni pagina espone la pulizia di cui ha bisogno (fermare il refresh
+     automatico, spegnere un microfono acceso a metà registrazione...) su
+     window.__ndumaUnmount, richiamata prima di cambiare tab — vedi
+     index.html/eventi.html/crea.html. Le pagine senza nulla da pulire
+     (amici.html, profilo.html) semplicemente non la impostano. */
+  var spaCache = {};
+  var spaBusy = false;
+
+  async function spaFetchView(file) {
+    if (spaCache[file]) return spaCache[file];
+    var res = await fetch(file, { credentials: 'same-origin' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var html = await res.text();
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    var screenEl = doc.querySelector('.screen');
+    // Lo script della pagina (quello che fa gate+dati+render, l'equivalente
+    // di un "mount"): l'ultimo <script> senza src, figlio diretto di body
+    // (esclude sia data.js/script.js, che hanno un src, sia un eventuale
+    // script inline nell'<head>, es. il fix altezza PWA). Su index.html
+    // scarta così anche il piccolo script dello splash screen (che vive
+    // prima nel body ma non è l'ultimo) — corretto, quello deve girare
+    // solo al primissimo caricamento vero, mai su un rimontaggio SPA.
+    var scripts = Array.prototype.slice.call(doc.querySelectorAll('body > script:not([src])'));
+    var pageScript = scripts.length ? scripts[scripts.length - 1].textContent : '';
+    var titleEl = doc.querySelector('title');
+    var data = {
+      screenHTML: screenEl ? screenEl.innerHTML : '',
+      pageScript: pageScript,
+      title: titleEl ? titleEl.textContent : document.title
+    };
+    spaCache[file] = data;
+    return data;
+  }
+
+  // Tenuto a parte da window.location apposta (Fil, 2026-07-22, trovato in
+  // review): popstate scatta DOPO che il browser ha già cambiato l'URL,
+  // quindi dentro quel gestore currentFile() restituisce già la tab di
+  // destinazione — un controllo "sei già lì" basato su currentFile() lì
+  // dentro sarebbe sempre stato vero, e il tasto indietro non avrebbe mai
+  // fatto nulla. Questa variabile riflette invece la tab REALMENTE montata
+  // in questo momento, aggiornata solo a swap avvenuto.
+  var spaTrackedFile = currentFile();
+
+  async function spaRenderView(targetFile, historyUrl, direction, updateHistory) {
+    if (spaBusy) return;
+    spaBusy = true;
+
+    var screen = document.querySelector('.screen');
+    if (!screen) { spaBusy = false; window.location.href = historyUrl; return; }
+
+    var view;
+    try {
+      view = await spaFetchView(targetFile);
+    } catch (err) {
+      // rete assente/errore nel fetch: meglio una navigazione vera che
+      // restare bloccati a metà con la tab vecchia ancora in vista
+      spaBusy = false;
+      window.location.href = historyUrl;
+      return;
+    }
+
+    try { if (window.__ndumaUnmount) window.__ndumaUnmount(); } catch (err) { /* ignora */ }
+    window.__ndumaUnmount = null;
+
+    screen.classList.remove('slide-in-active');
+    screen.classList.add(direction === 'forward' ? 'slide-out-left' : 'slide-out-right');
+
+    window.setTimeout(function () {
+      screen.innerHTML = view.screenHTML;
+      document.title = view.title;
+      spaTrackedFile = targetFile;
+
+      if (updateHistory) {
+        // historyUrl, non targetFile: un'eventuale "?..." nel link cliccato
+        // (es. profilo.html?mode=login) deve restare nell'URL vera e
+        // leggibile a window.location.search dentro lo script appena
+        // montato, esattamente come su una navigazione vera.
+        try { history.pushState({ ndumaSpa: true }, '', historyUrl); } catch (err) { /* ignora */ }
+      }
+
+      resetScreen(screen);
+      screen.classList.add(direction === 'forward' ? 'slide-in-from-right' : 'slide-in-from-left');
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          screen.classList.remove('slide-in-from-right', 'slide-in-from-left');
+          screen.classList.add('slide-in-active');
+        });
+      });
+
+      var navbarEl = document.querySelector('.navbar');
+      if (navbarEl) {
+        navbarEl.querySelectorAll('.nav-item').forEach(function (n) {
+          n.classList.toggle('active', n.getAttribute('href') === targetFile);
+        });
+      }
+
+      // Il vero "montaggio" della vista: uno script creato di fresco esegue
+      // per intero lo stesso IIFE che gira su un caricamento vero (gate,
+      // dati, render, bind eventi) — un <script> inserito via innerHTML non
+      // si esegue mai da solo, va ricreato così apposta.
+      var s = document.createElement('script');
+      s.textContent = view.pageScript;
+      document.body.appendChild(s);
+      s.parentNode.removeChild(s);
+
+      if (window.NdumaUI) window.NdumaUI.refresh();
+
+      // Fil, 2026-07-22, trovato in review: queste tre normalmente partono
+      // una volta sola al vero caricamento della pagina (vedi il blocco
+      // DOMContentLoaded più sotto) — su un cambio tab SPA nessuno le
+      // richiamava più, quindi tornando su Home la data "Oggi" e il badge
+      // presenza restavano vuoti/con qualunque cosa fosse scritta nell'HTML
+      // originale. Ognuna si esce da sola in silenzio se l'elemento che le
+      // riguarda non esiste nella vista appena montata (es. su Eventi
+      // initTodayDate non trova #todayDate e non fa nulla): richiamarle
+      // sempre, su ogni tab, è innocuo.
+      initTodayDate();
+      initAttendanceBadge();
+      initIosInstallHint();
+
+      spaBusy = false;
+    }, 160);
+  }
+
+  function spaNavigate(historyUrl, targetFile, direction) {
+    if (targetFile === spaTrackedFile) return;
+    return spaRenderView(targetFile, historyUrl, direction, true);
+  }
+
+  // Tasto "indietro"/"avanti" del browser mentre si è dentro la SPA: l'URL
+  // cambia da sola (l'ha già cambiata il browser, pushState qui sopra serve
+  // solo alle navigazioni "in avanti"), ma il contenuto no finché non lo
+  // facciamo noi — updateHistory:false perché ripubblicare lo stato qui
+  // guasterebbe il tasto indietro/avanti successivo. Se popstate porta su
+  // una delle 5 tab si passa da qui (snap, non un'animazione — tornare
+  // indietro non è un gesto "vai verso destra/sinistra" come tap/swipe);
+  // altrimenti (es. si esce dalla SPA verso una pagina di dettaglio) si
+  // lascia fare al browser, che ricarica quella pagina per intero da solo.
+  window.addEventListener('popstate', function () {
+    var file = currentFile();
+    if (TAB_ORDER.indexOf(file) === -1) return;
+    if (file === spaTrackedFile) return;
+    spaRenderView(file, window.location.pathname + window.location.search, 'backward', false);
+  });
 
   /* ---------- 1b. Swipe per cambiare tab (Fil, 2026-07-22) ----------
      Stile WhatsApp: trascina orizzontalmente per passare alla tab prima/
@@ -209,19 +378,28 @@
      millimetro esatto del bordo. */
   var SWIPE_NAV_THRESHOLD = 70;
 
+  /* Legata UNA sola volta, al vero caricamento della pagina (come
+     initPageTransitions): .screen e .navbar sono elementi persistenti,
+     spaNavigate ne cambia solo il contenuto interno, mai il nodo stesso —
+     quindi non serve mai riattaccare questi listener dopo un cambio tab
+     (Fil, 2026-07-22: prima lo facevo ad ogni navigazione, che accumulava
+     un listener in più ad ogni cambio tab — bug trovato subito in review).
+     Per lo stesso motivo curIdx/navItems si ricalcolano ad ogni gesto
+     invece che una volta sola qui fuori: dopo uno swipe la tab corrente è
+     cambiata, un valore congelato al momento dell'aggancio sarebbe
+     sbagliato dal secondo swipe in poi. */
   function initTabSwipeNavigation() {
-    var curIdx = TAB_ORDER.indexOf(currentFile());
-    if (curIdx === -1) return;
+    if (TAB_ORDER.indexOf(currentFile()) === -1) return;
 
     var screen = document.querySelector('.screen');
     var navbar = document.querySelector('.navbar');
     if (!screen || !navbar) return;
-    var navItems = navbar.querySelectorAll('.nav-item');
 
     // pan-y solo qui (via JS, non nel CSS globale): lo scroll verticale
     // resta libero, si cattura solo il trascinamento orizzontale — senza
     // toccare .screen sulle pagine che non hanno questo gesto (es. il drag
-    // orizzontale delle barre giorno in evento.html).
+    // orizzontale delle barre giorno in evento.html, che comunque non passa
+    // mai da qui: vedi il return sopra).
     screen.style.touchAction = 'pan-y';
 
     var startX = 0, startY = 0, tracking = false, decided = false, isHorizontal = false;
@@ -261,9 +439,12 @@
       if (!decided || !isHorizontal) return;
       var dx = e.clientX - startX;
       if (Math.abs(dx) < SWIPE_NAV_THRESHOLD) return;
+
+      var curIdx = TAB_ORDER.indexOf(currentFile());
+      if (curIdx === -1) return; // uscito dalle 5 tab (es. via popstate verso una pagina di dettaglio)
       var targetIdx = dx < 0 ? curIdx + 1 : curIdx - 1; // sinistra: avanti; destra: indietro
       if (targetIdx < 0 || targetIdx >= TAB_ORDER.length) return;
-      var targetLink = navItems[targetIdx];
+      var targetLink = navbar.querySelector('.nav-item[href="' + TAB_ORDER[targetIdx] + '"]');
       if (targetLink) targetLink.click();
     }
 
