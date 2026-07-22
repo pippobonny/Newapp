@@ -46,14 +46,14 @@
       <div class="header-menu-wrap" id="eventMenuWrap" style="display:none;">
         <div class="back-btn" id="eventMenuBtn" style="cursor:pointer;">⋮</div>
         <span class="menu-dot" id="menuDot" style="display:none;"></span>
-        <div class="menu-dropdown" id="eventMenuDropdown" style="display:none;">
+        <div class="menu-dropdown" id="eventMenuDropdown">
           <a class="menu-dropdown-item" id="menuEditLink" href="#" style="display:none;">✏️ Modifica</a>
           <div class="menu-dropdown-item" id="menuEditAvailabilityBtn" style="display:none;">📅 I giorni in cui ci sei</div>
           <!-- Spenta di default su ogni evento nuovo, visibile solo a chi
                organizza (Fil, 2026-07-21: "rimane nascosta appena crei
                l'evento e poi da lì se vuoi la metti"). Etichetta e stato
                aggiornati ad ogni render() in updateItemsToggleMenuLabel(). -->
-          <div class="menu-dropdown-item" id="menuToggleItemsBtn" style="display:none;">🎒 Attiva "chi porta cosa"</div>
+          <div class="menu-dropdown-item" id="menuToggleItemsBtn" style="display:none;">🎒 Attiva chi porta cosa</div>
           <div class="menu-dropdown-item danger" id="menuDeleteBtn" style="display:none;">🗑️ Elimina</div>
           <!-- Solo per chi NON organizza (Fil, 2026-07-20): rimuove l'evento
                dalla propria home perché tanto non ci sarà. Non tocca i
@@ -1100,7 +1100,7 @@
         var menuToggleItemsBtnEl = document.getElementById('menuToggleItemsBtn');
         if (menuToggleItemsBtnEl) {
           menuToggleItemsBtnEl.style.display = isOrganizer ? '' : 'none';
-          menuToggleItemsBtnEl.textContent = event.itemsEnabled ? '🎒 Disattiva "chi porta cosa"' : '🎒 Attiva "chi porta cosa"';
+          menuToggleItemsBtnEl.textContent = event.itemsEnabled ? '🎒 Disattiva chi porta cosa' : '🎒 Attiva chi porta cosa';
         }
 
         // Tap per vederla a schermo intero (Fil, 2026-07-10): cursor:zoom-in
@@ -1936,7 +1936,7 @@
         // ancora personalizzato) è gestita in render(), non qui.
         if (editAvailabilityBtn) {
           editAvailabilityBtn.addEventListener('click', function () {
-            dropdown.style.display = 'none';
+            dropdown.classList.remove('open');
             editingAvailability = true;
             render();
           });
@@ -1955,7 +1955,7 @@
 
         menuBtn.addEventListener('click', function (e) {
           e.stopPropagation();
-          dropdown.style.display = (dropdown.style.display === 'none') ? '' : 'none';
+          dropdown.classList.toggle('open');
           if (menuDot && menuDot.style.display !== 'none') {
             menuDot.style.display = 'none';
             try { localStorage.setItem(MENU_DOT_KEY, '1'); } catch (err) { /* ignora */ }
@@ -1963,14 +1963,14 @@
         });
 
         document.addEventListener('click', function () {
-          dropdown.style.display = 'none';
+          dropdown.classList.remove('open');
         });
         dropdown.addEventListener('click', function (e) { e.stopPropagation(); });
 
         var toggleItemsBtn = document.getElementById('menuToggleItemsBtn');
         if (toggleItemsBtn) {
           toggleItemsBtn.addEventListener('click', async function () {
-            dropdown.style.display = 'none';
+            dropdown.classList.remove('open');
             var nextEnabled = !event.itemsEnabled;
             var originalText = toggleItemsBtn.textContent;
             toggleItemsBtn.textContent = nextEnabled ? 'Attivo...' : 'Disattivo...';
@@ -1989,7 +1989,7 @@
         var removeFromHomeBtn = document.getElementById('menuRemoveFromHomeBtn');
         if (removeFromHomeBtn) {
           removeFromHomeBtn.addEventListener('click', async function () {
-            dropdown.style.display = 'none';
+            dropdown.classList.remove('open');
 
             // Messaggio diverso a seconda che stia davvero cambiando risposta
             // (era disponibile per qualche data) o si sia già detto "non
@@ -2017,7 +2017,7 @@
             // Non annullabile: conferma esplicita prima di procedere (Fil,
             // 2026-07-07). Chi aveva risposto disponibile riceve email +
             // notifica in-app da NdumaData.deleteEvent() stesso.
-            dropdown.style.display = 'none';
+            dropdown.classList.remove('open');
             var sure = window.confirm('Eliminare "' + event.name + '"? Chi aveva già risposto disponibile riceverà un avviso. Non si può annullare.');
             if (!sure) return;
 

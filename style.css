@@ -2322,11 +2322,30 @@ label.event-photo-preview {
   top: 44px;
   right: 0;
   min-width: 168px;
+  max-width: 240px;
   background: var(--card);
   border-radius: 16px;
   box-shadow: 0 10px 26px rgba(58,50,90,0.22);
   overflow: hidden;
   z-index: 40;
+  /* Fil, 2026-07-22: prima si mostrava/nascondeva con display:none, che non
+     si può animare — un tocco e comparivano di scatto. transform-origin
+     nell'angolo da cui "esce" (sotto i 3 puntini in alto a destra), scala +
+     dissolvenza, coerente con le altre piccole animazioni dell'app. */
+  transform-origin: top right;
+  transform: scale(0.9);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.14s ease, visibility 0s linear 0.16s;
+}
+
+.menu-dropdown.open {
+  transform: scale(1);
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease;
 }
 
 .menu-dropdown-item {
@@ -2336,6 +2355,7 @@ label.event-photo-preview {
   padding: 13px 16px;
   font-size: 13.5px;
   font-weight: 500;
+  line-height: 1.35; /* per quando il testo va comunque a capo: prima era troppo stretto */
   color: var(--ink);
   cursor: pointer;
   text-decoration: none;
