@@ -382,6 +382,10 @@
       window.localStorage.removeItem(ACCOUNT_KEY);
       window.localStorage.removeItem(GUEST_KEY);
     } catch (err) { /* ignora */ }
+    // Altrimenti chi fa login con un altro account sullo stesso dispositivo
+    // vedrebbe per qualche secondo ancora la lista eventi di chi c'era prima
+    // (vedi la cache in getEvents, Fil 2026-07-22).
+    clearEventsCache();
   }
 
   /* Inserisce l'avviso "sessione scaduta" in cima a containerEl se serve
@@ -1424,7 +1428,47 @@
     return null;
   }
 
+  /* ---------- cache brevissima della lista eventi (Fil, 2026-07-22) ----------
+     Serve a far sentire il cambio di tab (Home/Eventi/Notifiche/archivio
+     Profilo — tutte richiamano getEvents()) più veloce di quanto sia un
+     giro vero a Supabase ogni volta, sullo stile "cambio schermata subito,
+     dati veri quasi subito dopo" chiesto da Fil. TTL breve apposta (15s):
+     abbastanza per un cambio tab rapido, non abbastanza da mostrare a
+     lungo dati vecchi — e comunque il refresh automatico ogni 30s (vedi
+     startAutoRefresh) tiene aggiornato chi resta fermo su una pagina.
+     In sessionStorage, non in memoria: sopravvive al cambio pagina (qui
+     ogni navigazione è un vero caricamento, non c'è nessuno stato JS che
+     resti in vita da una pagina all'altra).
+     Invalidata esplicitamente (clearEventsCache) da ogni funzione che
+     cambia cosa dovrebbe comparire nella lista — vedi i punti dove viene
+     chiamata più sotto — e da logOut(), altrimenti chi cambia account sullo
+     stesso dispositivo vedrebbe per qualche secondo ancora gli eventi di
+     chi era loggato prima. */
+  var EVENTS_CACHE_KEY = 'nduma:cache:events';
+  var EVENTS_CACHE_TTL_MS = 15000;
+
+  function readEventsCache() {
+    try {
+      var raw = sessionStorage.getItem(EVENTS_CACHE_KEY);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      if (!parsed || (Date.now() - parsed.t) > EVENTS_CACHE_TTL_MS) return null;
+      return parsed.v;
+    } catch (err) { return null; }
+  }
+
+  function writeEventsCache(events) {
+    try { sessionStorage.setItem(EVENTS_CACHE_KEY, JSON.stringify({ t: Date.now(), v: events })); } catch (err) { /* ignora: niente cache, si rifà la richiesta ogni volta */ }
+  }
+
+  function clearEventsCache() {
+    try { sessionStorage.removeItem(EVENTS_CACHE_KEY); } catch (err) { /* ignora */ }
+  }
+
   async function getEvents() {
+    var cached = readEventsCache();
+    if (cached) return cached;
+
     var res = await supabase
       .from('events')
       .select(EVENT_SELECT)
@@ -1432,7 +1476,9 @@
     if (res.error) throwSupabaseError(res.error);
     var events = res.data || [];
     pruneCancelledEvents(events);
-    return filterVisibleEvents(events);
+    var visible = filterVisibleEvents(events);
+    writeEventsCache(visible);
+    return visible;
   }
 
   /* Passa da get_event_public (SECURITY DEFINER), non più da una select
@@ -1557,6 +1603,7 @@
     }
 
     notifyEventInvite(eventId);
+    clearEventsCache();
     return getEventById(eventId);
   }
 
@@ -2012,6 +2059,7 @@
       notifyEventModified(eventId, input.name || current.name, genericRecipients);
     }
 
+    clearEventsCache();
     return getEventById(eventId);
   }
 
@@ -2043,6 +2091,7 @@
 
     var delRes = await supabase.from('events').delete().eq('id', eventId);
     if (delRes.error) throw new Error(delRes.error.message);
+    clearEventsCache();
 
     if (recipients.length) {
       var noticeRows = recipients.map(function (name) {
@@ -2082,6 +2131,7 @@
       })
       .eq('id', eventId);
     if (res.error) throw new Error(res.error.message);
+    clearEventsCache();
     return getEventById(eventId);
   }
 
@@ -2101,6 +2151,7 @@
       .update({ manually_cancelled: true, confirmed_date_option_id: null, cancelled_at: new Date().toISOString() })
       .eq('id', eventId);
     if (res.error) throw new Error(res.error.message);
+    clearEventsCache();
     return getEventById(eventId);
   }
 
@@ -2128,6 +2179,7 @@
       p_name: (name || '').trim() || null
     });
     if (res.error) throwSupabaseError(res.error);
+    clearEventsCache();
     return res.data;
   }
 
@@ -2142,6 +2194,7 @@
       p_name: (name || '').trim() || null
     });
     if (res.error) throwSupabaseError(res.error);
+    clearEventsCache();
     return res.data;
   }
 
@@ -2220,6 +2273,7 @@
       notifyEventResponse(eventId, res.data.name, !!res.data.available);
     }
 
+    clearEventsCache();
     return getEventById(eventId);
   }
 
@@ -2249,6 +2303,7 @@
     });
     if (res.error) throwSupabaseError(res.error);
 
+    clearEventsCache();
     return getEventById(eventId);
   }
 
@@ -2266,6 +2321,7 @@
   async function removeEventFromHome(eventId) {
     var res = await supabase.rpc('remove_event_from_home', { p_event_id: eventId });
     if (res.error) throwSupabaseError(res.error);
+    clearEventsCache();
     return res.data;
   }
 

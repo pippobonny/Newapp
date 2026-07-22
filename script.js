@@ -188,6 +188,89 @@
     });
   }
 
+  /* ---------- 1b. Swipe per cambiare tab (Fil, 2026-07-22) ----------
+     Stile WhatsApp: trascina orizzontalmente per passare alla tab prima/
+     dopo nella barra in basso, invece di dover per forza toccare l'icona.
+     Riusa lo stesso motore di navigazione qui sopra (initPageTransitions):
+     non duplica nulla, trova il link <a class="nav-item"> della tab di
+     destinazione e ci simula sopra un click vero — stessa animazione,
+     stessa direzione, stesso salvataggio in sessionStorage.
+
+     Attivo SOLO sulle 5 tab principali (TAB_ORDER): una pagina di dettaglio
+     (evento.html, amico.html...) non ha "una tab prima/dopo" con cui
+     confrontarsi, quindi lì semplicemente non si aggancia.
+
+     Limite noto su iPhone: Safari in una scheda normale (non installata
+     come app sulla schermata Home) ha un suo gesto di sistema — trascinare
+     dal bordo sinistro dello schermo torna indietro nella cronologia — che
+     può intercettare un trascinamento partito proprio da lì, prima ancora
+     che questo script se ne accorga. Non risolvibile lato JS: capita di
+     rado, dato che di solito si trascina dal centro dello schermo, non dal
+     millimetro esatto del bordo. */
+  var SWIPE_NAV_THRESHOLD = 70;
+
+  function initTabSwipeNavigation() {
+    var curIdx = TAB_ORDER.indexOf(currentFile());
+    if (curIdx === -1) return;
+
+    var screen = document.querySelector('.screen');
+    var navbar = document.querySelector('.navbar');
+    if (!screen || !navbar) return;
+    var navItems = navbar.querySelectorAll('.nav-item');
+
+    // pan-y solo qui (via JS, non nel CSS globale): lo scroll verticale
+    // resta libero, si cattura solo il trascinamento orizzontale — senza
+    // toccare .screen sulle pagine che non hanno questo gesto (es. il drag
+    // orizzontale delle barre giorno in evento.html).
+    screen.style.touchAction = 'pan-y';
+
+    var startX = 0, startY = 0, tracking = false, decided = false, isHorizontal = false;
+
+    screen.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      // non interferire con lo swipe-per-rimuovere sulle card di Home
+      // (initSwipeToRemove qui sotto): stesso gesto orizzontale, priorità
+      // alla card quando il tocco parte proprio lì sopra.
+      if (e.target.closest('.card-swipe-wrap')) return;
+      startX = e.clientX;
+      startY = e.clientY;
+      tracking = true;
+      decided = false;
+      isHorizontal = false;
+    });
+
+    screen.addEventListener('pointermove', function (e) {
+      if (!tracking) return;
+      var dx = e.clientX - startX;
+      var dy = e.clientY - startY;
+      if (!decided) {
+        if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+        decided = true;
+        // gesto chiaramente più orizzontale che verticale, per non "rubare"
+        // uno scroll verticale un po' obliquo
+        isHorizontal = Math.abs(dx) > Math.abs(dy) * 1.5;
+        if (!isHorizontal) { tracking = false; return; }
+      }
+      if (!isHorizontal) return;
+      e.preventDefault();
+    });
+
+    function endSwipe(e) {
+      if (!tracking) return;
+      tracking = false;
+      if (!decided || !isHorizontal) return;
+      var dx = e.clientX - startX;
+      if (Math.abs(dx) < SWIPE_NAV_THRESHOLD) return;
+      var targetIdx = dx < 0 ? curIdx + 1 : curIdx - 1; // sinistra: avanti; destra: indietro
+      if (targetIdx < 0 || targetIdx >= TAB_ORDER.length) return;
+      var targetLink = navItems[targetIdx];
+      if (targetLink) targetLink.click();
+    }
+
+    screen.addEventListener('pointerup', endSwipe);
+    screen.addEventListener('pointercancel', function () { tracking = false; });
+  }
+
   /* ---------- 2. Effetto ripple ---------- */
   function initRipples() {
     var selector = '.card, .primary-btn, .chip, .pill, .nav-item .icon, .settings-row, .bell, .back-btn, .add-date-btn, .remove-date';
@@ -1324,6 +1407,7 @@
   document.addEventListener('DOMContentLoaded', function () {
     initNavIndicator();
     initPageTransitions();
+    initTabSwipeNavigation();
     initRipples();
     initProgressBars();
     initScrollReveal();
