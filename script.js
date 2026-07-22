@@ -424,9 +424,13 @@
       if (!decided) {
         if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
         decided = true;
-        // gesto chiaramente più orizzontale che verticale, per non "rubare"
-        // uno scroll verticale un po' obliquo
-        isHorizontal = Math.abs(dx) > Math.abs(dy) * 1.5;
+        // Fil, 2026-07-22, trovato in review dopo un test reale (S25
+        // Ultra): il moltiplicatore *1.5 chiedeva un trascinamento quasi
+        // perfettamente dritto, che un vero dito raramente fa — lo swipe
+        // sembrava semplicemente "non funzionare". Stessa soglia (nessun
+        // moltiplicatore, solo "più orizzontale che verticale") già usata
+        // dallo swipe-per-rimuovere le card qui sotto, che invece funziona.
+        isHorizontal = Math.abs(dx) > Math.abs(dy);
         if (!isHorizontal) { tracking = false; return; }
       }
       if (!isHorizontal) return;
