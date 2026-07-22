@@ -80,6 +80,14 @@
    ricentrarla a mano — bug notato da Fil su iPhone 13 il 2026-07-05. */
 html {
   overflow-x: hidden;
+  /* Fil, 2026-07-22, trovato in test (S25 Ultra, app installata): scorrere
+     fino in fondo alla lista e continuare a trascinare faceva "rimbalzare"
+     tutta la pagina (l'effetto elastico nativo di Chrome/Android quando lo
+     scroll arriva al bordo e prova a propagarsi al genitore) — la navbar,
+     ancorata al fondo di .phone, si spostava con lei. overscroll-behavior
+     ferma sia il rimbalzo che la propagazione alla pagina, qui e su .content
+     qui sotto (il contenitore che scorre davvero). */
+  overscroll-behavior-y: none;
 }
 
 body {
@@ -92,6 +100,7 @@ body {
   min-height: 100vh;
   padding: 40px 16px;
   overflow-x: hidden;
+  overscroll-behavior-y: none;
   width: 100%;
 }
 
@@ -340,6 +349,7 @@ a { text-decoration: none; color: inherit; }
   z-index: 1;
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior-y: contain; /* niente rimbalzo/propagazione alla pagina, vedi html/body */
   padding: 4px 20px 100px;
 }
 
