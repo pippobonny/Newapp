@@ -425,13 +425,21 @@
     if (contentEl) contentEl.style.touchAction = 'pan-y';
 
     var startX = 0, startY = 0, tracking = false, decided = false, isHorizontal = false;
+    var startedOnCard = false, startedOnOpenCard = false;
 
     screen.addEventListener('pointerdown', function (e) {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
-      // non interferire con lo swipe-per-rimuovere sulle card di Home
-      // (initSwipeToRemove qui sotto): stesso gesto orizzontale, priorità
-      // alla card quando il tocco parte proprio lì sopra.
-      if (e.target.closest('.card-swipe-wrap')) return;
+      // Fil, 2026-07-22: non si esclude più a priori un tocco partito su
+      // una card di Home — da quando il cestino si apre verso destra
+      // (initSwipeToRemove qui sotto), i due gesti si distinguono per
+      // verso: sinistra su una card CHIUSA è "mio" (cambio tab), destra è
+      // sempre della card (apre il cestino), e su una card già APERTA
+      // resta sempre sua qualunque verso (per poterla richiudere
+      // trascinando). Registro qui in che caso siamo, mi serve al momento
+      // di decidere più sotto.
+      var cardWrap = e.target.closest('.card-swipe-wrap');
+      startedOnCard = !!cardWrap;
+      startedOnOpenCard = !!(cardWrap && cardWrap.querySelector('.card[data-swipe-open="1"]'));
       startX = e.clientX;
       startY = e.clientY;
       tracking = true;
@@ -454,6 +462,11 @@
         // dallo swipe-per-rimuovere le card qui sotto, che invece funziona.
         isHorizontal = Math.abs(dx) > Math.abs(dy);
         if (!isHorizontal) { tracking = false; return; }
+        // Su una card: destra è sempre sua (apre/aggiusta il cestino);
+        // sinistra resta sua SOLO se era già aperta (per poterla
+        // richiudere trascinando) — sinistra su una card chiusa è invece
+        // il cambio tab, prosegue normalmente qui sotto.
+        if (startedOnCard && (dx > 0 || startedOnOpenCard)) { tracking = false; return; }
         // Fil, 2026-07-22, trovato in review: mancava rispetto allo
         // swipe-per-rimuovere le card (che invece funzionava) — senza,
         // .content sotto (che scrolla in verticale) può competere per lo
@@ -1032,6 +1045,13 @@
           decided = true;
           isHorizontal = Math.abs(dx) > Math.abs(dy);
           if (!isHorizontal) { dragging = false; return; } // verticale: allo scroll ci pensa il browser
+          // Fil, 2026-07-22: trascinamento verso sinistra su una card NON
+          // già aperta non è "mio" — da quando il cestino si apre verso
+          // destra, sinistra è il verso dello swipe per cambiare tab
+          // (initTabSwipeNavigation più sopra): mi tiro indietro senza
+          // catturare il tocco, così risale a lui. Una card già aperta
+          // resta comunque richiudibile trascinando in entrambi i versi.
+          if (dx <= 0 && card.getAttribute('data-swipe-open') !== '1') { dragging = false; return; }
           document.querySelectorAll('.card-swipe-wrap .card[data-swipe-open="1"]').forEach(function (openCard) {
             if (openCard !== card) closeSwipeCard(openCard);
           });
