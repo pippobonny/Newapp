@@ -432,6 +432,13 @@
         // dallo swipe-per-rimuovere le card qui sotto, che invece funziona.
         isHorizontal = Math.abs(dx) > Math.abs(dy);
         if (!isHorizontal) { tracking = false; return; }
+        // Fil, 2026-07-22, trovato in review: mancava rispetto allo
+        // swipe-per-rimuovere le card (che invece funzionava) — senza,
+        // .content sotto (che scrolla in verticale) può competere per lo
+        // stesso tocco e "vincerlo" prima ancora che isHorizontal scatti
+        // davvero, specie se il dito non parte perfettamente dritto.
+        // setPointerCapture dice al telefono "questo trascinamento è mio".
+        try { screen.setPointerCapture(e.pointerId); } catch (err) { /* ignora */ }
       }
       if (!isHorizontal) return;
       e.preventDefault();
