@@ -1278,7 +1278,7 @@
     + 'confirmedDateOptionId:confirmed_date_option_id, confirmedLocationOptionId:confirmed_location_option_id, '
     + 'manuallyCancelled:manually_cancelled, eventTime:event_time, itemsEnabled:items_enabled, '
     + 'dateOptions:date_options!date_options_event_id_fkey(id, dateISO:date_iso), '
-    + 'locationOptions:location_options(id, address, placeId:place_id, lat, lng), '
+    + 'locationOptions:location_options!location_options_event_id_fkey(id, address, placeId:place_id, lat, lng), '
     + 'participants(name, availableDateOptionIds:available_date_option_ids, availableLocationOptionIds:available_location_option_ids, accountId:account_id, createdAt:created_at, hiddenFromHome:hidden_from_home), '
     + 'invitees:event_invitees(id, name, accountId:account_id, claimedAt:claimed_at)';
 
