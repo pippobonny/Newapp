@@ -937,14 +937,19 @@
   /* ---------- swipe per rimuovere una card dalla Home ----------
      Fil, 2026-07-20: stessa azione del bottone "Rimuovi dalla home" nel
      menu ⋮ di evento.html (NdumaData.removeEventFromHome), raggiungibile
-     anche trascinando la card verso sinistra qui in Home — solo qui, vedi
-     opts.swipeToRemove in NdumaData.renderEventCardHTML/index.html. Pointer
-     Events (non touch/mouse separati): un solo set di listener funziona sia
-     col dito che col mouse. touch-action:pan-y in style.css lascia lo
-     scroll verticale della lista al browser, si cattura solo il trascina-
-     mento orizzontale. */
-  var SWIPE_OPEN_X = -76; // larghezza del cestino, vedi .card-swipe-trash in style.css
-  var SWIPE_OPEN_THRESHOLD = -38; // oltre metà, si "scatta" aperto al rilascio
+     anche trascinando la card — solo qui, vedi opts.swipeToRemove in
+     NdumaData.renderEventCardHTML/index.html. Pointer Events (non touch/
+     mouse separati): un solo set di listener funziona sia col dito che col
+     mouse. touch-action:pan-y in style.css lascia lo scroll verticale della
+     lista al browser, si cattura solo il trascinamento orizzontale.
+
+     Fil, 2026-07-22: verso invertito, da sinistra a DESTRA — trascinare
+     verso sinistra è anche il gesto per passare alla tab successiva (vedi
+     initTabSwipeNavigation più sopra), i due si confondevano proprio qui
+     in Home, l'unica pagina con entrambi i gesti attivi. SWIPE_OPEN_X
+     positivo invece che negativo, stesso principio del resto sotto. */
+  var SWIPE_OPEN_X = 76; // larghezza del cestino, vedi .card-swipe-trash in style.css
+  var SWIPE_OPEN_THRESHOLD = 38; // oltre metà, si "scatta" aperto al rilascio
   var swipeOutsideCloseBound = false;
 
   function closeSwipeCard(card) {
@@ -1015,8 +1020,8 @@
         e.preventDefault();
         var base = card.getAttribute('data-swipe-open') === '1' ? SWIPE_OPEN_X : 0;
         var x = base + dx;
-        if (x > 0) x = 0;
-        if (x < SWIPE_OPEN_X) x = SWIPE_OPEN_X + (x - SWIPE_OPEN_X) * 0.25; // piccola resistenza oltre il cestino
+        if (x < 0) x = 0;
+        if (x > SWIPE_OPEN_X) x = SWIPE_OPEN_X + (x - SWIPE_OPEN_X) * 0.25; // piccola resistenza oltre il cestino
         setX(x, false);
       });
 
@@ -1025,7 +1030,7 @@
         dragging = false;
         window.__ndumaSwipeDragging = false;
         if (!isHorizontal) return;
-        var open = currentX <= SWIPE_OPEN_THRESHOLD;
+        var open = currentX >= SWIPE_OPEN_THRESHOLD;
         setX(open ? SWIPE_OPEN_X : 0, true);
         card.setAttribute('data-swipe-open', open ? '1' : '0');
       }

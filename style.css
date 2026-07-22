@@ -382,7 +382,13 @@ a { text-decoration: none; color: inherit; }
 .card-swipe-trash {
   position: absolute;
   top: 0;
-  right: 0;
+  /* Fil, 2026-07-22: da destra a sinistra -- lo swipe per rimuovere una
+     card andava verso sinistra, lo stesso verso usato per passare alla tab
+     successiva (vedi initTabSwipeNavigation in script.js): due gesti
+     opposti nello stesso posto si confondevano a vicenda. Ora il cestino
+     compare trascinando verso DESTRA (SWIPE_OPEN_X positivo qui sotto),
+     lasciando il trascinamento verso sinistra libero per cambiare tab. */
+  left: 0;
   bottom: 0;
   width: 76px;
   display: flex;
