@@ -128,6 +128,20 @@
   <script src="script.js"></script>
   <script>
     (async function () {
+      // Fil, 2026-07-22, trovato in review dopo un bug reale in test (la
+      // lista smetteva di comparire dopo qualche cambio tab, tornava solo
+      // ricaricando a mano): se te ne vai da questa tab mentre una
+      // richiesta di rete di questa pagina è ancora in corso (es. le foto
+      // profilo degli amici, più sotto), quando arriva la risposta questo
+      // script scriveva comunque sugli elementi di questa vecchia
+      // schermata — ormai spariti dal DOM (rimpiazzati da quella nuova),
+      // quindi la scrittura non si vedeva da nessuna parte, ma la vecchia
+      // richiesta restava comunque "appesa" a girare in background.
+      // "mounted" fa sì che quelle risposte tardive, quando arrivano dopo
+      // che te ne sei andato, non tocchino più nulla.
+      var mounted = true;
+      window.__ndumaUnmount = function () { mounted = false; };
+
       var pageContent = document.getElementById('pageContent');
 
       /* Solo chi ha un profilo può creare liste amici: senza, sostituiamo il
@@ -278,6 +292,7 @@
           });
           if (neededIds.length && window.NdumaData && NdumaData.getAvatarsForAccountIds) {
             NdumaData.getAvatarsForAccountIds(neededIds).then(function (avatarMap) {
+              if (!mounted) return; // te ne sei già andato da questa tab, vedi sopra
               neededIds.forEach(function (id) {
                 friendAvatarCache[id] = (avatarMap[id] && avatarMap[id].avatarUrl) || null;
               });
@@ -343,6 +358,7 @@
           .filter(function (id) { return id && !(id in friendAvatarCache); });
         if (missingIds.length && window.NdumaData && NdumaData.getAvatarsForAccountIds) {
           NdumaData.getAvatarsForAccountIds(missingIds).then(function (avatarMap) {
+            if (!mounted) return; // te ne sei già andato da questa tab, vedi sopra
             missingIds.forEach(function (id) {
               friendAvatarCache[id] = (avatarMap[id] && avatarMap[id].avatarUrl) || null;
             });

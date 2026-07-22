@@ -316,6 +316,21 @@
         });
       }
 
+      // Fil, 2026-07-22: rete di sicurezza dopo un bug reale trovato in
+      // test (una lista smetteva di comparire dopo qualche cambio tab,
+      // tornava solo ricaricando a mano) — se lo script appena montato
+      // lancia un errore non gestito nei primi istanti, quasi certamente
+      // qualcosa è andato storto nel montaggio: invece di lasciare la
+      // schermata rotta in silenzio come capitava, si ricarica DAVVERO da
+      // sola, lo stesso identico effetto di quando lo fai tu a mano.
+      var mountErrorGuard = function () { window.location.href = historyUrl; };
+      window.addEventListener('error', mountErrorGuard, { once: true });
+      window.addEventListener('unhandledrejection', mountErrorGuard, { once: true });
+      window.setTimeout(function () {
+        window.removeEventListener('error', mountErrorGuard);
+        window.removeEventListener('unhandledrejection', mountErrorGuard);
+      }, 4000);
+
       // Il vero "montaggio" della vista: uno script creato di fresco esegue
       // per intero lo stesso IIFE che gira su un caricamento vero (gate,
       // dati, render, bind eventi) — un <script> inserito via innerHTML non

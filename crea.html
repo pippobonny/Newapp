@@ -274,6 +274,13 @@
   <script src="script.js"></script>
   <script>
     (async function () {
+      // Fil, 2026-07-22, trovato in review dopo un bug reale in test (su
+      // amici.html, stesso principio): se te ne vai da questa tab mentre
+      // una richiesta di rete di questa pagina è ancora in corso (es. le
+      // foto profilo degli invitati già collegati, più sotto), la risposta
+      // in ritardo non deve più toccare nulla di questa vecchia schermata.
+      var mounted = true;
+
       /* Solo chi ha un profilo può creare eventi: senza, sostituiamo il form
          con un messaggio bloccante che invita a crearne uno. Un ospite
          bloccato da un invito (checkAccessGate) viene invece rimandato al
@@ -1477,6 +1484,7 @@
         var editLinkedIds = manualNames.map(function (e) { return e.accountId; }).filter(function (id) { return !!id; });
         if (editLinkedIds.length) {
           NdumaData.getAvatarsForAccountIds(editLinkedIds).then(function (avatarMap) {
+            if (!mounted) return; // te ne sei già andato da questa tab, vedi sopra
             manualNames.forEach(function (e) {
               if (e.accountId && avatarMap[e.accountId]) e.avatarUrl = avatarMap[e.accountId].avatarUrl || null;
             });
@@ -1509,7 +1517,9 @@
       // portava via tutto), ora che non ricarica più serve spegnerlo a
       // mano. stopRecording() è la stessa funzione del tocco per fermare la
       // registrazione qui sopra: non fa nulla se non stavi registrando.
-      window.__ndumaUnmount = function () { stopRecording(); };
+      // mounted=false spegne anche le risposte di rete in ritardo, vedi
+      // sopra.
+      window.__ndumaUnmount = function () { stopRecording(); mounted = false; };
     })();
   </script>
 
