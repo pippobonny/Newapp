@@ -1152,6 +1152,47 @@
     });
   }
 
+  /* ---------- 9.65 Blocca il rimbalzo SOLO in fondo alla pagina ----------
+     Fil, 2026-07-22, trovato in test (S25 Ultra, app installata): scorrere
+     fino in fondo a una lista e continuare a trascinare faceva "rimbalzare"
+     tutta la pagina (l'effetto elastico nativo di Chrome/Android quando lo
+     scroll di .content arriva al bordo e si propaga al genitore) — la
+     navbar, ancorata al fondo di .phone, si spostava con lei.
+
+     Primo tentativo: overscroll-behavior via CSS su html/body/.content —
+     funzionava, ma è simmetrico (blocca il rimbalzo sia in cima che in
+     fondo) e si è portato via anche il "tira giù per ricaricare" nativo di
+     Chrome in cima alla pagina, che invece Fil voleva tenere. CSS non ha
+     un modo di dire "solo in fondo, non in cima", quindi qui si fa a mano
+     con un touchmove: si blocca lo scroll SOLO se si è già in fondo a un
+     .content E si sta ancora trascinando verso il basso (cioè si
+     proverebbe ad andare oltre) — qualunque altro caso, cima inclusa,
+     resta intoccato.
+
+     Delegato su document (non su .content, che nelle 5 tab principali
+     viene ricreato ad ogni cambio scheda, vedi spaRenderView in alto):
+     un solo listener, mai da riattaccare. */
+  function initBottomOverscrollGuard() {
+    var startY = 0;
+
+    document.addEventListener('touchstart', function (e) {
+      if (e.touches.length !== 1) return;
+      startY = e.touches[0].clientY;
+    }, { passive: true });
+
+    document.addEventListener('touchmove', function (e) {
+      if (e.touches.length !== 1) return;
+      var contentEl = e.target.closest && e.target.closest('.content');
+      if (!contentEl) return;
+
+      var atBottom = contentEl.scrollHeight - contentEl.scrollTop - contentEl.clientHeight <= 1;
+      if (!atBottom) return;
+
+      var draggingFurther = e.touches[0].clientY < startY; // il dito sale = si scorrerebbe oltre il fondo
+      if (draggingFurther) e.preventDefault();
+    }, { passive: false });
+  }
+
   /* ---------- 9.7 Navbar che sparisce quando si apre la tastiera ----------
      La navbar e' "position: absolute" ancorata al bordo di .phone: su iOS,
      quando si apre la tastiera, il browser scrolla per portare il campo
@@ -1673,6 +1714,7 @@
     initAttendanceBadge();
     initPendingToast();
     initKeyboardAwareNavbar();
+    initBottomOverscrollGuard();
     initSplashScreen();
     initIosInstallHint();
     initReportProblem();
