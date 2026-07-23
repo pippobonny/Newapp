@@ -684,6 +684,65 @@ a { text-decoration: none; color: inherit; }
   margin-bottom: 4px;
 }
 
+/* Fil, 2026-07-23: player della nota vocale registrata — sostituisce i
+   controlli nativi del browser (<audio controls>, look diverso su ogni
+   browser/OS e non personalizzabile via CSS) con uno in stile app, vedi
+   audioPlayBtn/audioProgressTrack in crea.html per la logica. */
+.audio-player {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card);
+  border-radius: 14px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  box-shadow: 0 2px 8px rgba(58,50,90,0.06);
+}
+
+.audio-play-btn {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: var(--ink);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.audio-play-btn svg { display: block; }
+
+.audio-play-btn:active { transform: scale(0.94); }
+
+.audio-player-body { flex: 1; min-width: 0; }
+
+.audio-progress-track {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--track-soft);
+  cursor: pointer;
+  margin-bottom: 6px;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 3px;
+  background: var(--lavender);
+  transition: width 0.1s linear;
+}
+
+.audio-time-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
 /* Forms (crea.html) */
 .field {
   margin-bottom: 16px;
