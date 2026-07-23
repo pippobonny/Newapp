@@ -133,12 +133,7 @@
         } catch (err) { /* niente richieste mostrate, il resto della pagina non si blocca */ }
 
         var section = document.getElementById('friendRequestsSection');
-        if (!requests.length) {
-          section.innerHTML = '';
-          return;
-        }
-
-        section.innerHTML = '<div class="section-title first" style="margin-bottom:10px;">Richieste di amicizia</div>'
+        var newSectionHTML = !requests.length ? '' : '<div class="section-title first" style="margin-bottom:10px;">Richieste di amicizia</div>'
           + requests.map(function (r) {
             return ''
               + '<div class="notif-item reveal" style="align-items:center;">'
@@ -153,6 +148,13 @@
               + '</div>'
               + '</div>';
           }).join('');
+
+        // Fil, 2026-07-23: come su Home/Eventi, salta il ridisegno se il
+        // refresh automatico non ha trovato niente di nuovo — altrimenti
+        // ogni giro rifaceva ripartire l'animazione di comparsa anche
+        // quando non c'era nessuna richiesta nuova davvero.
+        if (newSectionHTML === section.innerHTML) return;
+        section.innerHTML = newSectionHTML;
 
         section.querySelectorAll('[data-accept-friend]').forEach(function (btn) {
           btn.addEventListener('click', function () { respondToRequest(btn.getAttribute('data-accept-friend'), true, btn); });
@@ -218,68 +220,79 @@
         // (Fil, 2026-07-17).
         var notifications = NdumaData.buildNotifications(events, eventNotices, myUsername);
 
+        var newBodyHTML;
         if (!notifications.length) {
-        notifBodyEl.innerHTML = '<div class="empty-hint">Nessuna notifica per ora.</div>';
-      } else {
-        // Fil, 2026-07-19: dopo mesi d'uso l'elenco diventa lungo e
-        // confusionario. Quelle più vecchie di un paio di giorni E che avevi
-        // già visto (il dispositivo lo sa dal timestamp "vista fino a qui",
-        // lo stesso che spegne il pallino sulla campanella, letto qui PRIMA
-        // che markNotificationsSeen() più sotto lo aggiorni a adesso)
-        // finiscono in un accordion chiuso "Notifiche precedenti" invece di
-        // restare tutte in fila. Una non ancora vista non ci finisce mai,
-        // anche se vecchia: non deve sparire dalla vista prima che tu
-        // l'abbia notata almeno una volta. Riuso lo stesso accordion già
-        // usato per le spese (expense-accordion in style.css), stesso
-        // comportamento, contenuto diverso.
-        var previousSeenAt = NdumaData.getNotificationsSeenAt();
-        var previousSeenTime = previousSeenAt ? new Date(previousSeenAt).getTime() : null;
-        var OLD_NOTIF_THRESHOLD_MS = 2 * 24 * 60 * 60 * 1000; // due giorni
-        var now = Date.now();
+          newBodyHTML = '<div class="empty-hint">Nessuna notifica per ora.</div>';
+        } else {
+          // Fil, 2026-07-19: dopo mesi d'uso l'elenco diventa lungo e
+          // confusionario. Quelle più vecchie di un paio di giorni E che avevi
+          // già visto (il dispositivo lo sa dal timestamp "vista fino a qui",
+          // lo stesso che spegne il pallino sulla campanella, letto qui PRIMA
+          // che markNotificationsSeen() più sotto lo aggiorni a adesso)
+          // finiscono in un accordion chiuso "Notifiche precedenti" invece di
+          // restare tutte in fila. Una non ancora vista non ci finisce mai,
+          // anche se vecchia: non deve sparire dalla vista prima che tu
+          // l'abbia notata almeno una volta. Riuso lo stesso accordion già
+          // usato per le spese (expense-accordion in style.css), stesso
+          // comportamento, contenuto diverso.
+          var previousSeenAt = NdumaData.getNotificationsSeenAt();
+          var previousSeenTime = previousSeenAt ? new Date(previousSeenAt).getTime() : null;
+          var OLD_NOTIF_THRESHOLD_MS = 2 * 24 * 60 * 60 * 1000; // due giorni
+          var now = Date.now();
 
-        var recentNotifs = [];
-        var olderReadNotifs = [];
-        notifications.forEach(function (n) {
-          var notifTime = new Date(n.time).getTime();
-          var isRead = previousSeenTime !== null && notifTime <= previousSeenTime;
-          var isOld = (now - notifTime) > OLD_NOTIF_THRESHOLD_MS;
-          (isRead && isOld ? olderReadNotifs : recentNotifs).push(n);
-        });
+          var recentNotifs = [];
+          var olderReadNotifs = [];
+          notifications.forEach(function (n) {
+            var notifTime = new Date(n.time).getTime();
+            var isRead = previousSeenTime !== null && notifTime <= previousSeenTime;
+            var isOld = (now - notifTime) > OLD_NOTIF_THRESHOLD_MS;
+            (isRead && isOld ? olderReadNotifs : recentNotifs).push(n);
+          });
 
-        function notifItemHTML(n) {
-          return ''
-            + '<div class="notif-item reveal">'
-            + '<div class="notif-icon ' + n.icon + '">' + n.emoji + '</div>'
-            + '<div>'
-            + '<div class="notif-text">' + n.text + '</div>'
-            + '<div class="notif-time">' + timeAgo(n.time) + '</div>'
-            + '</div>'
-            + '</div>';
+          var notifItemHTML = function (n) {
+            return ''
+              + '<div class="notif-item reveal">'
+              + '<div class="notif-icon ' + n.icon + '">' + n.emoji + '</div>'
+              + '<div>'
+              + '<div class="notif-text">' + n.text + '</div>'
+              + '<div class="notif-time">' + timeAgo(n.time) + '</div>'
+              + '</div>'
+              + '</div>';
+          };
+
+          var recentHTML = recentNotifs.length
+            ? recentNotifs.map(notifItemHTML).join('')
+            : '<div class="empty-hint">Nessuna notifica recente.</div>';
+
+          var olderAccordionHTML = olderReadNotifs.length
+            ? ''
+              + '<div class="expense-accordion" style="margin-top:14px;">'
+              + '<div class="expense-accordion-header" id="olderNotifHeader">'
+              + '<div class="expense-accordion-titles">'
+              + '<div class="expense-accordion-title">Notifiche precedenti</div>'
+              + '<div class="expense-accordion-subtitle">' + olderReadNotifs.length + (olderReadNotifs.length === 1 ? ' già letta' : ' già lette') + '</div>'
+              + '</div>'
+              + '<div class="expense-accordion-chevron" id="olderNotifChevron">&#9662;</div>'
+              + '</div>'
+              + '<div class="expense-accordion-body" id="olderNotifBody">'
+              + '<div class="expense-accordion-inner">'
+              + olderReadNotifs.map(notifItemHTML).join('')
+              + '</div>'
+              + '</div>'
+              + '</div>'
+            : '';
+
+          newBodyHTML = recentHTML + olderAccordionHTML;
         }
 
-        var recentHTML = recentNotifs.length
-          ? recentNotifs.map(notifItemHTML).join('')
-          : '<div class="empty-hint">Nessuna notifica recente.</div>';
-
-        var olderAccordionHTML = olderReadNotifs.length
-          ? ''
-            + '<div class="expense-accordion" style="margin-top:14px;">'
-            + '<div class="expense-accordion-header" id="olderNotifHeader">'
-            + '<div class="expense-accordion-titles">'
-            + '<div class="expense-accordion-title">Notifiche precedenti</div>'
-            + '<div class="expense-accordion-subtitle">' + olderReadNotifs.length + (olderReadNotifs.length === 1 ? ' già letta' : ' già lette') + '</div>'
-            + '</div>'
-            + '<div class="expense-accordion-chevron" id="olderNotifChevron">&#9662;</div>'
-            + '</div>'
-            + '<div class="expense-accordion-body" id="olderNotifBody">'
-            + '<div class="expense-accordion-inner">'
-            + olderReadNotifs.map(notifItemHTML).join('')
-            + '</div>'
-            + '</div>'
-            + '</div>'
-          : '';
-
-        notifBodyEl.innerHTML = recentHTML + olderAccordionHTML;
+        // Fil, 2026-07-23: come su Home/Eventi, salta il ridisegno (e quindi
+        // riapre-l'accordion-da-solo) se il refresh automatico non ha
+        // trovato niente di nuovo davvero — il caso più comune, dato che
+        // gira ogni 30s. L'effetto collaterale di prima (un refresh in
+        // background richiude l'accordion se l'avevi aperto) resta solo per
+        // quando è cambiato QUALCOSA di vero, non più ad ogni singolo giro.
+        if (newBodyHTML === notifBodyEl.innerHTML) return;
+        notifBodyEl.innerHTML = newBodyHTML;
 
         var olderNotifHeader = document.getElementById('olderNotifHeader');
         if (olderNotifHeader) {
@@ -287,7 +300,6 @@
             document.getElementById('olderNotifBody').classList.toggle('open');
             document.getElementById('olderNotifChevron').classList.toggle('open');
           });
-        }
         }
 
         if (window.NdumaUI) window.NdumaUI.refresh();
