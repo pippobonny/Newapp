@@ -47,19 +47,19 @@
         <div class="back-btn" id="eventMenuBtn" style="cursor:pointer;">⋮</div>
         <span class="menu-dot" id="menuDot" style="display:none;"></span>
         <div class="menu-dropdown" id="eventMenuDropdown">
-          <a class="menu-dropdown-item" id="menuEditLink" href="#" style="display:none;">✏️ Modifica</a>
+          <a class="menu-dropdown-item" id="menuEditLink" href="#" style="display:none;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg> Modifica</a>
           <div class="menu-dropdown-item" id="menuEditAvailabilityBtn" style="display:none;">📅 I giorni in cui ci sei</div>
           <!-- Spenta di default su ogni evento nuovo, visibile solo a chi
                organizza (Fil, 2026-07-21: "rimane nascosta appena crei
                l'evento e poi da lì se vuoi la metti"). Etichetta e stato
                aggiornati ad ogni render() in updateItemsToggleMenuLabel(). -->
           <div class="menu-dropdown-item" id="menuToggleItemsBtn" style="display:none;">🎒 Attiva chi porta cosa</div>
-          <div class="menu-dropdown-item danger" id="menuDeleteBtn" style="display:none;">🗑️ Elimina</div>
+          <div class="menu-dropdown-item danger" id="menuDeleteBtn" style="display:none;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M5 7h14"></path><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path><path d="M7 7l1 13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-13"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg> Elimina</div>
           <!-- Solo per chi NON organizza (Fil, 2026-07-20): rimuove l'evento
                dalla propria home perché tanto non ci sarà. Non tocca i
                conteggi che vede l'organizzatore, azione definitiva (vedi
                removeEventFromHome in data.js). -->
-          <div class="menu-dropdown-item danger" id="menuRemoveFromHomeBtn" style="display:none;">🗑️ Rimuovi dalla home</div>
+          <div class="menu-dropdown-item danger" id="menuRemoveFromHomeBtn" style="display:none;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M5 7h14"></path><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path><path d="M7 7l1 13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-13"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg> Rimuovi dalla home</div>
         </div>
       </div>
     </div>
@@ -882,7 +882,7 @@
           ? expenses.map(function (ex) {
               var canEdit = canWrite && myAccountId && (ex.createdByAccountId === myAccountId || isOrganizerAccount);
               var actionsHTML = canEdit
-                ? '<span class="expense-edit" data-edit-expense="' + ex.id + '" style="cursor:pointer;">✏️</span><span class="expense-remove" data-remove-expense="' + ex.id + '" style="cursor:pointer;">✕</span>'
+                ? '<span class="expense-edit" data-edit-expense="' + ex.id + '" style="cursor:pointer; display:inline-flex;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></span><span class="expense-remove" data-remove-expense="' + ex.id + '" style="cursor:pointer;">✕</span>'
                 : '';
               var emojiHTML = ex.emoji
                 ? '<div class="expense-emoji-chip">' + NdumaData.escapeHTML(ex.emoji) + '</div>'

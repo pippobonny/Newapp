@@ -307,6 +307,26 @@ a { text-decoration: none; color: inherit; }
   justify-content: center;
   font-size: 18px;
   box-shadow: 0 2px 8px rgba(58,50,90,0.06);
+  color: var(--ink);
+}
+
+/* Piccolo tremolio quando ci sono notifiche non lette (Fil, 2026-07-23),
+   tolto via classList non appena diventano lette (vedi index.html). Solo
+   sull'icona SVG dentro, non su tutto .bell (altrimenti si sposta anche il
+   pallino col numero, che deve restare fermo nel suo angolo). */
+.bell.has-unread svg {
+  animation: bellRing 2.2s ease-in-out infinite;
+  transform-origin: top center;
+}
+
+@keyframes bellRing {
+  0%, 75%, 100% { transform: rotate(0deg); }
+  78% { transform: rotate(-11deg); }
+  81% { transform: rotate(9deg); }
+  84% { transform: rotate(-7deg); }
+  87% { transform: rotate(5deg); }
+  90% { transform: rotate(-2deg); }
+  93% { transform: rotate(0deg); }
 }
 
 /* Badge "hai N notifiche nuove?" sulla campanella (Fil, 2026-07-17, numero
