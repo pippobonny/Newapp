@@ -59,7 +59,7 @@
 
       <div class="wizard-step" id="wizardStep1">
         <div class="field">
-          <label>Nome evento</label>
+          <label>Nome evento <svg id="eventNamePencil" class="field-pencil-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></label>
           <input type="text" id="eventName" placeholder="Es. Weekend in montagna">
         </div>
 
@@ -321,6 +321,23 @@
       var formError = document.getElementById('formError');
       var step1Error = document.getElementById('step1Error');
       var step2Error = document.getElementById('step2Error');
+
+      // Fil, 2026-07-23: la matita accanto a "Nome evento" si muove come se
+      // scrivesse mentre l'utente digita — classe .writing tolta 400ms dopo
+      // l'ultimo tasto premuto, non ad ogni singolo evento input (altrimenti
+      // l'animazione riparte da capo ad ogni lettera invece di restare fluida).
+      var eventNameInput = document.getElementById('eventName');
+      var eventNamePencil = document.getElementById('eventNamePencil');
+      var eventNameWritingTimer = null;
+      if (eventNameInput && eventNamePencil) {
+        eventNameInput.addEventListener('input', function () {
+          eventNamePencil.classList.add('writing');
+          clearTimeout(eventNameWritingTimer);
+          eventNameWritingTimer = setTimeout(function () {
+            eventNamePencil.classList.remove('writing');
+          }, 400);
+        });
+      }
 
       // Solo chi ha un account arriva fin qui (vedi il blocco "Serve un profilo"
       // qui sopra): l'organizzatore è sempre e solo il nome utente del tuo account,

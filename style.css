@@ -618,6 +618,26 @@ a { text-decoration: none; color: inherit; }
   margin-bottom: 6px;
 }
 
+/* Fil, 2026-07-23: la matita accanto a "Nome evento" si muove come se
+   scrivesse mentre l'utente digita nel campo (vedi eventNamePencil in
+   crea.html, classe .writing aggiunta/tolta con debounce sull'input). */
+.field-pencil-icon {
+  display: inline-block;
+  vertical-align: -1px;
+  color: var(--ink-soft);
+}
+
+.field-pencil-icon.writing {
+  animation: pencilWrite 0.4s ease-in-out infinite;
+  transform-origin: 78% 78%;
+}
+
+@keyframes pencilWrite {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(-14deg); }
+  70% { transform: rotate(11deg); }
+}
+
 .field input[type="text"],
 .field input[type="number"],
 .field input[type="date"],
