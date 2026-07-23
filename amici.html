@@ -343,7 +343,7 @@
               ? '<span class="linked-mini-avatar" title="Amicizia confermata"><img src="' + NdumaData.escapeHTML(avatarUrl) + '" alt=""></span>'
               : '<span class="linked-mini-avatar" title="Amicizia confermata">' + NdumaData.escapeHTML(initial) + '</span>';
           } else if (f.linkStatus === 'pending') {
-            linkedMarker = '<span class="linked-mini-avatar" style="background:var(--butter-soft); color:var(--ink);" title="In attesa che confermi lui/lei">⏳</span>';
+            linkedMarker = '<span class="linked-mini-avatar" style="background:var(--butter-soft); color:var(--ink);" title="In attesa che confermi lui/lei"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg></span>';
           }
           return ''
             + '<div class="settings-row" style="margin-bottom:8px;">'

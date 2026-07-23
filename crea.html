@@ -74,10 +74,10 @@
           </div>
           <div id="descriptionAudioPanel" style="display:none;">
             <div id="audioRecorderIdle">
-              <div class="add-date-btn" id="recordAudioBtn" style="margin-bottom:0; text-align:center; user-select:none;">🎙️ Tocca per registrare</div>
+              <div class="add-date-btn" id="recordAudioBtn" style="margin-bottom:0; text-align:center; user-select:none;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="vertical-align:-2px; margin-right:4px;"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><line x1="12" y1="18" x2="12" y2="22"></line><line x1="8" y1="22" x2="16" y2="22"></line></svg>Tocca per registrare</div>
             </div>
             <div id="audioRecorderRecording" style="display:none; text-align:center; cursor:pointer;">
-              <div style="color:var(--cancel); font-weight:600; margin-bottom:8px;">🔴 Registrazione... <span id="recordTimer">0:00</span></div>
+              <div style="color:var(--cancel); font-weight:600; margin-bottom:8px;"><svg viewBox="0 0 24 24" width="10" height="10" style="vertical-align:1px; margin-right:5px;"><circle cx="12" cy="12" r="9" fill="currentColor"></circle></svg>Registrazione... <span id="recordTimer">0:00</span></div>
               <div class="field-hint">Tocca per fermare</div>
             </div>
             <div id="audioRecorderDone" style="display:none;">
@@ -91,7 +91,7 @@
         <div class="field">
           <label>Foto dell'evento (opzionale)</label>
           <label class="event-photo-preview" id="eventPhotoPreview" for="eventPhotoFile">
-            <span id="eventPhotoEmoji">🖼️</span>
+            <span id="eventPhotoEmoji"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><rect x="3" y="4" width="18" height="16" rx="2.5"></rect><circle cx="8.5" cy="10" r="1.6"></circle><path d="M21 16l-5.5-5.5a2 2 0 0 0-2.8 0L4 19"></path></svg></span>
             <span class="photo-placeholder-text" id="eventPhotoPlaceholder">Carica una tua immagine</span>
           </label>
           <input type="file" id="eventPhotoFile" accept="image/*" style="display:none;">
@@ -373,7 +373,7 @@
         pendingEventPhotoFile = null;
         carriedPhotoUrl = null;
         eventPhotoFile.value = '';
-        eventPhotoPreview.innerHTML = '<span id="eventPhotoEmoji">🖼️</span><span class="photo-placeholder-text" id="eventPhotoPlaceholder">Carica una tua immagine</span>';
+        eventPhotoPreview.innerHTML = '<span id="eventPhotoEmoji"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><rect x="3" y="4" width="18" height="16" rx="2.5"></rect><circle cx="8.5" cy="10" r="1.6"></circle><path d="M21 16l-5.5-5.5a2 2 0 0 0-2.8 0L4 19"></path></svg></span><span class="photo-placeholder-text" id="eventPhotoPlaceholder">Carica una tua immagine</span>';
         if (removeEventPhotoBtn) removeEventPhotoBtn.style.display = 'none';
       }
 
@@ -1284,11 +1284,11 @@
         overlay.className = 'signup-overlay';
         overlay.innerHTML = ''
           + '<div class="signup-modal">'
-          + '<div class="signup-modal-icon">🎉</div>'
+          + '<div class="signup-modal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="34" height="34"><path d="M12 3.5l2.1 4.6 5 .5-3.8 3.4 1.1 5-4.4-2.6-4.4 2.6 1.1-5-3.8-3.4 5-.5z"></path></svg></div>'
           + '<div class="signup-modal-title">' + NdumaData.escapeHTML(event.name) + '</div>'
-          + '<div class="signup-modal-text" style="margin-bottom:6px;">📅 ' + NdumaData.escapeHTML(dateText) + '</div>'
+          + '<div class="signup-modal-text" style="margin-bottom:6px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><rect x="3" y="5" width="18" height="16" rx="3"></rect><line x1="16" y1="3" x2="16" y2="7"></line><line x1="8" y1="3" x2="8" y2="7"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>' + NdumaData.escapeHTML(dateText) + '</div>'
           + (inviteesCount
-              ? '<div class="signup-modal-text">👥 ' + inviteesCount + (inviteesCount === 1 ? ' invitato' : ' invitati') + '</div>'
+              ? '<div class="signup-modal-text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><circle cx="9" cy="8.5" r="3"></circle><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"></path><circle cx="17" cy="9" r="2.4"></circle><path d="M15.5 13.3c2.6 0.3 4.5 2.2 4.5 5.7"></path></svg>' + inviteesCount + (inviteesCount === 1 ? ' invitato' : ' invitati') + '</div>'
               : '<div class="signup-modal-text">Nessun invitato ancora: puoi aggiungerne dopo.</div>')
           + '</div>';
 
