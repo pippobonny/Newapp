@@ -1159,6 +1159,34 @@
             ? locationsForVoting[0]
             : { address: selectedLocation.address || eventLocationInput.value.trim() || null, placeId: selectedLocation.placeId, lat: selectedLocation.lat, lng: selectedLocation.lng };
 
+          // Fil, 2026-07-23: se stai modificando un evento GIÀ confermato e
+          // aggiungi una data o una location nuova, updateEvent (data.js) lo
+          // riporterà "in attesa" per davvero e avviserà tutti — meglio
+          // saperlo PRIMA di salvare, non scoprirlo dopo. Non scatta se non
+          // stai aggiungendo nulla di nuovo (solo togliere/rinominare non
+          // riapre l'evento).
+          if (isEditMode && editingEvent && editingEvent.confirmedDateOptionId) {
+            var oldDateISOsForWarning = (editingEvent.dateOptions || []).map(function (o) { return o.dateISO; });
+            var addingNewDateForWarning = dateResult.dates.some(function (d) { return d && oldDateISOsForWarning.indexOf(d) === -1; });
+
+            var oldLocAddressesForWarning = (editingEvent.locationOptions || []).map(function (o) { return o.address; });
+            var addingNewLocationForWarning = locationsForVoting.some(function (l) { return oldLocAddressesForWarning.indexOf(l.address) === -1; });
+
+            if (addingNewDateForWarning || addingNewLocationForWarning) {
+              var whatAddedText = addingNewDateForWarning && addingNewLocationForWarning
+                ? 'una nuova data e una nuova location'
+                : addingNewDateForWarning ? 'una nuova data' : 'una nuova location';
+              var sureReopen = window.confirm(
+                'Stai aggiungendo ' + whatAddedText + ' a un evento già confermato: tornerà "in attesa", e tutti i partecipanti (anche chi aveva già risposto) riceveranno un avviso per votare di nuovo. Continuare?'
+              );
+              if (!sureReopen) {
+                createEventBtn.disabled = false;
+                createEventBtn.textContent = defaultBtnLabel;
+                return;
+              }
+            }
+          }
+
           var payload = {
             name: name,
             description: description,

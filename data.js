@@ -1866,6 +1866,11 @@
        "ci sarò" da segnalare apposta. */
     var newLocations = (input.locations || []).filter(function (l) { return l && l.address; });
     var currentLocationOptions = current.locationOptions || [];
+    // dichiarate qui (non nel ramo "2 o più" qui sotto) perché servono anche
+    // dopo, per capire se riaprire un evento già confermato — vedi più in
+    // basso "riapertura per nuove opzioni aggiunte".
+    var addedLocations = [];
+    var removedLocIds = [];
 
     if (newLocations.length <= 1) {
       if (currentLocationOptions.length) {
@@ -1884,8 +1889,8 @@
       var keptLocOptions = currentLocationOptions.filter(function (o) { return newAddresses.indexOf(o.address) !== -1; });
       var removedLocOptions = currentLocationOptions.filter(function (o) { return newAddresses.indexOf(o.address) === -1; });
       var keptAddresses = keptLocOptions.map(function (o) { return o.address; });
-      var addedLocations = newLocations.filter(function (l) { return keptAddresses.indexOf(l.address) === -1; });
-      var removedLocIds = removedLocOptions.map(function (o) { return o.id; });
+      addedLocations = newLocations.filter(function (l) { return keptAddresses.indexOf(l.address) === -1; });
+      removedLocIds = removedLocOptions.map(function (o) { return o.id; });
 
       if (removedLocIds.length) {
         for (var rpi = 0; rpi < (current.participants || []).length; rpi++) {
@@ -2024,6 +2029,40 @@
       }
     }
 
+    /* ---------- riapertura per nuove opzioni aggiunte a un evento già
+       confermato (Fil, 2026-07-23) ----------
+       Se aggiungi una data o una location a un evento GIÀ confermato, prima
+       la nuova opzione finiva nel nulla: l'evento restava "confermato"
+       sulla scelta vecchia e nessuno la vedeva mai (buildAvailabilitySectionHTML
+       in evento.html nasconde il voto una volta confermato). Ora, in quel
+       caso, l'evento torna "in attesa" per davvero (si tolgono
+       confirmed_date_option_id/confirmed_location_option_id) e tutti
+       ricevono un avviso per rivotare — stessa idea di quando si toglie una
+       data a cui qualcuno aveva risposto, ma al contrario: qui il problema
+       non è "hai perso una data", è "è comparsa una scelta nuova che
+       nessuno ha ancora votato". Vale anche se la data/location confermata
+       viene proprio rimossa in questa stessa modifica (a quel punto non
+       esiste più nulla da tenere "confermato").
+       Il popup di conferma prima del salvataggio vive in crea.html (lato
+       client, prima di chiamare updateEvent) — qui si applica davvero e si
+       avvisa, indipendentemente da come/se l'utente è stato avvertito. */
+    var mustReopen = false;
+    if (current.confirmedDateOptionId) {
+      var addedNewOptions = addedDateISOs.length > 0 || addedLocations.length > 0;
+      var confirmedDateGone = removedOptionIds.indexOf(current.confirmedDateOptionId) !== -1;
+      var confirmedLocationGone = !!current.confirmedLocationOptionId && (
+        (newLocations.length <= 1) || removedLocIds.indexOf(current.confirmedLocationOptionId) !== -1
+      );
+      mustReopen = addedNewOptions || confirmedDateGone || confirmedLocationGone;
+    }
+    if (mustReopen) {
+      var reopenRes = await supabase.from('events').update({
+        confirmed_date_option_id: null,
+        confirmed_location_option_id: null
+      }).eq('id', eventId);
+      if (reopenRes.error) throw new Error(reopenRes.error.message);
+    }
+
     /* ---------- notifiche: data tolta (email + avviso in-app), e un avviso
        generico "evento modificato" per chi resta invitato (chi ha già
        ricevuto l'avviso più specifico sulla data tolta non riceve anche
@@ -2047,12 +2086,21 @@
       return nl !== organizerLower && speciallyNotifiedLower.indexOf(nl) === -1;
     });
     if (genericRecipients.length) {
+      // Messaggio in-app specifico se l'evento è appena tornato in attesa
+      // (vedi "riapertura" sopra): più chiaro del generico "è stato
+      // modificato" — dice perché e cosa fare. L'email/push restano quelle
+      // generiche di notifyEventModified: costruirne una dedicata sarebbe
+      // stato un'altra Edge Function per un caso che l'avviso in-app (il
+      // canale principale dell'app) già spiega bene.
+      var genericMessage = mustReopen
+        ? '"' + (input.name || current.name) + '" è tornato in attesa: l\'organizzatore ha aggiunto nuove opzioni, la tua risposta di prima non basta più — vota di nuovo.'
+        : '"' + (input.name || current.name) + '" è stato modificato dall\'organizzatore.';
       var genericRows = genericRecipients.map(function (n) {
         return {
           recipient_name: n,
           event_name: input.name || current.name,
-          message: '"' + (input.name || current.name) + '" è stato modificato dall\'organizzatore.',
-          emoji: '✏️'
+          message: genericMessage,
+          emoji: mustReopen ? '🗳️' : '✏️'
         };
       });
       pushEventNotices(genericRows);
