@@ -77,7 +77,20 @@
               <div class="add-date-btn" id="recordAudioBtn" style="margin-bottom:0; text-align:center; user-select:none;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="vertical-align:-2px; margin-right:4px;"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><line x1="12" y1="18" x2="12" y2="22"></line><line x1="8" y1="22" x2="16" y2="22"></line></svg>Tocca per registrare</div>
             </div>
             <div id="audioRecorderRecording" style="display:none; text-align:center; cursor:pointer;">
-              <div style="color:var(--cancel); font-weight:600; margin-bottom:8px;"><svg viewBox="0 0 24 24" width="10" height="10" style="vertical-align:1px; margin-right:5px;"><circle cx="12" cy="12" r="9" fill="currentColor"></circle></svg>Registrazione... <span id="recordTimer">0:00</span></div>
+              <div class="rec-mic-wrap">
+                <div class="rec-mic-pulse"></div>
+                <div class="rec-mic-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><line x1="12" y1="18" x2="12" y2="22"></line><line x1="8" y1="22" x2="16" y2="22"></line></svg>
+                </div>
+              </div>
+              <div class="rec-wave" id="recWaveBars">
+                <span class="rec-wave-bar"></span>
+                <span class="rec-wave-bar"></span>
+                <span class="rec-wave-bar"></span>
+                <span class="rec-wave-bar"></span>
+                <span class="rec-wave-bar"></span>
+              </div>
+              <div class="rec-timer" id="recordTimer">0:00</div>
               <div class="field-hint">Tocca per fermare</div>
             </div>
             <div id="audioRecorderDone" style="display:none;">
@@ -440,6 +453,52 @@
       // ancora in sospeso, apra due registrazioni insieme.
       var recordingBusy = false;
 
+      // Fil, 2026-07-23: barrette dell'onda a tempo col volume vero della
+      // voce, non un loop decorativo — un AnalyserNode legge il livello
+      // dallo stesso stream del microfono, in parallelo al MediaRecorder
+      // (non tocca affatto la registrazione vera, solo la legge). Se per
+      // qualche motivo l'AnalyserNode non parte (raro, alcuni browser
+      // vecchi), le barrette restano ferme al minimo ma la registrazione
+      // continua lo stesso: mai bloccante.
+      var waveBarEls = document.querySelectorAll('#recWaveBars .rec-wave-bar');
+      var waveAudioCtx = null;
+      var waveAnalyser = null;
+      var waveAnimFrame = null;
+      var WAVE_BIN_IDX = [1, 3, 5, 8, 12];
+
+      function startWaveAnalyser(stream) {
+        try {
+          var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          waveAudioCtx = new AudioContextClass();
+          var source = waveAudioCtx.createMediaStreamSource(stream);
+          waveAnalyser = waveAudioCtx.createAnalyser();
+          waveAnalyser.fftSize = 64;
+          waveAnalyser.smoothingTimeConstant = 0.6;
+          source.connect(waveAnalyser);
+          // niente connect a waveAudioCtx.destination: serve solo a leggere
+          // il livello, non deve sentirsi in cassa (niente eco/feedback).
+          var data = new Uint8Array(waveAnalyser.frequencyBinCount);
+          var animateWaveBars = function () {
+            waveAnalyser.getByteFrequencyData(data);
+            waveBarEls.forEach(function (bar, i) {
+              var level = data[WAVE_BIN_IDX[i]] / 255;
+              bar.style.height = (4 + Math.round(level * 18)) + 'px';
+            });
+            waveAnimFrame = requestAnimationFrame(animateWaveBars);
+          };
+          waveAnimFrame = requestAnimationFrame(animateWaveBars);
+        } catch (err) {
+          waveAnalyser = null; // barrette ferme al minimo, la registrazione vera non è comunque influenzata
+        }
+      }
+
+      function stopWaveAnalyser() {
+        if (waveAnimFrame) { cancelAnimationFrame(waveAnimFrame); waveAnimFrame = null; }
+        if (waveAudioCtx) { try { waveAudioCtx.close(); } catch (err) { /* già chiuso, ignora */ } waveAudioCtx = null; }
+        waveAnalyser = null;
+        waveBarEls.forEach(function (bar) { bar.style.height = '4px'; });
+      }
+
       function pickAudioMimeType() {
         var candidates = ['audio/webm', 'audio/mp4', 'audio/ogg'];
         for (var i = 0; i < candidates.length; i++) {
@@ -487,6 +546,7 @@
         });
 
         mediaRecorder.addEventListener('stop', function () {
+          stopWaveAnalyser();
           stream.getTracks().forEach(function (t) { t.stop(); });
           var blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || mimeType || 'audio/webm' });
           pendingAudioBlob = blob;
@@ -498,6 +558,7 @@
         });
 
         mediaRecorder.start();
+        startWaveAnalyser(stream);
         recordStartTime = Date.now();
         audioRecorderIdle.style.display = 'none';
         audioRecorderDone.style.display = 'none';

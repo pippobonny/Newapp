@@ -618,6 +618,72 @@ a { text-decoration: none; color: inherit; }
   justify-content: center;
 }
 
+/* Fil, 2026-07-23: schermata "registrazione in corso" (crea.html) — al
+   posto della scritta rossa, un microfono con un alone che pulsa e delle
+   barrette che si muovono a tempo con il volume vero della voce (lette
+   dal microfono via AnalyserNode, vedi animateWaveBars in crea.html — non
+   è un'animazione decorativa a loop fisso). */
+.rec-mic-wrap {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rec-mic-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--cancel);
+  opacity: 0.3;
+  animation: recPulse 1.6s ease-out infinite;
+}
+
+@keyframes recPulse {
+  0% { transform: scale(0.65); opacity: 0.35; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+.rec-mic-icon {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--cancel);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 10px rgba(184,101,74,0.32);
+}
+
+.rec-wave {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+  height: 22px;
+  margin-bottom: 10px;
+}
+
+.rec-wave-bar {
+  width: 3px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--cancel);
+  transition: height 0.09s ease;
+}
+
+.rec-timer {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
 /* Forms (crea.html) */
 .field {
   margin-bottom: 16px;
