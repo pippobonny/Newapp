@@ -173,6 +173,17 @@
       var closedSection = document.getElementById('closedSection');
       var bellBadge = document.getElementById('bellBadge');
 
+      // Fil, 2026-07-23, trovato in review: confrontare l'HTML appena
+      // generato con upcomingList.innerHTML (rileggendolo dal browser) non
+      // funzionava mai davvero — il browser normalizza leggermente l'HTML
+      // quando lo riconsegna (es. le virgolette degli attributi), quindi il
+      // confronto risultava "diverso" quasi sempre anche a parità di
+      // contenuto, e si ridisegnava comunque ad ogni giro. Tenendo l'ultimo
+      // HTML generato qui (mai riletto dal DOM, sempre la mia stessa
+      // stringa) il confronto è esatto.
+      var lastUpcomingHTML = null;
+      var lastClosedHTML = null;
+
       // Eventi (per le card) + pallino notifiche sulla campanella, insieme
       // in una funzione sola perché usano entrambi la stessa lista eventi:
       // richiamata al primo caricamento e poi da sola ogni tot secondi
@@ -218,7 +229,9 @@
           ? '<div class="section-title">Organizzazione chiusa</div>' + closed.map(renderHomeCard).join('')
           : '';
 
-        if (newUpcomingHTML !== upcomingList.innerHTML || newClosedHTML !== closedSection.innerHTML) {
+        if (newUpcomingHTML !== lastUpcomingHTML || newClosedHTML !== lastClosedHTML) {
+          lastUpcomingHTML = newUpcomingHTML;
+          lastClosedHTML = newClosedHTML;
           upcomingList.innerHTML = newUpcomingHTML;
           closedSection.innerHTML = newClosedHTML;
           // le card sopra sono state create ora: bisogna dire a script.js di

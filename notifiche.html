@@ -104,6 +104,15 @@
 
       var myUsername = (NdumaData.getGuestName() || '').toLowerCase();
 
+      // Fil, 2026-07-23, trovato in review: confrontare con
+      // section.innerHTML/notifBodyEl.innerHTML (riletti dal browser) non
+      // funzionava mai davvero — il browser normalizza leggermente l'HTML
+      // quando lo riconsegna, quindi il confronto risultava "diverso" quasi
+      // sempre anche a parità di contenuto. Tenendo l'ultimo HTML generato
+      // qui (mai riletto dal DOM) il confronto è esatto.
+      var lastFriendRequestsHTML = null;
+      var lastNotifBodyHTML = null;
+
       /* "2 ore fa" / "Ieri" / "3 giorni fa" ecc. a partire da un timestamp
          Postgres (es. event.createdAt o friend.claimedAt). */
       function timeAgo(dateStr) {
@@ -153,7 +162,8 @@
         // refresh automatico non ha trovato niente di nuovo — altrimenti
         // ogni giro rifaceva ripartire l'animazione di comparsa anche
         // quando non c'era nessuna richiesta nuova davvero.
-        if (newSectionHTML === section.innerHTML) return;
+        if (newSectionHTML === lastFriendRequestsHTML) return;
+        lastFriendRequestsHTML = newSectionHTML;
         section.innerHTML = newSectionHTML;
 
         section.querySelectorAll('[data-accept-friend]').forEach(function (btn) {
@@ -291,7 +301,8 @@
         // gira ogni 30s. L'effetto collaterale di prima (un refresh in
         // background richiude l'accordion se l'avevi aperto) resta solo per
         // quando è cambiato QUALCOSA di vero, non più ad ogni singolo giro.
-        if (newBodyHTML === notifBodyEl.innerHTML) return;
+        if (newBodyHTML === lastNotifBodyHTML) return;
+        lastNotifBodyHTML = newBodyHTML;
         notifBodyEl.innerHTML = newBodyHTML;
 
         var olderNotifHeader = document.getElementById('olderNotifHeader');

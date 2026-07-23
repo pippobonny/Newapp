@@ -115,6 +115,13 @@
       var listEl = document.getElementById('eventsList');
       var pills = document.querySelectorAll('.pill');
       var currentFilter = 'confermati';
+      // Fil, 2026-07-23, trovato in review: confrontare con listEl.innerHTML
+      // (riletto dal browser) non funzionava mai davvero — il browser
+      // normalizza leggermente l'HTML quando lo riconsegna, quindi il
+      // confronto risultava "diverso" quasi sempre anche a parità di
+      // contenuto. Tenendo l'ultimo HTML generato qui (mai riletto dal DOM)
+      // il confronto è esatto.
+      var lastListHTML = null;
 
       function matches(event, filter) {
         var status = NdumaData.computeEventStatus(event).status;
@@ -135,7 +142,8 @@
         // nuovo (il caso più comune), non tocca il DOM — altrimenti ogni
         // card, anche quelle identiche a prima, rifarebbe da capo la sua
         // animazione di comparsa ogni 30s.
-        if (newHTML === listEl.innerHTML) return;
+        if (newHTML === lastListHTML) return;
+        lastListHTML = newHTML;
         listEl.innerHTML = newHTML;
         // rianima/rende cliccabile il contenuto appena creato
         if (window.NdumaUI) window.NdumaUI.refresh();
