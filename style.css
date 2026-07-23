@@ -605,6 +605,19 @@ a { text-decoration: none; color: inherit; }
   color: #fff;
 }
 
+/* Fil, 2026-07-23: toggle testo/vocale in crea.html — solo icona, senza
+   etichetta (le due icone bastano da sole a distinguere le modalità, il
+   testo era ridondante). Stesso comportamento attivo/inattivo di .pill,
+   solo forma circolare invece che a pillola con testo. */
+.pill-icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Forms (crea.html) */
 .field {
   margin-bottom: 16px;
