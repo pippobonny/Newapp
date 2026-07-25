@@ -1052,7 +1052,7 @@
           var justPopped = justChangedId && it.id === justChangedId;
 
           return ''
-            + '<div class="item-swipe-wrap">'
+            + '<div class="item-swipe-wrap" data-item-id="' + it.id + '">'
             + '<div class="item-row-card' + (action === 'none' ? ' not-tappable' : '') + '" data-item-id="' + it.id + '" data-item-action="' + action + '">'
             + '<div class="item-row-check' + (isTaken ? ' taken' : '') + (justPopped ? ' pop-in' : '') + '">' + checkHTML + '</div>'
             + '<div class="item-row-text">'
@@ -1933,7 +1933,7 @@
             }
             itemsAccordionOpen = true;
             event = await NdumaData.getEventById(event.id);
-            refreshItemsSection(null, true);
+            refreshItemsSection();
           });
         });
 
@@ -1950,35 +1950,43 @@
       // Ridisegna SOLO la sezione "chi porta cosa" (vedi bindItemsEvents
       // qui sopra per il perché): il resto della pagina — date, invitati,
       // spese — resta esattamente dov'era, niente salto di scroll.
-      // justChangedId fa rimbalzare solo il pallino della voce toccata
-      // (vedi renderItemRow); skipFade salta il dissolvenza qui sotto per
-      // chi ha già la sua animazione — vedi il cestino, che collassa la
-      // riga PRIMA di chiamare questa funzione, un secondo fade sopra
-      // sarebbe solo ridondante e più lento.
-      function refreshItemsSection(justChangedId, skipFade) {
+      // justChangedId fa anche rimbalzare il pallino della voce toccata
+      // (vedi renderItemRow).
+      // Tecnica FLIP (Fil, 2026-07-25, dopo aver visto la prima versione a
+      // dissolvenza: "sembra un refresh della schermata, non l'animazione
+      // che mi hai descritto"): si misura dove sta OGNI riga PRIMA di
+      // ridisegnare, poi si applica a ciascuna un transform inverso pari
+      // alla differenza tra vecchia e nuova posizione e lo si rilascia con
+      // una transition — visivamente la riga scivola dalla vecchia
+      // posizione alla nuova invece di sparire e riapparire altrove. Le
+      // righe che non cambiano posizione (delta ~0) restano ferme, quelle
+      // nuove (mai viste prima) compaiono senza animazione di ingresso.
+      function refreshItemsSection(justChangedId) {
         var wrap = document.getElementById('itemsSectionWrap');
         if (!wrap) return;
         var info = NdumaData.computeEventStatus(event);
 
-        function swap() {
-          wrap.innerHTML = buildItemsSectionHTML(info, justChangedId);
-          if (window.NdumaUI) window.NdumaUI.refresh();
-          bindItemsEvents();
-        }
+        var firstRects = {};
+        wrap.querySelectorAll('.item-swipe-wrap[data-item-id]').forEach(function (rowEl) {
+          firstRects[rowEl.getAttribute('data-item-id')] = rowEl.getBoundingClientRect().top;
+        });
 
-        if (skipFade) { swap(); return; }
+        wrap.innerHTML = buildItemsSectionHTML(info, justChangedId);
+        if (window.NdumaUI) window.NdumaUI.refresh();
+        bindItemsEvents();
 
-        // Dissolvenza leggera sullo scambio (Fil: anche quando una voce
-        // passa da "Da prendere" a "Già prese"): l'intera sezione sfuma
-        // invece di cambiare di scatto — più semplice di far scivolare
-        // la singola riga da un gruppo all'altro, ma già toglie lo scatto.
-        wrap.style.transition = 'opacity 0.15s ease';
-        wrap.style.opacity = '0';
-        window.setTimeout(function () {
-          swap();
-          wrap.getBoundingClientRect(); // forza il reflow prima di risalire a 1
-          wrap.style.opacity = '1';
-        }, 150);
+        wrap.querySelectorAll('.item-swipe-wrap[data-item-id]').forEach(function (rowEl) {
+          var id = rowEl.getAttribute('data-item-id');
+          var firstTop = firstRects[id];
+          if (firstTop === undefined) return; // voce nuova: niente "prima" da cui partire
+          var dy = firstTop - rowEl.getBoundingClientRect().top;
+          if (Math.abs(dy) < 1) return; // non ha cambiato posizione, niente da animare
+          rowEl.style.transition = 'none';
+          rowEl.style.transform = 'translateY(' + dy + 'px)';
+          rowEl.getBoundingClientRect(); // forza il reflow prima di rilasciare la transition
+          rowEl.style.transition = 'transform 0.28s cubic-bezier(.22,1,.36,1)';
+          rowEl.style.transform = '';
+        });
       }
 
       /* Salva su Supabase e torna alla vista compatta: niente più navigazione
