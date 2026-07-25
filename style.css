@@ -2558,6 +2558,19 @@ label.event-photo-preview {
   background: var(--lavender);
 }
 
+/* Rimbalzo quando prendi/liberi una voce (Fil, 2026-07-25): stessa curva
+   "a molla" già usata per welcomeAvatarPop, senza la rotazione (troppo per
+   un pallino così piccolo e ripetuto in lista). */
+@keyframes itemCheckPop {
+  0% { transform: scale(0.4); opacity: 0.4; }
+  60% { transform: scale(1.18); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.item-row-check.pop-in {
+  animation: itemCheckPop 0.32s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+
 .item-row-check img {
   width: 100%;
   height: 100%;
