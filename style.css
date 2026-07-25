@@ -1566,6 +1566,28 @@ label.event-photo-preview {
   font-family: 'Inter', sans-serif;
 }
 
+/* "+" che compare solo quando c'è già qualcosa di valido da aggiungere
+   (Fil, 2026-07-25): resta a larghezza zero finché il campo è vuoto,
+   scorre dentro non appena inizi a scrivere — l'input accanto si
+   restringe da solo perché è flex:1. Evita anche di premere "+" a vuoto,
+   visto che finché il campo è vuoto non c'è proprio nulla da premere. */
+.inline-add-row button.btn-reveal {
+  width: 0;
+  min-width: 0;
+  padding: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition: width 0.2s ease, opacity 0.15s ease;
+}
+
+.inline-add-row button.btn-reveal.is-visible {
+  width: 38px;
+  min-width: 38px;
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* Riquadro "condividi link" (evento.html) */
 .share-box {
   background: var(--lavender-soft);

@@ -163,7 +163,7 @@
           <label id="manualNamesLabel">Scrivi i nomi degli invitati (uno alla volta)</label>
           <div class="inline-add-row">
             <input type="text" id="manualNameInput" placeholder="Nome">
-            <button type="button" id="manualNameAddBtn">+</button>
+            <button type="button" id="manualNameAddBtn" class="btn-reveal">+</button>
           </div>
           <div id="manualNamesList"></div>
           <div class="field-hint" id="totalInviteesHint">Il link che ricevi dopo aver creato l'evento è unico: chi lo apre sceglie il proprio nome tra questi, poi entra come ospite o con un account.</div>
@@ -221,7 +221,7 @@
           <div class="inline-add-row">
             <input type="text" id="stagedExpenseDescInput" placeholder="Cosa, es. Carne" style="flex:2;">
             <input type="number" id="stagedExpenseAmountInput" inputmode="decimal" step="0.01" min="0" placeholder="€" style="flex:0 0 68px;">
-            <button type="button" id="stagedExpenseAddBtn">+</button>
+            <button type="button" id="stagedExpenseAddBtn" class="btn-reveal">+</button>
           </div>
           <div id="stagedExpensesList"></div>
           <div class="field-hint">Pagata da te, divisa tra tutti gli invitati — i dettagli si affinano dopo, dalla pagina dell'evento.</div>
@@ -231,7 +231,7 @@
           <label>Segna già cosa portare (facoltativo)</label>
           <div class="inline-add-row">
             <input type="text" id="stagedItemInput" placeholder="Es. ghiaccio, altoparlante...">
-            <button type="button" id="stagedItemAddBtn">+</button>
+            <button type="button" id="stagedItemAddBtn" class="btn-reveal">+</button>
           </div>
           <div id="stagedItemsList"></div>
         </div>
@@ -1116,12 +1116,19 @@
 
         manualNames.push({ name: name, accountId: linkedAccountId, avatarUrl: linkedAvatarUrl });
         manualNameInput.value = '';
+        manualNameAddBtn.classList.remove('is-visible');
         delete manualNameInput.dataset.linkedAccountId;
         delete manualNameInput.dataset.linkedUsername;
         delete manualNameInput.dataset.linkedAvatarUrl;
         renderManualNamesList();
         updateInviteUIState();
       }
+
+      // "+" nascosto finché non scrivi (Fil, 2026-07-25): vedi .btn-reveal
+      // in style.css.
+      manualNameInput.addEventListener('input', function () {
+        manualNameAddBtn.classList.toggle('is-visible', manualNameInput.value.trim().length > 0);
+      });
 
       // Prima di aggiungere aspetta che la ricerca account per il nome
       // scritto sia finita (Fil, 2026-07-13): se scrivi veloce e premi
@@ -1187,9 +1194,21 @@
         stagedExpenses.push({ description: description, amount: amount });
         stagedExpenseDescInput.value = '';
         stagedExpenseAmountInput.value = '';
+        stagedExpenseAddBtn.classList.remove('is-visible');
         renderStagedExpensesList();
         stagedExpenseDescInput.focus();
       }
+
+      // "+" nascosto finché non hai scritto sia cosa che quanto (Fil,
+      // 2026-07-25): compare appena digiti la cifra, non prima — evita
+      // anche di premerlo a vuoto.
+      function syncStagedExpenseAddVisibility() {
+        var hasDesc = stagedExpenseDescInput.value.trim().length > 0;
+        var hasAmount = stagedExpenseAmountInput.value.trim().length > 0;
+        stagedExpenseAddBtn.classList.toggle('is-visible', hasDesc && hasAmount);
+      }
+      stagedExpenseDescInput.addEventListener('input', syncStagedExpenseAddVisibility);
+      stagedExpenseAmountInput.addEventListener('input', syncStagedExpenseAddVisibility);
 
       stagedExpenseAddBtn.addEventListener('click', addStagedExpense);
       stagedExpenseAmountInput.addEventListener('keydown', function (e) {
@@ -1219,9 +1238,16 @@
         if (!text) return;
         stagedItems.push(text);
         stagedItemInput.value = '';
+        stagedItemAddBtn.classList.remove('is-visible');
         renderStagedItemsList();
         stagedItemInput.focus();
       }
+
+      // "+" nascosto finché non scrivi (Fil, 2026-07-25): vedi .btn-reveal
+      // in style.css.
+      stagedItemInput.addEventListener('input', function () {
+        stagedItemAddBtn.classList.toggle('is-visible', stagedItemInput.value.trim().length > 0);
+      });
 
       stagedItemAddBtn.addEventListener('click', addStagedItem);
       stagedItemInput.addEventListener('keydown', function (e) {
