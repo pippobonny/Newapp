@@ -991,15 +991,22 @@
           + '</div>';
       }
 
-      /* ---------- "Chi porta cosa" (Fil, 2026-07-21) ----------
+      /* ---------- "Chi porta cosa" (Fil, 2026-07-21, ridisegnata 2026-07-25)
+         ----------
          Spenta di default, si vede solo se l'organizzatore l'ha attivata dal
          menu ⋮ (vedi voce "🎒" in bindEvents/menuToggleItemsBtn) — quindi
          niente sezione qui finché event.itemsEnabled non è true, esattamente
-         come richiesto ("rimane nascosta appena crei l'evento"). Stesso
-         stile visivo dell'accordion spese qui sopra, per coerenza. Chiunque
+         come richiesto ("rimane nascosta appena crei l'evento"). Chiunque
          veda l'evento e abbia un account può proporre una voce e prenotarla
          (le RPC lato server rivalidano comunque tutto); un ospite senza
-         account vede solo l'elenco. */
+         account vede solo l'elenco.
+         Checklist invece di pulsanti-testo (Fil: "il ci penso io sembra
+         testo normale, troppo vicino alla ✕, confusionario"): tocchi la
+         riga per prenderla/liberarla (un pallino vuoto o il tuo avatar dice
+         subito lo stato), scorri a sinistra per eliminarla — stesso spirito
+         dello swipe già usato per le card evento in Home, ma con lo scroll
+         nativo con snap invece del drag a mano: niente di nuovo da testare
+         sul touch, il browser fa già tutto lui. */
       function buildItemsSectionHTML(info) {
         if (!event.itemsEnabled) return '';
         if (info.status === 'cancelled') return '';
@@ -1011,27 +1018,36 @@
 
         var rowsHTML = items.length
           ? items.map(function (it) {
-              var isMineToRelease = canWrite && myAccountId && (it.takenByAccountId === myAccountId || isOrganizerAccount);
-              var actionHTML = '';
-              if (it.takenByAccountId) {
-                if (isMineToRelease) actionHTML = '<span class="expense-edit" data-release-item="' + it.id + '" style="cursor:pointer;">Libera</span>';
-              } else if (canWrite) {
-                actionHTML = '<span class="expense-edit" data-claim-item="' + it.id + '" style="cursor:pointer;">Ci penso io</span>';
+              var isTaken = !!it.takenByAccountId;
+              var canRelease = canWrite && myAccountId && (it.takenByAccountId === myAccountId || isOrganizerAccount);
+              var action = isTaken ? (canRelease ? 'release' : 'none') : (canWrite ? 'claim' : 'none');
+
+              var checkHTML = '';
+              if (isTaken) {
+                var takerAvatarUrl = it.takenByName ? attendeeAvatars[it.takenByName.toLowerCase()] : null;
+                var takerInitial = (it.takenByName || '?').trim().charAt(0).toUpperCase();
+                checkHTML = takerAvatarUrl
+                  ? '<img src="' + NdumaData.escapeHTML(takerAvatarUrl) + '" alt="">'
+                  : NdumaData.escapeHTML(takerInitial);
               }
+
+              var metaText = isTaken ? 'Porta ' + NdumaData.escapeHTML(it.takenByName) : 'Nessuno ancora';
+
               var canDelete = canWrite && myAccountId && (it.addedByAccountId === myAccountId || isOrganizerAccount);
-              var deleteHTML = canDelete ? '<span class="expense-remove" data-remove-item="' + it.id + '" style="cursor:pointer;">✕</span>' : '';
-              var metaText = it.takenByAccountId ? 'Porta ' + NdumaData.escapeHTML(it.takenByName) : 'Nessuno ancora';
+              var trashHTML = canDelete
+                ? '<div class="item-swipe-trash" data-remove-item="' + it.id + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M4 7h16"></path><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"></path><line x1="9" y1="11" x2="9" y2="17"></line><line x1="15" y1="11" x2="15" y2="17"></line></svg></div>'
+                : '';
+
               return ''
-                + '<div class="expense-row">'
-                + '<div class="expense-row-left">'
-                + '<div>'
-                + '<div class="expense-desc">' + NdumaData.escapeHTML(it.text) + '</div>'
-                + '<div class="expense-meta">' + metaText + '</div>'
+                + '<div class="item-swipe-wrap">'
+                + '<div class="item-row-card' + (action === 'none' ? ' not-tappable' : '') + '" data-item-id="' + it.id + '" data-item-action="' + action + '">'
+                + '<div class="item-row-check' + (isTaken ? ' taken' : '') + '">' + checkHTML + '</div>'
+                + '<div class="item-row-text">'
+                + '<div class="item-row-title">' + NdumaData.escapeHTML(it.text) + '</div>'
+                + '<div class="item-row-meta">' + metaText + '</div>'
                 + '</div>'
                 + '</div>'
-                + '<div class="expense-row-right">'
-                + '<div class="expense-actions">' + actionHTML + deleteHTML + '</div>'
-                + '</div>'
+                + trashHTML
                 + '</div>';
             }).join('')
           : '<div class="empty-hint" style="padding:10px 0;">Nessuna voce ancora.</div>';
@@ -1056,6 +1072,7 @@
           + '</div>'
           + '<div class="expense-accordion-body" id="itemsAccordionBody">'
           + '<div class="expense-accordion-inner">'
+          + '<div id="itemsHintSlot"></div>'
           + rowsHTML
           + addHTML
           + '</div>'
@@ -1813,39 +1830,42 @@
           });
         }
 
-        document.querySelectorAll('[data-claim-item]').forEach(function (el) {
+        // Tocco sulla riga: prende/libera la voce a seconda dello stato
+        // (Fil, 2026-07-25, ridisegno "chi porta cosa" — vedi
+        // buildItemsSectionHTML). data-item-action="none" vuol dire che non
+        // è tua né libera: tocco senza effetto, niente da fare per te lì.
+        document.querySelectorAll('.item-row-card[data-item-action]').forEach(function (el) {
+          var action = el.getAttribute('data-item-action');
+          if (action === 'none') return;
           el.addEventListener('click', async function () {
-            var id = el.getAttribute('data-claim-item');
-            var got = false;
-            try {
-              got = await NdumaData.claimEventItem(id);
-            } catch (err) {
-              window.alert('Non sono riuscito a prenotarla (' + err.message + ').');
-              return;
+            var id = el.getAttribute('data-item-id');
+            if (action === 'claim') {
+              var got = false;
+              try {
+                got = await NdumaData.claimEventItem(id);
+              } catch (err) {
+                window.alert('Non sono riuscito a prenotarla (' + err.message + ').');
+                return;
+              }
+              if (!got) window.alert('Qualcun altro l\'ha già presa un attimo fa.');
+            } else {
+              try {
+                await NdumaData.releaseEventItem(id);
+              } catch (err) {
+                window.alert('Non sono riuscito a liberarla (' + err.message + ').');
+                return;
+              }
             }
-            if (!got) window.alert('Qualcun altro l\'ha già presa un attimo fa.');
             itemsAccordionOpen = true;
             event = await NdumaData.getEventById(event.id);
             render();
           });
         });
 
-        document.querySelectorAll('[data-release-item]').forEach(function (el) {
-          el.addEventListener('click', async function () {
-            var id = el.getAttribute('data-release-item');
-            try {
-              await NdumaData.releaseEventItem(id);
-            } catch (err) {
-              window.alert('Non sono riuscito a liberarla (' + err.message + ').');
-              return;
-            }
-            itemsAccordionOpen = true;
-            event = await NdumaData.getEventById(event.id);
-            render();
-          });
-        });
-
-        document.querySelectorAll('[data-remove-item]').forEach(function (el) {
+        // Cestino rivelato con lo swipe (scroll orizzontale con snap, vedi
+        // .item-swipe-wrap in style.css): stesso "conferma comunque" degli
+        // altri swipe-to-delete dell'app, lo swipe da solo non basta.
+        document.querySelectorAll('.item-swipe-trash[data-remove-item]').forEach(function (el) {
           el.addEventListener('click', async function () {
             var id = el.getAttribute('data-remove-item');
             var sure = window.confirm('Eliminare questa voce?');
@@ -1861,6 +1881,15 @@
             render();
           });
         });
+
+        // Fumetto "una volta sola" (Fil, 2026-07-25): spiega tocco/swipe la
+        // prima volta che la sezione si vede aperta con almeno una voce.
+        var itemsHintSlot = document.getElementById('itemsHintSlot');
+        if (itemsHintSlot && window.NdumaUI && NdumaUI.showOnceHint && (event.items || []).length) {
+          NdumaUI.showOnceHint('itemsTapSwipe', itemsHintSlot,
+            'Tocca una voce per dire che la porti tu (o per liberarla, se l\'avevi presa tu); scorri una voce verso sinistra per eliminarla.',
+            itemsAccordionBody, ['click']);
+        }
       }
 
       /* Salva su Supabase e torna alla vista compatta: niente più navigazione

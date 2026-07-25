@@ -2493,6 +2493,93 @@ label.event-photo-preview {
   color: var(--ink-soft);
 }
 
+/* "Chi porta cosa" ridisegnata a checklist (Fil, 2026-07-25): tocchi la
+   riga per prendere/liberare la voce, scorri a sinistra per eliminarla.
+   Lo scroll orizzontale nativo con snap fa il lavoro dello swipe senza
+   codice di drag a mano: .item-swipe-wrap scorre esattamente della
+   larghezza del cestino (flex 0 0 100% + flex 0 0 64px) e si ferma sui
+   due punti di snap. */
+.item-swipe-wrap {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.item-swipe-wrap::-webkit-scrollbar { display: none; }
+
+.item-row-card {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 0.5px solid rgba(58,50,90,0.08);
+  cursor: pointer;
+}
+
+.item-row-card.not-tappable {
+  cursor: default;
+}
+
+.item-swipe-trash {
+  flex: 0 0 64px;
+  scroll-snap-align: end;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--cancel);
+  color: #fff;
+  cursor: pointer;
+}
+
+.item-row-check {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  border: 2px solid rgba(58,50,90,0.22);
+  background: transparent;
+  overflow: hidden;
+}
+
+.item-row-check.taken {
+  border: none;
+  background: var(--lavender);
+}
+
+.item-row-check img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.item-row-text {
+  min-width: 0;
+}
+
+.item-row-title {
+  font-size: 13.5px;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.item-row-meta {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  margin-top: 1px;
+}
+
 .balance-pill-list {
   display: flex;
   flex-direction: column;
