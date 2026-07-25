@@ -171,25 +171,46 @@
 
         <div class="form-error" id="step2Error"></div>
 
-        <!-- Le due opzioni extra raggruppate in un'unica bolla leggera, in
-             fondo, invece di due riquadri con ombra sparsi tra i campi veri:
-             si leggono come opzioni secondarie, non interrompono il flusso
-             (Fil, 2026-07-12: "troppi riquadri, mettili in fondo insieme"). -->
+        <!-- Le opzioni extra raggruppate in bolle leggere, in fondo, invece
+             di riquadri con ombra sparsi tra i campi veri: si leggono come
+             opzioni secondarie, non interrompono il flusso (Fil,
+             2026-07-12: "troppi riquadri, mettili in fondo insieme"). Due
+             gruppi da 2 con lo switch a destra, stile iOS/Android (Fil,
+             2026-07-25): il primo per come invitare, il secondo per le
+             funzioni dell'evento. -->
         <div class="option-group">
-          <label class="option-row" id="saveAsListField" style="display:none;">
-            <input type="checkbox" id="saveAsListCheckbox">
+          <label class="option-row option-row-switch-row" id="saveAsListField" style="display:none;">
             <span>
               <span class="option-row-title">Salva come lista amici</span>
               <span class="option-row-hint">per riusarla nei prossimi eventi</span>
             </span>
+            <input type="checkbox" id="saveAsListCheckbox" class="option-row-switch">
           </label>
           <div class="option-divider" id="optionGroupDivider" style="display:none;"></div>
-          <label class="option-row">
-            <input type="checkbox" id="openInviteCheckbox">
+          <label class="option-row option-row-switch-row">
             <span>
               <span class="option-row-title">Apri il link a tutti</span>
               <span class="option-row-hint">anche a chi non hai messo tra i nomi qui sopra</span>
             </span>
+            <input type="checkbox" id="openInviteCheckbox" class="option-row-switch">
+          </label>
+        </div>
+
+        <div class="option-group" id="extraFeaturesGroup">
+          <label class="option-row option-row-switch-row" id="expensesEnabledField">
+            <span>
+              <span class="option-row-title">Divisione spese</span>
+              <span class="option-row-hint">gli invitati possono registrare e dividersi le spese dell'evento</span>
+            </span>
+            <input type="checkbox" id="expensesEnabledCheckbox" class="option-row-switch">
+          </label>
+          <div class="option-divider"></div>
+          <label class="option-row option-row-switch-row" id="itemsEnabledField">
+            <span>
+              <span class="option-row-title">Chi porta cosa</span>
+              <span class="option-row-hint">gli invitati possono proporsi per portare qualcosa</span>
+            </span>
+            <input type="checkbox" id="itemsEnabledCheckbox" class="option-row-switch">
           </label>
         </div>
 
@@ -844,6 +865,8 @@
       var saveAsListCheckbox = document.getElementById('saveAsListCheckbox');
       var optionGroupDivider = document.getElementById('optionGroupDivider');
       var openInviteCheckbox = document.getElementById('openInviteCheckbox');
+      var expensesEnabledCheckbox = document.getElementById('expensesEnabledCheckbox');
+      var itemsEnabledCheckbox = document.getElementById('itemsEnabledCheckbox');
       var eventTimeInput = document.getElementById('eventTimeInput');
       var selectedListPreview = document.getElementById('selectedListPreview');
       var selectedListPreviewName = document.getElementById('selectedListPreviewName');
@@ -1388,7 +1411,12 @@
             // proprio nulla da creare (vedi createEvent in data.js).
             locations: (isEditMode || useMultipleLocations) ? locationsForVoting : [],
             openInvite: openInviteCheckbox.checked,
-            eventTime: eventTimeInput.value
+            eventTime: eventTimeInput.value,
+            // Solo alla creazione: da lì in poi si cambiano dal menu ⋮ di
+            // evento.html (setEventExpensesEnabled/setEventItemsEnabled),
+            // updateEvent (data.js) non tocca queste due colonne.
+            itemsEnabled: isEditMode ? undefined : itemsEnabledCheckbox.checked,
+            expensesEnabled: isEditMode ? undefined : expensesEnabledCheckbox.checked
           };
 
           if (isEditMode) {
@@ -1497,6 +1525,8 @@
           manualNames: manualNames.slice(),
           saveAsListChecked: saveAsListCheckbox.checked,
           openInviteChecked: openInviteCheckbox.checked,
+          expensesEnabledChecked: expensesEnabledCheckbox.checked,
+          itemsEnabledChecked: itemsEnabledCheckbox.checked,
           locationValue: eventLocationInput.value,
           selectedLocation: selectedLocation,
           eventTimeValue: eventTimeInput.value,
@@ -1559,6 +1589,8 @@
         }
         if (draft.saveAsListChecked) saveAsListCheckbox.checked = true;
         if (draft.openInviteChecked) openInviteCheckbox.checked = true;
+        if (draft.expensesEnabledChecked) expensesEnabledCheckbox.checked = true;
+        if (draft.itemsEnabledChecked) itemsEnabledCheckbox.checked = true;
 
         if (draft.locationValue) eventLocationInput.value = draft.locationValue;
         if (draft.selectedLocation) selectedLocation = draft.selectedLocation;
@@ -1685,6 +1717,10 @@
         updateInviteUIState();
         if (saveAsListField) saveAsListField.style.display = 'none';
         if (optionGroupDivider) optionGroupDivider.style.display = 'none';
+        // "Divisione spese" e "Chi porta cosa" si scelgono solo alla
+        // creazione: in modifica si cambiano dal menu ⋮ di evento.html.
+        var extraFeaturesGroup = document.getElementById('extraFeaturesGroup');
+        if (extraFeaturesGroup) extraFeaturesGroup.style.display = 'none';
         renderManualNamesList();
 
         // foto vere per gli invitati già collegati (in modifica, il

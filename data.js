@@ -1281,6 +1281,7 @@
     + 'cancelledAt:cancelled_at, shareToken:share_token, openInvite:open_invite, '
     + 'confirmedDateOptionId:confirmed_date_option_id, confirmedLocationOptionId:confirmed_location_option_id, '
     + 'manuallyCancelled:manually_cancelled, eventTime:event_time, itemsEnabled:items_enabled, '
+    + 'expensesEnabled:expenses_enabled, '
     + 'dateOptions:date_options!date_options_event_id_fkey(id, dateISO:date_iso), '
     + 'locationOptions:location_options!location_options_event_id_fkey(id, address, placeId:place_id, lat, lng), '
     + 'participants(name, availableDateOptionIds:available_date_option_ids, availableLocationOptionIds:available_location_option_ids, accountId:account_id, createdAt:created_at, hiddenFromHome:hidden_from_home), '
@@ -1541,7 +1542,9 @@
         location_lat: (input.locationLat === undefined || input.locationLat === null) ? null : input.locationLat,
         location_lng: (input.locationLng === undefined || input.locationLng === null) ? null : input.locationLng,
         open_invite: !!input.openInvite,
-        event_time: normalizeEventTime(input.eventTime)
+        event_time: normalizeEventTime(input.eventTime),
+        items_enabled: !!input.itemsEnabled,
+        expenses_enabled: !!input.expensesEnabled
       })
       .select('id')
       .single();
@@ -2635,6 +2638,15 @@
     if (res.error) throwSupabaseError(res.error);
   }
 
+  /* ---------- divisione spese opzionale (Fil, 2026-07-25) ----------
+     Stesso pattern di items_enabled qui sopra: l'organizzatore la
+     sceglie in crea.html (spenta di default) e può cambiare idea dopo
+     dal menu ⋮ di evento.html. */
+  async function setEventExpensesEnabled(eventId, enabled) {
+    var res = await supabase.rpc('toggle_event_expenses', { p_event_id: eventId, p_enabled: !!enabled });
+    if (res.error) throwSupabaseError(res.error);
+  }
+
   async function addEventItem(eventId, text) {
     var res = await supabase.rpc('add_event_item', { p_event_id: eventId, p_text: (text || '').trim() });
     if (res.error) throwSupabaseError(res.error);
@@ -2892,6 +2904,7 @@
     updateEventExpense: updateEventExpense,
     deleteEventExpense: deleteEventExpense,
     setEventItemsEnabled: setEventItemsEnabled,
+    setEventExpensesEnabled: setEventExpensesEnabled,
     addEventItem: addEventItem,
     claimEventItem: claimEventItem,
     releaseEventItem: releaseEventItem,
