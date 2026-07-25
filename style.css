@@ -960,21 +960,21 @@ a { text-decoration: none; color: inherit; }
   background: rgba(58,50,90,0.08);
 }
 
-/* Riga di opzione con lo switch a destra invece del checkbox a sinistra
-   (Fil, 2026-07-25: "stile iphone/android"), testo e switch sui due lati
-   opposti della riga. */
-.option-row-switch-row {
-  justify-content: space-between;
-  align-items: center;
-}
-
 /* Switch on/off stile iOS/Android: un vero <input type="checkbox">
    ridisegnato con appearance:none, la pallina è ::before che scorre da
    sinistra a destra quando :checked (supportato da Safari e Chrome
-   correnti su ::before/::after di un checkbox non-appearance). */
+   correnti su ::before/::after di un checkbox non-appearance). border:none
+   + box-sizing:border-box tolgono il bordo di default che il browser
+   applica comunque ai checkbox anche con appearance:none — senza,
+   la pallina risultava spostata in basso rispetto alla barra (Fil,
+   2026-07-25, trovato testando su device vero). */
 .option-row-switch {
   appearance: none;
   -webkit-appearance: none;
+  box-sizing: border-box;
+  border: none;
+  outline: none;
+  padding: 0;
   width: 46px;
   height: 27px;
   min-width: 46px;
@@ -985,6 +985,7 @@ a { text-decoration: none; color: inherit; }
   cursor: pointer;
   transition: background 0.2s ease;
   flex-shrink: 0;
+  vertical-align: middle;
 }
 
 .option-row-switch::before {
@@ -1006,6 +1007,71 @@ a { text-decoration: none; color: inherit; }
 
 .option-row-switch:checked::before {
   left: 21px;
+}
+
+/* Coppie di opzioni una accanto all'altra invece che impilate in righe
+   intere (Fil, 2026-07-25: "troppo lunghi e invasivi" impilati) — stesso
+   spirito della griglia 2 colonne delle liste amici in amici.html, ma
+   senza ombra come il resto delle opzioni secondarie di questo form. */
+.option-tile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.option-tile {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+}
+
+/* Una sola tile visibile nella coppia (es. "salva come lista" nascosto
+   perché hai già scelto una lista): occupa tutta la riga invece di
+   lasciare metà griglia vuota. */
+.option-tile-solo {
+  grid-column: 1 / -1;
+}
+
+.option-tile-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.option-tile-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.25;
+}
+
+.option-tile-hint {
+  font-size: 10.5px;
+  color: var(--ink-soft);
+  line-height: 1.3;
+}
+
+.option-tile .option-row-switch {
+  width: 38px;
+  height: 22px;
+  min-width: 38px;
+}
+
+.option-tile .option-row-switch::before {
+  width: 18px;
+  height: 18px;
+}
+
+.option-tile .option-row-switch:checked::before {
+  left: 18px;
 }
 
 /* Avviso "sessione scaduta" (Fil, 2026-07-13): colori da attenzione, non da

@@ -171,46 +171,41 @@
 
         <div class="form-error" id="step2Error"></div>
 
-        <!-- Le opzioni extra raggruppate in bolle leggere, in fondo, invece
-             di riquadri con ombra sparsi tra i campi veri: si leggono come
-             opzioni secondarie, non interrompono il flusso (Fil,
-             2026-07-12: "troppi riquadri, mettili in fondo insieme"). Due
-             gruppi da 2 con lo switch a destra, stile iOS/Android (Fil,
-             2026-07-25): il primo per come invitare, il secondo per le
-             funzioni dell'evento. -->
-        <div class="option-group">
-          <label class="option-row option-row-switch-row" id="saveAsListField" style="display:none;">
-            <span>
-              <span class="option-row-title">Salva come lista amici</span>
-              <span class="option-row-hint">per riusarla nei prossimi eventi</span>
-            </span>
-            <input type="checkbox" id="saveAsListCheckbox" class="option-row-switch">
+        <!-- Le opzioni extra a coppie affiancate invece che impilate in
+             righe intere (Fil, 2026-07-25: "troppo lunghi e invasivi" così),
+             ognuna una tile compatta con switch stile iOS/Android. Primo
+             gruppo per come invitare, secondo per le funzioni dell'evento. -->
+        <div class="option-tile-grid">
+          <label class="option-tile" id="saveAsListField" style="display:none;">
+            <div class="option-tile-top">
+              <span class="option-tile-title">Salva come lista</span>
+              <input type="checkbox" id="saveAsListCheckbox" class="option-row-switch">
+            </div>
+            <span class="option-tile-hint">per riusarla dopo</span>
           </label>
-          <div class="option-divider" id="optionGroupDivider" style="display:none;"></div>
-          <label class="option-row option-row-switch-row">
-            <span>
-              <span class="option-row-title">Apri il link a tutti</span>
-              <span class="option-row-hint">anche a chi non hai messo tra i nomi qui sopra</span>
-            </span>
-            <input type="checkbox" id="openInviteCheckbox" class="option-row-switch">
+          <label class="option-tile" id="openInviteField">
+            <div class="option-tile-top">
+              <span class="option-tile-title">Apri il link a tutti</span>
+              <input type="checkbox" id="openInviteCheckbox" class="option-row-switch">
+            </div>
+            <span class="option-tile-hint">anche a chi non hai scritto sopra</span>
           </label>
         </div>
 
-        <div class="option-group" id="extraFeaturesGroup">
-          <label class="option-row option-row-switch-row" id="expensesEnabledField">
-            <span>
-              <span class="option-row-title">Divisione spese</span>
-              <span class="option-row-hint">gli invitati possono registrare e dividersi le spese dell'evento</span>
-            </span>
-            <input type="checkbox" id="expensesEnabledCheckbox" class="option-row-switch">
+        <div class="option-tile-grid" id="extraFeaturesGroup">
+          <label class="option-tile" id="expensesEnabledField">
+            <div class="option-tile-top">
+              <span class="option-tile-title">Divisione spese</span>
+              <input type="checkbox" id="expensesEnabledCheckbox" class="option-row-switch">
+            </div>
+            <span class="option-tile-hint">dividete i conti dell'evento</span>
           </label>
-          <div class="option-divider"></div>
-          <label class="option-row option-row-switch-row" id="itemsEnabledField">
-            <span>
-              <span class="option-row-title">Chi porta cosa</span>
-              <span class="option-row-hint">gli invitati possono proporsi per portare qualcosa</span>
-            </span>
-            <input type="checkbox" id="itemsEnabledCheckbox" class="option-row-switch">
+          <label class="option-tile" id="itemsEnabledField">
+            <div class="option-tile-top">
+              <span class="option-tile-title">Chi porta cosa</span>
+              <input type="checkbox" id="itemsEnabledCheckbox" class="option-row-switch">
+            </div>
+            <span class="option-tile-hint">si dividono cosa portare</span>
           </label>
         </div>
 
@@ -863,7 +858,7 @@
       var manualNameSearch = null;
       var saveAsListField = document.getElementById('saveAsListField');
       var saveAsListCheckbox = document.getElementById('saveAsListCheckbox');
-      var optionGroupDivider = document.getElementById('optionGroupDivider');
+      var openInviteField = document.getElementById('openInviteField');
       var openInviteCheckbox = document.getElementById('openInviteCheckbox');
       var expensesEnabledCheckbox = document.getElementById('expensesEnabledCheckbox');
       var itemsEnabledCheckbox = document.getElementById('itemsEnabledCheckbox');
@@ -990,7 +985,10 @@
 
         manualNamesLabel.textContent = list ? 'Aggiungi qualcun altro fuori dalla lista' : 'Scrivi i nomi degli invitati (uno alla volta)';
         saveAsListField.style.display = list ? 'none' : '';
-        optionGroupDivider.style.display = list ? 'none' : '';
+        // Con "salva come lista" nascosta, "apri il link a tutti" resta
+        // l'unica tile della coppia: la allarghiamo a tutta la riga invece
+        // di lasciare metà griglia vuota.
+        openInviteField.classList.toggle('option-tile-solo', !!list);
 
         var total = totalInviteesCount();
         if (list && manualNames.length) {
@@ -1038,7 +1036,7 @@
         // fumetto "una volta sola" (Fil, 2026-07-07) che spiega l'invito
         // aperto, mostrato appena si arriva sul passo 2.
         if (n === 2 && window.NdumaUI && NdumaUI.showOnceHint) {
-          NdumaUI.showOnceHint('openInvite', openInviteCheckbox.closest('.option-group'),
+          NdumaUI.showOnceHint('openInvite', openInviteCheckbox.closest('.option-tile'),
             'Attivalo solo se vuoi che chiunque abbia il link possa aggiungersi da solo, anche se non l\'hai scritto qui sopra. Comodo per eventi aperti a un gruppo largo, ma il link diventa di fatto un accesso libero.',
             openInviteCheckbox, ['focus', 'change']);
         }
@@ -1716,7 +1714,7 @@
         if (friendListField) friendListField.style.display = 'none';
         updateInviteUIState();
         if (saveAsListField) saveAsListField.style.display = 'none';
-        if (optionGroupDivider) optionGroupDivider.style.display = 'none';
+        if (openInviteField) openInviteField.classList.add('option-tile-solo');
         // "Divisione spese" e "Chi porta cosa" si scelgono solo alla
         // creazione: in modifica si cambiano dal menu ⋮ di evento.html.
         var extraFeaturesGroup = document.getElementById('extraFeaturesGroup');
