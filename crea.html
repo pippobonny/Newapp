@@ -209,6 +209,33 @@
           </label>
         </div>
 
+        <!-- Fil, 2026-07-25: chi organizza spesso sa già di aver speso
+             qualcosa (es. la carne per la grigliata) o cosa serve portare,
+             prima ancora di finire di creare l'evento -- restano solo in
+             memoria qui finché non si crea davvero l'evento (vedi
+             createEventBtn più sotto), poi vengono aggiunte per davvero.
+             Pagata da te, divisa tra tutti gli invitati: niente scelta di
+             "chi paga"/"chi è incluso" qui, si affina dopo da evento.html. -->
+        <div class="field" id="stagedExpensesField" style="display:none;">
+          <label>Segna già una spesa (facoltativo)</label>
+          <div class="inline-add-row">
+            <input type="text" id="stagedExpenseDescInput" placeholder="Cosa, es. Carne" style="flex:2;">
+            <input type="number" id="stagedExpenseAmountInput" inputmode="decimal" step="0.01" min="0" placeholder="€" style="flex:0 0 68px;">
+            <button type="button" id="stagedExpenseAddBtn">+</button>
+          </div>
+          <div id="stagedExpensesList"></div>
+          <div class="field-hint">Pagata da te, divisa tra tutti gli invitati — i dettagli si affinano dopo, dalla pagina dell'evento.</div>
+        </div>
+
+        <div class="field" id="stagedItemsField" style="display:none;">
+          <label>Segna già cosa portare (facoltativo)</label>
+          <div class="inline-add-row">
+            <input type="text" id="stagedItemInput" placeholder="Es. ghiaccio, altoparlante...">
+            <button type="button" id="stagedItemAddBtn">+</button>
+          </div>
+          <div id="stagedItemsList"></div>
+        </div>
+
         <div style="display:flex; gap:10px; margin-bottom:20px;">
           <div class="add-date-btn" id="step2BackBtn" style="flex:0 0 110px; margin-bottom:0; cursor:pointer;">← Indietro</div>
           <button type="button" class="primary-btn" id="step2NextBtn" style="flex:1;">Continua →</button>
@@ -862,6 +889,17 @@
       var openInviteCheckbox = document.getElementById('openInviteCheckbox');
       var expensesEnabledCheckbox = document.getElementById('expensesEnabledCheckbox');
       var itemsEnabledCheckbox = document.getElementById('itemsEnabledCheckbox');
+      var stagedExpensesField = document.getElementById('stagedExpensesField');
+      var stagedExpenseDescInput = document.getElementById('stagedExpenseDescInput');
+      var stagedExpenseAmountInput = document.getElementById('stagedExpenseAmountInput');
+      var stagedExpenseAddBtn = document.getElementById('stagedExpenseAddBtn');
+      var stagedExpensesListEl = document.getElementById('stagedExpensesList');
+      var stagedItemsField = document.getElementById('stagedItemsField');
+      var stagedItemInput = document.getElementById('stagedItemInput');
+      var stagedItemAddBtn = document.getElementById('stagedItemAddBtn');
+      var stagedItemsListEl = document.getElementById('stagedItemsList');
+      var stagedExpenses = []; // { description, amount } — inserite per davvero solo dopo che l'evento esiste, vedi createEventBtn
+      var stagedItems = []; // string[]
       var eventTimeInput = document.getElementById('eventTimeInput');
       var selectedListPreview = document.getElementById('selectedListPreview');
       var selectedListPreviewName = document.getElementById('selectedListPreviewName');
@@ -1124,6 +1162,89 @@
         renderManualNamesList();
         updateInviteUIState();
       });
+
+      /* ---------- spesa e "chi porta cosa" già segnate in creazione (Fil,
+         2026-07-25) ----------
+         Restano solo in questo array finché l'evento non esiste davvero:
+         vedi createEventBtn più sotto, dove vengono inserite per davvero
+         una per una con NdumaData.addEventExpense/addEventItem appena
+         arriva l'id del nuovo evento. */
+      function renderStagedExpensesList() {
+        if (!stagedExpenses.length) { stagedExpensesListEl.innerHTML = ''; return; }
+        stagedExpensesListEl.innerHTML = stagedExpenses.map(function (e, idx) {
+          return ''
+            + '<div class="settings-row" style="margin-top:8px;">'
+            + '<div class="left">' + NdumaData.escapeHTML(e.description) + ' · ' + NdumaData.formatEuro(e.amount) + '</div>'
+            + '<span class="friend-remove" data-remove-staged-expense="' + idx + '">✕</span>'
+            + '</div>';
+        }).join('');
+      }
+
+      function addStagedExpense() {
+        var description = stagedExpenseDescInput.value.trim();
+        var amount = parseFloat((stagedExpenseAmountInput.value || '').replace(',', '.'));
+        if (!description || !amount || amount <= 0) return;
+        stagedExpenses.push({ description: description, amount: amount });
+        stagedExpenseDescInput.value = '';
+        stagedExpenseAmountInput.value = '';
+        renderStagedExpensesList();
+        stagedExpenseDescInput.focus();
+      }
+
+      stagedExpenseAddBtn.addEventListener('click', addStagedExpense);
+      stagedExpenseAmountInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); addStagedExpense(); }
+      });
+
+      stagedExpensesListEl.addEventListener('click', function (e) {
+        var idx = e.target.getAttribute('data-remove-staged-expense');
+        if (idx === null) return;
+        stagedExpenses.splice(parseInt(idx, 10), 1);
+        renderStagedExpensesList();
+      });
+
+      function renderStagedItemsList() {
+        if (!stagedItems.length) { stagedItemsListEl.innerHTML = ''; return; }
+        stagedItemsListEl.innerHTML = stagedItems.map(function (text, idx) {
+          return ''
+            + '<div class="settings-row" style="margin-top:8px;">'
+            + '<div class="left">' + NdumaData.escapeHTML(text) + '</div>'
+            + '<span class="friend-remove" data-remove-staged-item="' + idx + '">✕</span>'
+            + '</div>';
+        }).join('');
+      }
+
+      function addStagedItem() {
+        var text = stagedItemInput.value.trim();
+        if (!text) return;
+        stagedItems.push(text);
+        stagedItemInput.value = '';
+        renderStagedItemsList();
+        stagedItemInput.focus();
+      }
+
+      stagedItemAddBtn.addEventListener('click', addStagedItem);
+      stagedItemInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); addStagedItem(); }
+      });
+
+      stagedItemsListEl.addEventListener('click', function (e) {
+        var idx = e.target.getAttribute('data-remove-staged-item');
+        if (idx === null) return;
+        stagedItems.splice(parseInt(idx, 10), 1);
+        renderStagedItemsList();
+      });
+
+      // Il mini-form compare solo se la funzione è attiva (Fil, 2026-07-25):
+      // niente da segnare per una feature che l'organizzatore ha lasciato
+      // spenta.
+      function syncStagedFieldsVisibility() {
+        stagedExpensesField.style.display = expensesEnabledCheckbox.checked ? '' : 'none';
+        stagedItemsField.style.display = itemsEnabledCheckbox.checked ? '' : 'none';
+      }
+      expensesEnabledCheckbox.addEventListener('change', syncStagedFieldsVisibility);
+      itemsEnabledCheckbox.addEventListener('change', syncStagedFieldsVisibility);
+      syncStagedFieldsVisibility();
 
       function makeDateRow() {
         var row = document.createElement('div');
@@ -1431,6 +1552,39 @@
           return;
         }
 
+        // Spese e voci segnate prima di creare l'evento (Fil, 2026-07-25):
+        // solo ora esiste davvero un event.id a cui agganciarle. Pagate/
+        // proposte da te, divise tra te più tutti gli invitati (stessa
+        // regola di default di evento.html). Se una fallisce non blocchiamo
+        // comunque l'arrivo alla pagina dell'evento: quello è già creato,
+        // si aggiunge a mano da lì se serve.
+        if (!isEditMode && (stagedExpenses.length || stagedItems.length)) {
+          createEventBtn.textContent = 'Aggiungo spese e voci...';
+          var allNamesForSplit = [];
+          var seenSplitLower = {};
+          [savedGuestName].concat(inviteeNames.map(function (e) { return e.name; })).forEach(function (n) {
+            var lower = (n || '').trim().toLowerCase();
+            if (!lower || seenSplitLower[lower]) return;
+            seenSplitLower[lower] = true;
+            allNamesForSplit.push(n);
+          });
+          for (var sei = 0; sei < stagedExpenses.length; sei++) {
+            try {
+              await NdumaData.addEventExpense(event.id, {
+                description: stagedExpenses[sei].description,
+                amount: stagedExpenses[sei].amount,
+                paidByName: savedGuestName,
+                includedNames: allNamesForSplit
+              });
+            } catch (err) { /* l'evento è comunque creato: si aggiunge a mano dopo se questa fallisce */ }
+          }
+          for (var sii = 0; sii < stagedItems.length; sii++) {
+            try {
+              await NdumaData.addEventItem(event.id, stagedItems[sii]);
+            } catch (err) { /* idem */ }
+          }
+        }
+
         var href = 'evento.html?id=' + encodeURIComponent(event.id);
 
         // Popup "evento creato" con dettagli, solo alla creazione vera e
@@ -1525,6 +1679,8 @@
           openInviteChecked: openInviteCheckbox.checked,
           expensesEnabledChecked: expensesEnabledCheckbox.checked,
           itemsEnabledChecked: itemsEnabledCheckbox.checked,
+          stagedExpenses: stagedExpenses.slice(),
+          stagedItems: stagedItems.slice(),
           locationValue: eventLocationInput.value,
           selectedLocation: selectedLocation,
           eventTimeValue: eventTimeInput.value,
@@ -1589,6 +1745,15 @@
         if (draft.openInviteChecked) openInviteCheckbox.checked = true;
         if (draft.expensesEnabledChecked) expensesEnabledCheckbox.checked = true;
         if (draft.itemsEnabledChecked) itemsEnabledCheckbox.checked = true;
+        if (draft.stagedExpenses && draft.stagedExpenses.length) {
+          stagedExpenses = draft.stagedExpenses.slice();
+          renderStagedExpensesList();
+        }
+        if (draft.stagedItems && draft.stagedItems.length) {
+          stagedItems = draft.stagedItems.slice();
+          renderStagedItemsList();
+        }
+        syncStagedFieldsVisibility();
 
         if (draft.locationValue) eventLocationInput.value = draft.locationValue;
         if (draft.selectedLocation) selectedLocation = draft.selectedLocation;
@@ -1719,6 +1884,8 @@
         // creazione: in modifica si cambiano dal menu ⋮ di evento.html.
         var extraFeaturesGroup = document.getElementById('extraFeaturesGroup');
         if (extraFeaturesGroup) extraFeaturesGroup.style.display = 'none';
+        if (stagedExpensesField) stagedExpensesField.style.display = 'none';
+        if (stagedItemsField) stagedItemsField.style.display = 'none';
         renderManualNamesList();
 
         // foto vere per gli invitati già collegati (in modifica, il
