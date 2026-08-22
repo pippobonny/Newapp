@@ -41,7 +41,6 @@
   <div class="phone">
    <div class="screen">
     <div class="header simple">
-      <a class="back-btn" href="index.html" id="backBtn">←</a>
       <div class="header-title" id="eventTitle">Evento</div>
       <div class="header-menu-wrap" id="eventMenuWrap" style="display:none;">
         <div class="back-btn" id="eventMenuBtn" style="cursor:pointer;">⋮</div>
@@ -67,6 +66,12 @@
         </div>
       </div>
     </div>
+    <!-- Fuori dall'header apposta (Fil, 2026-08-22): vedi lo stesso
+         commento in eventi.html — a.back-btn è position:absolute rispetto
+         a .screen, non all'header (troppo basso). Il bottone menu ⋮ sopra
+         resta invece dentro l'header: è un div, non un back-btn vero, la
+         regola position:absolute riguarda solo gli <a>. -->
+    <a class="back-btn" href="index.html" id="backBtn">←</a>
 
     <div class="content" id="eventContent">
       <div class="empty-hint">Caricamento...</div>

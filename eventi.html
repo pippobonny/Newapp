@@ -46,9 +46,14 @@
   <div class="phone">
    <div class="screen">
     <div class="header simple">
-      <a class="back-btn" href="index.html" id="backBtn" style="display:none;">←</a>
       <div class="header-title" id="eventiTitle">I tuoi eventi</div>
     </div>
+    <!-- Fuori dall'header apposta (Fil, 2026-08-22): a.back-btn è
+         position:absolute rispetto al primo antenato "position:relative"
+         che trova — dentro l'header (alto solo quanto il titolo) finiva
+         fuori schermo, qui invece l'antenato utile è .screen (alto quanto
+         tutta la pagina), dove va davvero. -->
+    <a class="back-btn" href="index.html" id="backBtn" style="display:none;">←</a>
 
     <div class="content">
       <div class="pill-row">

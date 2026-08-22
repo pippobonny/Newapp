@@ -46,17 +46,19 @@
   <div class="phone">
    <div class="screen">
     <div class="header simple">
-      <!-- Freccia visibile solo dentro Registrati/Accedi, per tornare alla
-           schermata di scelta (Registrati con email / Google): prima non
-           c'era modo di tornare indietro da lì (Fil, 2026-07-17). -->
-      <a class="back-btn" href="#" id="authBackBtn" style="display:none;">←</a>
-      <!-- Verso la Home (Fil, 2026-08-22, navbar tolta): nascosta durante
-           crea/accedi (vedi authBackBtn sopra, stesso posto ma altro scopo
-           — lì non ha senso comunque, senza account la Home ti rimanda
-           indietro), mostrata in ogni altra vista. -->
-      <a class="back-btn" href="index.html" id="profileHomeBackBtn" style="display:none;">←</a>
       <div class="header-title">Profilo</div>
     </div>
+    <!-- Fuori dall'header apposta (Fil, 2026-08-22): a.back-btn è
+         position:absolute rispetto a .screen (alto quanto tutta la pagina),
+         non all'header (troppo basso) — vedi lo stesso commento in
+         eventi.html. Due bottoni nello stesso punto, mai visibili insieme:
+         authBackBtn (freccia visibile solo dentro Registrati/Accedi, per
+         tornare alla schermata di scelta — prima non c'era modo di tornare
+         indietro da lì, Fil 2026-07-17) e profileHomeBackBtn (verso la
+         Home, nascosta durante crea/accedi perché senza account la Home ti
+         rimanda comunque indietro — mostrata in ogni altra vista). -->
+    <a class="back-btn" href="#" id="authBackBtn" style="display:none;">←</a>
+    <a class="back-btn" href="index.html" id="profileHomeBackBtn" style="display:none;">←</a>
 
     <div class="content">
       <div id="createProfileView">
