@@ -78,12 +78,20 @@
       <div class="section-title first">Le tue liste</div>
       <div id="listsContainer"></div>
     </div>
-   </div>
 
     <!-- Popup di gestione di UNA lista amici: si apre cliccando "Gestisci amici" su
          una card. Evita di dover fare una pagina html separata per ogni lista.
          Solo un elenco di nomi ad uso tuo (Fil + Virgi, 2026-07-05): niente più
-         link di invito né conferma da parte di chi ci sta dentro. -->
+         link di invito né conferma da parte di chi ci sta dentro.
+         Dentro .screen apposta (Fil, 2026-08-22, trovato mentre toglievo la
+         navbar): un tempo stava fuori, come sibling di .screen dentro
+         .phone — su una navigazione SPA (spaRenderView in script.js) solo
+         .screen viene rimontato, quindi arrivando qui da Home invece che
+         con un caricamento vero questo popup semplicemente non esisteva nel
+         DOM, e il primo tap su "Gestisci amici" lanciava un errore
+         (friendModalCloseBtn.addEventListener su null) — recuperato solo
+         dalla rete di sicurezza di spaRenderView, che ricaricava la pagina
+         da capo per intero, con un flash visibile. -->
     <div class="signup-overlay" id="friendListModal" style="display:none;">
       <div class="signup-modal" style="text-align:left; max-height:74vh; overflow-y:auto;">
         <div class="list-header" style="margin-bottom:14px;">
@@ -104,6 +112,7 @@
         <div id="friendModalList" style="margin-top:14px;"></div>
       </div>
     </div>
+   </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
