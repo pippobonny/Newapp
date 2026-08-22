@@ -115,47 +115,6 @@
     });
   }
 
-  /* ---------- 0b. Area di tocco allargata sulla freccia "indietro" ----------
-     Fil, 2026-08-22 (via la navbar): la freccina di 32px da sola è un
-     bersaglio piccolo da mirare col dito. Invece di farla più grande e
-     vistosa (Fil non la vuole "brutta"), si allarga solo la zona toccabile:
-     tutta la fascia dell'header (freccia + titolo) porta indietro, non solo
-     l'icona — visivamente resta identico, cambia solo quanto perdoni il
-     dito impreciso.
-     Rispetta i casi in cui il back-btn è nascosto DI PROPOSITO (es. ospite
-     bloccato su evento.html, vedi il commento lì): se non è visibile in quel
-     momento, il tap sull'header non deve comunque portare via nessuno —
-     controllato al click, non solo all'avvio, perché quella visibilità
-     cambia dopo il caricamento della pagina. */
-  function initBigBackTap() {
-    var header = document.querySelector('.header.simple');
-    if (!header) return;
-    var backBtns = header.querySelectorAll('a.back-btn[href]');
-    if (!backBtns.length) return;
-    header.style.cursor = 'pointer';
-
-    header.addEventListener('click', function (e) {
-      // Lascia gestire al back-btn stesso il proprio click (già intercettato
-      // da initPageTransitions più sotto) — richiamarlo di nuovo da qui
-      // duplicherebbe la navigazione. Lascia stare anche altri controlli
-      // nell'header (es. il menu ⋮ di evento.html).
-      if (e.target.closest('.back-btn')) return;
-      if (e.target.closest('.header-menu-wrap')) return;
-
-      // profilo.html ha due back-btn nello stesso header (uno per il
-      // sotto-flusso crea/accedi, uno verso la Home): mai più di uno
-      // visibile insieme, si clicca quello che lo è in questo momento.
-      // Controllato al click, non solo all'avvio, perché quale sia visibile
-      // cambia dopo il caricamento (vedi anche evento.html: nascosto del
-      // tutto per un ospite bloccato).
-      for (var i = 0; i < backBtns.length; i++) {
-        if (getComputedStyle(backBtns[i]).display !== 'none') {
-          backBtns[i].click();
-          return;
-        }
-      }
-    });
-  }
 
   function initPageTransitions() {
     var screen = document.querySelector('.screen');
@@ -396,7 +355,6 @@
       initTodayDate();
       initAttendanceBadge();
       initIosInstallHint();
-      initBigBackTap();
 
       spaBusy = false;
     }, 160);
@@ -1744,7 +1702,6 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     initNavIndicator();
-    initBigBackTap();
     initPageTransitions();
     initTabSwipeNavigation();
     initRipples();

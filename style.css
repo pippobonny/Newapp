@@ -222,6 +222,28 @@ a { text-decoration: none; color: inherit; }
   box-shadow: 0 2px 8px rgba(58,50,90,0.06);
 }
 
+/* Il vero "torna indietro" (i <a>, non il bottone menu ⋮ di evento.html,
+   che riusa .back-btn solo per lo stile quadrato — resta quello) diventa
+   una bolla flottante in basso a sinistra (Fil, 2026-08-22): più comoda da
+   raggiungere col pollice di una freccina in alto, e un bersaglio vero,
+   non solo un'area di tocco allargata invisibile. */
+a.back-btn {
+  position: fixed;
+  left: 18px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font-size: 20px;
+  box-shadow: 0 12px 26px rgba(58,50,90,0.3);
+  text-decoration: none;
+  z-index: 30;
+  transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1);
+}
+a.back-btn:active { transform: scale(0.92); }
+
 .header-title {
   font-family: 'Fraunces', serif;
   font-size: 18px;
@@ -2975,15 +2997,24 @@ label.event-photo-preview {
 .home-tile.is-mid { min-height: 100px; background: var(--lavender); }
 .home-tile.is-low { min-height: 100px; background: var(--card); box-shadow: 0 4px 16px rgba(58,50,90,0.06); }
 
-/* Riga d'azione sotto lo stato eventi: crea/amici, sempre le due cose che
-   altrimenti stavano nella navbar (Fil, 2026-08-22 — navbar tolta del
-   tutto, si torna alla Home per tutto il resto). */
-.home-grid-actions { grid-template-columns: 1fr 1fr; grid-template-rows: none; margin-top: 0; }
-.home-tile.is-action { min-height: 92px; background: var(--ink); justify-content: center; align-items: flex-start; gap: 10px; flex-direction: row; }
-.home-tile.is-action .home-tile-icon { stroke: #fff; width: 20px; height: 20px; }
-.home-tile.is-action .home-tile-label { color: #fff; font-size: 14.5px; font-weight: 600; margin-top: 0; }
-.home-grid-actions .home-tile.is-low { flex-direction: row; align-items: center; gap: 10px; justify-content: flex-start; min-height: 92px; }
-.home-grid-actions .home-tile.is-low .home-tile-label { margin-top: 0; font-size: 14.5px; font-weight: 600; color: var(--ink); }
+/* Riga d'azione in cima: crea/amici, sempre le due cose che altrimenti
+   stavano nella navbar (Fil, 2026-08-22 — navbar tolta del tutto, si torna
+   alla Home per tutto il resto). Spostata sopra i riquadri di stato evento
+   e resa più grande/pesante: sono le due azioni primarie della Home, non
+   un'appendice — vanno lette per prime, con un peso visivo vicino a quello
+   del riquadro grande sotto. */
+.home-grid-actions { grid-template-columns: 1fr 1fr; grid-template-rows: none; }
+.home-tile.is-action { min-height: 128px; background: var(--ink); flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 0; padding: 20px; }
+.home-tile.is-action .home-tile-icon { stroke: #fff; width: 26px; height: 26px; margin-bottom: 12px; }
+.home-tile.is-action .home-tile-label { color: #fff; font-size: 16px; font-weight: 600; margin-top: 0; }
+.home-grid-actions .home-tile.is-low { flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 0; min-height: 128px; padding: 20px; }
+.home-grid-actions .home-tile.is-low .home-tile-icon { margin-bottom: 12px; }
+.home-grid-actions .home-tile.is-low .home-tile-label { margin-top: 0; font-size: 16px; font-weight: 600; color: var(--ink); }
+
+/* Un po' più di distanza dal gruppo sopra (poco: bastano per leggersi come
+   due cose diverse — azioni primarie vs. stato dei tuoi eventi — non un
+   confine netto). */
+.home-grid-events { margin-top: 34px; }
 
 .home-tile-icon { width: 24px; height: 24px; }
 .home-tile.is-big .home-tile-icon { width: 25px; height: 25px; }
