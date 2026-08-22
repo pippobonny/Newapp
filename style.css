@@ -3015,9 +3015,6 @@ label.event-photo-preview {
 .home-tile.is-action { min-height: 128px; background: var(--ink); flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 0; padding: 20px; }
 .home-tile.is-action .home-tile-icon { stroke: #fff; width: 26px; height: 26px; margin-bottom: 12px; }
 .home-tile.is-action .home-tile-label { color: #fff; font-size: 16px; font-weight: 600; margin-top: 0; }
-.home-grid-actions .home-tile.is-low { flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 0; min-height: 128px; padding: 20px; }
-.home-grid-actions .home-tile.is-low .home-tile-icon { margin-bottom: 12px; }
-.home-grid-actions .home-tile.is-low .home-tile-label { margin-top: 0; font-size: 16px; font-weight: 600; color: var(--ink); }
 
 /* Un po' più di distanza dal gruppo sopra (poco: bastano per leggersi come
    due cose diverse — azioni primarie vs. stato dei tuoi eventi — non un
