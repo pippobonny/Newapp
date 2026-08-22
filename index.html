@@ -64,18 +64,11 @@
 
   <div class="phone">
    <div class="screen">
-    <div class="aurora-bg">
-      <div class="blob b1"></div>
-      <div class="blob b2"></div>
-      <div class="blob b3"></div>
-      <div class="blob b4"></div>
-    </div>
-
     <div class="top-badge-wrap">
       <div class="attendance-badge" id="attendanceBadge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M12 21c4 0 7-2.7 7-6.8 0-3-1.8-4.9-3.1-7-1 1.6-1.9 1.9-2.5 1.4.6-2.7-.6-5.4-3.1-7-.3 2.6-1.6 4.4-3.4 6.1C5.3 9.2 5 11.2 5 12.9 5 17.6 8 21 12 21z"></path><path d="M12 21c1.8 0 3-1.3 3-3.1 0-1.5-1-2.6-1.9-3.5-.5.8-.9.9-1.2.7.2-1.2-.3-2.4-1.4-3.1-.1 1.1-.8 1.9-1.5 2.6-.7.7-1 1.7-1 2.5 0 2.2 1.4 3.9 4 3.9z"></path></svg> Presente a tutti gli ultimi eventi</div>
     </div>
 
-    <div class="header">
+    <div class="header simple">
       <div class="profile">
         <a class="avatar" id="homeAvatar" href="profilo.html">?</a>
         <div class="greeting">
@@ -93,19 +86,31 @@
     </div>
 
     <div class="content">
-      <div class="section-title first">Ultime proposte</div>
-      <div id="upcomingList"></div>
+      <div class="home-grid">
+        <a class="home-tile is-big" href="eventi.html?only=attesa">
+          <div class="home-tile-deco"></div>
+          <svg class="home-tile-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+          <div><div class="home-tile-num" id="tileWaitingNum">0</div><div class="home-tile-label">Da confermare</div></div>
+        </a>
+        <a class="home-tile is-mid" href="eventi.html?only=confermati">
+          <svg class="home-tile-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+          <div><div class="home-tile-num" id="tileConfirmedNum">0</div><div class="home-tile-label">Confermati</div></div>
+        </a>
+        <a class="home-tile is-low" href="eventi.html?only=annullati">
+          <svg class="home-tile-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5l5 5M14.5 9.5l-5 5"></path></svg>
+          <div><div class="home-tile-num" id="tileCancelledNum">0</div><div class="home-tile-label">Annullati</div></div>
+        </a>
+      </div>
 
-      <div id="closedSection"></div>
+      <div class="section-title first">In evidenza</div>
+      <div id="upcomingList"></div>
+      <a class="home-see-all" id="homeSeeAll" href="eventi.html?only=attesa" style="display:none;">Vedi tutti →</a>
     </div>
    </div>
 
     <div class="navbar">
       <a class="nav-item active" href="index.html">
         <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="19" height="19"><path d="M4 11 L12 4 L20 11"></path><path d="M6 10 V20 H18 V10"></path></svg></div>
-      </a>
-      <a class="nav-item" href="eventi.html">
-        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="19" height="19"><rect x="3" y="5" width="18" height="16" rx="3"></rect><line x1="16" y1="3" x2="16" y2="7"></line><line x1="8" y1="3" x2="8" y2="7"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></div>
       </a>
       <a class="nav-item" href="crea.html">
         <div class="icon">＋</div>
@@ -136,7 +141,6 @@
         return;
       }
       if (gate.action === 'block') {
-        document.querySelector('.aurora-bg').style.display = 'none';
         document.querySelector('.top-badge-wrap').style.display = 'none';
         document.querySelector('.header').style.display = 'none';
         document.querySelector('.navbar').style.display = 'none';
@@ -180,7 +184,10 @@
       }
 
       var upcomingList = document.getElementById('upcomingList');
-      var closedSection = document.getElementById('closedSection');
+      var homeSeeAll = document.getElementById('homeSeeAll');
+      var tileWaitingNum = document.getElementById('tileWaitingNum');
+      var tileConfirmedNum = document.getElementById('tileConfirmedNum');
+      var tileCancelledNum = document.getElementById('tileCancelledNum');
       var bellBadge = document.getElementById('bellBadge');
       var homeBellEl = document.getElementById('homeBell');
 
@@ -193,7 +200,12 @@
       // HTML generato qui (mai riletto dal DOM, sempre la mia stessa
       // stringa) il confronto è esatto.
       var lastUpcomingHTML = null;
-      var lastClosedHTML = null;
+
+      // Quante card mostrare in "In evidenza" (2026-08-22, restyling): la
+      // Home ora è un riepilogo, non più il posto dove si sfoglia tutto —
+      // la lista intera di ciascuna categoria vive nella sua pagina dedicata
+      // (eventi.html?only=...), raggiunta toccando il riquadro.
+      var HOME_FEATURED_LIMIT = 3;
 
       // Eventi (per le card) + pallino notifiche sulla campanella, insieme
       // in una funzione sola perché usano entrambi la stessa lista eventi:
@@ -213,19 +225,29 @@
           events = await NdumaData.getEvents();
         } catch (err) { return; } // silenzioso: resta quello che c'era già in pagina
 
-        // Gli eventi annullati NON compaiono più in Home (Fil, 2026-07-10): restano
-        // solo nel tab "Annullati" di Eventi, così la Home mostra solo cose ancora
-        // rilevanti (da confermare, o confermate). "closed" quindi ora è solo
-        // "done". Gli eventi "passato" (confermati e già successi da un po') non
-        // vanno in nessuna delle due sezioni: restano solo nell'archivio del Profilo.
+        // Stessa suddivisione di sempre (vedi eventi.html per la versione
+        // gemella usata lì): "waiting" = da confermare (include il pareggio,
+        // "tie", che aspetta comunque una scelta dell'organizzatore),
+        // "done" = confermati, "cancelled" = annullati. Gli eventi "passato"
+        // non contano in nessun riquadro: restano solo nell'archivio del
+        // Profilo.
         var upcoming = events.filter(function (e) {
           var status = NdumaData.computeEventStatus(e).status;
           return status !== 'done' && status !== 'cancelled' && status !== 'passato';
         });
-        var closed = events.filter(function (e) {
-          var status = NdumaData.computeEventStatus(e).status;
-          return status === 'done';
-        });
+        var confirmedCount = events.filter(function (e) {
+          return NdumaData.computeEventStatus(e).status === 'done';
+        }).length;
+        var cancelledCount = events.filter(function (e) {
+          return NdumaData.computeEventStatus(e).status === 'cancelled';
+        }).length;
+
+        tileWaitingNum.textContent = upcoming.length;
+        tileConfirmedNum.textContent = confirmedCount;
+        tileCancelledNum.textContent = cancelledCount;
+
+        var featured = upcoming.slice(0, HOME_FEATURED_LIMIT);
+        homeSeeAll.style.display = upcoming.length > HOME_FEATURED_LIMIT ? '' : 'none';
 
         // Fil, 2026-07-22: confronto col contenuto già in pagina PRIMA di
         // toccare il DOM — se il giro di refresh automatico non ha trovato
@@ -233,18 +255,13 @@
         // ricostruire comunque l'HTML avrebbe fatto ripartire da capo
         // l'animazione di comparsa di ogni card, anche di quelle già ferme
         // lì da prima. Si ridisegna solo se qualcosa è DAVVERO cambiato.
-        var newUpcomingHTML = upcoming.length
-          ? upcoming.map(renderHomeCard).join('')
+        var newUpcomingHTML = featured.length
+          ? featured.map(renderHomeCard).join('')
           : '<div class="empty-hint">Nessun evento da confermare al momento.<br><a href="crea.html">Proponine uno tu →</a></div>';
-        var newClosedHTML = closed.length
-          ? '<div class="section-title">Organizzazione chiusa</div>' + closed.map(renderHomeCard).join('')
-          : '';
 
-        if (newUpcomingHTML !== lastUpcomingHTML || newClosedHTML !== lastClosedHTML) {
+        if (newUpcomingHTML !== lastUpcomingHTML) {
           lastUpcomingHTML = newUpcomingHTML;
-          lastClosedHTML = newClosedHTML;
           upcomingList.innerHTML = newUpcomingHTML;
-          closedSection.innerHTML = newClosedHTML;
           // le card sopra sono state create ora: bisogna dire a script.js di
           // (ri)animarle, altrimenti restano invisibili
           if (window.NdumaUI) window.NdumaUI.refresh();

@@ -46,7 +46,8 @@
   <div class="phone">
    <div class="screen">
     <div class="header simple">
-      <div class="header-title">I tuoi eventi</div>
+      <a class="back-btn" href="index.html" id="backBtn" style="display:none;">←</a>
+      <div class="header-title" id="eventiTitle">I tuoi eventi</div>
     </div>
 
     <div class="content">
@@ -115,6 +116,21 @@
       var listEl = document.getElementById('eventsList');
       var pills = document.querySelectorAll('.pill');
       var currentFilter = 'confermati';
+
+      // Arrivo da un riquadro della Home (Fil, 2026-08-22): eventi.html?only=...
+      // mostra SOLO quella categoria, senza modo di cambiarla da qui — se
+      // potessi comunque scorrere le altre da dentro, i riquadri in Home
+      // perderebbero senso (tanto valeva un'unica lista con i pill sempre
+      // visibili, la vecchia versione). Per vedere un'altra categoria si
+      // torna in Home e si tocca un altro riquadro.
+      var ONLY_LABELS = { attesa: 'In attesa', confermati: 'Confermati', annullati: 'Annullati', tutti: 'Tutti gli eventi' };
+      var onlyFilter = new URLSearchParams(window.location.search).get('only');
+      if (onlyFilter && ONLY_LABELS[onlyFilter]) {
+        currentFilter = onlyFilter;
+        document.getElementById('backBtn').style.display = '';
+        document.querySelector('.pill-row').style.display = 'none';
+        document.getElementById('eventiTitle').textContent = ONLY_LABELS[onlyFilter];
+      }
       // Fil, 2026-07-23, trovato in review: confrontare con listEl.innerHTML
       // (riletto dal browser) non funzionava mai davvero — il browser
       // normalizza leggermente l'HTML quando lo riconsegna, quindi il
@@ -126,7 +142,12 @@
       function matches(event, filter) {
         var status = NdumaData.computeEventStatus(event).status;
         if (filter === 'tutti') return true;
-        if (filter === 'attesa') return status === 'waiting' || status === 'almost';
+        // "tie" (pareggio, in attesa che l'organizzatore scelga una data)
+        // conta come "in attesa" (Fil, 2026-08-22): prima restava visibile
+        // solo sotto "Tutti", ora invece deve comparire anche qui — il
+        // riquadro "Da confermare" in Home lo conta già tra le sue, il
+        // numero deve corrispondere a quello che si vede aprendolo.
+        if (filter === 'attesa') return status === 'waiting' || status === 'almost' || status === 'tie';
         if (filter === 'confermati') return status === 'done';
         if (filter === 'annullati') return status === 'cancelled';
         return true;
