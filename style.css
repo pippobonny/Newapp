@@ -228,7 +228,15 @@ a { text-decoration: none; color: inherit; }
    raggiungere col pollice di una freccina in alto, e un bersaglio vero,
    non solo un'area di tocco allargata invisibile. */
 a.back-btn {
-  position: fixed;
+  /* "fixed" no: .screen ha un transform per le transizioni di pagina (anche
+     quando è translateX(0), un transform presente basta) e quello crea un
+     nuovo "containing block" per i figli fixed — smettono di restare
+     ancorati alla viewport vera e si muovono con lo scroll della pagina
+     invece che restarci incollati (trovato in test: la bolla appariva fuori
+     schermo). .screen è comunque position:relative e alto quanto tutto lo
+     schermo, quindi absolute rispetto a lui ottiene lo stesso risultato
+     visivo, in modo affidabile. */
+  position: absolute;
   left: 18px;
   bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   width: 54px;
