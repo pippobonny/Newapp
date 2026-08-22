@@ -102,26 +102,18 @@
         </a>
       </div>
 
-      <div class="section-title first">In evidenza</div>
-      <div id="upcomingList"></div>
-      <a class="home-see-all" id="homeSeeAll" href="eventi.html?only=attesa" style="display:none;">Vedi tutti →</a>
+      <div class="home-grid home-grid-actions">
+        <a class="home-tile is-action" href="crea.html">
+          <svg class="home-tile-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <div class="home-tile-label">Nuova proposta</div>
+        </a>
+        <a class="home-tile is-low" href="amici.html">
+          <svg class="home-tile-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3"></circle><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"></path><circle cx="17" cy="9" r="2.4"></circle><path d="M15.5 13.3c2.6 0.3 4.5 2.2 4.5 5.7"></path></svg>
+          <div class="home-tile-label">Amici</div>
+        </a>
+      </div>
     </div>
    </div>
-
-    <div class="navbar">
-      <a class="nav-item active" href="index.html">
-        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="19" height="19"><path d="M4 11 L12 4 L20 11"></path><path d="M6 10 V20 H18 V10"></path></svg></div>
-      </a>
-      <a class="nav-item" href="crea.html">
-        <div class="icon">＋</div>
-      </a>
-      <a class="nav-item" href="amici.html">
-        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="19" height="19"><circle cx="9" cy="8.5" r="3"></circle><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"></path><circle cx="17" cy="9" r="2.4"></circle><path d="M15.5 13.3c2.6 0.3 4.5 2.2 4.5 5.7"></path></svg></div>
-      </a>
-      <a class="nav-item" href="profilo.html">
-        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="19" height="19"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7"></path></svg></div>
-      </a>
-    </div>
 
   </div>
 
@@ -143,7 +135,6 @@
       if (gate.action === 'block') {
         document.querySelector('.top-badge-wrap').style.display = 'none';
         document.querySelector('.header').style.display = 'none';
-        document.querySelector('.navbar').style.display = 'none';
         document.querySelector('.content').innerHTML = NdumaData.accountRequiredBlockHTML(
           'Per vedere gli eventi e organizzarti con gli amici devi prima creare un profilo.'
         );
@@ -176,50 +167,22 @@
       }
 
       // swipeToRemove: true solo qui in Home (Fil, 2026-07-20) — vedi il
-      // commento su renderEventCardHTML in data.js sul perché serve questa
-      // funzione wrapper invece di passare NdumaData.renderEventCardHTML
-      // direttamente a .map().
-      function renderHomeCard(event) {
-        return NdumaData.renderEventCardHTML(event, { swipeToRemove: true });
-      }
-
-      var upcomingList = document.getElementById('upcomingList');
-      var homeSeeAll = document.getElementById('homeSeeAll');
       var tileWaitingNum = document.getElementById('tileWaitingNum');
       var tileConfirmedNum = document.getElementById('tileConfirmedNum');
       var tileCancelledNum = document.getElementById('tileCancelledNum');
       var bellBadge = document.getElementById('bellBadge');
       var homeBellEl = document.getElementById('homeBell');
 
-      // Fil, 2026-07-23, trovato in review: confrontare l'HTML appena
-      // generato con upcomingList.innerHTML (rileggendolo dal browser) non
-      // funzionava mai davvero — il browser normalizza leggermente l'HTML
-      // quando lo riconsegna (es. le virgolette degli attributi), quindi il
-      // confronto risultava "diverso" quasi sempre anche a parità di
-      // contenuto, e si ridisegnava comunque ad ogni giro. Tenendo l'ultimo
-      // HTML generato qui (mai riletto dal DOM, sempre la mia stessa
-      // stringa) il confronto è esatto.
-      var lastUpcomingHTML = null;
-
-      // Quante card mostrare in "In evidenza" (2026-08-22, restyling): la
-      // Home ora è un riepilogo, non più il posto dove si sfoglia tutto —
-      // la lista intera di ciascuna categoria vive nella sua pagina dedicata
-      // (eventi.html?only=...), raggiunta toccando il riquadro.
-      var HOME_FEATURED_LIMIT = 3;
-
-      // Eventi (per le card) + pallino notifiche sulla campanella, insieme
+      // Conteggi per i riquadri + pallino notifiche sulla campanella, insieme
       // in una funzione sola perché usano entrambi la stessa lista eventi:
       // richiamata al primo caricamento e poi da sola ogni tot secondi
       // (Fil, 2026-07-21: niente più refresh manuale della pagina per
       // vedere un evento nuovo o una notifica arrivata mentre questa scheda
       // era già aperta — vedi NdumaData.startAutoRefresh in data.js).
+      // 2026-08-22 (restyling): la Home non renderizza più le card degli
+      // eventi (via "In evidenza", più spazio ai riquadri) — solo i tre
+      // conteggi. Le liste vere vivono in eventi.html?only=... .
       async function refreshHome() {
-        // Salta questo giro se proprio ora stai trascinando una card per
-        // rimuoverla (vedi initSwipeToRemove in script.js): ricostruire la
-        // lista sotto il dito a metà gesto la farebbe sparire di scatto. Il
-        // prossimo giro, 30s dopo, recupera comunque.
-        if (window.__ndumaSwipeDragging) return;
-
         var events;
         try {
           events = await NdumaData.getEvents();
@@ -231,10 +194,10 @@
         // "done" = confermati, "cancelled" = annullati. Gli eventi "passato"
         // non contano in nessun riquadro: restano solo nell'archivio del
         // Profilo.
-        var upcoming = events.filter(function (e) {
+        var waitingCount = events.filter(function (e) {
           var status = NdumaData.computeEventStatus(e).status;
           return status !== 'done' && status !== 'cancelled' && status !== 'passato';
-        });
+        }).length;
         var confirmedCount = events.filter(function (e) {
           return NdumaData.computeEventStatus(e).status === 'done';
         }).length;
@@ -242,30 +205,9 @@
           return NdumaData.computeEventStatus(e).status === 'cancelled';
         }).length;
 
-        tileWaitingNum.textContent = upcoming.length;
+        tileWaitingNum.textContent = waitingCount;
         tileConfirmedNum.textContent = confirmedCount;
         tileCancelledNum.textContent = cancelledCount;
-
-        var featured = upcoming.slice(0, HOME_FEATURED_LIMIT);
-        homeSeeAll.style.display = upcoming.length > HOME_FEATURED_LIMIT ? '' : 'none';
-
-        // Fil, 2026-07-22: confronto col contenuto già in pagina PRIMA di
-        // toccare il DOM — se il giro di refresh automatico non ha trovato
-        // niente di nuovo (il caso più comune, dato che gira ogni 30s),
-        // ricostruire comunque l'HTML avrebbe fatto ripartire da capo
-        // l'animazione di comparsa di ogni card, anche di quelle già ferme
-        // lì da prima. Si ridisegna solo se qualcosa è DAVVERO cambiato.
-        var newUpcomingHTML = featured.length
-          ? featured.map(renderHomeCard).join('')
-          : '<div class="empty-hint">Nessun evento da confermare al momento.<br><a href="crea.html">Proponine uno tu →</a></div>';
-
-        if (newUpcomingHTML !== lastUpcomingHTML) {
-          lastUpcomingHTML = newUpcomingHTML;
-          upcomingList.innerHTML = newUpcomingHTML;
-          // le card sopra sono state create ora: bisogna dire a script.js di
-          // (ri)animarle, altrimenti restano invisibili
-          if (window.NdumaUI) window.NdumaUI.refresh();
-        }
 
         // Pallino "hai notifiche nuove?" sulla campanella (Fil, 2026-07-17):
         // stessa lista costruita da notifiche.html (NdumaData.buildNotifications,
