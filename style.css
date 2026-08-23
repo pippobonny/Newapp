@@ -281,7 +281,11 @@ a.back-btn:active { transform: scale(0.92); }
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--peach), var(--lavender));
+  /* Era un gradiente peach->lavender (Fil, 2026-08-23: in tema col resto
+     del restyling, colore pieno anche qui — stesso trattamento delle altre
+     "bolle" con iniziale/foto nell'app, vedi .attendee-bubble-circle e
+     .account-search-avatar più sotto). */
+  background: var(--peach);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1209,7 +1213,7 @@ label.event-photo-preview {
 .wizard-dot.active {
   width: 22px;
   border-radius: 5px;
-  background: linear-gradient(135deg, var(--mint), var(--sky));
+  background: var(--peach);
 }
 
 .wizard-dot.done {
@@ -1268,7 +1272,10 @@ label.event-photo-preview {
 .primary-btn {
   display: block;
   width: 100%;
-  background: linear-gradient(135deg, var(--mint), var(--sky));
+  /* Era un gradiente peach->sky (Fil, 2026-08-23: stonava con la nuova Home,
+     tutta a blocchi di colore pieno — via il gradiente anche qui e sul
+     pallino attivo di .wizard-dot qui sotto, stesso accento). */
+  background: var(--peach);
   color: #FFF8F0;
   font-weight: 600;
   font-size: 14.5px;
@@ -2397,7 +2404,7 @@ label.event-photo-preview {
   font-weight: 600;
   font-size: 18px;
   color: #fff;
-  background: linear-gradient(135deg, var(--peach), var(--lavender));
+  background: var(--peach);
   box-shadow: 0 4px 12px rgba(58, 50, 90, 0.15);
   overflow: hidden;
 }
@@ -2865,7 +2872,7 @@ label.event-photo-preview {
   font-weight: 600;
   font-size: 13px;
   color: #fff;
-  background: linear-gradient(135deg, var(--peach), var(--lavender));
+  background: var(--peach);
   overflow: hidden;
 }
 
