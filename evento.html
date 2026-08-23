@@ -607,7 +607,7 @@
             namesLower.push(lower);
           }
         });
-        if (!names.length) return '';
+        if (!names.length) return { html: '', rows: [] };
 
         // Chi c'è prima, poi chi manca a rispondere, poi chi ha detto di no:
         // così le informazioni più utili ("chi viene") si leggono subito,
@@ -634,9 +634,13 @@
           return '<span class="invitee-chip ' + statusClass + '">' + row.statusIconSVG + NdumaData.escapeHTML(row.name) + '</span>';
         }).join('');
 
-        return ''
-          + '<div class="section-title first">Invitati</div>'
-          + '<div class="invitee-chip-wrap">' + rowsHTML + '</div>';
+        // Restituisce anche "rows" grezzo (Fil, 2026-08-23), non solo
+        // l'HTML: buildWhoComingTileHTML più sotto lo riusa per il
+        // conteggio "N di M disponibili" senza ricalcolare tutto da capo.
+        return {
+          html: '<div class="section-title first">Invitati</div><div class="invitee-chip-wrap">' + rowsHTML + '</div>',
+          rows: rows
+        };
       }
 
       /* ---------- organizzatore: è cambiata idea rispetto al "sempre presente"? ----------
@@ -679,44 +683,35 @@
 
         if (existingParticipant && !editingAvailability) {
           var ids = existingParticipant.availableDateOptionIds || [];
-          // Date in chip separate invece di una frase con le virgole (Fil,
-          // 2026-08-23: "tantissimo testo" — stesso principio degli
-          // invitati qui sopra). Seconda versione: senza etichetta sopra
-          // erano scatole a caso, tutte uguali — non si capiva cosa
-          // fossero né che date e location fossero due cose diverse
-          // (Fil: "stessi colori, confusionario"). Etichetta corta (non
-          // la frase intera) sopra ciascun gruppo, e la location in un
-          // colore diverso (lavanda) dalle date (pesca) — due categorie,
-          // due colori.
-          var summaryHTML;
-          if (ids.length) {
-            var labels = event.dateOptions
-              .filter(function (o) { return ids.indexOf(o.id) !== -1; })
-              .map(function (o) { return NdumaData.formatDateLabel(o.dateISO); });
-            summaryHTML = '<div class="mini-chip-label">Disponibile per</div><div class="mini-chip-row">' + labels.map(function (l) {
-              return '<span class="mini-chip">' + NdumaData.escapeHTML(l) + '</span>';
-            }).join('') + '</div>';
+          var isAvailable = ids.length > 0;
+          // Tessera compatta invece di titolo+chip+bottone (Fil, 2026-08-23,
+          // terzo giro: "la tua disponibilità" la sai già, non è la prima
+          // cosa che serve — un valore solo, non un elenco). Un tap apre lo
+          // stesso form di sempre (id invariato, changeAvailabilityBtn: il
+          // resto di bindEvents più sotto non cambia) con tutto già
+          // precompilato — il dettaglio completo (più date, location) non
+          // sparisce, si vede lì.
+          var statusText;
+          if (!isAvailable) {
+            statusText = 'Non disponibile';
+          } else if (ids.length === 1) {
+            var onlyOpt = event.dateOptions.filter(function (o) { return o.id === ids[0]; })[0];
+            statusText = onlyOpt ? NdumaData.formatDateLabel(onlyOpt.dateISO) : 'Disponibile';
           } else {
-            summaryHTML = '<div class="card-date" style="margin:0 2px 4px;">Hai indicato di <b>non essere mai disponibile</b> per questo evento.</div>';
+            statusText = 'Disponibile per ' + ids.length + ' date';
           }
-          // Location scelta (solo se l'evento ne propone più di una — vedi
-          // buildLocationChipGridHTML): stesso riepilogo della data, tenuto
-          // nella stessa sezione invece che a parte.
-          if ((event.locationOptions || []).length > 1) {
-            var locIds = existingParticipant.availableLocationOptionIds || [];
-            var locLabels = event.locationOptions
-              .filter(function (o) { return locIds.indexOf(o.id) !== -1; })
-              .map(function (o) { return o.address; });
-            summaryHTML += locLabels.length
-              ? '<div class="mini-chip-label" style="margin-top:12px;">Location che ti vanno bene</div><div class="mini-chip-row">' + locLabels.map(function (l) {
-                  return '<span class="mini-chip is-location">' + NdumaData.escapeHTML(l) + '</span>';
-                }).join('') + '</div>'
-              : '<div class="card-date" style="margin:8px 2px 0;">Non hai indicato nessuna location che ti va bene.</div>';
-          }
+          var statusIconSVG = isAvailable
+            ? '<path d="M8 12.5l2.5 2.5L16 9.5"></path>'
+            : '<line x1="9.5" y1="9.5" x2="14.5" y2="14.5"></line><line x1="14.5" y1="9.5" x2="9.5" y2="14.5"></line>';
           return ''
-            + '<div class="section-title">La tua disponibilità</div>'
-            + summaryHTML
-            + '<div class="add-date-btn" id="changeAvailabilityBtn" style="margin-top:14px; margin-bottom:0;">Cambia la tua disponibilità →</div>';
+            + '<div class="info-tile is-clickable" id="changeAvailabilityBtn">'
+            + '<div class="info-tile-icon' + (isAvailable ? ' is-available' : ' is-absent') + '"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle>' + statusIconSVG + '</svg></div>'
+            + '<div class="info-tile-body">'
+            + '<div class="info-tile-label">Tu</div>'
+            + '<div class="info-tile-value">' + NdumaData.escapeHTML(statusText) + '</div>'
+            + '</div>'
+            + '<div style="color:var(--ink-soft); font-size:12.5px; font-weight:600;">Cambia →</div>'
+            + '</div>';
         }
 
         var preselected = existingParticipant ? (existingParticipant.availableDateOptionIds || []) : [];
@@ -1215,14 +1210,23 @@
         var resolvedLocation = NdumaData.resolveEventLocation(event);
         var isMultiLocation = (event.locationOptions || []).length > 1;
         var locationNotConfirmedYet = isMultiLocation && !event.confirmedLocationOptionId;
-        var locationHTML = resolvedLocation.address
-          ? '<div class="card-date" style="margin:2px 2px 16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z"></path><circle cx="12" cy="9" r="2.5"></circle></svg>'
-            + (mapsUrl
-              ? '<a href="' + NdumaData.escapeHTML(mapsUrl) + '" target="_blank" rel="noopener" style="color:var(--lavender); font-weight:600;">' + NdumaData.escapeHTML(resolvedLocation.address) + '</a>'
-              : NdumaData.escapeHTML(resolvedLocation.address))
-            + (locationNotConfirmedYet ? ' <span style="color:var(--ink-soft); font-weight:400;">(in testa ai voti, non ancora definitiva)</span>' : '')
-            + '</div>'
-          : '';
+        // Tessera compatta invece della riga di testo (Fil, 2026-08-23:
+        // "dove" è tra le prime tre cose che si vogliono sapere — deve
+        // essere un riquadro come gli altri, non una riga persa nel testo).
+        // <a> attorno a tutta la tessera quando c'è una mappa da aprire
+        // (non un onclick con l'URL incollato dentro l'attributo: più
+        // sicuro, e funziona anche se JS fosse lento a legarsi).
+        var locationTileInner = ''
+          + '<div class="info-tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z"></path><circle cx="12" cy="9" r="2.5"></circle></svg></div>'
+          + '<div class="info-tile-body">'
+          + '<div class="info-tile-label">Dove</div>'
+          + '<div class="info-tile-value">' + NdumaData.escapeHTML(resolvedLocation.address) + '</div>'
+          + (locationNotConfirmedYet ? '<div style="font-size:11px; color:var(--ink-soft); margin-top:1px;">In testa ai voti, non ancora definitiva</div>' : '')
+          + '</div>';
+        var locationHTML = !resolvedLocation.address ? ''
+          : mapsUrl
+            ? '<a class="info-tile is-clickable" href="' + NdumaData.escapeHTML(mapsUrl) + '" target="_blank" rel="noopener" style="text-decoration:none; color:inherit;">' + locationTileInner + '</a>'
+            : '<div class="info-tile">' + locationTileInner + '</div>';
 
         // Solo per chi organizza, solo su un evento annullato: rilancia lo
         // stesso evento (nome, descrizione, foto, luogo) portando dritti alla
@@ -1242,11 +1246,50 @@
             + '</div>'
           : '';
 
-        var inviteesRosterHTML = isConfirmedSimple ? '' : buildInviteesRosterHTML();
+        // "Chi viene" (Fil, 2026-08-23, terzo giro sulla pagina evento):
+        // "quando mi invitano voglio sapere subito dove/cosa/quando — chi
+        // viene lo guardo dopo". Invitati + grafico dei giorni non stanno
+        // più in bella vista in mezzo alla pagina: una tessera compatta
+        // (avatar + "N di M disponibili") che apre un popup con entrambi
+        // dentro, stesso popup già usato per gestire le liste amici
+        // (.signup-overlay/.signup-modal, vedi amici.html).
+        var roster = isConfirmedSimple ? { html: '', rows: [] } : buildInviteesRosterHTML();
+        var inviteesRosterHTML = roster.html;
 
         var breakdownSectionHTML = isConfirmedSimple ? '' : ''
           + '<div class="section-title">Chi c\'è per ogni giorno</div>'
           + buildDayBreakdownHTML();
+
+        var whoComingTileHTML = '';
+        var whoComingModalHTML = '';
+        if (!isConfirmedSimple && roster.rows.length) {
+          var availableRows = roster.rows.filter(function (r) { return r.statusKey === 'available'; });
+          var avatarSource = availableRows.length ? availableRows : roster.rows;
+          var AVATAR_TILE_COLORS = ['#FF7A29', '#6B3F73', '#9C6BA3', '#4F8B5C'];
+          var avatarsHTML = avatarSource.slice(0, 3).map(function (r, i) {
+            var initial = (r.name || '?').trim().charAt(0).toUpperCase() || '?';
+            return '<span style="background:' + AVATAR_TILE_COLORS[i % AVATAR_TILE_COLORS.length] + ';">' + NdumaData.escapeHTML(initial) + '</span>';
+          }).join('');
+          whoComingTileHTML = ''
+            + '<div class="who-coming-tile" id="whoComingTile">'
+            + '<div class="who-coming-avatars">' + avatarsHTML + '</div>'
+            + '<div class="who-coming-body">'
+            + '<div class="who-coming-title">Chi viene</div>'
+            + '<div class="who-coming-sub">' + availableRows.length + ' di ' + roster.rows.length + ' disponibili · tocca per i dettagli</div>'
+            + '</div>'
+            + '<div class="who-coming-chevron">›</div>'
+            + '</div>';
+          whoComingModalHTML = ''
+            + '<div class="signup-overlay" id="whoComingModal" style="display:none;">'
+            + '<div class="signup-modal" style="text-align:left; max-height:74vh; overflow-y:auto;">'
+            + '<div class="list-header" style="margin-bottom:4px;">'
+            + '<div class="card-title">Chi viene</div>'
+            + '<div class="list-delete" id="whoComingCloseBtn">Chiudi ✕</div>'
+            + '</div>'
+            + inviteesRosterHTML
+            + breakdownSectionHTML
+            + '</div></div>';
+        }
 
         var manualConfirmSectionHTML = buildManualConfirmSectionHTML(info);
 
@@ -1303,6 +1346,14 @@
               : 'Hanno risposto tutti gli invitati ma nessuno era disponibile: l\'evento si è annullato automaticamente.')
           + ' Resta visibile qui per una settimana, poi viene eliminato.</div>';
 
+        // Ordine ripensato (Fil, 2026-08-23, terzo giro sulla pagina evento:
+        // "a colpo d'occhio super complicata, lontana dallo stile della
+        // Home"): dove/cosa si tratta/quando sono le prime tre cose che si
+        // vogliono sapere aprendo un invito — restano tutte visibili subito,
+        // in cima, senza dover toccare nulla. "Chi viene" (chi risponde, chi
+        // manca) è un dettaglio che si guarda dopo, non prima: sceso in una
+        // tessera sola che apre un popup (whoComingTileHTML/whoComingModalHTML
+        // qui sopra), al posto della lista intera sempre in vista di prima.
         contentEl.innerHTML = ''
           + guestLockBannerHTML
           + photoHTML
@@ -1311,16 +1362,16 @@
           + (event.descriptionAudioUrl
               ? '<audio controls src="' + NdumaData.escapeHTML(event.descriptionAudioUrl) + '" style="width:100%; margin:2px 2px 16px;"></audio>'
               : (event.description ? '<div class="card-date" style="margin:2px 2px 16px;">' + NdumaData.escapeHTML(event.description) + '</div>' : ''))
-          + locationHTML
-          + shareSectionHTML
-          + inviteesRosterHTML
-          + manualConfirmTopHTML
           + confirmedSummaryHTML
+          + locationHTML
           + availabilityHTML
+          + shareSectionHTML
+          + manualConfirmTopHTML
+          + whoComingTileHTML
           + expensesSectionHTML
           + '<div id="itemsSectionWrap">' + itemsSectionHTML + '</div>'
-          + breakdownSectionHTML
-          + manualConfirmBottomHTML;
+          + manualConfirmBottomHTML
+          + whoComingModalHTML;
 
         // rianima/rende cliccabile il contenuto appena creato
         if (window.NdumaUI) window.NdumaUI.refresh();
@@ -1773,6 +1824,29 @@
           changeAvailabilityBtn.addEventListener('click', function () {
             editingAvailability = true;
             render();
+          });
+        }
+
+        // Popup "Chi viene" (Fil, 2026-08-23): stesso apri/chiudi già usato
+        // per il popup di gestione liste amici (amici.html) — un div che
+        // passa da display:none a niente, un click sullo sfondo scuro lo
+        // richiude.
+        var whoComingTile = document.getElementById('whoComingTile');
+        var whoComingModal = document.getElementById('whoComingModal');
+        var whoComingCloseBtn = document.getElementById('whoComingCloseBtn');
+        if (whoComingTile && whoComingModal) {
+          whoComingTile.addEventListener('click', function () {
+            whoComingModal.style.display = '';
+          });
+        }
+        if (whoComingCloseBtn && whoComingModal) {
+          whoComingCloseBtn.addEventListener('click', function () {
+            whoComingModal.style.display = 'none';
+          });
+        }
+        if (whoComingModal) {
+          whoComingModal.addEventListener('click', function (e) {
+            if (e.target === whoComingModal) whoComingModal.style.display = 'none';
           });
         }
 
