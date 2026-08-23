@@ -158,15 +158,25 @@
          che non fosse uno dei pochi casi noti) — troppo fragile, un domani
          basta un altro file statico a ripetere lo stesso bug. Ora è una
          lista di pagine vere dell'app: si accetta il referrer solo se è
-         una di queste. */
+         una di queste.
+
+         Fil, 2026-08-23: tornava sempre su eventi.html "e basta" — cioè sul
+         tab Confermati di default — anche arrivando da eventi.html?only=
+         attesa o ?only=annullati. Il controllo whitelist deve guardare solo
+         il nome del file (altrimenti una query sconosciuta lo farebbe
+         fallire), ma l'href riscritto sul bottone deve tenersi la query:
+         eventi.html?only=... è la vera pagina di quella categoria, ora che
+         eventi.html da sola (senza query, tab Confermati fisso) non è più
+         un posto dove si arriva davvero navigando nell'app. */
       var backBtn = document.getElementById('backBtn');
       if (backBtn) {
         var ref = document.referrer || '';
         var cameFromApp = ref.indexOf(window.location.origin) === 0;
-        var refPath = cameFromApp ? ref.split('/').pop().split('?')[0].split('#')[0] : '';
+        var refFile = cameFromApp ? ref.split('/').pop().split('#')[0] : ''; // "eventi.html?only=attesa" — tiene la query, non l'hash
+        var refPath = refFile.split('?')[0]; // solo il nome file, per il controllo whitelist qui sotto
         var REAL_APP_PAGES = ['index.html', 'eventi.html', 'crea.html', 'amici.html', 'notifiche.html', 'lista-invito.html', 'profilo.html'];
         if (REAL_APP_PAGES.indexOf(refPath) !== -1) {
-          backBtn.setAttribute('href', refPath);
+          backBtn.setAttribute('href', refFile);
         }
       }
 
@@ -194,13 +204,13 @@
         event = eventId ? await NdumaData.getEventById(eventId) : null;
       } catch (err) {
         titleEl.textContent = 'Errore';
-        contentEl.innerHTML = '<div class="empty-hint">Non riesco a caricare questo evento (' + NdumaData.escapeHTML(err.message) + ').<br><a href="eventi.html">Torna agli eventi →</a></div>';
+        contentEl.innerHTML = '<div class="empty-hint">Non riesco a caricare questo evento (' + NdumaData.escapeHTML(err.message) + ').<br><a href="index.html">Torna alla Home →</a></div>';
         return;
       }
 
       if (!event) {
         titleEl.textContent = 'Evento non trovato';
-        contentEl.innerHTML = '<div class="empty-hint">Questo evento non esiste (o il link non è più valido).<br><a href="eventi.html">Torna agli eventi →</a></div>';
+        contentEl.innerHTML = '<div class="empty-hint">Questo evento non esiste (o il link non è più valido).<br><a href="index.html">Torna alla Home →</a></div>';
         return;
       }
 
@@ -2156,7 +2166,11 @@
               window.alert('Non sono riuscito a rimuovere l\'evento dalla tua home (' + err.message + '). Riprova.');
               return;
             }
-            window.location.href = 'eventi.html';
+            // eventi.html da sola (senza ?only=) non è più un posto dove si
+            // atterra navigando nell'app (Fil, 2026-08-23) — e comunque
+            // l'evento appena rimosso/eliminato non ha più una categoria
+            // sensata da cui ripartire. Home.
+            window.location.href = 'index.html';
           });
         }
 
@@ -2178,7 +2192,11 @@
               window.alert('Non sono riuscito a eliminare l\'evento (' + err.message + '). Riprova.');
               return;
             }
-            window.location.href = 'eventi.html';
+            // eventi.html da sola (senza ?only=) non è più un posto dove si
+            // atterra navigando nell'app (Fil, 2026-08-23) — e comunque
+            // l'evento appena rimosso/eliminato non ha più una categoria
+            // sensata da cui ripartire. Home.
+            window.location.href = 'index.html';
           });
         }
       }
