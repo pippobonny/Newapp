@@ -480,9 +480,14 @@ a.back-btn:active { transform: scale(0.92); }
   opacity: 1;
 }
 
-/* Evento confermato: alone verde sfocato dentro la card, per capire a colpo d'occhio che è chiuso. */
+/* Evento confermato: bordo netto invece dell'alone verde sfocato di prima
+   (Fil, 2026-08-23: "non è più in tema per nulla" — un verde acceso in
+   glow, mai toccato dal restyling perché non è una classe home-*).
+   Lavanda perché è già il colore che la Home usa per "Confermati" — stesso
+   significato, stesso colore, ovunque compaia. Niente sfocatura: un bordo
+   pieno, come il resto del restyling. */
 .card.is-done {
-  box-shadow: inset 0 0 0 1px rgba(52, 199, 89, 0.28), inset 0 0 34px 4px rgba(52, 199, 89, 0.4), 0 4px 16px rgba(58,50,90,0.06);
+  box-shadow: inset 0 0 0 1.5px var(--lavender), 0 4px 16px rgba(58,50,90,0.06);
 }
 
 /* Card intera più scura per un evento annullato (non solo il badge, Fil
