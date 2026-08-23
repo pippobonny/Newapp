@@ -208,26 +208,10 @@ a { text-decoration: none; color: inherit; }
   box-shadow: none;
   justify-content: flex-start;
   gap: 14px;
-  position: relative;
-  /* .content qui sotto è anche lei z-index:1 (per stare sopra .aurora-bg,
-     dove esisteva ancora) — 2 per essere sicuri che l'ombra qui sotto
-     (sull'::after) non finisca coperta dal contenuto scrollabile. */
-  z-index: 2;
-}
-
-/* Stacco dal resto della pagina (Fil, 2026-08-23, seconda versione: la riga
-   netta non piaceva) — un'ombra molto sfumata invece di un bordo: dà
-   l'idea che l'header galleggi appena sopra il contenuto, senza essere un
-   elemento visibile a sé. Su ::after (non box-shadow diretto sull'header)
-   perché altrimenti l'ombra spunterebbe anche sopra e ai lati, non solo
-   sotto. */
-.header.simple::after {
-  content: '';
-  position: absolute;
-  left: 0; right: 0; bottom: -14px;
-  height: 14px;
-  background: linear-gradient(180deg, rgba(58,50,90,0.06), transparent);
-  pointer-events: none;
+  /* Stacco dal resto della pagina (Fil, 2026-08-23, terza versione: né la
+     riga né l'ombra sfumata andavano bene, sempre "una riga che stacca
+     troppo") — niente più elementi grafici: solo un po' più di respiro
+     verticale prima del contenuto, sotto su .content. Zero da vedere. */
 }
 
 /* Solo la Home: profilo a sinistra, campanella spinta a destra invece che
@@ -3040,7 +3024,7 @@ label.event-photo-preview {
    e resa più grande/pesante: sono le due azioni primarie della Home, non
    un'appendice — vanno lette per prime, con un peso visivo vicino a quello
    del riquadro grande sotto. */
-.home-grid-actions { grid-template-columns: 1fr 1fr; grid-template-rows: none; }
+.home-grid-actions { grid-template-columns: 1fr 1fr; grid-template-rows: none; margin-top: 20px; }
 .home-tile.is-action { min-height: 128px; background: var(--ink); flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 0; padding: 20px; }
 .home-tile.is-action .home-tile-icon { stroke: #fff; width: 26px; height: 26px; margin-bottom: 12px; }
 .home-tile.is-action .home-tile-label { color: #fff; font-size: 16px; font-weight: 600; margin-top: 0; }
