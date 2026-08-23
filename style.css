@@ -3101,12 +3101,20 @@ a.notif-item:active { background: var(--track-soft); }
 }
 /* Stessa bolla, più piccola, sulle altre card (Fil, 2026-08-23: gli piace
    quella del riquadro grande, la vuole anche sugli altri) — non tutte
-   nello stesso punto, sembrava meccanico (Fil, secondo giro). Solo alto
-   destra/basso destra, mai a sinistra: icona e numero/testo sono sempre
-   allineati a sinistra in ogni riquadro, una bolla lì ci finirebbe sopra. */
+   nello stesso punto, sembrava meccanico (Fil, secondo giro), e non
+   sempre incastrata proprio nell'angolo (terzo giro: "anche non
+   perforza nell'angolo"). Restano sul lato destro, mai a sinistra: icona
+   e numero/testo sono sempre allineati a sinistra in ogni riquadro, una
+   bolla lì ci finirebbe sopra. */
 .home-tile-deco.is-small {
   width: 44px; height: 44px; right: -10px; bottom: -10px;
 }
 .home-tile-deco.is-small.pos-tr {
-  bottom: auto; top: -10px;
+  bottom: auto; top: -8px; right: -6px;
+}
+/* Non in un angolo: appoggiata sul bordo destro, centrata in verticale. */
+.home-tile-deco.is-small.pos-mr {
+  bottom: auto; top: 50%; right: -16px;
+  width: 38px; height: 38px;
+  margin-top: -19px;
 }
