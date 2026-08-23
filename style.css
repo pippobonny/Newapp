@@ -1713,7 +1713,13 @@ label.event-photo-preview {
   padding: 14px;
   margin-bottom: 12px;
   box-shadow: 0 4px 16px rgba(58,50,90,0.06);
+  /* Quelle legate a un evento vero sono un <a> (Fil, 2026-08-23), le altre
+     restano un <div> — questa regola neutralizza lo stile di link solo
+     quando serve, un <div> non la vede proprio. */
+  text-decoration: none;
+  color: inherit;
 }
+a.notif-item:active { background: var(--track-soft); }
 
 .notif-icon {
   width: 38px;

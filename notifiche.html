@@ -266,15 +266,23 @@
             (isRead && isOld ? olderReadNotifs : recentNotifs).push(n);
           });
 
+          // Cliccabile solo se sappiamo A QUALE evento si riferisce (Fil,
+          // 2026-08-23: "non posso aprirla per andare a vedere cosa sia") —
+          // vero per tutte le notifiche costruite da un evento vero qui
+          // sopra (eventId aggiunto in buildNotifications, data.js), non
+          // ancora per gli avvisi "congelati" di event_notices (quelli non
+          // portano con sé l'id — vedi getEventNotices in data.js).
           var notifItemHTML = function (n) {
+            var tag = n.eventId ? 'a' : 'div';
+            var hrefAttr = n.eventId ? ' href="evento.html?id=' + encodeURIComponent(n.eventId) + '"' : '';
             return ''
-              + '<div class="notif-item reveal">'
+              + '<' + tag + ' class="notif-item reveal"' + hrefAttr + '>'
               + '<div class="notif-icon ' + n.icon + '">' + (NOTIF_EMOJI_SVG[n.emoji] || n.emoji) + '</div>'
               + '<div>'
               + '<div class="notif-text">' + n.text + '</div>'
               + '<div class="notif-time">' + timeAgo(n.time) + '</div>'
               + '</div>'
-              + '</div>';
+              + '</' + tag + '>';
           };
 
           var recentHTML = recentNotifs.length

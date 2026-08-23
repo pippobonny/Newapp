@@ -1683,20 +1683,20 @@
 
       if (info.status === 'cancelled') {
         notifications.push({
-          icon: 'cancelled', emoji: '🚫', time: event.cancelledAt || latestEventActivityTime(event),
+          icon: 'cancelled', emoji: '🚫', time: event.cancelledAt || latestEventActivityTime(event), eventId: event.id,
           text: info.cancelledManually
             ? '<b>' + escapeHTML(event.name) + '</b> è stato annullato dall\'organizzatore.'
             : '<b>' + escapeHTML(event.name) + '</b> è stato annullato: hanno risposto tutti ma nessuno era disponibile.'
         });
       } else if (info.status === 'done') {
         notifications.push({
-          icon: 'confirmed', emoji: '✅', time: latestEventActivityTime(event),
+          icon: 'confirmed', emoji: '✅', time: latestEventActivityTime(event), eventId: event.id,
           text: '<b>' + escapeHTML(event.name) + '</b> è confermato!'
         });
       } else if (info.status === 'almost') {
         var missing = info.totalInvited - info.totalResponded;
         notifications.push({
-          icon: 'almost', emoji: '🎉', time: latestEventActivityTime(event),
+          icon: 'almost', emoji: '🎉', time: latestEventActivityTime(event), eventId: event.id,
           text: '<b>' + escapeHTML(event.name) + '</b> è quasi risolto: manca' + (missing === 1 ? '' : 'no') + ' ' + missing + (missing === 1 ? ' risposta' : ' risposte') + '.'
         });
       } else if (info.status === 'tie') {
@@ -1708,13 +1708,13 @@
         // gli invitati, che hanno già risposto tutti.
         if (iAmOrganizer) {
           notifications.push({
-            icon: 'tie', emoji: '⚖️', time: latestEventActivityTime(event),
+            icon: 'tie', emoji: '⚖️', time: latestEventActivityTime(event), eventId: event.id,
             text: '<b>' + escapeHTML(event.name) + '</b> è in pareggio tra più date: tocca a te scegliere quale confermare.'
           });
         }
       } else if (!iAmOrganizer) {
         notifications.push({
-          icon: 'new', emoji: '📅', time: ts,
+          icon: 'new', emoji: '📅', time: ts, eventId: event.id,
           text: 'Nuova proposta: <b>' + escapeHTML(event.name) + '</b>. Segna la tua disponibilità.'
         });
       }
@@ -1723,7 +1723,7 @@
         (event.invitees || []).forEach(function (f) {
           if (f.claimedAt) {
             notifications.push({
-              icon: 'friend', emoji: '👋', time: f.claimedAt,
+              icon: 'friend', emoji: '👋', time: f.claimedAt, eventId: event.id,
               text: '<b>' + escapeHTML(f.name) + '</b> è entrato/a nel tuo evento "' + escapeHTML(event.name) + '".'
             });
           }
