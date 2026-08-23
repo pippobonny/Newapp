@@ -142,12 +142,37 @@
       });
     });
 
-    // --- Uscita: al click su un link interno, scorre nella direzione giusta poi naviga ---
+    bindInternalLinkNavigation(screen);
+  }
+
+  // --- Uscita: al click su un link interno, scorre nella direzione giusta poi naviga ---
+  // Estratta da initPageTransitions (Fil, 2026-08-23, trovato in test: tornare
+  // alla Home da crea/amici/profilo/eventi mostrava la pagina già ferma e SOLO
+  // dopo un istante partiva lo slide — sintomo di una navigazione vera invece
+  // che dello scambio SPA). initPageTransitions gira una volta sola al vero
+  // caricamento: i link che legava allora vivevano tutti dentro .screen, che
+  // spaRenderView sostituisce per intero a ogni cambio tab — i bottoni
+  // "indietro" delle pagine raggiunte dopo il primo cambio tab (ricreati da
+  // zero via innerHTML) non avevano mai un listener, quindi il tap ci
+  // cascava sopra come link vero: niente animazione SPA, un vero
+  // ricaricamento della pagina, che poi al suo primo paint fa comunque
+  // partire il proprio slide-in — da qui il "carica due volte". Richiamata
+  // anche dopo ogni montaggio SPA (vedi spaRenderView) per legare anche i
+  // link appena creati. Un data-attribute evita di legare due volte lo
+  // stesso nodo, per i (pochi) link che restano gli stessi tra un mount e
+  // l'altro.
+  function bindInternalLinkNavigation(screen) {
+    if (!screen) screen = document.querySelector('.screen');
+    if (!screen) return;
+
     // Selettore allargato a tutti gli "a[href]" (prima era "a[href$=\".html\"]",
     // che scartava in silenzio ogni link con querystring): il filtro vero e
     // proprio è sul nome file, non sull'href grezzo, così i link con "?"
     // vengono intercettati proprio come gli altri.
     document.querySelectorAll('a[href]').forEach(function (link) {
+      if (link.dataset.ndumaLinkBound) return;
+      link.dataset.ndumaLinkBound = '1';
+
       var href = link.getAttribute('href');
       if (!href || link.target === '_blank') return;
 
@@ -355,6 +380,10 @@
       initTodayDate();
       initAttendanceBadge();
       initIosInstallHint();
+      // Lega i link della vista appena montata (Fil, 2026-08-23): senza
+      // questa, i loro click passavano come navigazione vera invece che SPA
+      // — vedi il commento su bindInternalLinkNavigation più sopra.
+      bindInternalLinkNavigation(screen);
 
       spaBusy = false;
     }, 160);
