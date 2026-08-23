@@ -208,18 +208,36 @@ a { text-decoration: none; color: inherit; }
   box-shadow: none;
   justify-content: flex-start;
   gap: 14px;
-  /* Stacco leggero dal resto della pagina (Fil, 2026-08-23: "non voglio
-     niente di troppo visibile") — una riga sottilissima, non un bordo vero,
-     nello stesso neutro già usato per le altre righe di separazione
-     nell'app. */
-  border-bottom: 1px solid var(--track-soft);
+  position: relative;
+  /* .content qui sotto è anche lei z-index:1 (per stare sopra .aurora-bg,
+     dove esisteva ancora) — 2 per essere sicuri che l'ombra qui sotto
+     (sull'::after) non finisca coperta dal contenuto scrollabile. */
+  z-index: 2;
+}
+
+/* Stacco dal resto della pagina (Fil, 2026-08-23, seconda versione: la riga
+   netta non piaceva) — un'ombra molto sfumata invece di un bordo: dà
+   l'idea che l'header galleggi appena sopra il contenuto, senza essere un
+   elemento visibile a sé. Su ::after (non box-shadow diretto sull'header)
+   perché altrimenti l'ombra spunterebbe anche sopra e ai lati, non solo
+   sotto. */
+.header.simple::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -14px;
+  height: 14px;
+  background: linear-gradient(180deg, rgba(58,50,90,0.06), transparent);
+  pointer-events: none;
 }
 
 /* Solo la Home: profilo a sinistra, campanella spinta a destra invece che
    subito dopo il nome (Fil, 2026-08-23) — le altre pagine con .header.simple
    hanno un solo elemento (titolo, più la bolla indietro ora fuori
-   dall'header), qui non cambierebbe nulla applicarlo lì. */
-.home-header { justify-content: space-between; }
+   dall'header), qui non cambierebbe nulla applicarlo lì.
+   .header.simple.home-header (non solo .home-header): deve pesare almeno
+   quanto .header.simple qui sopra per vincere su justify-content, altrimenti
+   perde e la campanella resta dov'era (successo la prima volta). */
+.header.simple.home-header { justify-content: space-between; }
 
 .back-btn {
   width: 36px;
