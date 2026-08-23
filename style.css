@@ -16,6 +16,15 @@
   --butter-soft: #FFEDD6;
   --cancel: #B8654A;
   --cancel-soft: #F0DEDA;
+  /* "Confermato" (Fil, 2026-08-23): il viola era coerente con la palette ma
+     non si legge a colpo d'occhio come "confermato" — il verde ce lo mette
+     mezzo secolo di convenzione (spunte, semafori...). Smorzato, non il
+     verde acceso di prima del restyling: stessa disciplina del resto della
+     palette, applicato a un colore che qui ha un significato preciso
+     (stato), non decorativo. Stesso colore ovunque significhi "confermato"
+     — riquadro Home, bordo card evento, pillina badge. */
+  --confirmed: #4F8B5C;
+  --confirmed-soft: #DCEBDC;
   --past-soft: #ECE7EE;
   --shadow: 0 20px 60px rgba(58, 50, 90, 0.15);
   /* Sfondo neutro riusato in 4 punti diversi (barra progresso, spunta chip,
@@ -482,12 +491,14 @@ a.back-btn:active { transform: scale(0.92); }
 
 /* Evento confermato: bordo netto invece dell'alone verde sfocato di prima
    (Fil, 2026-08-23: "non è più in tema per nulla" — un verde acceso in
-   glow, mai toccato dal restyling perché non è una classe home-*).
-   Lavanda perché è già il colore che la Home usa per "Confermati" — stesso
-   significato, stesso colore, ovunque compaia. Niente sfocatura: un bordo
-   pieno, come il resto del restyling. */
+   glow, mai toccato dal restyling perché non è una classe home-*). Prima
+   provata in lavanda per coerenza con la Home, ma il viola non si legge
+   a colpo d'occhio come "confermato" quanto il verde (Fil aveva ragione) —
+   var(--confirmed), un verde smorzato, non il verde acceso di prima:
+   stessa disciplina della palette, applicata a un colore di stato. Niente
+   sfocatura: un bordo pieno, come il resto del restyling. */
 .card.is-done {
-  box-shadow: inset 0 0 0 1.5px var(--lavender), 0 4px 16px rgba(58,50,90,0.06);
+  box-shadow: inset 0 0 0 1.5px var(--confirmed), 0 4px 16px rgba(58,50,90,0.06);
 }
 
 /* Card intera più scura per un evento annullato (non solo il badge, Fil
@@ -530,7 +541,7 @@ a.back-btn:active { transform: scale(0.92); }
 
 .badge.waiting { background: var(--sky-soft); color: #7A3F82; }
 .badge.almost { background: var(--butter-soft); color: #9C4A0F; }
-.badge.done { background: var(--mint-soft); color: #4A2B52; }
+.badge.done { background: var(--confirmed-soft); color: #2E5C38; }
 .badge.cancelled { background: var(--cancel); color: #FFF8F0; }
 .badge.passato { background: var(--past-soft); color: var(--ink-soft); }
 .badge.linked { background: var(--mint-soft); color: #4A2B52; }
@@ -3027,7 +3038,10 @@ label.event-photo-preview {
 }
 
 .home-tile.is-big { grid-row: 1 / 3; min-height: 210px; background: var(--peach); padding: 22px; }
-.home-tile.is-mid { min-height: 100px; background: var(--lavender); }
+/* Verde per "Confermati" (Fil, 2026-08-23), non più lavanda — si legge a
+   colpo d'occhio molto meglio, e lo stesso colore ora vale ovunque
+   compaia "confermato" (vedi .card.is-done/.badge.done in cima al file). */
+.home-tile.is-mid { min-height: 100px; background: var(--confirmed); }
 .home-tile.is-low { min-height: 100px; background: var(--card); box-shadow: 0 4px 16px rgba(58,50,90,0.06); }
 
 /* Riga d'azione in cima: crea/amici, sempre le due cose che altrimenti
