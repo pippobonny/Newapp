@@ -681,14 +681,19 @@
           var ids = existingParticipant.availableDateOptionIds || [];
           // Date in chip separate invece di una frase con le virgole (Fil,
           // 2026-08-23: "tantissimo testo" — stesso principio degli
-          // invitati qui sopra, un elenco si legge meglio spezzato che
-          // incollato in una riga di prosa).
+          // invitati qui sopra). Seconda versione: senza etichetta sopra
+          // erano scatole a caso, tutte uguali — non si capiva cosa
+          // fossero né che date e location fossero due cose diverse
+          // (Fil: "stessi colori, confusionario"). Etichetta corta (non
+          // la frase intera) sopra ciascun gruppo, e la location in un
+          // colore diverso (lavanda) dalle date (pesca) — due categorie,
+          // due colori.
           var summaryHTML;
           if (ids.length) {
             var labels = event.dateOptions
               .filter(function (o) { return ids.indexOf(o.id) !== -1; })
               .map(function (o) { return NdumaData.formatDateLabel(o.dateISO); });
-            summaryHTML = '<div class="mini-chip-row">' + labels.map(function (l) {
+            summaryHTML = '<div class="mini-chip-label">Disponibile per</div><div class="mini-chip-row">' + labels.map(function (l) {
               return '<span class="mini-chip">' + NdumaData.escapeHTML(l) + '</span>';
             }).join('') + '</div>';
           } else {
@@ -703,8 +708,8 @@
               .filter(function (o) { return locIds.indexOf(o.id) !== -1; })
               .map(function (o) { return o.address; });
             summaryHTML += locLabels.length
-              ? '<div class="mini-chip-row" style="margin-top:8px;">' + locLabels.map(function (l) {
-                  return '<span class="mini-chip">' + NdumaData.escapeHTML(l) + '</span>';
+              ? '<div class="mini-chip-label" style="margin-top:12px;">Location che ti vanno bene</div><div class="mini-chip-row">' + locLabels.map(function (l) {
+                  return '<span class="mini-chip is-location">' + NdumaData.escapeHTML(l) + '</span>';
                 }).join('') + '</div>'
               : '<div class="card-date" style="margin:8px 2px 0;">Non hai indicato nessuna location che ti va bene.</div>';
           }
