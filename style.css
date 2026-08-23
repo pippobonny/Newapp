@@ -1373,8 +1373,12 @@ label.event-photo-preview {
   border-radius: 999px;
   font-size: 12.5px;
   font-weight: 600;
-  background: var(--peach-soft);
-  color: var(--ink);
+  /* Grigio neutro, non più pesca (Fil, 2026-08-23): "la tua disponibilità"
+     è un'informazione di conferma, secondaria rispetto a "che data sta
+     vincendo" (vedi .confirmed-date-card.is-leading) — il pesca ora è
+     riservato a quella. */
+  background: var(--track-soft);
+  color: var(--ink-soft);
 }
 /* Location: colore diverso dalle date (Fil, 2026-08-23: "stessi colori,
    confusionario") — due categorie diverse, due colori diversi. */
@@ -2435,6 +2439,10 @@ a.notif-item:active { background: var(--track-soft); }
 }
 
 .confirmed-date-card.passato { background: var(--past-soft); }
+/* Non ancora certa (Fil, 2026-08-23): stessa card di quella confermata,
+   ma grigio neutro invece di pesca — a colpo d'occhio si deve capire che
+   è ancora provvisoria, non la stessa cosa di un evento davvero deciso. */
+.confirmed-date-card.is-leading { background: var(--track-soft); }
 
 .confirmed-date-icon {
   width: 44px;

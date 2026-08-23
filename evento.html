@@ -875,6 +875,34 @@
           + withdrawActionHTML;
       }
 
+      /* ---------- data in testa, finché l'evento non è ancora deciso ----------
+         Fil, 2026-08-23: "dopo che ha messo le date, cosa gli serve
+         davvero sapere?" — le proprie risposte le sa già (restano, ma più
+         in basso e più leggere, vedi buildAvailabilitySectionHTML), quello
+         che conta è capire dove sta andando il gruppo. Stessa card di
+         buildConfirmedSummaryHTML qui sopra (coerenza: quando l'evento si
+         conferma davvero, la stessa card "avanza" da provvisoria a
+         definitiva, stesso posto in pagina), variante "is-leading" —
+         niente pulsante calendario (non è ancora certo), etichetta diversa.
+         Mai in caso di pareggio: lì "in testa" sarebbe più di una data
+         insieme, fuorviante — quel caso ha già la sua sezione dedicata
+         (manualConfirmSectionHTML, "Pareggio: scegli tu la data"). */
+      function buildLeadingDateSummaryHTML(info) {
+        if (!info.bestOption) return '';
+        var votesForBest = (event.participants || []).filter(function (p) {
+          return (p.availableDateOptionIds || []).indexOf(info.bestOption.id) !== -1;
+        }).length;
+        return ''
+          + '<div class="confirmed-date-card is-leading">'
+          + '<div class="confirmed-date-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg></div>'
+          + '<div>'
+          + '<div class="confirmed-date-label">In testa ai voti</div>'
+          + '<div class="confirmed-date-value">' + NdumaData.escapeHTML(NdumaData.formatDateLabel(info.bestOption.dateISO)) + '</div>'
+          + '<div class="confirmed-date-add-cal" style="color:var(--ink-soft);">' + votesForBest + (votesForBest === 1 ? ' disponibile' : ' disponibili') + ' · non ancora definitiva</div>'
+          + '</div>'
+          + '</div>';
+      }
+
       /* ---------- Spese (stile Tricount), solo per evento confermato ----------
          Fil, 2026-07-13: ha senso dividere le spese solo quando c'è una data
          fissata e quindi un elenco vero di "chi parteciperà" — prima di
@@ -1241,7 +1269,9 @@
         var availabilityHTML = isConfirmedSimple ? ''
           : info.status === 'cancelled' ? ''
           : (claimCandidates ? buildClaimPromptHTML(claimCandidates) : buildAvailabilitySectionHTML());
-        var confirmedSummaryHTML = isConfirmedSimple ? buildConfirmedSummaryHTML(info) : '';
+        var confirmedSummaryHTML = isConfirmedSimple ? buildConfirmedSummaryHTML(info)
+          : (info.status === 'waiting' || info.status === 'almost') ? buildLeadingDateSummaryHTML(info)
+          : '';
 
         // "📅 I giorni in cui ci sei" nel menu ⋮ (Fil, 2026-07-19): stessa
         // condizione della vecchia versione inline (branch "sei tu che
