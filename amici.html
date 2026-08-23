@@ -210,25 +210,24 @@
       // posizione dentro la card invece che fissa: due liste non hanno mai
       // gli stessi colori nella stessa combinazione (Fil, 2026-07-19 — prima
       // c'era una sola iconcina grigia uguale per tutte le liste, "sembrava
-      // vuoto/asettico").
-      var AVATAR_GRADIENTS = [
-        ['#FF7A29', '#6B3F73'],
-        ['#9C6BA3', '#FF7A29'],
-        ['#FFB35C', '#6B3F73'],
-        ['#6B3F73', '#9C6BA3']
-      ];
+      // vuoto/asettico"). Colori pieni, non più gradienti (Fil, 2026-08-23,
+      // trovato in un giro di controllo generale: era rimasto un sistema di
+      // 4 gradienti scritto qui a mano, mai toccato dal restyling perché non
+      // vive nel CSS — stesso principio "colore pieno, niente sfumature"
+      // applicato dappertutto in giro per l'app).
+      var AVATAR_COLORS = ['#FF7A29', '#6B3F73', '#9C6BA3', '#FFB35C'];
 
       // Foto vera solo per amici "collegati" (linkStatus accepted + account_id,
       // stesso criterio di renderModalContent/friendAvatarCache qui sotto);
-      // per tutti gli altri, cerchio con l'iniziale su sfondo sfumato.
-      function friendAvatarBubbleHTML(friend, gradientIndex, extraClass) {
+      // per tutti gli altri, cerchio con l'iniziale su sfondo a colore pieno.
+      function friendAvatarBubbleHTML(friend, colorIndex, extraClass) {
         var initial = (friend.name || '?').trim().charAt(0).toUpperCase() || '?';
         var avatarUrl = (friend.linkStatus === 'accepted' && friend.accountId) ? friendAvatarCache[friend.accountId] : null;
-        var gradient = AVATAR_GRADIENTS[gradientIndex % AVATAR_GRADIENTS.length];
+        var color = AVATAR_COLORS[colorIndex % AVATAR_COLORS.length];
         var inner = avatarUrl
           ? '<img src="' + NdumaData.escapeHTML(avatarUrl) + '" alt="">'
           : NdumaData.escapeHTML(initial);
-        var bgStyle = avatarUrl ? '' : ' style="background:linear-gradient(135deg,' + gradient[0] + ',' + gradient[1] + ');"';
+        var bgStyle = avatarUrl ? '' : ' style="background:' + color + ';"';
         return '<div class="friend-list-avatar' + (extraClass ? ' ' + extraClass : '') + '"' + bgStyle + '>' + inner + '</div>';
       }
 
