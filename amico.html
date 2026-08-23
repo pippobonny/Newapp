@@ -74,7 +74,13 @@
       try {
         event = await NdumaData.getEventInviteInfo(token);
       } catch (err) {
-        contentEl.innerHTML = '<div class="empty-hint">Non riesco a verificare questo invito (' + NdumaData.escapeHTML(err.message) + ').</div>';
+        // Fil, 2026-08-23, trovato in un giro di controllo generale: a
+        // differenza degli altri due casi di errore qui sotto (token
+        // mancante, invito non trovato), questo mostrava il messaggio
+        // grezzo del database e non dava nessun modo di uscire — non c'è
+        // più la navbar a fare da rete di sicurezza. Stesso trattamento
+        // degli altri due.
+        contentEl.innerHTML = '<div class="empty-hint">Non riesco a verificare questo invito. Riprova tra poco, o controlla di aver aperto il link giusto.<br><a href="index.html">Torna alla Home →</a></div>';
         return;
       }
 

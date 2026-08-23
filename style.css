@@ -4,6 +4,16 @@
   --card: #FFFFFF;
   --ink: #3D2244;
   --ink-soft: #8C7C91;
+  /* Fil, 2026-08-23, trovato controllando la modalità scura: --ink cambia
+     valore lì sotto (deve, è il colore del TESTO, in dark mode diventa
+     chiaro) — otto punti nell'app però lo usavano come SFONDO di un
+     blocco pensato per restare sempre scuro (bolla indietro, pillola
+     attiva, popup del lettore audio, toast, badge del giorno scelto,
+     riquadri "Nuova proposta"/"Amici"...): in dark mode diventavano chiari
+     con sopra testo bianco, quasi invisibili. Token a parte, fisso, mai
+     ridefinito qui sotto — per gli sfondi che devono restare scuri A
+     PRESCINDERE dal tema, non per il testo. */
+  --surface-dark: #3D2244;
   --mint: #FF7A29;
   --mint-soft: #FFE3C7;
   --peach: #FF7A29;
@@ -267,7 +277,7 @@ a.back-btn {
   width: 54px;
   height: 54px;
   border-radius: 50%;
-  background: var(--ink);
+  background: var(--surface-dark);
   color: #fff;
   font-size: 20px;
   box-shadow: 0 12px 26px rgba(58,50,90,0.3);
@@ -670,7 +680,7 @@ a.back-btn:active { transform: scale(0.92); }
 }
 
 .pill.active {
-  background: var(--ink);
+  background: var(--surface-dark);
   color: #fff;
 }
 
@@ -774,7 +784,7 @@ a.back-btn:active { transform: scale(0.92); }
   height: 38px;
   border-radius: 50%;
   border: none;
-  background: var(--ink);
+  background: var(--surface-dark);
   color: #fff;
   display: flex;
   align-items: center;
@@ -1861,7 +1871,7 @@ a.notif-item:active { background: var(--track-soft); }
 }
 
 .day-bar-badge.leader { background: var(--peach-soft); }
-.day-bar-badge.selected { background: var(--ink); color: #FFF8F0; }
+.day-bar-badge.selected { background: var(--surface-dark); color: #FFF8F0; }
 
 .day-bar-track {
   width: 38px;
@@ -1886,7 +1896,7 @@ a.notif-item:active { background: var(--track-soft); }
   transition: height 0.25s ease, background 0.2s ease;
 }
 
-.day-bar-fill.selected { background: var(--ink); }
+.day-bar-fill.selected { background: var(--surface-dark); }
 
 .day-bar-label {
   font-size: 11px;
@@ -1908,7 +1918,7 @@ a.notif-item:active { background: var(--track-soft); }
   left: 50%;
   transform: translateX(-50%);
   margin-bottom: 9px;
-  background: var(--ink);
+  background: var(--surface-dark);
   color: #FFF8F0;
   font-size: 12px;
   font-weight: 500;
@@ -2284,7 +2294,7 @@ a.notif-item:active { background: var(--track-soft); }
   left: 22px;
   right: 22px;
   bottom: 96px;
-  background: var(--ink);
+  background: var(--surface-dark);
   color: #FFF8F0;
   padding: 14px 18px;
   border-radius: 16px;
@@ -3069,7 +3079,7 @@ a.notif-item:active { background: var(--track-soft); }
    un'appendice — vanno lette per prime, con un peso visivo vicino a quello
    del riquadro grande sotto. */
 .home-grid-actions { grid-template-columns: 1fr 1fr; grid-template-rows: none; margin-top: 20px; }
-.home-tile.is-action { min-height: 128px; background: var(--ink); flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 0; padding: 20px; }
+.home-tile.is-action { min-height: 128px; background: var(--surface-dark); flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 0; padding: 20px; }
 .home-tile.is-action .home-tile-icon { stroke: #fff; width: 26px; height: 26px; margin-bottom: 12px; }
 .home-tile.is-action .home-tile-label { color: #fff; font-size: 16px; font-weight: 600; margin-top: 0; }
 
