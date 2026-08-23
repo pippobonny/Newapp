@@ -621,25 +621,22 @@
             : statusKey === 'absent'
               ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><circle cx="12" cy="12" r="9"></circle><line x1="9.5" y1="9.5" x2="14.5" y2="14.5"></line><line x1="14.5" y1="9.5" x2="9.5" y2="14.5"></line></svg>'
               : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg>';
-          var statusHTML = statusKey === 'available'
-            ? '<span style="color:var(--mint);">' + statusIconSVG + 'Disponibile</span>'
-            : statusKey === 'absent'
-              ? '<span style="color:var(--cancel);">' + statusIconSVG + 'Assente</span>'
-              : '<span style="color:var(--ink-soft);">' + statusIconSVG + 'Non ha risposto</span>';
-          return { name: name, statusKey: statusKey, statusHTML: statusHTML };
+          return { name: name, statusKey: statusKey, statusIconSVG: statusIconSVG };
         }).sort(function (a, b) { return STATUS_ORDER[a.statusKey] - STATUS_ORDER[b.statusKey]; });
 
+        // Righe piene una per persona -> bolle affiancate, colore = stato
+        // (Fil, 2026-08-23: "tantissimo testo, pochi riquadri come la
+        // Home" — qui il colore e l'icona bastano a dire "disponibile", non
+        // serve ripetere la parola su ogni riga; stessa logica delle altre
+        // pillole di stato in giro per l'app, verde/rosso/neutro).
         var rowsHTML = rows.map(function (row) {
-          return ''
-            + '<div class="settings-row" style="margin-bottom:6px;">'
-            + '<div class="left">' + NdumaData.escapeHTML(row.name) + '</div>'
-            + '<div style="font-size:12.5px; font-weight:600;">' + row.statusHTML + '</div>'
-            + '</div>';
+          var statusClass = row.statusKey === 'available' ? 'is-available' : row.statusKey === 'absent' ? 'is-absent' : '';
+          return '<span class="invitee-chip ' + statusClass + '">' + row.statusIconSVG + NdumaData.escapeHTML(row.name) + '</span>';
         }).join('');
 
         return ''
           + '<div class="section-title first">Invitati</div>'
-          + rowsHTML;
+          + '<div class="invitee-chip-wrap">' + rowsHTML + '</div>';
       }
 
       /* ---------- organizzatore: è cambiata idea rispetto al "sempre presente"? ----------
@@ -682,31 +679,39 @@
 
         if (existingParticipant && !editingAvailability) {
           var ids = existingParticipant.availableDateOptionIds || [];
-          var summaryText;
+          // Date in chip separate invece di una frase con le virgole (Fil,
+          // 2026-08-23: "tantissimo testo" — stesso principio degli
+          // invitati qui sopra, un elenco si legge meglio spezzato che
+          // incollato in una riga di prosa).
+          var summaryHTML;
           if (ids.length) {
             var labels = event.dateOptions
               .filter(function (o) { return ids.indexOf(o.id) !== -1; })
               .map(function (o) { return NdumaData.formatDateLabel(o.dateISO); });
-            summaryText = 'Sei disponibile: <b>' + labels.map(NdumaData.escapeHTML).join(', ') + '</b>';
+            summaryHTML = '<div class="mini-chip-row">' + labels.map(function (l) {
+              return '<span class="mini-chip">' + NdumaData.escapeHTML(l) + '</span>';
+            }).join('') + '</div>';
           } else {
-            summaryText = 'Hai indicato di <b>non essere mai disponibile</b> per questo evento.';
+            summaryHTML = '<div class="card-date" style="margin:0 2px 4px;">Hai indicato di <b>non essere mai disponibile</b> per questo evento.</div>';
           }
           // Location scelta (solo se l'evento ne propone più di una — vedi
           // buildLocationChipGridHTML): stesso riepilogo della data, tenuto
-          // nella stessa riga invece che a parte.
+          // nella stessa sezione invece che a parte.
           if ((event.locationOptions || []).length > 1) {
             var locIds = existingParticipant.availableLocationOptionIds || [];
             var locLabels = event.locationOptions
               .filter(function (o) { return locIds.indexOf(o.id) !== -1; })
               .map(function (o) { return o.address; });
-            summaryText += locLabels.length
-              ? '<br>Location che ti vanno bene: <b>' + locLabels.map(NdumaData.escapeHTML).join(', ') + '</b>'
-              : '<br>Non hai indicato nessuna location che ti va bene.';
+            summaryHTML += locLabels.length
+              ? '<div class="mini-chip-row" style="margin-top:8px;">' + locLabels.map(function (l) {
+                  return '<span class="mini-chip">' + NdumaData.escapeHTML(l) + '</span>';
+                }).join('') + '</div>'
+              : '<div class="card-date" style="margin:8px 2px 0;">Non hai indicato nessuna location che ti va bene.</div>';
           }
           return ''
             + '<div class="section-title">La tua disponibilità</div>'
-            + '<div class="card-date" style="margin:0 2px 14px;">' + summaryText + '</div>'
-            + '<div class="add-date-btn" id="changeAvailabilityBtn" style="margin-bottom:0;">Cambia la tua disponibilità →</div>';
+            + summaryHTML
+            + '<div class="add-date-btn" id="changeAvailabilityBtn" style="margin-top:14px; margin-bottom:0;">Cambia la tua disponibilità →</div>';
         }
 
         var preselected = existingParticipant ? (existingParticipant.availableDateOptionIds || []) : [];

@@ -1328,6 +1328,49 @@ label.event-photo-preview {
   min-height: 1em;
 }
 
+/* Invitati: bolle affiancate invece di una riga piena a testa (Fil,
+   2026-08-23: "tantissimo testo, pochi riquadri come la Home") — colore
+   di sfondo = stato (verde disponibile, rosso assente, neutro non
+   risposto ancora), stessa logica semantica già usata sui riquadri Home
+   e sulle card evento. */
+.invitee-chip-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.invitee-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 13px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--track-soft);
+  color: var(--ink-soft);
+}
+.invitee-chip svg { flex-shrink: 0; }
+.invitee-chip.is-available { background: var(--confirmed-soft); color: #2E5C38; }
+.invitee-chip.is-absent { background: var(--cancel-soft); color: #7A2B2D; }
+
+/* Riepilogo "la tua disponibilità": date/location scelte, una chip
+   ciascuna invece di una frase con le virgole. */
+.mini-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.mini-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: var(--peach-soft);
+  color: var(--ink);
+}
+
 /* Date chips (evento.html) */
 .chip-list {
   display: flex;
