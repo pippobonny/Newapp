@@ -3100,7 +3100,13 @@ a.notif-item:active { background: var(--track-soft); }
   border-radius: 50%; background: rgba(255,255,255,0.14);
 }
 /* Stessa bolla, più piccola, sulle altre card (Fil, 2026-08-23: gli piace
-   quella del riquadro grande, la vuole anche sugli altri). */
+   quella del riquadro grande, la vuole anche sugli altri) — non tutte
+   nello stesso punto, sembrava meccanico (Fil, secondo giro). Solo alto
+   destra/basso destra, mai a sinistra: icona e numero/testo sono sempre
+   allineati a sinistra in ogni riquadro, una bolla lì ci finirebbe sopra. */
 .home-tile-deco.is-small {
   width: 44px; height: 44px; right: -10px; bottom: -10px;
+}
+.home-tile-deco.is-small.pos-tr {
+  bottom: auto; top: -10px;
 }
