@@ -560,7 +560,7 @@
 
   /* ---------- 2. Effetto ripple ---------- */
   function initRipples() {
-    var selector = '.card, .primary-btn, .chip, .pill, .nav-item .icon, .settings-row, .bell, .back-btn, .add-date-btn, .remove-date';
+    var selector = '.card, .primary-btn, .chip, .pill, .nav-item .icon, .settings-row, .bell, .back-btn, .add-date-btn, .remove-date, .home-tile';
 
     document.querySelectorAll(selector).forEach(function (el) {
       // evita di ricollegare il listener se l'elemento era gia' stato inizializzato
@@ -1741,7 +1741,11 @@
     toast: showToast,
     attachAccountSearch: attachAccountSearch,
     showOnceHint: showOnceHint,
-    offerPushPromptIfNeeded: offerPushPromptIfNeeded
+    offerPushPromptIfNeeded: offerPushPromptIfNeeded,
+    // Fil, 2026-08-23: stessa funzione già usata per i numeri delle barre
+    // di progresso (initProgressBars più sopra), esposta anche a chi non è
+    // dentro questo file — la usa index.html per i numeri sui riquadri.
+    animateCount: animateCount
   };
 
   document.addEventListener('DOMContentLoaded', function () {

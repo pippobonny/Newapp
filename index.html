@@ -87,11 +87,13 @@
 
     <div class="content">
       <div class="home-grid home-grid-actions">
-        <a class="home-tile is-action" href="crea.html">
+        <a class="home-tile is-action reveal" href="crea.html">
+          <div class="home-tile-deco is-small"></div>
           <svg class="home-tile-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
           <div class="home-tile-label">Nuova proposta</div>
         </a>
-        <a class="home-tile is-action" href="amici.html">
+        <a class="home-tile is-action reveal" href="amici.html">
+          <div class="home-tile-deco is-small"></div>
           <svg class="home-tile-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3"></circle><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"></path><circle cx="17" cy="9" r="2.4"></circle><path d="M15.5 13.3c2.6 0.3 4.5 2.2 4.5 5.7"></path></svg>
           <div class="home-tile-label">Amici</div>
         </a>
@@ -99,16 +101,18 @@
 
       <div class="section-title home-events-title">I tuoi eventi</div>
       <div class="home-grid home-grid-events">
-        <a class="home-tile is-big" href="eventi.html?only=attesa">
+        <a class="home-tile is-big reveal" href="eventi.html?only=attesa">
           <div class="home-tile-deco"></div>
           <svg class="home-tile-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
           <div><div class="home-tile-num" id="tileWaitingNum">0</div><div class="home-tile-label">Da confermare</div></div>
         </a>
-        <a class="home-tile is-mid" href="eventi.html?only=confermati">
+        <a class="home-tile is-mid reveal" href="eventi.html?only=confermati">
+          <div class="home-tile-deco is-small"></div>
           <svg class="home-tile-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
           <div><div class="home-tile-num" id="tileConfirmedNum">0</div><div class="home-tile-label">Confermati</div></div>
         </a>
-        <a class="home-tile is-cancel" href="eventi.html?only=annullati">
+        <a class="home-tile is-cancel reveal" href="eventi.html?only=annullati">
+          <div class="home-tile-deco is-small"></div>
           <svg class="home-tile-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5l5 5M14.5 9.5l-5 5"></path></svg>
           <div><div class="home-tile-num" id="tileCancelledNum">0</div><div class="home-tile-label">Annullati</div></div>
         </a>
@@ -174,6 +178,27 @@
       var bellBadge = document.getElementById('bellBadge');
       var homeBellEl = document.getElementById('homeBell');
 
+      // I numeri sui riquadri "contano su" invece di comparire di colpo
+      // (Fil, 2026-08-23) — stessa animateCount già usata per i numeri
+      // delle barre di progresso (script.js), solo esposta anche qui.
+      // Solo la prima volta (come le barre di progresso, mai ri-animate):
+      // se il numero cambia in un giro di refresh automatico successivo
+      // (raro: vorrebbe dire che qualcuno ha risposto a un evento proprio
+      // mentre stai guardando la Home) si aggiorna e basta, di scatto —
+      // altrimenti l'animazione ripartirebbe da 0 ogni volta, sembrando un
+      // reset invece che un aggiornamento.
+      var lastTileCounts = { waiting: null, confirmed: null, cancelled: null };
+      function setTileCount(el, key, value) {
+        if (lastTileCounts[key] === value) return;
+        var isFirstRender = lastTileCounts[key] === null;
+        lastTileCounts[key] = value;
+        if (isFirstRender && window.NdumaUI && window.NdumaUI.animateCount) {
+          window.NdumaUI.animateCount(el, value, 700);
+        } else {
+          el.textContent = value;
+        }
+      }
+
       // Conteggi per i riquadri + pallino notifiche sulla campanella, insieme
       // in una funzione sola perché usano entrambi la stessa lista eventi:
       // richiamata al primo caricamento e poi da sola ogni tot secondi
@@ -206,9 +231,9 @@
           return NdumaData.computeEventStatus(e).status === 'cancelled';
         }).length;
 
-        tileWaitingNum.textContent = waitingCount;
-        tileConfirmedNum.textContent = confirmedCount;
-        tileCancelledNum.textContent = cancelledCount;
+        setTileCount(tileWaitingNum, 'waiting', waitingCount);
+        setTileCount(tileConfirmedNum, 'confirmed', confirmedCount);
+        setTileCount(tileCancelledNum, 'cancelled', cancelledCount);
 
         // Pallino "hai notifiche nuove?" sulla campanella (Fil, 2026-07-17):
         // stessa lista costruita da notifiche.html (NdumaData.buildNotifications,
