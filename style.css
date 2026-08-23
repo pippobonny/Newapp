@@ -208,7 +208,18 @@ a { text-decoration: none; color: inherit; }
   box-shadow: none;
   justify-content: flex-start;
   gap: 14px;
+  /* Stacco leggero dal resto della pagina (Fil, 2026-08-23: "non voglio
+     niente di troppo visibile") — una riga sottilissima, non un bordo vero,
+     nello stesso neutro già usato per le altre righe di separazione
+     nell'app. */
+  border-bottom: 1px solid var(--track-soft);
 }
+
+/* Solo la Home: profilo a sinistra, campanella spinta a destra invece che
+   subito dopo il nome (Fil, 2026-08-23) — le altre pagine con .header.simple
+   hanno un solo elemento (titolo, più la bolla indietro ora fuori
+   dall'header), qui non cambierebbe nulla applicarlo lì. */
+.home-header { justify-content: space-between; }
 
 .back-btn {
   width: 36px;
@@ -3016,10 +3027,11 @@ label.event-photo-preview {
 .home-tile.is-action .home-tile-icon { stroke: #fff; width: 26px; height: 26px; margin-bottom: 12px; }
 .home-tile.is-action .home-tile-label { color: #fff; font-size: 16px; font-weight: 600; margin-top: 0; }
 
-/* Un po' più di distanza dal gruppo sopra (poco: bastano per leggersi come
-   due cose diverse — azioni primarie vs. stato dei tuoi eventi — non un
-   confine netto). */
-.home-grid-events { margin-top: 34px; }
+/* Etichetta sopra i riquadri di stato evento (Fil, 2026-08-23: "Da
+   confermare" da solo non si capiva cosa fosse) — porta con sé anche lo
+   stacco dal gruppo di azioni sopra (poco: bastano per leggersi come due
+   cose diverse, non un confine netto). */
+.home-events-title { margin: 30px 16px 12px; }
 
 .home-tile-icon { width: 24px; height: 24px; }
 .home-tile.is-big .home-tile-icon { width: 25px; height: 25px; }
