@@ -14,8 +14,11 @@
   --sky-soft: #F3E7F4;
   --butter: #FFB35C;
   --butter-soft: #FFEDD6;
-  --cancel: #B8654A;
-  --cancel-soft: #F0DEDA;
+  /* Era troppo sul marrone/terracotta (Fil, 2026-08-23) — hue spostato più
+     verso il rosso vero, restando smorzato (non il rosso acceso del
+     cestino swipe-to-remove, che deve restare urgente). */
+  --cancel: #BC4749;
+  --cancel-soft: #F5DCDC;
   /* "Confermato" (Fil, 2026-08-23): il viola era coerente con la palette ma
      non si legge a colpo d'occhio come "confermato" — il verde ce lo mette
      mezzo secolo di convenzione (spunte, semafori...). Smorzato, non il
@@ -470,9 +473,10 @@ a.back-btn:active { transform: scale(0.92); }
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Rosso vero (Fil, 2026-07-20), non var(--cancel) (#B8654A, terracotta):
-     qui serve il segnale "elimina" immediato di uno swipe-to-delete, il
-     resto dell'app usa apposta un rosso smorzato ma qui va più diretto. */
+  /* Rosso vero (Fil, 2026-07-20), non var(--cancel) (rosso smorzato, vedi
+     in cima al file): qui serve il segnale "elimina" immediato di uno
+     swipe-to-delete, il resto dell'app usa apposta un rosso smorzato ma
+     qui va più diretto. */
   background: #E5484D;
   color: #fff;
   font-size: 22px;
@@ -544,7 +548,7 @@ a.back-btn:active { transform: scale(0.92); }
 .badge.waiting { background: var(--sky-soft); color: #7A3F82; }
 .badge.almost { background: var(--butter-soft); color: #9C4A0F; }
 .badge.done { background: var(--confirmed-soft); color: #2E5C38; }
-.badge.cancelled { background: var(--cancel-soft); color: #7A3B28; }
+.badge.cancelled { background: var(--cancel-soft); color: #7A2B2D; }
 .badge.passato { background: var(--past-soft); color: var(--ink-soft); }
 .badge.linked { background: var(--mint-soft); color: #4A2B52; }
 .badge.tie { background: var(--butter); color: #4A2B52; }
@@ -1268,7 +1272,7 @@ label.event-photo-preview {
   height: 34px;
   border-radius: 10px;
   background: var(--peach-soft);
-  color: #B8654A;
+  color: var(--cancel);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1307,7 +1311,7 @@ label.event-photo-preview {
 }
 
 .form-error {
-  color: #B8654A;
+  color: var(--cancel);
   font-size: 12.5px;
   font-weight: 600;
   margin: -10px 0 14px;
@@ -1770,7 +1774,7 @@ label.event-photo-preview {
   gap: 10px;
 }
 
-.settings-row.danger { color: #B8654A; }
+.settings-row.danger { color: var(--cancel); }
 
 /* "Chi c'è per ogni giorno" (evento.html): bordo trasparente di base su ogni
    riga, così quando quella con più adesioni lo colora d'arancione non sposta
