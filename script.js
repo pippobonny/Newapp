@@ -42,7 +42,22 @@
   // Il bordo del telefono (.phone) non si muove mai: scorre solo .screen
   // (header + content). La direzione (sinistra/destra) dipende dalla posizione
   // delle due pagine nella navbar: si va "avanti" verso destra, "indietro" verso sinistra.
-  var TAB_ORDER = ['index.html', 'eventi.html', 'crea.html', 'amici.html', 'profilo.html'];
+  // notifiche.html aggiunta in fondo (Fil, 2026-08-23): non è mai stata una
+  // "tab" vera (nessuna icona in navbar, nemmeno quando la navbar esisteva
+  // ancora — ci si arriva solo dalla campanella in Home), ma da quando ha
+  // anche lei la bolla "indietro" invece di stare fuori dal giro va
+  // trattata come le altre 5, altrimenti la sola via d'uscita resta un
+  // vero ricaricamento di pagina — che poi al primo paint fa comunque
+  // partire il proprio slide-in di ingresso: lo stesso "carica due volte"
+  // già sistemato per le altre pagine raggiunte dopo il primo cambio tab.
+  // In fondo all'array, non in mezzo: le uniche due transizioni reali che
+  // la riguardano sono Home->Notifiche (avanti) e Notifiche->Home
+  // (indietro), qualunque posizione dopo Home dà la direzione giusta per
+  // entrambe. evento.html/amico.html restano FUORI apposta: il loro
+  // back-btn si riscrive leggendo document.referrer, che riflette la
+  // pagina precedente solo su un caricamento vero (mai su uno scambio
+  // SPA) — includerle qui romperebbe proprio quel meccanismo.
+  var TAB_ORDER = ['index.html', 'eventi.html', 'crea.html', 'amici.html', 'profilo.html', 'notifiche.html'];
   var STORAGE_KEY = 'cs-nav-direction';
 
   function currentFile() {

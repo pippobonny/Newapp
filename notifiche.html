@@ -329,7 +329,13 @@
       }
 
       await refreshNotifications();
-      NdumaData.startAutoRefresh(refreshNotifications);
+      // window.__ndumaUnmount (non solo NdumaData.startAutoRefresh senza
+      // catturarlo): letto da script.js prima di cambiare pagina via SPA,
+      // altrimenti questo timer continuerebbe a girare in background anche
+      // dopo essere andati via da qui (Fil, 2026-08-23, in vista di portare
+      // anche questa pagina nel sistema SPA — stesso motivo già commentato
+      // su index.html/eventi.html/amici.html).
+      window.__ndumaUnmount = NdumaData.startAutoRefresh(refreshNotifications);
     })();
   </script>
   <script src="script.js"></script>
