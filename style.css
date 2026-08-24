@@ -380,10 +380,11 @@ a.back-btn:active { transform: scale(0.92); }
   z-index: 1;
   display: flex;
   justify-content: center;
-  padding-top: 26px;
-  /* .content sotto ha già 4px di padding-top suo: 22 + 4 = 26, come sopra
-     (Fil, 2026-08-24: "stesso spazio sopra e sotto"). */
-  padding-bottom: 22px;
+  padding-top: 14px;
+  /* .content sotto ha già 4px di padding-top suo: 10 + 4 = 14, come sopra
+     (Fil, 2026-08-24: "stesso spazio sopra e sotto", poi "troppo spazio"
+     coi 26px iniziali — ridotto tenendo i due lati uguali). */
+  padding-bottom: 10px;
 }
 
 .attendance-badge {
