@@ -38,6 +38,26 @@
     });
   });
 
+  /* ---------- cattura beforeinstallprompt (per il badge "Installa l'app") ----------
+     Fil, 2026-08-24: Chrome/Android spara questo evento UNA VOLTA, presto e
+     in un momento imprevedibile — va agganciato subito qui in cima, non
+     quando serve davvero (nel tap sul badge, vedi initHomeInstallPrompt più
+     sotto), altrimenti arriva prima che qualcuno lo stia ad ascoltare e va
+     perso per tutta la sessione. preventDefault() sopprime anche la
+     mini-infobar automatica di Chrome: l'invito a installare lo mostriamo
+     noi, col badge, non lui per conto suo. Niente equivalente su iOS/Safari
+     (l'evento non esiste): lì il tap sul badge apre sempre le istruzioni
+     manuali, vedi openInstallInstructionsPopup. */
+  var deferredInstallPrompt = null;
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+  });
+
+  function isAppInstalled() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+
   /* ---------- 1. Transizioni di pagina: slide direzionale ---------- */
   // Il bordo del telefono (.phone) non si muove mai: scorre solo .screen
   // (header + content). La direzione (sinistra/destra) dipende dalla posizione
@@ -432,7 +452,7 @@
       // sempre, su ogni tab, è innocuo.
       initTodayDate();
       initAttendanceBadge();
-      initIosInstallHint();
+      initHomeInstallPrompt();
       // Lega i link della vista appena montata (Fil, 2026-08-23): senza
       // questa, i loro click passavano come navigazione vera invece che SPA
       // — vedi il commento su bindInternalLinkNavigation più sopra.
@@ -1456,60 +1476,88 @@
     try { localStorage.setItem('seeva:splashLastShown', String(Date.now())); } catch (err) { /* ignora */ }
   }
 
-  /* ---------- suggerimento "Aggiungi alla schermata Home" per iPhone/iPad ----------
-     Android/Chrome mostra da solo un banner di installazione (mini-infobar)
-     quando il sito ha un manifest.json valido — vedi manifest.json + le icone
-     icon-192.png/icon-512.png/apple-touch-icon.png in questa cartella, e i tag
-     nell'head di ogni pagina. iOS/Safari invece non ha mai avuto un banner
-     automatico (Apple non implementa l'evento che lo farebbe scattare): qui
-     ne costruiamo uno nostro, solo in Home, solo su iPhone/iPad, solo se il
-     sito non è già aperto come app aggiunta alla Home, e solo se non è già
-     stato chiuso in passato (non deve tornare a infastidire ogni volta). */
-  function initIosInstallHint() {
-    // Fil, 2026-08-24, verifica chiesta dall'app: il commento qui sopra ha
-    // sempre detto "solo in Home", ma il controllo non c'è mai stato — con
-    // la navigazione SPA (spaRenderView chiama questa funzione a ogni
-    // cambio tab, non solo al primo caricamento) il banner poteva comparire
-    // in cima al contenuto di QUALSIASI pagina, non solo Home.
-    if (currentFile() !== 'index.html') return;
+  /* ---------- invito a installare l'app, al posto del badge presenza ----------
+     Fil, 2026-08-24, ridisegnato dopo la segnalazione di Marco (col vecchio
+     banner solo-iOS non vedeva niente su Android): niente più banner a
+     parte in cima al contenuto — l'invito prende il posto del badge
+     presenza in Home (le frasi che cambiano, "🔥 Presente a tutti gli
+     ultimi eventi" e simili), la stessa "bolla" che si allarga già per le
+     notifiche (vedi flashAttendanceBadge). Mostrato ogni volta che entra in
+     Home chi non ha l'app installata (niente dismiss permanente stavolta:
+     a differenza del vecchio banner, riproporlo a ogni visita è voluto). */
+  function initHomeInstallPrompt() {
+    var el = document.getElementById('attendanceBadge');
+    if (!el) return; // non siamo in Home
 
-    var mount = document.querySelector('.content');
-    if (!mount) return;
+    if (isAppInstalled()) return;
 
-    var isIos = /iphone|ipad|ipod/i.test(navigator.userAgent || '');
-    if (!isIos) return;
-
-    if (window.navigator.standalone) return; // già aggiunta alla Home
-
-    // Niente banner finché non c'è un account: su chi deve ancora registrarsi
-    // (passaggio obbligatorio) non ha senso proporre di installare l'app
-    // prima ancora che possa usarla (Fil, 2026-07-10).
+    // Stesso motivo di sempre: su chi deve ancora registrarsi (passaggio
+    // obbligatorio) non ha senso proporre di installare prima ancora che
+    // possa usare l'app (Fil, 2026-07-10).
     if (window.SeevaData && typeof SeevaData.hasAccount === 'function' && !SeevaData.hasAccount()) return;
 
-    var dismissed;
-    try { dismissed = localStorage.getItem('seeva:iosInstallHintDismissed'); } catch (err) { dismissed = null; }
-    if (dismissed) return;
+    window.setTimeout(function () {
+      // Nei 2s potrebbe essere cambiata pagina (SPA) o essere appena stata
+      // installata: ricontrolla, non fidarsi del riferimento chiuso sopra.
+      var badge = document.getElementById('attendanceBadge');
+      if (!badge || isAppInstalled()) return;
+      badge.innerHTML = '📲 Installa l\'app: quasi zero spazio sul telefono';
+      badge.classList.add('attendance-badge--flash', 'attendance-badge--install');
+      badge.addEventListener('click', onInstallBadgeTap);
+    }, 2000);
+  }
 
-    var hint = document.createElement('div');
-    hint.className = 'install-hint';
-    hint.innerHTML = ''
-      + '<div>📲 Aggiungi seeva alla schermata Home: tocca <b>Condividi</b> ⬆️, poi <b>"Aggiungi alla schermata Home"</b>.</div>'
-      + '<div class="dismiss" id="installHintDismiss">✕</div>';
-    mount.insertBefore(hint, mount.firstChild);
-
-    function dismissInstallHint() {
-      if (hint.parentNode) hint.remove();
-      try { localStorage.setItem('seeva:iosInstallHintDismissed', '1'); } catch (err) { /* ignora */ }
+  function onInstallBadgeTap() {
+    // Chrome/Android con l'evento disponibile (vedi beforeinstallprompt qui
+    // sopra): il vero dialogo nativo di sistema, un tap e via — nessun
+    // popup nostro di mezzo. Consumabile una sola volta (l'API lo impone),
+    // azzerato subito per non ririprovare a chiamare .prompt() su un evento
+    // già usato.
+    if (deferredInstallPrompt) {
+      var promptEvent = deferredInstallPrompt;
+      deferredInstallPrompt = null;
+      promptEvent.prompt();
+      return;
     }
+    // iOS/Safari (l'evento non esiste), o Chrome che per qualche motivo non
+    // l'ha ancora offerto in questa sessione: istruzioni manuali.
+    openInstallInstructionsPopup();
+  }
 
-    var dismissBtn = document.getElementById('installHintDismiss');
-    if (dismissBtn) {
-      dismissBtn.addEventListener('click', dismissInstallHint);
-    }
+  /* Popup istruzioni, creato una sola volta (sopravvive ai cambi tab SPA,
+     vive in document.body come il popup di "Segnala problema" più sotto),
+     aperto solo quando manca il dialogo nativo di Chrome (vedi
+     onInstallBadgeTap sopra). */
+  function initInstallPromptPopup() {
+    if (document.getElementById('installPromptOverlay')) return;
 
-    // Sparisce da solo dopo 8s per chi non è interessato a installarla: non
-    // deve restare a occupare spazio in cima al contenuto (Fil, 2026-07-10).
-    window.setTimeout(dismissInstallHint, 8000);
+    var isIos = /iphone|ipad|ipod/i.test(navigator.userAgent || '');
+    var stepsHTML = isIos
+      ? '<div class="card-date" style="margin:0;">Tocca <b>Condividi</b> ⬆️ nella barra di Safari, poi <b>"Aggiungi alla schermata Home"</b>.</div>'
+      : '<div class="card-date" style="margin:0;">Apri il menu ⋮ del browser (di solito in alto a destra) e tocca <b>"Installa app"</b> o <b>"Aggiungi a schermata Home"</b>.</div>';
+
+    var overlay = document.createElement('div');
+    overlay.className = 'signup-overlay';
+    overlay.id = 'installPromptOverlay';
+    overlay.style.display = 'none';
+    overlay.innerHTML = ''
+      + '<div class="signup-modal" style="text-align:left;">'
+      + '<div class="list-header" style="margin-bottom:14px;">'
+      + '<div class="card-title">Installa seeva</div>'
+      + '<div class="list-delete" id="installPromptCloseBtn">Chiudi ✕</div>'
+      + '</div>'
+      + '<div class="signup-modal-text" style="text-align:left; margin-bottom:10px;">Non è una nuova app da scaricare: è una scorciatoia leggera che apre seeva a schermo intero come un\'app vera, senza occupare praticamente spazio sul telefono.</div>'
+      + stepsHTML
+      + '</div>';
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('#installPromptCloseBtn').addEventListener('click', function () { overlay.style.display = 'none'; });
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.style.display = 'none'; });
+  }
+
+  function openInstallInstructionsPopup() {
+    var overlay = document.getElementById('installPromptOverlay');
+    if (overlay) overlay.style.display = 'flex';
   }
 
   /* ---------- suggerimenti account (username + foto) su un input testuale ----------
@@ -1937,7 +1985,8 @@
     initKeyboardAwareNavbar();
     initBottomOverscrollGuard();
     initSplashScreen();
-    initIosInstallHint();
+    initHomeInstallPrompt();
+    initInstallPromptPopup();
     initReportProblem();
     initGlobalNotifWatcher();
   });

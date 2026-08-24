@@ -413,6 +413,14 @@ a.back-btn:active { transform: scale(0.92); }
   box-shadow: 0 6px 18px rgba(58, 50, 90, 0.22);
 }
 
+/* Invito a installare l'app al posto delle solite frasi (Fil, 2026-08-24,
+   vedi initHomeInstallPrompt in script.js): stesso badge, stesso "espandersi"
+   di sopra, solo che stavolta è cliccabile (apre il dialogo nativo o le
+   istruzioni manuali). */
+.attendance-badge--install {
+  cursor: pointer;
+}
+
 /* Va DOPO la regola base sopra, non nel blocco dark-mode in cima al file:
    quello (righe ~56-90) viene prima nel sorgente, quindi qualunque
    proprietà diretta impostata lì (non una custom property in :root) perde
@@ -2674,34 +2682,6 @@ a.notif-item:active { background: var(--track-soft); }
   opacity: 0;
   pointer-events: none;
 }
-
-/* Banner "aggiungi alla schermata Home" per iPhone/iPad (vedi initIosInstallHint
-   in script.js): iOS non ha un banner di installazione automatico come Android/
-   Chrome, quindi ne mostriamo uno nostro, solo in Home, solo se non già chiuso. */
-.install-hint {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  background: var(--lavender-soft);
-  color: var(--ink);
-  border-radius: 16px;
-  padding: 12px 14px;
-  margin-bottom: 14px;
-  font-size: 12.5px;
-  font-weight: 500;
-  line-height: 1.4;
-}
-
-.install-hint .dismiss {
-  cursor: pointer;
-  opacity: 0.55;
-  font-size: 13px;
-  flex-shrink: 0;
-  padding: 2px 4px;
-}
-
-.install-hint .dismiss:active { opacity: 1; }
 
 .splash-logo {
   width: 108px;
