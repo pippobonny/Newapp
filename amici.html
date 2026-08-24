@@ -340,7 +340,7 @@
           }
           return ''
             + '<div class="settings-row" style="margin-bottom:8px;">'
-            + '<div class="left" style="display:flex; align-items:center;">' + linkedMarker + NdumaData.escapeHTML(f.name) + '</div>'
+            + '<div class="left" style="display:flex; align-items:center; min-width:0;">' + linkedMarker + '<span class="friend-row-name">' + NdumaData.escapeHTML(f.name) + '</span></div>'
             + '<span class="friend-remove" data-remove-friend="' + f.id + '">✕</span>'
             + '</div>';
         }).join('');

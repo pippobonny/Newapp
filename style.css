@@ -1792,10 +1792,22 @@ label.event-photo-preview {
   border-radius: 999px;
 }
 
+/* Stesso bug del titolo evento (vedi .header-title/.card-title): un nome
+   amico lungo, senza freno, spingeva la ✕ di rimozione fuori dalla riga —
+   dentro il popup gestione-lista, ancora più stretto della pagina, la ✕
+   finiva del tutto fuori vista e irraggiungibile. Trovato 2026-08-24. */
+.friend-row-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
 .friend-remove {
   cursor: pointer;
   opacity: 0.55;
   font-size: 11px;
+  flex-shrink: 0;
 }
 
 .friend-remove:active { opacity: 1; }
