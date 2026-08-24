@@ -81,6 +81,16 @@
 
   </div>
 
+  <!-- Bug segnalato dall'app (Fil, 2026-08-25): il popup "Chi viene" veniva
+       generato dentro #eventContent (.content), che ha il suo
+       position:relative — lo sfondo sfocato restava chiuso dentro quel
+       riquadro invece di coprire tutto lo schermo, lasciando l'header col
+       titolo evento sopra, nitido e non sfocato. Fuori da .phone come
+       expenseModal qui sotto (stesso trattamento, stesso motivo), il suo
+       contenuto viene scritto qui dentro da render() invece che dentro
+       contentEl.innerHTML — vedi whoComingModalHTML in render(). -->
+  <div id="whoComingModalWrap"></div>
+
   <!-- Aggiungi/modifica una spesa (Fil, 2026-07-13): stesso stile del popup
        lista amici in amici.html, riusato qui perché il form ha più campi di
        quanti ne stiano bene in una riga sola dentro il resto della pagina. -->
@@ -1395,8 +1405,9 @@
         // vogliono sapere aprendo un invito — restano tutte visibili subito,
         // in cima, senza dover toccare nulla. "Chi viene" (chi risponde, chi
         // manca) è un dettaglio che si guarda dopo, non prima: sceso in una
-        // tessera sola che apre un popup (whoComingTileHTML/whoComingModalHTML
-        // qui sopra), al posto della lista intera sempre in vista di prima.
+        // tessera sola (whoComingTileHTML qui sopra) che apre un popup — il
+        // popup vero (whoComingModalHTML) non è più qui dentro, vedi sotto —
+        // al posto della lista intera sempre in vista di prima.
         contentEl.innerHTML = ''
           + guestLockBannerHTML
           + photoHTML
@@ -1412,8 +1423,13 @@
           + whoComingTileHTML
           + expensesSectionHTML
           + '<div id="itemsSectionWrap">' + itemsSectionHTML + '</div>'
-          + manualConfirmBottomHTML
-          + whoComingModalHTML;
+          + manualConfirmBottomHTML;
+
+        // Fuori da contentEl apposta (bug segnalato dall'app, Fil,
+        // 2026-08-25): vedi il commento su #whoComingModalWrap nell'HTML —
+        // dentro .content lo sfondo sfocato non copriva l'header.
+        var whoComingModalWrap = document.getElementById('whoComingModalWrap');
+        if (whoComingModalWrap) whoComingModalWrap.innerHTML = whoComingModalHTML;
 
         // rianima/rende cliccabile il contenuto appena creato
         if (window.SeevaUI) window.SeevaUI.refresh();
