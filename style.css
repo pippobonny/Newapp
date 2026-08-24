@@ -3308,11 +3308,10 @@ a.notif-item:active { background: var(--track-soft); }
    confermare" da solo non si capiva cosa fosse) — porta con sé anche lo
    stacco dal gruppo di azioni sopra (poco: bastano per leggersi come due
    cose diverse, non un confine netto). */
-/* Fil, 2026-08-24: "rendila più grande e fai andare un po più in giù i
-   riquadri... così riempiamo di più la home" — più margine sopra spinge
-   giù anche .home-grid-events subito dopo (nessun margin-top separato lì:
-   segue semplicemente questo blocco nel flusso). */
-.home-events-title { margin: 46px 16px 14px; font-size: 20px; }
+/* Fil, 2026-08-24: prima lo spazio in più era sopra l'etichetta — voleva
+   invece più stacco QUI, tra l'etichetta e i riquadri sotto ("fare
+   scendere i riquadri... tra la scritta e i riquadri"). */
+.home-events-title { margin: 46px 16px 28px; font-size: 20px; }
 
 .home-tile-icon { width: 24px; height: 24px; }
 .home-tile.is-big .home-tile-icon { width: 25px; height: 25px; }
