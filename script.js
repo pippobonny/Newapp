@@ -1405,7 +1405,14 @@
         var eventId = trash.getAttribute('data-remove-event');
         var eventName = trash.getAttribute('data-event-name') || '';
         var wasAvailable = trash.getAttribute('data-was-available') === '1';
-        var sure = window.confirm(SeevaData.buildRemoveFromHomeConfirmMessage(eventName, wasAvailable));
+        // Fil, 2026-08-25: card di un evento che organizzi tu (solo in
+        // Profilo, vedi data-is-organizer in renderEventCardHTML) — "rimuovi
+        // dalla home" non ha senso per l'organizzatore, quindi lì lo swipe
+        // elimina l'evento vero (stessa azione del menu ⋮ di evento.html).
+        var isOrganizerCard = trash.getAttribute('data-is-organizer') === '1';
+        var sure = window.confirm(isOrganizerCard
+          ? SeevaData.buildDeleteEventConfirmMessage(eventName)
+          : SeevaData.buildRemoveFromHomeConfirmMessage(eventName, wasAvailable));
         if (!sure) {
           closeSwipeCard(card);
           return;
@@ -1415,11 +1422,16 @@
         var originalText = trash.textContent;
         trash.textContent = '⏳';
         try {
-          await SeevaData.removeEventFromHome(eventId);
+          if (isOrganizerCard) {
+            await SeevaData.deleteEvent(eventId);
+          } else {
+            await SeevaData.removeEventFromHome(eventId);
+          }
         } catch (err) {
           trash.setAttribute('data-busy', '0');
           trash.textContent = originalText;
-          window.alert('Non sono riuscito a rimuovere l\'evento dalla tua home (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+          var failMessage = isOrganizerCard ? 'Non sono riuscito a eliminare l\'evento' : 'Non sono riuscito a rimuovere l\'evento dalla tua home';
+          window.alert(failMessage + ' (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
           closeSwipeCard(card);
           return;
         }

@@ -2446,6 +2446,14 @@
       : 'Rimuovere "' + eventName + '" dalla tua home? Non potrai più vederlo qui, l\'azione non si può annullare.';
   }
 
+  // Fil, 2026-08-25: stesso messaggio del menu ⋮ "Elimina" di evento.html
+  // (vedi deleteBtn lì), ora usato anche dallo swipe in Profilo per gli
+  // eventi organizzati da te — a differenza di "rimuovi dalla home" qui
+  // sopra, questa elimina l'evento vero per tutti, non solo per te.
+  function buildDeleteEventConfirmMessage(eventName) {
+    return 'Eliminare "' + eventName + '"? Chi aveva già risposto disponibile riceverà un avviso. Non si può annullare.';
+  }
+
   /* "Segnala problema" (Fil, 2026-07-20): bottone temporaneo per il giro di
      test con gli amici, da togliere più avanti (vedi initReportProblem in
      script.js, che crea il bottone/popup su ogni pagina). Oltre al testo
@@ -2902,7 +2910,15 @@
       + repeatBtnHTML
       + '</a>';
 
-    var canSwipeRemove = !!(opts && opts.swipeToRemove) && !isOrganizer && hasAccount();
+    // Fil, 2026-08-25: tolto "!isOrganizer" — nato per la Home di allora
+    // (dove "rimuovere" voleva dire solo "nascondimi questo invito", niente
+    // senso per chi organizza), ma qui in Profilo è l'archivio di TUTTI i
+    // tuoi eventi passati, organizzati o no. Per l'organizzatore lo swipe
+    // ora elimina l'evento vero (stessa azione del menu ⋮ "Elimina" in
+    // evento.html, vedi data-is-organizer più sotto e il click handler in
+    // script.js): per chi non organizza resta "rimuovi dalla home" come
+    // sempre.
+    var canSwipeRemove = !!(opts && opts.swipeToRemove) && hasAccount();
     if (!canSwipeRemove) return cardHTML;
 
     var myAccountId = (getAccount() || {}).id || null;
@@ -2920,7 +2936,7 @@
     return ''
       + '<div class="card-swipe-wrap">'
       + cardHTML
-      + '<div class="card-swipe-trash" data-remove-event="' + escapeHTML(event.id) + '" data-event-name="' + escapeHTML(event.name) + '" data-was-available="' + (wasAvailable ? '1' : '0') + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M4 7h16"></path><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"></path><line x1="9" y1="11" x2="9" y2="17"></line><line x1="15" y1="11" x2="15" y2="17"></line></svg></div>'
+      + '<div class="card-swipe-trash" data-remove-event="' + escapeHTML(event.id) + '" data-event-name="' + escapeHTML(event.name) + '" data-was-available="' + (wasAvailable ? '1' : '0') + '" data-is-organizer="' + (isOrganizer ? '1' : '0') + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M4 7h16"></path><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"></path><line x1="9" y1="11" x2="9" y2="17"></line><line x1="15" y1="11" x2="15" y2="17"></line></svg></div>'
       + '</div>';
   }
 
@@ -2962,6 +2978,7 @@
     withdrawFromEvent: withdrawFromEvent,
     removeEventFromHome: removeEventFromHome,
     buildRemoveFromHomeConfirmMessage: buildRemoveFromHomeConfirmMessage,
+    buildDeleteEventConfirmMessage: buildDeleteEventConfirmMessage,
     reportProblem: reportProblem,
     buildNotifications: buildNotifications,
     getNotificationsSeenAt: getNotificationsSeenAt,
