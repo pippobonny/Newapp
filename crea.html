@@ -242,7 +242,13 @@
           <div id="stagedItemsList"></div>
         </div>
 
-        <div style="display:flex; gap:10px; margin-bottom:20px;">
+        <!-- align-items:center (Fil, 2026-08-25, bug segnalato: "la
+             freccia indietro non è centrata"): senza, il default
+             align-items:stretch della riga flex allunga "← Indietro" fino
+             all'altezza del bottone "Continua →" (più alto, padding
+             15px contro 10px) — il testo restava in cima alla pillola
+             invece che centrato nello spazio in più. -->
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
           <div class="add-date-btn" id="step2BackBtn" style="flex:0 0 110px; margin-bottom:0; cursor:pointer;">← Indietro</div>
           <button type="button" class="primary-btn" id="step2NextBtn" style="flex:1;">Continua →</button>
         </div>
@@ -314,7 +320,8 @@
 
         <div class="form-error" id="formError"></div>
 
-        <div style="display:flex; gap:10px;">
+        <!-- align-items:center: stesso motivo di step2BackBtn più sopra. -->
+        <div style="display:flex; align-items:center; gap:10px;">
           <div class="add-date-btn" id="step3BackBtn" style="flex:0 0 110px; margin-bottom:0; cursor:pointer;">← Indietro</div>
           <button type="button" class="primary-btn" id="createEventBtn" style="flex:1;">Crea e genera link →</button>
         </div>
