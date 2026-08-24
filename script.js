@@ -980,6 +980,88 @@
     }, 5000);
   }
 
+  /* Notifica nuova mentre sei su una schermata diversa dalla Home (Fil,
+     2026-08-24): la Home ha già il suo modo di segnalarlo (il badge
+     presenza qui sopra), altrove scende dall'alto una bolla col testo, poi
+     risale da sola dopo 4s. Polling indipendente da quello di ogni singola
+     pagina (stesso SeevaData.startAutoRefresh, 30s) — parte una volta sola
+     al vero caricamento e sopravvive ai cambi tab SPA, dato che script.js
+     non viene mai ricaricato in quel caso (solo .screen). */
+  var globalNotifLastKey = null;
+  var globalNotifInitialized = false;
+
+  function showGlobalNotifBanner(rawText) {
+    var phone = document.querySelector('.phone');
+    if (!phone || !rawText) return;
+
+    // Stesso trattamento di flashAttendanceBadge: rawText è HTML già pronto
+    // (SeevaData.buildNotifications), un <div> di scarto per estrarne solo
+    // il testo, mai reinserito nel documento.
+    var tmp = document.createElement('div');
+    tmp.innerHTML = rawText;
+    var text = (tmp.textContent || '').trim();
+    if (!text) return;
+
+    var banner = document.createElement('a');
+    banner.className = 'notif-banner';
+    banner.href = 'notifiche.html';
+    banner.innerHTML = '<span class="notif-banner-dot">🔔</span><span class="notif-banner-text"></span>';
+    banner.querySelector('.notif-banner-text').textContent = text;
+    phone.appendChild(banner);
+    // Aggancia anche questo <a> appena creato alla navigazione SPA (senza,
+    // il tap ricaricherebbe la pagina invece di scorrere come tab normale).
+    bindInternalLinkNavigation();
+
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        banner.classList.add('show');
+      });
+    });
+
+    window.setTimeout(function () {
+      banner.classList.remove('show');
+      window.setTimeout(function () { banner.remove(); }, 320);
+    }, 4000);
+  }
+
+  async function checkGlobalNotifications() {
+    if (typeof SeevaData === 'undefined') return;
+    var guestName = SeevaData.getGuestName() || '';
+    if (!guestName) return; // ospite senza nome: niente notifiche da controllare
+
+    try {
+      var events = await SeevaData.getEvents();
+      var eventNotices = [];
+      try { eventNotices = await SeevaData.getEventNotices(guestName); } catch (err) { /* ignora */ }
+
+      var notifications = SeevaData.buildNotifications(events, eventNotices, guestName.toLowerCase());
+      var newest = notifications[0];
+      var newestKey = newest ? [newest.time, newest.eventId, newest.icon].join('|') : null;
+
+      if (!globalNotifInitialized) {
+        // Primo giro (pagina appena aperta): notifications contiene tutta la
+        // storia pregressa, memorizziamo solo la più recente senza mostrare
+        // nulla — altrimenti la bolla scenderebbe ad ogni apertura dell'app
+        // anche per notifiche vecchie.
+        globalNotifInitialized = true;
+        globalNotifLastKey = newestKey;
+        return;
+      }
+      if (!newestKey || newestKey === globalNotifLastKey) return;
+      globalNotifLastKey = newestKey;
+
+      if (currentFile() === 'index.html') return; // lì ci pensa già il badge presenza
+      showGlobalNotifBanner(newest.text);
+    } catch (err) { /* ignora: mai rompere la pagina per una notifica */ }
+  }
+
+  function initGlobalNotifWatcher() {
+    if (window.__seevaGlobalNotifWatcherStarted) return;
+    window.__seevaGlobalNotifWatcherStarted = true;
+    checkGlobalNotifications();
+    SeevaData.startAutoRefresh(checkGlobalNotifications);
+  }
+
   /* ---------- 6. Chip: piccolo "pop" alla selezione ---------- */
   function initChipPop() {
     document.querySelectorAll('.chip').forEach(function (chip) {
@@ -1850,6 +1932,7 @@
     initSplashScreen();
     initIosInstallHint();
     initReportProblem();
+    initGlobalNotifWatcher();
   });
 
   // Gestisce il tasto "indietro" del browser (bfcache): la pagina torna dalla cache

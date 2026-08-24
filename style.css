@@ -2589,6 +2589,55 @@ a.notif-item:active { background: var(--track-soft); }
   transform: translateY(0);
 }
 
+/* Bolla "nuova notifica" che scende dall'alto quando sei su una schermata
+   diversa dalla Home (Fil, 2026-08-24: sulla Home ci pensa già il badge
+   presenza). window.showGlobalNotifBanner in script.js la crea/rimuove;
+   dentro .phone (come .toast qui sopra) per restare agganciata al bordo
+   arrotondato e tagliata pulita dall'overflow:hidden mentre sta "fuori". */
+.notif-banner {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 0;
+  margin-top: calc(10px + env(safe-area-inset-top, 0px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-dark);
+  color: #FFF8F0;
+  padding: 12px 16px;
+  border-radius: 16px;
+  box-shadow: 0 14px 30px rgba(58, 50, 90, 0.3);
+  z-index: 60;
+  opacity: 0;
+  transform: translateY(-140%);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease;
+  text-decoration: none;
+}
+
+.notif-banner.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.notif-banner-dot {
+  flex-shrink: 0;
+  font-size: 15px;
+}
+
+/* min-width:0 necessario perché overflow/text-overflow valgano qualcosa su
+   un figlio flex — stesso motivo di .header-title più sopra. */
+.notif-banner-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Splash screen alla prima apertura del sito (una volta per sessione, vedi
    initSplashScreen in script.js + il piccolo script inline in cima a ogni
    pagina che la nasconde subito, senza flash, quando è già stata mostrata). */
