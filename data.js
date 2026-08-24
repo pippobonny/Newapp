@@ -1,5 +1,5 @@
 /* =========================================================
-   nduma — livello dati.
+   seeva — livello dati.
    Ora parla con Supabase (Postgres reale) invece che con localStorage:
    eventi, liste amici, partecipanti sono condivisi davvero tra chi apre
    il link. Login/password passano dal vero Supabase Auth (auth.users), non
@@ -117,9 +117,9 @@
      Function), mai nel client. */
   var VAPID_PUBLIC_KEY = 'BHIjeQlnFINP3HzXZXfVkp8fNdvjmAuNovD2xtVcKYayTQkPtD8qXSGxlQn1IZyFf_gsUg5dTG7jiZvoWJPQfDk';
 
-  var GUEST_KEY = 'nduma:guestName';
-  var ACCOUNT_KEY = 'nduma:account'; // cache locale minima: { id, username, avatarUrl }, mai la password
-  var GUEST_LOCK_KEY = 'nduma:guestLock'; // { type: 'event'|'list', id, name?, ownerName? }
+  var GUEST_KEY = 'seeva:guestName';
+  var ACCOUNT_KEY = 'seeva:account'; // cache locale minima: { id, username, avatarUrl }, mai la password
+  var GUEST_LOCK_KEY = 'seeva:guestLock'; // { type: 'event'|'list', id, name?, ownerName? }
 
   /* ---------- utility di base ---------- */
 
@@ -199,7 +199,7 @@
      confermato al calendario del telefono (Fil, 2026-07-20). Con un orario
      salvato (event.eventTime) l'evento sul calendario ha quell'ora precisa,
      un'ora di durata di default (non essendoci un orario di fine salvato in
-     nduma); senza orario diventa un evento "tutto il giorno". L'orario è
+     seeva); senza orario diventa un evento "tutto il giorno". L'orario è
      scritto "flottante" (senza fuso orario/Z): i calendari lo leggono come
      ora locale del dispositivo che lo apre, che è esattamente quello che
      serve qui (nessuna gestione fusi orari: tutti gli utenti sono in
@@ -232,9 +232,13 @@
 
     var descriptionParts = [];
     if (event.description) descriptionParts.push(event.description);
-    descriptionParts.push('Dettagli su nduma: ' + SITE_URL + '/evento.html?id=' + event.id);
+    descriptionParts.push('Dettagli su seeva: ' + SITE_URL + '/evento.html?id=' + event.id);
 
-    var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//nduma//IT', 'BEGIN:VEVENT']
+    // UID/PRODID: SITE_URL non ancora aggiornato al dominio nuovo (in attesa
+    // di conferma, vedi SITE_URL qui sopra) — "@nduma.it" resta com'era solo
+    // come namespace di unicità RFC 5545, non un link che deve risolvere
+    // davvero. Da aggiornare insieme a SITE_URL quando il dominio è pronto.
+    var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//seeva//IT', 'BEGIN:VEVENT']
       .concat(['UID:' + event.id + '@nduma.it', 'DTSTAMP:' + icsDateStamp()])
       .concat(dtLines)
       .concat([
@@ -468,7 +472,7 @@
       + '<div style="text-align:center; padding: 40px 12px;">'
       + '<div class="signup-modal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="30" height="30"><rect x="5" y="11" width="14" height="10" rx="2.5"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></div>'
       + '<div class="signup-modal-title">Serve un profilo</div>'
-      + '<div class="signup-modal-text">' + escapeHTML(message || 'Per usare nduma devi prima creare un profilo: ti basta un nome utente, si fa in un minuto.') + '</div>'
+      + '<div class="signup-modal-text">' + escapeHTML(message || 'Per usare seeva devi prima creare un profilo: ti basta un nome utente, si fa in un minuto.') + '</div>'
       + '<a class="primary-btn" href="profilo.html" style="display:block; text-decoration:none;">Crea il tuo profilo →</a>'
       + '<a class="signup-skip-link" href="profilo.html?mode=login" style="text-decoration:underline;">Hai già un account? Accedi</a>'
       + '</div>';
@@ -895,7 +899,7 @@
 
   /* ---------- liste amici ----------
      Solo chi ha un account può creare liste (ed eventi): lo si controlla lato
-     client (NdumaData.hasAccount()) prima di mostrare i form, dato che
+     client (SeevaData.hasAccount()) prima di mostrare i form, dato che
      l'app non ha un vero login/sessione a livello di database.
 
      Una lista è solo un elenco privato di nomi ad uso di chi la crea (Fil +
@@ -1014,7 +1018,7 @@
   }
 
   /* accountId (opzionale) è il collegamento scelto dalla ricerca username+foto
-     (vedi NdumaUI.attachAccountSearch in script.js e il documento
+     (vedi SeevaUI.attachAccountSearch in script.js e il documento
      "ci-siamo-omonimi.pdf"). Aggiornamento 2026-07-12 (Opzione B, "amicizia
      vera"): scegliere un account qui NON lo collega più subito per sempre —
      parte una richiesta ("pending"), e resta un collegamento debole finché
@@ -1486,7 +1490,7 @@
      chiamata più sotto — e da logOut(), altrimenti chi cambia account sullo
      stesso dispositivo vedrebbe per qualche secondo ancora gli eventi di
      chi era loggato prima. */
-  var EVENTS_CACHE_KEY = 'nduma:cache:events';
+  var EVENTS_CACHE_KEY = 'seeva:cache:events';
   var EVENTS_CACHE_TTL_MS = 15000;
 
   function readEventsCache() {
@@ -1790,7 +1794,7 @@
      dispositivo, aggiornato ogni volta che si apre notifiche.html. Il
      pallino si accende confrontando quel timestamp con la più recente tra le
      notifiche vere e le richieste di amicizia in sospeso (Fil, 2026-07-17). */
-  var NOTIFICATIONS_SEEN_KEY = 'nduma:notificationsSeenAt';
+  var NOTIFICATIONS_SEEN_KEY = 'seeva:notificationsSeenAt';
 
   function getNotificationsSeenAt() {
     try { return localStorage.getItem(NOTIFICATIONS_SEEN_KEY); } catch (err) { return null; }
@@ -2799,8 +2803,8 @@
      dalla home" nel menu ⋮ di evento.html — non per l'organizzatore (non ha
      senso rimuoversi dal proprio evento) né per chi non ha un account.
      ATTENZIONE: chiamata da index.html con .map(function (e) { return
-     NdumaData.renderEventCardHTML(e, {swipeToRemove:true}); }), MAI con
-     .map(NdumaData.renderEventCardHTML) diretto — Array.map passerebbe
+     SeevaData.renderEventCardHTML(e, {swipeToRemove:true}); }), MAI con
+     .map(SeevaData.renderEventCardHTML) diretto — Array.map passerebbe
      l'indice come secondo argomento al posto di opts. */
   function renderEventCardHTML(event, opts) {
     var info = computeEventStatus(event);
@@ -2884,7 +2888,7 @@
       + '</div>';
   }
 
-  global.NdumaData = {
+  global.SeevaData = {
     getGuestName: getGuestName,
     setGuestName: setGuestName,
     getAccount: getAccount,
@@ -3008,9 +3012,9 @@
     'loginAccount', 'resetPassword', 'completeGoogleProfile',
     'subscribeToPush', 'unsubscribeFromPush'
   ].forEach(function (name) {
-    var original = global.NdumaData[name];
+    var original = global.SeevaData[name];
     if (typeof original !== 'function') return;
-    global.NdumaData[name] = function () {
+    global.SeevaData[name] = function () {
       var args = arguments;
       return withAuthRetry(function () { return original.apply(null, args); });
     };

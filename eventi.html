@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>nduma — Eventi</title>
+<title>seeva — Eventi</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -18,7 +18,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="nduma">
+<meta name="apple-mobile-web-app-title" content="seeva">
 <script>
   /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
      Android/Chrome 100dvh non combacia col vero window.innerHeight quando
@@ -77,27 +77,27 @@
          pagina solo se un lock ti confina qui (mai il caso per Eventi, che
          non è mai il "posto giusto" per un ospite bloccato) — altrimenti la
          schermata "serve un profilo" al posto della lista. */
-      var gate = NdumaData.checkAccessGate(null);
+      var gate = SeevaData.checkAccessGate(null);
       if (gate.action === 'redirect') {
         window.location.href = gate.url;
         return;
       }
       if (gate.action === 'block') {
-        document.querySelector('.content').innerHTML = NdumaData.accountRequiredBlockHTML(
+        document.querySelector('.content').innerHTML = SeevaData.accountRequiredBlockHTML(
           'Per vedere i tuoi eventi devi prima creare un profilo.'
         );
-        if (window.NdumaUI) window.NdumaUI.refresh();
+        if (window.SeevaUI) window.SeevaUI.refresh();
         return;
       }
 
-      await NdumaData.renderSessionWarningIfNeeded();
+      await SeevaData.renderSessionWarningIfNeeded();
 
-      var events = await NdumaData.getEvents();
+      var events = await SeevaData.getEvents();
 
       // Gli eventi "passato" (confermati e già successi da un po') restano
       // solo nell'archivio del Profilo: qui non compaiono in nessun filtro,
       // nemmeno "Tutti".
-      events = events.filter(function (e) { return NdumaData.computeEventStatus(e).status !== 'passato'; });
+      events = events.filter(function (e) { return SeevaData.computeEventStatus(e).status !== 'passato'; });
 
       var listEl = document.getElementById('eventsList');
       var pills = document.querySelectorAll('.pill');
@@ -126,7 +126,7 @@
       var lastListHTML = null;
 
       function matches(event, filter) {
-        var status = NdumaData.computeEventStatus(event).status;
+        var status = SeevaData.computeEventStatus(event).status;
         if (filter === 'tutti') return true;
         // "tie" (pareggio, in attesa che l'organizzatore scelga una data)
         // conta come "in attesa" (Fil, 2026-08-22): prima restava visibile
@@ -142,7 +142,7 @@
       function render(filter) {
         var filtered = events.filter(function (e) { return matches(e, filter); });
         var newHTML = filtered.length
-          ? filtered.map(NdumaData.renderEventCardHTML).join('')
+          ? filtered.map(SeevaData.renderEventCardHTML).join('')
           : '<div class="empty-hint">Nessun evento in questa categoria.</div>';
 
         // Fil, 2026-07-22: se il refresh automatico non ha trovato niente di
@@ -153,7 +153,7 @@
         lastListHTML = newHTML;
         listEl.innerHTML = newHTML;
         // rianima/rende cliccabile il contenuto appena creato
-        if (window.NdumaUI) window.NdumaUI.refresh();
+        if (window.SeevaUI) window.SeevaUI.refresh();
       }
 
       pills.forEach(function (pill) {
@@ -169,16 +169,16 @@
 
       // Fil, 2026-07-21: niente più refresh manuale della pagina per vedere
       // un evento nuovo o una risposta arrivata mentre questa scheda era già
-      // aperta — vedi NdumaData.startAutoRefresh in data.js.
-      // Fil, 2026-07-22: catturato lo stop su window.__ndumaUnmount, letto
+      // aperta — vedi SeevaData.startAutoRefresh in data.js.
+      // Fil, 2026-07-22: catturato lo stop su window.__seevaUnmount, letto
       // dal router SPA in script.js prima di cambiare tab — vedi lo stesso
       // commento in index.html.
-      window.__ndumaUnmount = NdumaData.startAutoRefresh(async function () {
+      window.__seevaUnmount = SeevaData.startAutoRefresh(async function () {
         var fresh;
         try {
-          fresh = await NdumaData.getEvents();
+          fresh = await SeevaData.getEvents();
         } catch (err) { return; } // silenzioso: la lista resta quella di prima
-        events = fresh.filter(function (e) { return NdumaData.computeEventStatus(e).status !== 'passato'; });
+        events = fresh.filter(function (e) { return SeevaData.computeEventStatus(e).status !== 'passato'; });
         render(currentFilter);
       });
     })();

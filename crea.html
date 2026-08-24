@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>nduma — Crea evento</title>
+<title>seeva — Crea evento</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -18,7 +18,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="nduma">
+<meta name="apple-mobile-web-app-title" content="seeva">
 <script>
   /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
      Android/Chrome 100dvh non combacia col vero window.innerHeight quando
@@ -337,19 +337,19 @@
          con un messaggio bloccante che invita a crearne uno. Un ospite
          bloccato da un invito (checkAccessGate) viene invece rimandato al
          suo evento/lista, dato che Crea non è mai un posto consentito per lui. */
-      var gate = NdumaData.checkAccessGate(null);
+      var gate = SeevaData.checkAccessGate(null);
       if (gate.action === 'redirect') {
         window.location.href = gate.url;
         return;
       }
       if (gate.action === 'block') {
-        document.getElementById('pageContent').innerHTML = NdumaData.accountRequiredBlockHTML(
+        document.getElementById('pageContent').innerHTML = SeevaData.accountRequiredBlockHTML(
           'Per creare un evento devi prima creare un profilo.'
         );
         return;
       }
 
-      await NdumaData.renderSessionWarningIfNeeded(document.getElementById('pageContent'));
+      await SeevaData.renderSessionWarningIfNeeded(document.getElementById('pageContent'));
 
       // Modalità modifica: crea.html?edit=<id> riusa lo stesso wizard invece
       // di duplicarlo in una pagina a parte (Fil, 2026-07-07 — "aggiungerei
@@ -365,7 +365,7 @@
       // mano" nel select). In entrambi i casi i nomi vengono solo COPIATI
       // sull'evento alla creazione (vedi createEventBtn più sotto): la lista
       // resta un elenco tuo, scollegato dall'evento da quel momento in poi.
-      var friendLists = await NdumaData.getFriendLists();
+      var friendLists = await SeevaData.getFriendLists();
 
       var dateRowList = document.getElementById('dateRowList');
       var addDateBtn = document.getElementById('addDateBtn');
@@ -394,7 +394,7 @@
       // qui sopra): l'organizzatore è sempre e solo il nome utente del tuo account,
       // non un campo da compilare, quindi non c'è più un input per questo — si
       // mostra semplicemente nel titolo della pagina.
-      var savedGuestName = NdumaData.getGuestName();
+      var savedGuestName = SeevaData.getGuestName();
       var pageTitleEl = document.getElementById('pageTitle');
       if (savedGuestName && pageTitleEl) pageTitleEl.textContent = 'Nuova proposta di ' + savedGuestName;
 
@@ -728,7 +728,7 @@
 
       /* ---------- posizione dell'evento (opzionale) ----------
          Campo di testo semplice di base; se è configurata una chiave Google
-         Maps (NdumaData.GOOGLE_MAPS_API_KEY) si aggiunge sopra
+         Maps (SeevaData.GOOGLE_MAPS_API_KEY) si aggiunge sopra
          l'autocompletamento vero, ma anche senza chiave il campo funziona lo
          stesso come semplice indirizzo scritto a mano — non blocca mai nulla. */
       var eventLocationInput = document.getElementById('eventLocationInput');
@@ -818,7 +818,7 @@
       });
 
       (function setupLocationAutocomplete() {
-        var apiKey = NdumaData.GOOGLE_MAPS_API_KEY;
+        var apiKey = SeevaData.GOOGLE_MAPS_API_KEY;
         if (!apiKey) {
           locationHint.style.display = '';
           locationHint.textContent = 'Suggerimenti automatici non ancora attivi: per ora scrivi l\'indirizzo a mano.';
@@ -896,8 +896,8 @@
       // Opzione A, Fil 2026-07-07): riduce il rischio di invitare per sbaglio uno
       // sconosciuto omonimo invece del tuo vero amico. Cliccare un suggerimento
       // aggiunge subito l'invitato (Fil, 2026-07-10), come in amici.html.
-      if (window.NdumaUI && NdumaUI.attachAccountSearch) {
-        manualNameSearch = NdumaUI.attachAccountSearch(manualNameInput, function () { addManualName(); });
+      if (window.SeevaUI && SeevaUI.attachAccountSearch) {
+        manualNameSearch = SeevaUI.attachAccountSearch(manualNameInput, function () { addManualName(); });
       }
 
       var CREATE_LIST_VALUE = '__create_list__';
@@ -973,12 +973,12 @@
           if (entry.accountId) {
             var initial = (entry.name.trim().charAt(0) || '?').toUpperCase();
             linkedMarker = entry.avatarUrl
-              ? '<span class="linked-mini-avatar" title="Collegato a un account"><img src="' + NdumaData.escapeHTML(entry.avatarUrl) + '" alt=""></span>'
-              : '<span class="linked-mini-avatar" title="Collegato a un account">' + NdumaData.escapeHTML(initial) + '</span>';
+              ? '<span class="linked-mini-avatar" title="Collegato a un account"><img src="' + SeevaData.escapeHTML(entry.avatarUrl) + '" alt=""></span>'
+              : '<span class="linked-mini-avatar" title="Collegato a un account">' + SeevaData.escapeHTML(initial) + '</span>';
           }
           return ''
             + '<div class="settings-row" style="margin-top:8px;">'
-            + '<div class="left" style="display:flex; align-items:center;">' + linkedMarker + NdumaData.escapeHTML(entry.name) + '</div>'
+            + '<div class="left" style="display:flex; align-items:center;">' + linkedMarker + SeevaData.escapeHTML(entry.name) + '</div>'
             + '<span class="friend-remove" data-remove-manual="' + idx + '">✕</span>'
             + '</div>';
         }).join('');
@@ -1057,8 +1057,8 @@
 
         // fumetto "una volta sola" (Fil, 2026-07-07) che spiega l'invito
         // aperto, mostrato appena si arriva sul passo 2.
-        if (n === 2 && window.NdumaUI && NdumaUI.showOnceHint) {
-          NdumaUI.showOnceHint('openInvite', openInviteCheckbox.closest('.option-tile'),
+        if (n === 2 && window.SeevaUI && SeevaUI.showOnceHint) {
+          SeevaUI.showOnceHint('openInvite', openInviteCheckbox.closest('.option-tile'),
             'Attivalo solo se vuoi che chiunque abbia il link possa aggiungersi da solo, anche se non l\'hai scritto qui sopra. Comodo per eventi aperti a un gruppo largo, ma il link diventa di fatto un accesso libero.',
             openInviteCheckbox, ['focus', 'change']);
         }
@@ -1093,7 +1093,7 @@
 
         // Se il testo combacia ancora con un suggerimento scelto (username+foto),
         // l'invitato nasce già collegato (Fil, 2026-07-07) — si annulla da solo
-        // se modifichi il testo dopo aver scelto (NdumaUI.attachAccountSearch).
+        // se modifichi il testo dopo aver scelto (SeevaUI.attachAccountSearch).
         var isLinked = manualNameInput.dataset.linkedUsername === name;
         var linkedAccountId = isLinked ? (manualNameInput.dataset.linkedAccountId || null) : null;
         var linkedAvatarUrl = isLinked ? (manualNameInput.dataset.linkedAvatarUrl || null) : null;
@@ -1158,14 +1158,14 @@
          2026-07-25) ----------
          Restano solo in questo array finché l'evento non esiste davvero:
          vedi createEventBtn più sotto, dove vengono inserite per davvero
-         una per una con NdumaData.addEventExpense/addEventItem appena
+         una per una con SeevaData.addEventExpense/addEventItem appena
          arriva l'id del nuovo evento. */
       function renderStagedExpensesList() {
         if (!stagedExpenses.length) { stagedExpensesListEl.innerHTML = ''; return; }
         stagedExpensesListEl.innerHTML = stagedExpenses.map(function (e, idx) {
           return ''
             + '<div class="settings-row" style="margin-top:8px;">'
-            + '<div class="left">' + NdumaData.escapeHTML(e.description) + ' · ' + NdumaData.formatEuro(e.amount) + '</div>'
+            + '<div class="left">' + SeevaData.escapeHTML(e.description) + ' · ' + SeevaData.formatEuro(e.amount) + '</div>'
             + '<span class="friend-remove" data-remove-staged-expense="' + idx + '">✕</span>'
             + '</div>';
         }).join('');
@@ -1211,7 +1211,7 @@
         stagedItemsListEl.innerHTML = stagedItems.map(function (text, idx) {
           return ''
             + '<div class="settings-row" style="margin-top:8px;">'
-            + '<div class="left">' + NdumaData.escapeHTML(text) + '</div>'
+            + '<div class="left">' + SeevaData.escapeHTML(text) + '</div>'
             + '<span class="friend-remove" data-remove-staged-item="' + idx + '">✕</span>'
             + '</div>';
         }).join('');
@@ -1294,7 +1294,7 @@
       /* ---------- modalità di scelta data: range / date singole / ricorrenza ----------
          Le 3 modalità sono alternative: solo quella attiva viene letta al momento
          di creare l'evento. In tutti i casi il risultato è lo stesso: un elenco di
-         date ISO, che passa a NdumaData.createEvent esattamente come prima —
+         date ISO, che passa a SeevaData.createEvent esattamente come prima —
          così evento.html/data.js non devono sapere in che modo sono state scelte. */
       var dateModeTabs = document.getElementById('dateModeTabs');
       var datePanels = document.querySelectorAll('.date-mode-panel');
@@ -1451,9 +1451,9 @@
             // il checkbox resta nascosto in entrambi i casi.
             if (saveAsListCheckbox.checked) {
               createEventBtn.textContent = 'Salvo la lista...';
-              var newList = await NdumaData.createFriendList(name);
+              var newList = await SeevaData.createFriendList(name);
               for (var mi = 0; mi < manualNames.length; mi++) {
-                await NdumaData.addFriendToList(newList.id, manualNames[mi].name, manualNames[mi].accountId);
+                await SeevaData.addFriendToList(newList.id, manualNames[mi].name, manualNames[mi].accountId);
               }
               friendListId = newList.id;
             }
@@ -1462,13 +1462,13 @@
           var photoUrl = carriedPhotoUrl || null;
           if (pendingEventPhotoFile) {
             createEventBtn.textContent = 'Carico la foto...';
-            photoUrl = await NdumaData.uploadEventPhoto(pendingEventPhotoFile);
+            photoUrl = await SeevaData.uploadEventPhoto(pendingEventPhotoFile);
           }
 
           var descriptionAudioUrl = descriptionMode === 'audio' ? (carriedAudioUrl || null) : null;
           if (descriptionMode === 'audio' && pendingAudioBlob) {
             createEventBtn.textContent = 'Carico il vocale...';
-            descriptionAudioUrl = await NdumaData.uploadEventAudio(pendingAudioBlob);
+            descriptionAudioUrl = await SeevaData.uploadEventAudio(pendingAudioBlob);
           }
 
           // 2+ location compilate: diventano location_options tra cui
@@ -1550,13 +1550,13 @@
 
           if (isEditMode) {
             createEventBtn.textContent = 'Salvo le modifiche...';
-            event = await NdumaData.updateEvent(editEventId, payload);
+            event = await SeevaData.updateEvent(editEventId, payload);
           } else {
             createEventBtn.textContent = 'Creo l\'evento...';
-            event = await NdumaData.createEvent(payload);
+            event = await SeevaData.createEvent(payload);
           }
         } catch (err) {
-          formError.textContent = 'Non sono riuscito a salvare l\'evento (' + NdumaData.friendlyErrorMessage(err) + '). Riprova.';
+          formError.textContent = 'Non sono riuscito a salvare l\'evento (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.';
           createEventBtn.textContent = defaultBtnLabel;
           createEventBtn.disabled = false;
           return;
@@ -1580,7 +1580,7 @@
           });
           for (var sei = 0; sei < stagedExpenses.length; sei++) {
             try {
-              await NdumaData.addEventExpense(event.id, {
+              await SeevaData.addEventExpense(event.id, {
                 description: stagedExpenses[sei].description,
                 amount: stagedExpenses[sei].amount,
                 paidByName: savedGuestName,
@@ -1590,7 +1590,7 @@
           }
           for (var sii = 0; sii < stagedItems.length; sii++) {
             try {
-              await NdumaData.addEventItem(event.id, stagedItems[sii]);
+              await SeevaData.addEventItem(event.id, stagedItems[sii]);
             } catch (err) { /* idem */ }
           }
         }
@@ -1627,7 +1627,7 @@
         if (!phone) { window.location.replace(href); return; }
 
         var dateLabels = (event.dateOptions || []).map(function (o) {
-          return NdumaData.formatDateLabel(o.dateISO);
+          return SeevaData.formatDateLabel(o.dateISO);
         });
         var dateText = dateLabels.length === 1
           ? dateLabels[0]
@@ -1639,8 +1639,8 @@
         overlay.innerHTML = ''
           + '<div class="signup-modal">'
           + '<div class="signup-modal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="34" height="34"><path d="M12 3.5l2.1 4.6 5 .5-3.8 3.4 1.1 5-4.4-2.6-4.4 2.6 1.1-5-3.8-3.4 5-.5z"></path></svg></div>'
-          + '<div class="signup-modal-title">' + NdumaData.escapeHTML(event.name) + '</div>'
-          + '<div class="signup-modal-text" style="margin-bottom:6px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><rect x="3" y="5" width="18" height="16" rx="3"></rect><line x1="16" y1="3" x2="16" y2="7"></line><line x1="8" y1="3" x2="8" y2="7"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>' + NdumaData.escapeHTML(dateText) + '</div>'
+          + '<div class="signup-modal-title">' + SeevaData.escapeHTML(event.name) + '</div>'
+          + '<div class="signup-modal-text" style="margin-bottom:6px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><rect x="3" y="5" width="18" height="16" rx="3"></rect><line x1="16" y1="3" x2="16" y2="7"></line><line x1="8" y1="3" x2="8" y2="7"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>' + SeevaData.escapeHTML(dateText) + '</div>'
           + (inviteesCount
               ? '<div class="signup-modal-text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><circle cx="9" cy="8.5" r="3"></circle><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"></path><circle cx="17" cy="9" r="2.4"></circle><path d="M15.5 13.3c2.6 0.3 4.5 2.2 4.5 5.7"></path></svg>' + inviteesCount + (inviteesCount === 1 ? ' invitato' : ' invitati') + '</div>'
               : '<div class="signup-modal-text">Nessun invitato ancora: puoi aggiungerne dopo.</div>')
@@ -1667,9 +1667,9 @@
          amici.html a creare la lista (restandoci: puoi anche aggiungere
          subito gli amici, poi torni tu quando vuoi). Al ritorno la bozza si
          ripristina da sola e la lista appena creata è già selezionata. */
-      var DRAFT_KEY = 'nduma:eventDraft';
-      var JUST_CREATED_LIST_KEY = 'nduma:justCreatedListId';
-      var RETURN_FLAG_KEY = 'nduma:returnToEventCreation';
+      var DRAFT_KEY = 'seeva:eventDraft';
+      var JUST_CREATED_LIST_KEY = 'seeva:justCreatedListId';
+      var RETURN_FLAG_KEY = 'seeva:returnToEventCreation';
 
       function collectDraft() {
         return {
@@ -1773,7 +1773,7 @@
         // già online, non un file da caricare di nuovo, la mostriamo così com'è
         if (draft.carriedPhotoUrl) {
           carriedPhotoUrl = draft.carriedPhotoUrl;
-          eventPhotoPreview.innerHTML = '<img src="' + NdumaData.escapeHTML(draft.carriedPhotoUrl) + '" alt="">';
+          eventPhotoPreview.innerHTML = '<img src="' + SeevaData.escapeHTML(draft.carriedPhotoUrl) + '" alt="">';
           showRemovePhotoBtn();
         }
 
@@ -1799,7 +1799,7 @@
       /* ---------- popolamento in modalità modifica ---------- */
       if (isEditMode) {
         try {
-          editingEvent = await NdumaData.getEventById(editEventId);
+          editingEvent = await SeevaData.getEventById(editEventId);
         } catch (err) {
           editingEvent = null;
         }
@@ -1835,7 +1835,7 @@
 
         if (editingEvent.photoUrl) {
           carriedPhotoUrl = editingEvent.photoUrl;
-          eventPhotoPreview.innerHTML = '<img src="' + NdumaData.escapeHTML(editingEvent.photoUrl) + '" alt="">';
+          eventPhotoPreview.innerHTML = '<img src="' + SeevaData.escapeHTML(editingEvent.photoUrl) + '" alt="">';
           showRemovePhotoBtn();
         }
 
@@ -1903,7 +1903,7 @@
         // qui manca ancora l'avatarUrl finché non lo recuperiamo per id).
         var editLinkedIds = manualNames.map(function (e) { return e.accountId; }).filter(function (id) { return !!id; });
         if (editLinkedIds.length) {
-          NdumaData.getAvatarsForAccountIds(editLinkedIds).then(function (avatarMap) {
+          SeevaData.getAvatarsForAccountIds(editLinkedIds).then(function (avatarMap) {
             if (!mounted) return; // te ne sei già andato da questa tab, vedi sopra
             manualNames.forEach(function (e) {
               if (e.accountId && avatarMap[e.accountId]) e.avatarUrl = avatarMap[e.accountId].avatarUrl || null;
@@ -1939,7 +1939,7 @@
       // registrazione qui sopra: non fa nulla se non stavi registrando.
       // mounted=false spegne anche le risposte di rete in ritardo, vedi
       // sopra.
-      window.__ndumaUnmount = function () { stopRecording(); mounted = false; };
+      window.__seevaUnmount = function () { stopRecording(); mounted = false; };
     })();
   </script>
 

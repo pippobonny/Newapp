@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>nduma — Profilo</title>
+<title>seeva — Profilo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -18,7 +18,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="nduma">
+<meta name="apple-mobile-web-app-title" content="seeva">
 <script>
   /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
      Android/Chrome 100dvh non combacia col vero window.innerHeight quando
@@ -173,7 +173,7 @@
            silenzioso. -->
       <div id="welcomeView" style="display:none; text-align:center; padding: 24px 4px;">
         <div class="avatar large welcome-avatar-pop" id="welcomeAvatar" style="margin: 0 auto 18px;">?</div>
-        <div class="section-title first welcome-fade-up" style="text-align:center; animation-delay:0.35s;" id="welcomeTitle">Benvenuto/a in nduma!</div>
+        <div class="section-title first welcome-fade-up" style="text-align:center; animation-delay:0.35s;" id="welcomeTitle">Benvenuto/a in seeva!</div>
         <div class="card-date welcome-fade-up" style="margin:0 2px 24px; text-align:center; animation-delay:0.5s;" id="welcomeSubtitle">Grazie di cuore per esserti registrato/a! Da qui puoi iniziare a organizzare eventi e ritrovarti con i tuoi amici, senza più il caos dei gruppi WhatsApp.</div>
         <button type="button" class="primary-btn welcome-fade-up" style="animation-delay:0.65s;" id="welcomeEnterBtn">Entra nell'app →</button>
       </div>
@@ -359,7 +359,7 @@
         if (navbarEl) navbarEl.style.display = 'none';
 
         var username = (acc && acc.username) || '';
-        welcomeTitle.textContent = username ? 'Benvenuto/a, ' + username + '!' : 'Benvenuto/a in nduma!';
+        welcomeTitle.textContent = username ? 'Benvenuto/a, ' + username + '!' : 'Benvenuto/a in seeva!';
         if (acc && acc.avatarUrl) {
           showAvatarImage(welcomeAvatar, acc.avatarUrl);
         } else {
@@ -376,7 +376,7 @@
         // Copre sia la registrazione normale sia il primo accesso Google
         // (entrambe passano da qui): punto giusto per proporre le notifiche
         // push a chi si è appena registrato (Fil, 2026-07-19).
-        if (window.NdumaUI) await window.NdumaUI.offerPushPromptIfNeeded();
+        if (window.SeevaUI) await window.SeevaUI.offerPushPromptIfNeeded();
         window.location.href = 'index.html';
       });
 
@@ -392,7 +392,7 @@
          chi arriva sapendo di avere gia' un account, dal link "Accedi" in
          fondo pagina o da ?mode=login altrove nell'app). "Accedi" collega
          questo telefono a un account gia' esistente su un altro telefono,
-         con lo stesso username+password: usa NdumaData.loginAccount(),
+         con lo stesso username+password: usa SeevaData.loginAccount(),
          la stessa funzione gia' usata dal flusso di invito in amico.html.
          Ridisegnato il 2026-07-12: prima c'era un toggle Registrati/Accedi
          sempre visibile sopra il form, ridondante col blocco "serve un
@@ -449,7 +449,7 @@
       /* Avatar vuoto ("?") finche' non scrivi nulla: appena inizi a scrivere il nome
          utente (o il nome, se il nome utente e' ancora vuoto) mostra l'iniziale.
          Il nome utente ha la precedenza perche' e' l'identita' pubblica usata nel
-         resto dell'app (vedi NdumaData.getGuestName). Se e' gia' stata scelta una
+         resto dell'app (vedi SeevaData.getGuestName). Se e' gia' stata scelta una
          foto, questa ha sempre la priorita' sull'iniziale testuale. */
       function updateCreateAvatarPreview() {
         if (createAvatarEl.querySelector('img')) return;
@@ -474,9 +474,9 @@
       async function fillCreateFormFromAccount() {
         var acc;
         try {
-          acc = await NdumaData.fetchOwnAccount();
+          acc = await SeevaData.fetchOwnAccount();
         } catch (err) {
-          createError.textContent = 'Non sono riuscito a caricare il profilo (' + NdumaData.friendlyErrorMessage(err) + ').';
+          createError.textContent = 'Non sono riuscito a caricare il profilo (' + SeevaData.friendlyErrorMessage(err) + ').';
           return;
         }
         if (!acc) return;
@@ -508,7 +508,7 @@
         // niente navbar in basso, tutto il resto dell'app è comunque
         // irraggiungibile finché non crei un profilo (Fil, 2026-07-10).
         var navbarEl = document.querySelector('.navbar');
-        if (navbarEl) navbarEl.style.display = (!isEdit && !NdumaData.hasAccount()) ? 'none' : '';
+        if (navbarEl) navbarEl.style.display = (!isEdit && !SeevaData.hasAccount()) ? 'none' : '';
 
         // Le scelte iniziali (Registrati con email / Google) e il link
         // "Accedi" in fondo hanno senso solo per un profilo nuovo su questo
@@ -548,12 +548,12 @@
         hideAllProfileViews();
         normalView.style.display = '';
         profileHomeBackBtn.style.display = '';
-        await NdumaData.renderSessionWarningIfNeeded();
+        await SeevaData.renderSessionWarningIfNeeded();
         await refreshProfile();
       }
 
       async function refreshProfile() {
-        var guestName = NdumaData.getGuestName() || '';
+        var guestName = SeevaData.getGuestName() || '';
         nameInput.value = guestName;
 
         // Chi ha un account non può più cambiare il nome utente da nessuna parte
@@ -561,11 +561,11 @@
         // di sola lettura e il pulsante "Salva nome utente" sparisce del tutto,
         // perché non ci sarebbe nulla da salvare. Chi non ha ancora un account
         // (ospite) può invece continuare a scrivere/cambiare il proprio nome qui.
-        var isAccountHolder = NdumaData.hasAccount();
+        var isAccountHolder = SeevaData.hasAccount();
         nameInput.disabled = isAccountHolder;
         profileSaveRow.style.display = isAccountHolder ? 'none' : '';
 
-        var acc = NdumaData.getAccount();
+        var acc = SeevaData.getAccount();
         if (acc && acc.avatarUrl) {
           showAvatarImage(avatarEl, acc.avatarUrl);
         } else {
@@ -577,9 +577,9 @@
 
         var events;
         try {
-          events = await NdumaData.getEvents();
+          events = await SeevaData.getEvents();
         } catch (err) {
-          myEventsList.innerHTML = '<div class="empty-hint">Non riesco a caricare i tuoi eventi (' + NdumaData.escapeHTML(NdumaData.friendlyErrorMessage(err)) + ').</div>';
+          myEventsList.innerHTML = '<div class="empty-hint">Non riesco a caricare i tuoi eventi (' + SeevaData.escapeHTML(SeevaData.friendlyErrorMessage(err)) + ').</div>';
           return;
         }
 
@@ -593,22 +593,22 @@
         // solo chi li ha creati. Chi aveva detto "non ci sono" non li vede.
         var myNameLower = (guestName || '').trim().toLowerCase();
         var mine = events.filter(function (e) {
-          if (!guestName || NdumaData.computeEventStatus(e).status !== 'passato') return false;
+          if (!guestName || SeevaData.computeEventStatus(e).status !== 'passato') return false;
           var isOrganizer = !!(e.createdBy && e.createdBy.trim().toLowerCase() === myNameLower);
-          var wasThere = NdumaData.getConfirmedParticipantNames(e).some(function (n) {
+          var wasThere = SeevaData.getConfirmedParticipantNames(e).some(function (n) {
             return (n || '').trim().toLowerCase() === myNameLower;
           });
           return isOrganizer || wasThere;
         });
 
         if (mine.length) {
-          myEventsList.innerHTML = mine.map(NdumaData.renderEventCardHTML).join('');
+          myEventsList.innerHTML = mine.map(SeevaData.renderEventCardHTML).join('');
         } else {
           myEventsList.innerHTML = '<div class="empty-hint">Nessun evento passato ancora: qui trovi l\'archivio di quelli tuoi già conclusi.</div>';
         }
 
         // rianima/rende cliccabile il contenuto appena creato
-        if (window.NdumaUI) window.NdumaUI.refresh();
+        if (window.SeevaUI) window.SeevaUI.refresh();
 
         await refreshPushRow();
       }
@@ -619,14 +619,14 @@
          esempio, solo dentro l'app aggiunta alla schermata Home, non in
          Safari normale (Fil, 2026-07-19). */
       async function refreshPushRow() {
-        if (!NdumaData.hasAccount() || !NdumaData.isPushSupported()) {
+        if (!SeevaData.hasAccount() || !SeevaData.isPushSupported()) {
           pushNotifRow.style.display = 'none';
           return;
         }
         pushNotifRow.style.display = '';
         var subscribed = false;
         try {
-          subscribed = await NdumaData.isPushSubscribed();
+          subscribed = await SeevaData.isPushSubscribed();
         } catch (err) { /* se il controllo fallisce, si riparte da "non attive" */ }
         pushNotifLabelText.textContent = subscribed ? 'Notifiche push attive' : 'Attiva notifiche push';
         pushNotifRow.dataset.subscribed = subscribed ? '1' : '0';
@@ -637,15 +637,15 @@
         pushNotifLabelText.textContent = isSubscribed ? 'Disattivo...' : 'Attivo...';
         try {
           if (isSubscribed) {
-            await NdumaData.unsubscribeFromPush();
+            await SeevaData.unsubscribeFromPush();
           } else {
-            await NdumaData.subscribeToPush();
+            await SeevaData.subscribeToPush();
           }
         } catch (err) {
-          if (window.NdumaUI) {
-            window.NdumaUI.toast('Non sono riuscito: ' + NdumaData.friendlyErrorMessage(err));
+          if (window.SeevaUI) {
+            window.SeevaUI.toast('Non sono riuscito: ' + SeevaData.friendlyErrorMessage(err));
           } else {
-            window.alert('Non sono riuscito: ' + NdumaData.friendlyErrorMessage(err));
+            window.alert('Non sono riuscito: ' + SeevaData.friendlyErrorMessage(err));
           }
         }
         await refreshPushRow();
@@ -663,9 +663,9 @@
           createBtn.disabled = true;
           createBtn.textContent = 'Accesso...';
           try {
-            await NdumaData.loginAccount(loginEmail, loginPassword);
+            await SeevaData.loginAccount(loginEmail, loginPassword);
           } catch (err) {
-            createError.textContent = NdumaData.friendlyErrorMessage(err);
+            createError.textContent = SeevaData.friendlyErrorMessage(err);
             createBtn.disabled = false;
             createBtn.textContent = 'Accedi';
             return;
@@ -676,7 +676,7 @@
           // Login esplicito con un account già esistente: punto giusto per
           // proporre le notifiche push (Fil, 2026-07-19), se ha senso farlo
           // su questo dispositivo (vedi offerPushPromptIfNeeded).
-          if (window.NdumaUI) await window.NdumaUI.offerPushPromptIfNeeded();
+          if (window.SeevaUI) await window.SeevaUI.offerPushPromptIfNeeded();
           return;
         }
 
@@ -703,13 +703,13 @@
           var avatarUrl = currentAvatarUrl || undefined;
           if (pendingAvatarFile) {
             createBtn.textContent = 'Carico la foto...';
-            avatarUrl = await NdumaData.uploadAvatar(pendingAvatarFile);
+            avatarUrl = await SeevaData.uploadAvatar(pendingAvatarFile);
             createBtn.textContent = isEditMode ? 'Salvo...' : 'Creo il profilo...';
           }
 
           var newAccount = null;
           if (isEditMode) {
-            await NdumaData.updateAccount({
+            await SeevaData.updateAccount({
               firstName: firstName,
               lastName: lastName,
               username: username,
@@ -719,7 +719,7 @@
               avatarUrl: avatarUrl
             });
           } else {
-            newAccount = await NdumaData.createAccount({
+            newAccount = await SeevaData.createAccount({
               firstName: firstName,
               lastName: lastName,
               username: username,
@@ -730,7 +730,7 @@
             });
           }
         } catch (err) {
-          createError.textContent = NdumaData.friendlyErrorMessage(err);
+          createError.textContent = SeevaData.friendlyErrorMessage(err);
           createBtn.disabled = false;
           createBtn.textContent = isEditMode ? 'Salva modifiche' : 'Crea profilo';
           return;
@@ -748,7 +748,7 @@
 
       cancelLink.addEventListener('click', async function (e) {
         e.preventDefault();
-        if (NdumaData.hasAccount()) await showNormalView();
+        if (SeevaData.hasAccount()) await showNormalView();
       });
 
       /* "Password dimenticata?" manda l'email di reset (Edge Function +
@@ -767,16 +767,16 @@
         var originalText = forgotPasswordLink.textContent;
         forgotPasswordLink.textContent = 'Invio...';
         try {
-          await NdumaData.requestPasswordReset(email);
+          await SeevaData.requestPasswordReset(email);
         } catch (err) {
-          createError.textContent = 'Non sono riuscito a inviare la richiesta (' + NdumaData.friendlyErrorMessage(err) + '). Riprova.';
+          createError.textContent = 'Non sono riuscito a inviare la richiesta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.';
           forgotPasswordLink.textContent = originalText;
           return;
         }
         forgotPasswordLink.textContent = originalText;
 
-        if (window.NdumaUI) {
-          window.NdumaUI.toast('Se quell\'indirizzo esiste, ti abbiamo mandato un\'email col link per scegliere una nuova password.');
+        if (window.SeevaUI) {
+          window.SeevaUI.toast('Se quell\'indirizzo esiste, ti abbiamo mandato un\'email col link per scegliere una nuova password.');
         } else {
           window.alert('Se quell\'indirizzo esiste, ti abbiamo mandato un\'email col link per scegliere una nuova password.');
         }
@@ -798,9 +798,9 @@
         createError.textContent = '';
         googleSignInBtn.disabled = true;
         try {
-          await NdumaData.signInWithGoogle();
+          await SeevaData.signInWithGoogle();
         } catch (err) {
-          createError.textContent = 'Non sono riuscito ad aprire l\'accesso Google (' + NdumaData.friendlyErrorMessage(err) + ').';
+          createError.textContent = 'Non sono riuscito ad aprire l\'accesso Google (' + SeevaData.friendlyErrorMessage(err) + ').';
           googleSignInBtn.disabled = false;
         }
       });
@@ -840,7 +840,7 @@
         googleProfileBtn.disabled = true;
         googleProfileBtn.textContent = 'Salvo...';
         try {
-          var newAccount = await NdumaData.completeGoogleProfile({
+          var newAccount = await SeevaData.completeGoogleProfile({
             username: username,
             firstName: pendingGoogleSuggestion.firstName || '',
             lastName: pendingGoogleSuggestion.lastName || '',
@@ -849,7 +849,7 @@
           });
           showWelcomeView(newAccount);
         } catch (err) {
-          googleProfileError.textContent = NdumaData.friendlyErrorMessage(err);
+          googleProfileError.textContent = SeevaData.friendlyErrorMessage(err);
           googleProfileBtn.disabled = false;
           googleProfileBtn.textContent = 'Fatto';
         }
@@ -868,9 +868,9 @@
         resetPasswordBtn.disabled = true;
         resetPasswordBtn.textContent = 'Salvo...';
         try {
-          await NdumaData.resetPassword(token, newPassword);
+          await SeevaData.resetPassword(token, newPassword);
         } catch (err) {
-          resetPasswordError.textContent = NdumaData.friendlyErrorMessage(err);
+          resetPasswordError.textContent = SeevaData.friendlyErrorMessage(err);
           resetPasswordBtn.disabled = false;
           resetPasswordBtn.textContent = 'Salva nuova password';
           return;
@@ -883,15 +883,15 @@
 
       document.getElementById('saveNameBtn').addEventListener('click', async function () {
         var newName = nameInput.value.trim();
-        if (NdumaData.hasAccount()) {
+        if (SeevaData.hasAccount()) {
           try {
-            await NdumaData.updateAccount({ username: newName });
+            await SeevaData.updateAccount({ username: newName });
           } catch (err) {
-            window.alert('Non sono riuscito a salvare il nome utente: ' + NdumaData.friendlyErrorMessage(err));
+            window.alert('Non sono riuscito a salvare il nome utente: ' + SeevaData.friendlyErrorMessage(err));
             return;
           }
         } else {
-          NdumaData.setGuestName(newName);
+          SeevaData.setGuestName(newName);
         }
         await refreshProfile();
       });
@@ -909,7 +909,7 @@
       document.getElementById('forgetMeRow').addEventListener('click', async function () {
         var sure = window.confirm('Uscire da questo profilo su questo telefono? Il profilo resta salvato online: per riusare l\'app da qui dovrai accedere di nuovo con email e password (o Google).');
         if (!sure) return;
-        await NdumaData.logOut();
+        await SeevaData.logOut();
         window.location.href = 'profilo.html';
       });
 
@@ -924,10 +924,10 @@
           if (!sure) return;
           deleteAccountRow.style.pointerEvents = 'none';
           try {
-            await NdumaData.deleteOwnAccount();
+            await SeevaData.deleteOwnAccount();
           } catch (err) {
             deleteAccountRow.style.pointerEvents = '';
-            window.alert('Non sono riuscito a eliminare l\'account (' + NdumaData.friendlyErrorMessage(err) + ').');
+            window.alert('Non sono riuscito a eliminare l\'account (' + SeevaData.friendlyErrorMessage(err) + ').');
             return;
           }
           window.location.href = 'profilo.html';
@@ -939,14 +939,14 @@
         // Arrivo dal link nell'email di reset: mostra solo il form nuova
         // password, non toccare login/registrazione/vista normale.
         showResetPasswordView();
-      } else if (NdumaData.hasAccount()) {
+      } else if (SeevaData.hasAccount()) {
         await showNormalView();
       } else {
         // Nessun profilo salvato su QUESTO dispositivo: potrebbe comunque
         // esistere già una sessione Supabase Auth vera se si sta tornando
         // proprio ora dal consenso Google (redirect di ritorno). Un solo
         // controllo in più, silenzioso, prima di mostrare "crea profilo".
-        var googleState = await NdumaData.getGoogleSignupState();
+        var googleState = await SeevaData.getGoogleSignupState();
         if (googleState && !googleState.needsProfile) {
           // Accesso con Google di un account già completo (non la primissima
           // registrazione): va dritto in Home come un login normale via
@@ -954,7 +954,7 @@
           // È comunque un login esplicito con un account esistente: si
           // propone le notifiche push (se ha senso) prima di lasciare la
           // pagina, stesso punto del login via email (Fil, 2026-07-19).
-          if (window.NdumaUI) await window.NdumaUI.offerPushPromptIfNeeded();
+          if (window.SeevaUI) await window.SeevaUI.offerPushPromptIfNeeded();
           window.location.href = 'index.html';
         } else if (googleState && googleState.needsProfile) {
           showGoogleProfileView(googleState.suggested);

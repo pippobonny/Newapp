@@ -1,5 +1,5 @@
 /* =========================================================
-   nduma — service worker.
+   seeva — service worker.
    Serve solo a ricevere/mostrare le notifiche push quando l'app non è in
    primo piano (o è chiusa): niente cache offline qui, non è il suo scopo.
    Fil, 2026-07-19.
@@ -22,10 +22,10 @@ self.addEventListener('push', function (event) {
   } catch (err) {
     // Se il payload non è JSON valido, mostriamo comunque qualcosa invece
     // di far sparire silenziosamente la notifica.
-    data = { title: 'nduma', body: (event.data && event.data.text()) || '' };
+    data = { title: 'seeva', body: (event.data && event.data.text()) || '' };
   }
 
-  var title = data.title || 'nduma';
+  var title = data.title || 'seeva';
   var options = {
     body: data.body || '',
     // "icon" e' l'immagine grande mostrata quando la notifica e' espansa

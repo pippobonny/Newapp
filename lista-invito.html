@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>nduma — Sei nella lista</title>
+<title>seeva — Sei nella lista</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="nduma">
+<meta name="apple-mobile-web-app-title" content="seeva">
 <script>
   /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
      Android/Chrome 100dvh non combacia col vero window.innerHeight quando
@@ -41,7 +41,7 @@
   <div class="phone">
    <div class="screen">
     <div class="header simple">
-      <div class="header-title">nduma</div>
+      <div class="header-title">seeva</div>
     </div>
 
     <!-- Unica vista per un ospite (senza account) invitato solo a una lista
@@ -62,12 +62,12 @@
     (function () {
       var pageContent = document.getElementById('pageContent');
 
-      if (NdumaData.hasAccount()) {
+      if (SeevaData.hasAccount()) {
         window.location.href = 'index.html';
         return;
       }
 
-      var lock = NdumaData.getGuestLock();
+      var lock = SeevaData.getGuestLock();
       if (!lock || lock.type !== 'list') {
         // niente da mostrare qui: o non sei mai stato bloccato su una lista,
         // o il lock è scaduto/è stato tolto — la strada giusta resta comunque
@@ -76,16 +76,16 @@
         return;
       }
 
-      var guestName = NdumaData.getGuestName() || '';
+      var guestName = SeevaData.getGuestName() || '';
 
       pageContent.innerHTML = ''
         + '<div style="text-align:center; padding: 30px 12px;">'
         + '<div class="signup-modal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="34" height="34"><path d="M12 3.5l2.1 4.6 5 .5-3.8 3.4 1.1 5-4.4-2.6-4.4 2.6 1.1-5-3.8-3.4 5-.5z"></path></svg></div>'
         + '<div class="signup-modal-title">Sei entrato nella lista</div>'
-        + '<div class="signup-modal-text">Sei stato aggiunto come <b>' + NdumaData.escapeHTML(guestName) + '</b> alla lista'
-        + (lock.name ? ' "' + NdumaData.escapeHTML(lock.name) + '"' : '')
-        + (lock.ownerName ? ' di <b>' + NdumaData.escapeHTML(lock.ownerName) + '</b>' : '')
-        + '. Per vedere gli eventi, rispondere alle proposte e usare tutto nduma ti basta creare un profilo: si fa in un minuto.</div>'
+        + '<div class="signup-modal-text">Sei stato aggiunto come <b>' + SeevaData.escapeHTML(guestName) + '</b> alla lista'
+        + (lock.name ? ' "' + SeevaData.escapeHTML(lock.name) + '"' : '')
+        + (lock.ownerName ? ' di <b>' + SeevaData.escapeHTML(lock.ownerName) + '</b>' : '')
+        + '. Per vedere gli eventi, rispondere alle proposte e usare tutto seeva ti basta creare un profilo: si fa in un minuto.</div>'
         + '<a class="primary-btn" href="profilo.html" style="display:block; text-decoration:none;">Crea il tuo profilo →</a>'
         + '<a class="signup-skip-link" href="profilo.html?mode=login" style="text-decoration:underline;">Hai già un account? Accedi</a>'
         + '</div>';

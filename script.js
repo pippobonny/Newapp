@@ -1,5 +1,5 @@
 /* =========================================================
-   nduma — animazioni
+   seeva — animazioni
    Tutto vanilla JS, nessuna libreria esterna.
    ========================================================= */
 
@@ -185,8 +185,8 @@
     // proprio è sul nome file, non sull'href grezzo, così i link con "?"
     // vengono intercettati proprio come gli altri.
     document.querySelectorAll('a[href]').forEach(function (link) {
-      if (link.dataset.ndumaLinkBound) return;
-      link.dataset.ndumaLinkBound = '1';
+      if (link.dataset.seevaLinkBound) return;
+      link.dataset.seevaLinkBound = '1';
 
       var href = link.getAttribute('href');
       if (!href || link.target === '_blank') return;
@@ -255,7 +255,7 @@
 
      Ogni pagina espone la pulizia di cui ha bisogno (fermare il refresh
      automatico, spegnere un microfono acceso a metà registrazione...) su
-     window.__ndumaUnmount, richiamata prima di cambiare tab — vedi
+     window.__seevaUnmount, richiamata prima di cambiare tab — vedi
      index.html/eventi.html/crea.html. Le pagine senza nulla da pulire
      (amici.html, profilo.html) semplicemente non la impostano. */
   var spaCache = {};
@@ -314,8 +314,8 @@
       return;
     }
 
-    try { if (window.__ndumaUnmount) window.__ndumaUnmount(); } catch (err) { /* ignora */ }
-    window.__ndumaUnmount = null;
+    try { if (window.__seevaUnmount) window.__seevaUnmount(); } catch (err) { /* ignora */ }
+    window.__seevaUnmount = null;
 
     screen.classList.remove('slide-in-active');
     screen.classList.add(direction === 'forward' ? 'slide-out-left' : 'slide-out-right');
@@ -338,7 +338,7 @@
         // (es. profilo.html?mode=login) deve restare nell'URL vera e
         // leggibile a window.location.search dentro lo script appena
         // montato, esattamente come su una navigazione vera.
-        try { history.pushState({ ndumaSpa: true }, '', historyUrl); } catch (err) { /* ignora */ }
+        try { history.pushState({ seevaSpa: true }, '', historyUrl); } catch (err) { /* ignora */ }
       }
 
       resetScreen(screen);
@@ -381,7 +381,7 @@
       document.body.appendChild(s);
       s.parentNode.removeChild(s);
 
-      if (window.NdumaUI) window.NdumaUI.refresh();
+      if (window.SeevaUI) window.SeevaUI.refresh();
 
       // Fil, 2026-07-22, trovato in review: queste tre normalmente partono
       // una volta sola al vero caricamento della pagina (vedi il blocco
@@ -742,7 +742,7 @@
   // mostra quell'evento (Home, elenco eventi, dettaglio...). Ora si ricorda
   // per device, evento per evento, se li ha già visti: festeggia una volta
   // sola nella vita di quell'evento, non a ogni caricamento di pagina.
-  var CONFETTI_SHOWN_KEY = 'nduma:confettiShown';
+  var CONFETTI_SHOWN_KEY = 'seeva:confettiShown';
 
   function hasShownConfetti(eventId) {
     try {
@@ -829,13 +829,13 @@
   }
 
   async function showRealAttendanceBadge(el) {
-    var guestName = NdumaData.getGuestName() || '';
+    var guestName = SeevaData.getGuestName() || '';
     if (!guestName) return;
     var lower = guestName.toLowerCase();
 
     var events;
     try {
-      events = await NdumaData.getEvents();
+      events = await SeevaData.getEvents();
     } catch (err) {
       return;
     }
@@ -844,7 +844,7 @@
     // hai risposto in qualche modo (anche "non ci sono mai": conta come assenza,
     // non va escluso, altrimenti la statistica premierebbe chi ignora l'invito)
     var attended = events
-      .map(function (e) { return { event: e, info: NdumaData.computeEventStatus(e) }; })
+      .map(function (e) { return { event: e, info: SeevaData.computeEventStatus(e) }; })
       .filter(function (x) { return x.info.status === 'done' || x.info.status === 'passato'; })
       .filter(function (x) {
         return (x.event.participants || []).some(function (p) { return p.name.toLowerCase() === lower; });
@@ -888,9 +888,9 @@
 
   function initAttendanceBadge() {
     var el = document.getElementById('attendanceBadge');
-    if (!el || typeof NdumaData === 'undefined') return;
+    if (!el || typeof SeevaData === 'undefined') return;
 
-    if (!NdumaData.hasAccount()) {
+    if (!SeevaData.hasAccount()) {
       showGuestAttendanceBadge(el);
       return;
     }
@@ -923,7 +923,7 @@
      aver mandato l'utente altrove chiama solo sessionStorage.setItem(TOAST_KEY, msg)
      prima di cambiare pagina; initPendingToast() (chiamata ad ogni caricamento)
      lo trova, lo consuma e lo mostra una volta sola. */
-  var TOAST_KEY = 'nduma:toast';
+  var TOAST_KEY = 'seeva:toast';
 
   function showToast(message) {
     var phone = document.querySelector('.phone');
@@ -978,7 +978,7 @@
   /* ---------- scorciatoia "Ripeti" sulla card di un evento annullato ----------
      Fil, 2026-07-10: prima "Ripeti questo evento" viveva solo dentro il
      dettaglio (evento.html); questo bottone compare direttamente sulla card
-     in Home/Eventi/Profilo (vedi NdumaData.renderEventCardHTML) per chi
+     in Home/Eventi/Profilo (vedi SeevaData.renderEventCardHTML) per chi
      l'ha organizzato. La card è un <a> che punta al dettaglio: preventDefault
      + stopPropagation fermano quel click prima che apra l'evento, poi si
      ricostruisce la stessa bozza che usava il bottone dentro evento.html e
@@ -990,7 +990,7 @@
       btn.addEventListener('click', async function (e) {
         e.preventDefault();
         e.stopPropagation();
-        if (!window.NdumaData) return;
+        if (!window.SeevaData) return;
 
         var eventId = btn.getAttribute('data-repeat-event');
         var originalText = btn.textContent;
@@ -998,7 +998,7 @@
 
         var ev;
         try {
-          ev = await NdumaData.getEventById(eventId);
+          ev = await SeevaData.getEventById(eventId);
         } catch (err) {
           btn.textContent = originalText;
           return;
@@ -1011,7 +1011,7 @@
         // ev.locationOptions), quindi "Ripeti" da qui perdeva la location in
         // silenzio. Stessa funzione già usata dentro evento.html per lo
         // stesso bottone.
-        var repeatLocation = NdumaData.resolveEventLocation(ev);
+        var repeatLocation = SeevaData.resolveEventLocation(ev);
         var repeatDraft = {
           eventName: ev.name,
           description: ev.description,
@@ -1027,7 +1027,7 @@
           currentStep: 1
         };
         try {
-          sessionStorage.setItem('nduma:eventDraft', JSON.stringify(repeatDraft));
+          sessionStorage.setItem('seeva:eventDraft', JSON.stringify(repeatDraft));
           sessionStorage.setItem('cs-nav-direction', 'forward');
         } catch (err) { /* ignora: nel peggiore dei casi si riparte da un form vuoto */ }
 
@@ -1038,9 +1038,9 @@
 
   /* ---------- swipe per rimuovere una card dalla Home ----------
      Fil, 2026-07-20: stessa azione del bottone "Rimuovi dalla home" nel
-     menu ⋮ di evento.html (NdumaData.removeEventFromHome), raggiungibile
+     menu ⋮ di evento.html (SeevaData.removeEventFromHome), raggiungibile
      anche trascinando la card — solo qui, vedi opts.swipeToRemove in
-     NdumaData.renderEventCardHTML/index.html. Pointer Events (non touch/
+     SeevaData.renderEventCardHTML/index.html. Pointer Events (non touch/
      mouse separati): un solo set di listener funziona sia col dito che col
      mouse. touch-action:pan-y in style.css lascia lo scroll verticale della
      lista al browser, si cattura solo il trascinamento orizzontale.
@@ -1117,12 +1117,12 @@
           });
           try { card.setPointerCapture(e.pointerId); } catch (err) { /* ignora */ }
           // Fil, 2026-07-21, trovato in review: il refresh automatico di Home
-          // (NdumaData.startAutoRefresh, ogni 30s) ricostruisce la lista con
+          // (SeevaData.startAutoRefresh, ogni 30s) ricostruisce la lista con
           // innerHTML -- se scattasse proprio mentre stai trascinando una
           // card col dito, la card sotto il dito sparirebbe a metà gesto. Il
           // flag qui sotto fa saltare quel giro di refresh (il prossimo,
           // 30s dopo, recupera comunque).
-          window.__ndumaSwipeDragging = true;
+          window.__seevaSwipeDragging = true;
         }
         if (!isHorizontal) return;
 
@@ -1137,7 +1137,7 @@
       function endDrag() {
         if (!dragging) return;
         dragging = false;
-        window.__ndumaSwipeDragging = false;
+        window.__seevaSwipeDragging = false;
         if (!isHorizontal) return;
         var open = currentX >= SWIPE_OPEN_THRESHOLD;
         setX(open ? SWIPE_OPEN_X : 0, true);
@@ -1158,12 +1158,12 @@
       trash.addEventListener('click', async function (e) {
         e.preventDefault();
         e.stopPropagation();
-        if (!window.NdumaData || trash.getAttribute('data-busy') === '1') return;
+        if (!window.SeevaData || trash.getAttribute('data-busy') === '1') return;
 
         var eventId = trash.getAttribute('data-remove-event');
         var eventName = trash.getAttribute('data-event-name') || '';
         var wasAvailable = trash.getAttribute('data-was-available') === '1';
-        var sure = window.confirm(NdumaData.buildRemoveFromHomeConfirmMessage(eventName, wasAvailable));
+        var sure = window.confirm(SeevaData.buildRemoveFromHomeConfirmMessage(eventName, wasAvailable));
         if (!sure) {
           closeSwipeCard(card);
           return;
@@ -1173,11 +1173,11 @@
         var originalText = trash.textContent;
         trash.textContent = '⏳';
         try {
-          await NdumaData.removeEventFromHome(eventId);
+          await SeevaData.removeEventFromHome(eventId);
         } catch (err) {
           trash.setAttribute('data-busy', '0');
           trash.textContent = originalText;
-          window.alert('Non sono riuscito a rimuovere l\'evento dalla tua home (' + NdumaData.friendlyErrorMessage(err) + '). Riprova.');
+          window.alert('Non sono riuscito a rimuovere l\'evento dalla tua home (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
           closeSwipeCard(card);
           return;
         }
@@ -1289,7 +1289,7 @@
       window.setTimeout(function () { splash.style.display = 'none'; }, 400);
     }, 550);
 
-    try { localStorage.setItem('nduma:splashLastShown', String(Date.now())); } catch (err) { /* ignora */ }
+    try { localStorage.setItem('seeva:splashLastShown', String(Date.now())); } catch (err) { /* ignora */ }
   }
 
   /* ---------- suggerimento "Aggiungi alla schermata Home" per iPhone/iPad ----------
@@ -1313,22 +1313,22 @@
     // Niente banner finché non c'è un account: su chi deve ancora registrarsi
     // (passaggio obbligatorio) non ha senso proporre di installare l'app
     // prima ancora che possa usarla (Fil, 2026-07-10).
-    if (window.NdumaData && typeof NdumaData.hasAccount === 'function' && !NdumaData.hasAccount()) return;
+    if (window.SeevaData && typeof SeevaData.hasAccount === 'function' && !SeevaData.hasAccount()) return;
 
     var dismissed;
-    try { dismissed = localStorage.getItem('nduma:iosInstallHintDismissed'); } catch (err) { dismissed = null; }
+    try { dismissed = localStorage.getItem('seeva:iosInstallHintDismissed'); } catch (err) { dismissed = null; }
     if (dismissed) return;
 
     var hint = document.createElement('div');
     hint.className = 'install-hint';
     hint.innerHTML = ''
-      + '<div>📲 Aggiungi nduma alla schermata Home: tocca <b>Condividi</b> ⬆️, poi <b>"Aggiungi alla schermata Home"</b>.</div>'
+      + '<div>📲 Aggiungi seeva alla schermata Home: tocca <b>Condividi</b> ⬆️, poi <b>"Aggiungi alla schermata Home"</b>.</div>'
       + '<div class="dismiss" id="installHintDismiss">✕</div>';
     mount.insertBefore(hint, mount.firstChild);
 
     function dismissInstallHint() {
       if (hint.parentNode) hint.remove();
-      try { localStorage.setItem('nduma:iosInstallHintDismissed', '1'); } catch (err) { /* ignora */ }
+      try { localStorage.setItem('seeva:iosInstallHintDismissed', '1'); } catch (err) { /* ignora */ }
     }
 
     var dismissBtn = document.getElementById('installHintDismiss');
@@ -1356,9 +1356,9 @@
      dopo aver scelto un suggerimento, quel collegamento non è più affidabile
      e si annulla da solo). Se non scegli nessun suggerimento, il nome resta
      "libero" come è sempre stato — Fil ha confermato che deve restare
-     sempre possibile, per chi non ha ancora un account su nduma. */
+     sempre possibile, per chi non ha ancora un account su seeva. */
   function attachAccountSearch(inputEl, onSelect) {
-    if (!inputEl || !window.NdumaData || typeof NdumaData.searchAccounts !== 'function') return null;
+    if (!inputEl || !window.SeevaData || typeof SeevaData.searchAccounts !== 'function') return null;
 
     var parent = inputEl.parentElement;
     if (parent && window.getComputedStyle(parent).position === 'static') {
@@ -1402,7 +1402,7 @@
       if (!lastResults.length) {
         // Fil, 2026-07-19: prima spariva tutto in silenzio, come se non
         // fosse successo nulla — chi cercava un amico non capiva se non
-        // l'aveva trovato perché non è registrato su nduma, o se la
+        // l'aveva trovato perché non è registrato su seeva, o se la
         // ricerca semplicemente non era ancora partita. Il nome resta
         // comunque valido come invitato "libero" (senza account collegato,
         // vedi commento in cima al file): questo è solo per chiarire perché
@@ -1412,12 +1412,12 @@
         dropdown.innerHTML = lastResults.map(function (acc) {
           var initial = (acc.username.trim().charAt(0) || '?').toUpperCase();
           var circle = acc.avatarUrl
-            ? '<img src="' + NdumaData.escapeHTML(acc.avatarUrl) + '" alt="">'
-            : NdumaData.escapeHTML(initial);
+            ? '<img src="' + SeevaData.escapeHTML(acc.avatarUrl) + '" alt="">'
+            : SeevaData.escapeHTML(initial);
           return ''
-            + '<div class="account-search-item" data-account-id="' + acc.id + '" data-username="' + NdumaData.escapeHTML(acc.username) + '" data-avatar-url="' + NdumaData.escapeHTML(acc.avatarUrl || '') + '">'
+            + '<div class="account-search-item" data-account-id="' + acc.id + '" data-username="' + SeevaData.escapeHTML(acc.username) + '" data-avatar-url="' + SeevaData.escapeHTML(acc.avatarUrl || '') + '">'
             + '<div class="account-search-avatar">' + circle + '</div>'
-            + '<div>' + NdumaData.escapeHTML(acc.username) + '</div>'
+            + '<div>' + SeevaData.escapeHTML(acc.username) + '</div>'
             + '</div>';
         }).join('');
       }
@@ -1445,7 +1445,7 @@
     // più del necessario (Fil, 2026-07-13).
     function runSearch(query) {
       lastQuery = query;
-      var p = NdumaData.searchAccounts(query).then(function (results) {
+      var p = SeevaData.searchAccounts(query).then(function (results) {
         if (query !== lastQuery) return lastResults; // superata da una ricerca più recente
         renderResults(results);
         return results;
@@ -1561,7 +1561,7 @@
      chiama in catena: se questo non si mostra, si passa subito al prossimo. */
   function showOnceHint(storageKey, containerEl, text, dismissTriggerEl, dismissEvents, onDismissed) {
     if (!containerEl || !text) return false;
-    var fullKey = 'nduma:hintSeen:' + storageKey;
+    var fullKey = 'seeva:hintSeen:' + storageKey;
     try {
       if (localStorage.getItem(fullKey)) return false;
     } catch (e) { return false; }
@@ -1593,7 +1593,7 @@
   }
 
   /* Popup "Attiva le notifiche", proposto attivamente a chi si registra o fa
-     login (solo nell'app da Home schermo, vedi NdumaData.shouldOfferPushPrompt)
+     login (solo nell'app da Home schermo, vedi SeevaData.shouldOfferPushPrompt)
      -- Fil, 2026-07-19: "sono molto importanti per noi". Stesso stile visivo
      del popup "serve un profilo" (.signup-overlay/.signup-modal), sopra il
      contenuto della pagina corrente. Ritorna una Promise che si risolve
@@ -1628,7 +1628,7 @@
         enableBtn.disabled = true;
         enableBtn.textContent = 'Attivo...';
         try {
-          await window.NdumaData.subscribeToPush();
+          await window.SeevaData.subscribeToPush();
           showToast('Notifiche attivate! 🔔');
         } catch (err) {
           // Permesso negato dal browser o errore: niente da fare qui, si
@@ -1648,10 +1648,10 @@
   // ha senso proporre le notifiche (vedi shouldOfferPushPrompt in data.js) e
   // mostra il popup solo se sì -- chi chiama non deve sapere altro.
   async function offerPushPromptIfNeeded() {
-    if (!window.NdumaData || typeof window.NdumaData.shouldOfferPushPrompt !== 'function') return;
+    if (!window.SeevaData || typeof window.SeevaData.shouldOfferPushPrompt !== 'function') return;
     var should = false;
     try {
-      should = await window.NdumaData.shouldOfferPushPrompt();
+      should = await window.SeevaData.shouldOfferPushPrompt();
     } catch (err) { return; }
     if (!should) return;
     await showPushPrompt();
@@ -1715,16 +1715,16 @@
     sendBtn.addEventListener('click', async function () {
       var message = textEl.value.trim();
       if (!message) { errorEl.textContent = 'Scrivi qualcosa prima di inviare.'; return; }
-      if (!window.NdumaData) return;
+      if (!window.SeevaData) return;
 
       errorEl.textContent = '';
       sendBtn.disabled = true;
       var originalText = sendBtn.textContent;
       sendBtn.textContent = 'Invio...';
       try {
-        await window.NdumaData.reportProblem(message, { recentErrors: recentClientErrors });
+        await window.SeevaData.reportProblem(message, { recentErrors: recentClientErrors });
       } catch (err) {
-        errorEl.textContent = 'Non sono riuscito a inviarla (' + NdumaData.friendlyErrorMessage(err) + '). Riprova.';
+        errorEl.textContent = 'Non sono riuscito a inviarla (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.';
         sendBtn.disabled = false;
         sendBtn.textContent = originalText;
         return;
@@ -1736,7 +1736,7 @@
     });
   }
 
-  window.NdumaUI = {
+  window.SeevaUI = {
     refresh: refreshDynamicContent,
     toast: showToast,
     attachAccountSearch: attachAccountSearch,

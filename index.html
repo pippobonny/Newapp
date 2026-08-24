@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>nduma — Home</title>
+<title>seeva — Home</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -18,7 +18,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="nduma">
+<meta name="apple-mobile-web-app-title" content="seeva">
 <script>
   /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
      Android/Chrome 100dvh non combacia col vero window.innerHeight quando
@@ -49,12 +49,12 @@
        della pagina venga dipinto, per non avere nessun flash. La vera
        animazione di uscita (fade + timestamp aggiornato) la fa
        initSplashScreen() in script.js, solo quando resta visibile qui. -->
-  <div class="splash-screen" id="splashScreen"><img class="splash-logo" src="splash-logo.png" alt="nduma"></div>
+  <div class="splash-screen" id="splashScreen"><img class="splash-logo" src="splash-logo.png" alt="seeva"></div>
   <script>
     (function () {
       try {
         var SPLASH_MIN_GAP_MS = 3 * 60 * 60 * 1000; // 3 ore: quanto deve passare prima di rivederla
-        var last = parseInt(localStorage.getItem('nduma:splashLastShown'), 10);
+        var last = parseInt(localStorage.getItem('seeva:splashLastShown'), 10);
         if (last && (Date.now() - last) < SPLASH_MIN_GAP_MS) {
           document.getElementById('splashScreen').style.display = 'none';
         }
@@ -132,7 +132,7 @@
          evento o su una lista viene rimandato lì; chi non ha proprio nessun
          account e nessun invito attivo vede la schermata "serve un profilo"
          al posto della Home. */
-      var gate = NdumaData.checkAccessGate(null);
+      var gate = SeevaData.checkAccessGate(null);
       if (gate.action === 'redirect') {
         window.location.href = gate.url;
         return;
@@ -140,20 +140,20 @@
       if (gate.action === 'block') {
         document.querySelector('.top-badge-wrap').style.display = 'none';
         document.querySelector('.header').style.display = 'none';
-        document.querySelector('.content').innerHTML = NdumaData.accountRequiredBlockHTML(
+        document.querySelector('.content').innerHTML = SeevaData.accountRequiredBlockHTML(
           'Per vedere gli eventi e organizzarti con gli amici devi prima creare un profilo.'
         );
-        if (window.NdumaUI) window.NdumaUI.refresh();
+        if (window.SeevaUI) window.SeevaUI.refresh();
         return;
       }
 
-      await NdumaData.renderSessionWarningIfNeeded();
+      await SeevaData.renderSessionWarningIfNeeded();
 
-      var guestName = NdumaData.getGuestName();
+      var guestName = SeevaData.getGuestName();
       document.getElementById('homeGreeting').textContent = 'Ciao, ' + (guestName || 'Ospite');
 
       var homeAvatarEl = document.getElementById('homeAvatar');
-      var homeAcc = NdumaData.getAccount();
+      var homeAcc = SeevaData.getAccount();
       if (homeAcc && homeAcc.avatarUrl) {
         homeAvatarEl.innerHTML = '';
         var homeAvatarImg = document.createElement('img');
@@ -192,8 +192,8 @@
         if (lastTileCounts[key] === value) return;
         var isFirstRender = lastTileCounts[key] === null;
         lastTileCounts[key] = value;
-        if (isFirstRender && window.NdumaUI && window.NdumaUI.animateCount) {
-          window.NdumaUI.animateCount(el, value, 700);
+        if (isFirstRender && window.SeevaUI && window.SeevaUI.animateCount) {
+          window.SeevaUI.animateCount(el, value, 700);
         } else {
           el.textContent = value;
         }
@@ -204,14 +204,14 @@
       // richiamata al primo caricamento e poi da sola ogni tot secondi
       // (Fil, 2026-07-21: niente più refresh manuale della pagina per
       // vedere un evento nuovo o una notifica arrivata mentre questa scheda
-      // era già aperta — vedi NdumaData.startAutoRefresh in data.js).
+      // era già aperta — vedi SeevaData.startAutoRefresh in data.js).
       // 2026-08-22 (restyling): la Home non renderizza più le card degli
       // eventi (via "In evidenza", più spazio ai riquadri) — solo i tre
       // conteggi. Le liste vere vivono in eventi.html?only=... .
       async function refreshHome() {
         var events;
         try {
-          events = await NdumaData.getEvents();
+          events = await SeevaData.getEvents();
         } catch (err) { return; } // silenzioso: resta quello che c'era già in pagina
 
         // Stessa suddivisione di sempre (vedi eventi.html per la versione
@@ -221,14 +221,14 @@
         // non contano in nessun riquadro: restano solo nell'archivio del
         // Profilo.
         var waitingCount = events.filter(function (e) {
-          var status = NdumaData.computeEventStatus(e).status;
+          var status = SeevaData.computeEventStatus(e).status;
           return status !== 'done' && status !== 'cancelled' && status !== 'passato';
         }).length;
         var confirmedCount = events.filter(function (e) {
-          return NdumaData.computeEventStatus(e).status === 'done';
+          return SeevaData.computeEventStatus(e).status === 'done';
         }).length;
         var cancelledCount = events.filter(function (e) {
-          return NdumaData.computeEventStatus(e).status === 'cancelled';
+          return SeevaData.computeEventStatus(e).status === 'cancelled';
         }).length;
 
         setTileCount(tileWaitingNum, 'waiting', waitingCount);
@@ -236,7 +236,7 @@
         setTileCount(tileCancelledNum, 'cancelled', cancelledCount);
 
         // Pallino "hai notifiche nuove?" sulla campanella (Fil, 2026-07-17):
-        // stessa lista costruita da notifiche.html (NdumaData.buildNotifications,
+        // stessa lista costruita da notifiche.html (SeevaData.buildNotifications,
         // unica fonte di verità), confrontata con l'ultima visita salvata su
         // questo dispositivo. Tutto "best effort": se una delle due letture in
         // più fallisce, il pallino semplicemente non si accende, non deve mai
@@ -245,14 +245,14 @@
           var myUsernameForBell = (guestName || '').toLowerCase();
           var eventNoticesForBell = [];
           var pendingFriendRequestsForBell = [];
-          try { eventNoticesForBell = await NdumaData.getEventNotices(guestName); } catch (err) { /* ignora */ }
-          try { pendingFriendRequestsForBell = await NdumaData.getMyPendingFriendRequests(); } catch (err) { /* ignora */ }
+          try { eventNoticesForBell = await SeevaData.getEventNotices(guestName); } catch (err) { /* ignora */ }
+          try { pendingFriendRequestsForBell = await SeevaData.getMyPendingFriendRequests(); } catch (err) { /* ignora */ }
 
-          var notificationsForBell = NdumaData.buildNotifications(events, eventNoticesForBell, myUsernameForBell);
+          var notificationsForBell = SeevaData.buildNotifications(events, eventNoticesForBell, myUsernameForBell);
           // Fil, 2026-07-19: prima solo un pallino vuoto ("hai qualcosa"), ora
           // il numero vero di non lette dentro — più visibile e fa capire
           // subito quanto c'è da vedere, non solo che c'è qualcosa.
-          var unreadCount = NdumaData.countUnreadNotifications(notificationsForBell, pendingFriendRequestsForBell);
+          var unreadCount = SeevaData.countUnreadNotifications(notificationsForBell, pendingFriendRequestsForBell);
           if (bellBadge) {
             if (unreadCount > 0) {
               bellBadge.textContent = unreadCount > 9 ? '9+' : String(unreadCount);
@@ -270,11 +270,11 @@
 
       await refreshHome();
       // Fil, 2026-07-22: catturato lo stop (startAutoRefresh lo ritorna già
-      // da prima) su window.__ndumaUnmount, richiamato dal router SPA in
+      // da prima) su window.__seevaUnmount, richiamato dal router SPA in
       // script.js prima di cambiare tab — altrimenti questo timer
       // continuerebbe a girare in background anche dopo essere andati via
       // da Home, dato che ora cambiare tab non ricarica più la pagina.
-      window.__ndumaUnmount = NdumaData.startAutoRefresh(refreshHome);
+      window.__seevaUnmount = SeevaData.startAutoRefresh(refreshHome);
     })();
   </script>
   <script src="script.js"></script>

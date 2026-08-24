@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>nduma — Evento</title>
+<title>seeva — Evento</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="nduma">
+<meta name="apple-mobile-web-app-title" content="seeva">
 <script>
   /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
      Android/Chrome 100dvh non combacia col vero window.innerHeight quando
@@ -193,7 +193,7 @@
          invito attivo. Chi è bloccato qui a ragione (isLockedGuest) perde
          navbar e freccia indietro: l'unica via d'uscita resta il bottone
          "crea il tuo profilo" mostrato dentro la pagina (vedi render()). */
-      var gate = NdumaData.checkAccessGate(eventId ? { type: 'event', id: eventId } : null);
+      var gate = SeevaData.checkAccessGate(eventId ? { type: 'event', id: eventId } : null);
       if (gate.action === 'redirect') {
         window.location.href = gate.url;
         return;
@@ -201,10 +201,10 @@
 
       var event;
       try {
-        event = eventId ? await NdumaData.getEventById(eventId) : null;
+        event = eventId ? await SeevaData.getEventById(eventId) : null;
       } catch (err) {
         titleEl.textContent = 'Errore';
-        contentEl.innerHTML = '<div class="empty-hint">Non riesco a caricare questo evento (' + NdumaData.escapeHTML(NdumaData.friendlyErrorMessage(err)) + ').<br><a href="index.html">Torna alla Home →</a></div>';
+        contentEl.innerHTML = '<div class="empty-hint">Non riesco a caricare questo evento (' + SeevaData.escapeHTML(SeevaData.friendlyErrorMessage(err)) + ').<br><a href="index.html">Torna alla Home →</a></div>';
         return;
       }
 
@@ -230,23 +230,23 @@
           return;
         }
         titleEl.textContent = 'Evento';
-        contentEl.innerHTML = NdumaData.accountRequiredBlockHTML(
+        contentEl.innerHTML = SeevaData.accountRequiredBlockHTML(
           'Per vedere questo evento devi prima creare un profilo, oppure aprirlo dal link di invito che hai ricevuto.'
         );
         if (backBtn) backBtn.style.display = 'none';
         return;
       }
-      await NdumaData.renderSessionWarningIfNeeded(contentEl);
+      await SeevaData.renderSessionWarningIfNeeded(contentEl);
 
       var isLockedGuest = gate.action === 'allowLocked';
       if (isLockedGuest) {
         if (backBtn) backBtn.style.display = 'none';
       }
 
-      document.title = 'nduma — ' + event.name;
+      document.title = 'seeva — ' + event.name;
       titleEl.textContent = event.name;
 
-      var guestName = NdumaData.getGuestName() || '';
+      var guestName = SeevaData.getGuestName() || '';
 
       /* Chi organizza è per forza presente (viene contato in automatico su
          tutte le date già alla creazione, vedi createEvent in data.js): non
@@ -291,7 +291,7 @@
          il device o passa tempo può ripresentarsi, va bene così, non è
          invasivo). */
       function findClaimCandidates() {
-        if (isOrganizer || !guestName || !NdumaData.hasAccount()) return null;
+        if (isOrganizer || !guestName || !SeevaData.hasAccount()) return null;
         if (findExistingParticipant()) return null;
 
         var mine = guestName.toLowerCase();
@@ -303,7 +303,7 @@
         if (!unclaimed.length) return null;
 
         try {
-          if (sessionStorage.getItem('nduma:claimDismissed:' + event.id)) return null;
+          if (sessionStorage.getItem('seeva:claimDismissed:' + event.id)) return null;
         } catch (err) { /* ignora */ }
 
         return unclaimed;
@@ -313,30 +313,30 @@
         var rowsHTML = candidates.map(function (f) {
           return ''
             + '<div class="settings-row reveal" data-claim-invitee="' + f.id + '" style="cursor:pointer;">'
-            + '<div class="left">' + NdumaData.escapeHTML(f.name) + '</div>'
+            + '<div class="left">' + SeevaData.escapeHTML(f.name) + '</div>'
             + '<div style="color:var(--ink-soft);">Sono io →</div>'
             + '</div>';
         }).join('');
 
         return ''
           + '<div class="section-title">Sei tu uno di questi?</div>'
-          + '<div class="card-date" style="margin:0 2px 12px;">Sei registrato come <b>' + NdumaData.escapeHTML(guestName) + '</b>. Se chi organizza ti aveva invitato con un altro nome, scegli quale sei: così la tua risposta resta collegata a te.</div>'
+          + '<div class="card-date" style="margin:0 2px 12px;">Sei registrato come <b>' + SeevaData.escapeHTML(guestName) + '</b>. Se chi organizza ti aveva invitato con un altro nome, scegli quale sei: così la tua risposta resta collegata a te.</div>'
           + '<div id="claimPromptList">' + rowsHTML + '</div>'
-          + '<div style="text-align:center; margin-top:8px;"><span class="signup-skip-link" id="claimSkipLink">Nessuno di questi, continua come ' + NdumaData.escapeHTML(guestName) + ' →</span></div>';
+          + '<div style="text-align:center; margin-top:8px;"><span class="signup-skip-link" id="claimSkipLink">Nessuno di questi, continua come ' + SeevaData.escapeHTML(guestName) + ' →</span></div>';
       }
 
       async function claimInviteeAs(inviteeId) {
         try {
-          await NdumaData.claimEventInvitee(event.shareToken, inviteeId, null, NdumaData.getAccount().id);
+          await SeevaData.claimEventInvitee(event.shareToken, inviteeId, null, SeevaData.getAccount().id);
         } catch (err) {
-          if (window.NdumaUI && NdumaUI.toast) {
-            NdumaUI.toast('Non sono riuscito a collegarti (' + NdumaData.friendlyErrorMessage(err) + ').');
+          if (window.SeevaUI && SeevaUI.toast) {
+            SeevaUI.toast('Non sono riuscito a collegarti (' + SeevaData.friendlyErrorMessage(err) + ').');
           } else {
-            window.alert('Non sono riuscito a collegarti (' + NdumaData.friendlyErrorMessage(err) + ').');
+            window.alert('Non sono riuscito a collegarti (' + SeevaData.friendlyErrorMessage(err) + ').');
           }
           return;
         }
-        event = await NdumaData.getEventById(event.id);
+        event = await SeevaData.getEventById(event.id);
         render();
       }
 
@@ -363,7 +363,7 @@
             .filter(function (p) { return (p.availableDateOptionIds || []).indexOf(opt.id) !== -1; })
             .map(function (p) { return p.name; });
           var count = names.length;
-          var namesLabel = names.length ? names.map(NdumaData.escapeHTML).join(', ') : 'Nessuno ancora';
+          var namesLabel = names.length ? names.map(SeevaData.escapeHTML).join(', ') : 'Nessuno ancora';
 
           // ha senso solo se c'è più di una data proposta (altrimenti "spicca"
           // rispetto a cosa?) e se qualcuno ha già risposto almeno una volta
@@ -386,7 +386,7 @@
             + '<div class="day-bar-bubble" style="display:none;">' + namesLabel + '</div>'
             + '<div class="day-bar-badge' + (isLeader ? ' leader' : '') + '"><span aria-hidden="true" style="display:inline-flex;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7"></path></svg></span>' + count + '</div>'
             + '<div class="day-bar-track' + (isLeader ? ' leader' : '') + '"><div class="day-bar-fill" style="height:' + fillH + 'px;"></div></div>'
-            + '<div class="day-bar-label">' + NdumaData.escapeHTML(weekday) + '<br><span class="sub">' + NdumaData.escapeHTML(dayMonth) + '</span></div>'
+            + '<div class="day-bar-label">' + SeevaData.escapeHTML(weekday) + '<br><span class="sub">' + SeevaData.escapeHTML(dayMonth) + '</span></div>'
             + '</div>';
         }).join('');
 
@@ -631,7 +631,7 @@
         // pillole di stato in giro per l'app, verde/rosso/neutro).
         var rowsHTML = rows.map(function (row) {
           var statusClass = row.statusKey === 'available' ? 'is-available' : row.statusKey === 'absent' ? 'is-absent' : '';
-          return '<span class="invitee-chip ' + statusClass + '">' + row.statusIconSVG + NdumaData.escapeHTML(row.name) + '</span>';
+          return '<span class="invitee-chip ' + statusClass + '">' + row.statusIconSVG + SeevaData.escapeHTML(row.name) + '</span>';
         }).join('');
 
         // Restituisce anche "rows" grezzo (Fil, 2026-08-23), non solo
@@ -658,7 +658,7 @@
       }
 
       /* ---------- sezione "quando sei disponibile" ----------
-         Niente più campo "il tuo nome": l'identità arriva da NdumaData
+         Niente più campo "il tuo nome": l'identità arriva da SeevaData
          (account o nome ospite già impostato altrove). Se non c'è ancora
          nessun nome su questo dispositivo, non si può rispondere da qui. */
       function buildAvailabilitySectionHTML() {
@@ -696,7 +696,7 @@
             statusText = 'Non disponibile';
           } else if (ids.length === 1) {
             var onlyOpt = event.dateOptions.filter(function (o) { return o.id === ids[0]; })[0];
-            statusText = onlyOpt ? NdumaData.formatDateLabel(onlyOpt.dateISO) : 'Disponibile';
+            statusText = onlyOpt ? SeevaData.formatDateLabel(onlyOpt.dateISO) : 'Disponibile';
           } else {
             statusText = 'Disponibile per ' + ids.length + ' date';
           }
@@ -708,7 +708,7 @@
             + '<div class="info-tile-icon' + (isAvailable ? ' is-available' : ' is-absent') + '"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle>' + statusIconSVG + '</svg></div>'
             + '<div class="info-tile-body">'
             + '<div class="info-tile-label">Tu</div>'
-            + '<div class="info-tile-value">' + NdumaData.escapeHTML(statusText) + '</div>'
+            + '<div class="info-tile-value">' + SeevaData.escapeHTML(statusText) + '</div>'
             + '</div>'
             + '<div style="color:var(--ink-soft); font-size:12.5px; font-weight:600;">Cambia →</div>'
             + '</div>';
@@ -738,9 +738,9 @@
           var selected = preselected.indexOf(opt.id) !== -1;
           var parts = shortDateParts(opt.dateISO);
           return '<div class="chip day-card' + (selected ? ' selected' : '') + '" data-option-id="' + opt.id + '">'
-            + '<div class="day-dow">' + NdumaData.escapeHTML(parts.dow) + '</div>'
-            + '<div class="day-num">' + NdumaData.escapeHTML(parts.day) + '</div>'
-            + '<div class="day-month">' + NdumaData.escapeHTML(parts.month) + '</div>'
+            + '<div class="day-dow">' + SeevaData.escapeHTML(parts.dow) + '</div>'
+            + '<div class="day-num">' + SeevaData.escapeHTML(parts.day) + '</div>'
+            + '<div class="day-month">' + SeevaData.escapeHTML(parts.month) + '</div>'
             + '<div class="chip-check">✓</div>'
             + '</div>';
         }).join('');
@@ -769,7 +769,7 @@
         var cardsHTML = event.locationOptions.map(function (opt) {
           var selected = preselectedLocationIds.indexOf(opt.id) !== -1;
           return '<div class="chip day-card' + (selected ? ' selected' : '') + '" data-location-option-id="' + opt.id + '" style="width:100%; height:auto; padding:10px 12px; text-align:left;">'
-            + '<div class="day-num" style="font-size:13px; font-weight:600;">' + NdumaData.escapeHTML(opt.address) + '</div>'
+            + '<div class="day-num" style="font-size:13px; font-weight:600;">' + SeevaData.escapeHTML(opt.address) + '</div>'
             + '<div class="chip-check">✓</div>'
             + '</div>';
         }).join('');
@@ -779,7 +779,7 @@
       }
 
       /* Giorno/numero/mese abbreviati per le card quadrate della griglia
-         disponibilità (vedi sopra) — NdumaData.formatDateLabel/shortDateLabel
+         disponibilità (vedi sopra) — SeevaData.formatDateLabel/shortDateLabel
          restituiscono invece la data per esteso ("Sabato 25 luglio"), pensata
          per il resto dell'app dove lo spazio non è così stretto. */
       function shortDateParts(dateISO) {
@@ -819,26 +819,26 @@
               : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><rect x="3" y="5" width="18" height="16" rx="3"></rect><line x1="16" y1="3" x2="16" y2="7"></line><line x1="8" y1="3" x2="8" y2="7"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>') + '</div>'
           + '<div>'
           + '<div class="confirmed-date-label">' + (info.status === 'passato' ? 'Si è tenuto' : 'Si terrà') + '</div>'
-          + '<div class="confirmed-date-value">' + NdumaData.escapeHTML(NdumaData.formatDateTimeLabel(info.bestOption.dateISO, event.eventTime)) + '</div>'
+          + '<div class="confirmed-date-value">' + SeevaData.escapeHTML(SeevaData.formatDateTimeLabel(info.bestOption.dateISO, event.eventTime)) + '</div>'
           + (canAddToCalendar ? '<div class="confirmed-date-add-cal">＋ Aggiungi al calendario</div>' : '')
           + '</div>'
           + '</div>';
 
         // Foto vera se la persona ha un account con avatar (vedi
         // attendeeAvatars, caricato una volta prima del primo render con
-        // NdumaData.getAvatarsForNames), altrimenti l'iniziale del nome su
+        // SeevaData.getAvatarsForNames), altrimenti l'iniziale del nome su
         // sfondo sfumato — stesso stile dell'avatar generico del profilo.
         var bubblesHTML = attendeeNames.length
           ? '<div class="attendee-bubbles">' + attendeeNames.map(function (name) {
               var avatarUrl = attendeeAvatars[name.toLowerCase()];
               var initial = (name.trim().charAt(0) || '?').toUpperCase();
               var circleInner = avatarUrl
-                ? '<img src="' + NdumaData.escapeHTML(avatarUrl) + '" alt="">'
-                : NdumaData.escapeHTML(initial);
+                ? '<img src="' + SeevaData.escapeHTML(avatarUrl) + '" alt="">'
+                : SeevaData.escapeHTML(initial);
               return ''
                 + '<div class="attendee-bubble">'
                 + '<div class="attendee-bubble-circle">' + circleInner + '</div>'
-                + '<div class="attendee-bubble-name">' + NdumaData.escapeHTML(name) + '</div>'
+                + '<div class="attendee-bubble-name">' + SeevaData.escapeHTML(name) + '</div>'
                 + '</div>';
             }).join('') + '</div>'
           : '<div class="empty-hint" style="padding:10px 0;">Nessuno segnato per questa data.</div>';
@@ -892,7 +892,7 @@
           + '<div class="confirmed-date-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg></div>'
           + '<div>'
           + '<div class="confirmed-date-label">In testa ai voti</div>'
-          + '<div class="confirmed-date-value">' + NdumaData.escapeHTML(NdumaData.formatDateLabel(info.bestOption.dateISO)) + '</div>'
+          + '<div class="confirmed-date-value">' + SeevaData.escapeHTML(SeevaData.formatDateLabel(info.bestOption.dateISO)) + '</div>'
           + '<div class="confirmed-date-add-cal" style="color:var(--ink-soft);">' + votesForBest + (votesForBest === 1 ? ' disponibile' : ' disponibili') + ' · non ancora definitiva</div>'
           + '</div>'
           + '</div>';
@@ -907,15 +907,15 @@
          ma non i pulsanti per toccarlo. */
       function buildExpensesSectionHTML() {
         if (!event.expensesEnabled) return '';
-        var info = NdumaData.computeEventStatus(event);
+        var info = SeevaData.computeEventStatus(event);
         var isConfirmedSimple = (info.status === 'done' || info.status === 'passato') && !!info.bestOption;
         if (!isConfirmedSimple) return '';
-        var confirmedNames = NdumaData.getConfirmedParticipantNames(event);
+        var confirmedNames = SeevaData.getConfirmedParticipantNames(event);
         if (!confirmedNames.length) return '';
 
-        var myAccountId = (NdumaData.getAccount() || {}).id || null;
+        var myAccountId = (SeevaData.getAccount() || {}).id || null;
         var isOrganizerAccount = !!(myAccountId && event.createdByAccountId && myAccountId === event.createdByAccountId);
-        var canWrite = NdumaData.hasAccount();
+        var canWrite = SeevaData.hasAccount();
 
         var expenses = event.expenses || [];
         var rowsHTML = expenses.length
@@ -925,19 +925,19 @@
                 ? '<span class="expense-edit" data-edit-expense="' + ex.id + '" style="cursor:pointer; display:inline-flex;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></span><span class="expense-remove" data-remove-expense="' + ex.id + '" style="cursor:pointer;">✕</span>'
                 : '';
               var emojiHTML = ex.emoji
-                ? '<div class="expense-emoji-chip">' + NdumaData.escapeHTML(ex.emoji) + '</div>'
+                ? '<div class="expense-emoji-chip">' + SeevaData.escapeHTML(ex.emoji) + '</div>'
                 : '';
               return ''
                 + '<div class="expense-row">'
                 + '<div class="expense-row-left">'
                 + emojiHTML
                 + '<div>'
-                + '<div class="expense-desc">' + NdumaData.escapeHTML(ex.description) + '</div>'
-                + '<div class="expense-meta">Pagato da ' + NdumaData.escapeHTML(ex.paidByName) + ' · diviso tra ' + (ex.shareNames || []).length + '</div>'
+                + '<div class="expense-desc">' + SeevaData.escapeHTML(ex.description) + '</div>'
+                + '<div class="expense-meta">Pagato da ' + SeevaData.escapeHTML(ex.paidByName) + ' · diviso tra ' + (ex.shareNames || []).length + '</div>'
                 + '</div>'
                 + '</div>'
                 + '<div class="expense-row-right">'
-                + '<div class="expense-amount">' + NdumaData.formatEuro(ex.amount) + '</div>'
+                + '<div class="expense-amount">' + SeevaData.formatEuro(ex.amount) + '</div>'
                 + '<div class="expense-actions">' + actionsHTML + '</div>'
                 + '</div>'
                 + '</div>';
@@ -950,7 +950,7 @@
 
         var balanceHTML = '';
         if (expenses.length) {
-          var calc = NdumaData.computeExpenseBalances(event);
+          var calc = SeevaData.computeExpenseBalances(event);
           // Stessa logica foto-vera-o-iniziale delle bolle "Chi ci sarà"
           // (attendeeAvatars, già caricato una volta prima del primo
           // render): Fil ha notato giustamente che qui mancava, era rimasta
@@ -959,18 +959,18 @@
             var avatarUrl = attendeeAvatars[name.toLowerCase()];
             var initial = (name.trim().charAt(0) || '?').toUpperCase();
             return avatarUrl
-              ? '<img src="' + NdumaData.escapeHTML(avatarUrl) + '" alt="">'
-              : NdumaData.escapeHTML(initial);
+              ? '<img src="' + SeevaData.escapeHTML(avatarUrl) + '" alt="">'
+              : SeevaData.escapeHTML(initial);
           };
 
           var balRows = calc.balances.map(function (b) {
             var cls = b.net > 0.01 ? 'balance-pill-amount-positive' : (b.net < -0.01 ? 'balance-pill-amount-negative' : 'balance-pill-amount-neutral');
-            var amountLabel = b.net > 0.01 ? '+' + NdumaData.formatEuro(b.net)
-              : (b.net < -0.01 ? '-' + NdumaData.formatEuro(-b.net) : NdumaData.formatEuro(0));
+            var amountLabel = b.net > 0.01 ? '+' + SeevaData.formatEuro(b.net)
+              : (b.net < -0.01 ? '-' + SeevaData.formatEuro(-b.net) : SeevaData.formatEuro(0));
             return ''
               + '<div class="balance-pill-row">'
               + '<div class="balance-pill-avatar">' + avatarChipHTML(b.name) + '</div>'
-              + '<div class="balance-pill-name">' + NdumaData.escapeHTML(b.name) + '</div>'
+              + '<div class="balance-pill-name">' + SeevaData.escapeHTML(b.name) + '</div>'
               + '<div class="balance-pill-amount ' + cls + '">' + amountLabel + '</div>'
               + '</div>';
           }).join('');
@@ -980,7 +980,7 @@
                 return ''
                   + '<div class="settlement-sentence-row">'
                   + '<div class="settlement-sentence-avatar">' + avatarChipHTML(s.fromName) + '</div>'
-                  + '<div class="settlement-sentence-text">' + NdumaData.escapeHTML(s.fromName) + ' deve dare <b>' + NdumaData.formatEuro(s.amount) + '</b> a ' + NdumaData.escapeHTML(s.toName) + '</div>'
+                  + '<div class="settlement-sentence-text">' + SeevaData.escapeHTML(s.fromName) + ' deve dare <b>' + SeevaData.formatEuro(s.amount) + '</b> a ' + SeevaData.escapeHTML(s.toName) + '</div>'
                   + '</div>';
               }).join('')
             : '<div class="empty-hint" style="padding:6px 0;">Conti già in pari.</div>';
@@ -994,7 +994,7 @@
 
         var totalAmount = expenses.reduce(function (sum, ex) { return sum + Number(ex.amount || 0); }, 0);
         var subtitleText = expenses.length
-          ? expenses.length + (expenses.length === 1 ? ' spesa' : ' spese') + ' · ' + NdumaData.formatEuro(totalAmount) + ' in totale'
+          ? expenses.length + (expenses.length === 1 ? ' spesa' : ' spese') + ' · ' + SeevaData.formatEuro(totalAmount) + ' in totale'
           : 'Nessuna spesa ancora';
 
         // Niente icona nell'intestazione (Fil non voleva la bustina di soldi):
@@ -1040,9 +1040,9 @@
         if (info.status === 'cancelled') return '';
 
         var items = event.items || [];
-        var myAccountId = (NdumaData.getAccount() || {}).id || null;
+        var myAccountId = (SeevaData.getAccount() || {}).id || null;
         var isOrganizerAccount = !!(myAccountId && event.createdByAccountId && myAccountId === event.createdByAccountId);
-        var canWrite = NdumaData.hasAccount();
+        var canWrite = SeevaData.hasAccount();
 
         // Riga singola: estratta a parte per riusarla identica nei due
         // gruppi qui sotto (da prendere / già prese). Il testo sotto al
@@ -1059,13 +1059,13 @@
             var takerAvatarUrl = it.takenByName ? attendeeAvatars[it.takenByName.toLowerCase()] : null;
             var takerInitial = (it.takenByName || '?').trim().charAt(0).toUpperCase();
             checkHTML = takerAvatarUrl
-              ? '<img src="' + NdumaData.escapeHTML(takerAvatarUrl) + '" alt="">'
-              : NdumaData.escapeHTML(takerInitial);
+              ? '<img src="' + SeevaData.escapeHTML(takerAvatarUrl) + '" alt="">'
+              : SeevaData.escapeHTML(takerInitial);
           }
 
           var metaText;
           if (isTaken) {
-            metaText = 'Porta ' + NdumaData.escapeHTML(it.takenByName) + (action === 'release' ? ' · tocca per liberarla' : '');
+            metaText = 'Porta ' + SeevaData.escapeHTML(it.takenByName) + (action === 'release' ? ' · tocca per liberarla' : '');
           } else {
             metaText = action === 'claim' ? 'Tocca per dire che la porti tu' : 'Nessuno ancora';
           }
@@ -1084,7 +1084,7 @@
             + '<div class="item-row-card' + (action === 'none' ? ' not-tappable' : '') + '" data-item-id="' + it.id + '" data-item-action="' + action + '">'
             + '<div class="item-row-check' + (isTaken ? ' taken' : '') + (justPopped ? ' pop-in' : '') + '">' + checkHTML + '</div>'
             + '<div class="item-row-text">'
-            + '<div class="item-row-title">' + NdumaData.escapeHTML(it.text) + '</div>'
+            + '<div class="item-row-title">' + SeevaData.escapeHTML(it.text) + '</div>'
             + '<div class="item-row-meta">' + metaText + '</div>'
             + '</div>'
             + '</div>'
@@ -1138,7 +1138,7 @@
       }
 
       function render() {
-        var info = NdumaData.computeEventStatus(event);
+        var info = SeevaData.computeEventStatus(event);
         var isConfirmedSimple = (info.status === 'done' || info.status === 'passato') && !!info.bestOption;
 
         // Ogni evento ha ormai il suo link di invito (event.shareToken): basta
@@ -1148,9 +1148,9 @@
         // Fil, 2026-07-20: prima era window.location.href, quindi chi
         // organizzava da un segnalibro/PWA sul vecchio dominio Vercel
         // copiava e spediva in giro link su quel dominio vecchio — sempre
-        // NdumaData.SITE_URL (il dominio vero), non da dove si sta
+        // SeevaData.SITE_URL (il dominio vero), non da dove si sta
         // guardando la pagina in quel momento.
-        var shareUrl = NdumaData.SITE_URL + window.location.pathname + window.location.search;
+        var shareUrl = SeevaData.SITE_URL + window.location.pathname + window.location.search;
         var shareLabel = 'Condividi questo link con gli amici';
 
         // il link da condividere lo vede solo chi organizza, e solo finché
@@ -1159,8 +1159,8 @@
         var shareSectionHTML = (isOrganizer && !isConfirmedSimple)
           ? ''
             + '<div class="share-box" id="shareBox">'
-            + '<div class="share-label" id="shareLabel">' + NdumaData.escapeHTML(shareLabel) + '</div>'
-            + '<div class="share-row"><input type="text" id="shareLinkInput" readonly value="' + NdumaData.escapeHTML(shareUrl) + '"><button type="button" id="shareActionBtn">Condividi</button></div>'
+            + '<div class="share-label" id="shareLabel">' + SeevaData.escapeHTML(shareLabel) + '</div>'
+            + '<div class="share-row"><input type="text" id="shareLinkInput" readonly value="' + SeevaData.escapeHTML(shareUrl) + '"><button type="button" id="shareActionBtn">Condividi</button></div>'
             + '</div>'
           : '';
 
@@ -1172,7 +1172,7 @@
         // (prima era solo per l'organizzatore): le voci Modifica/Elimina
         // restano riservate a lui, per questo vanno nascoste esplicitamente
         // ora che il menu può comparire anche per un semplice invitato.
-        var canRemoveFromHome = !isOrganizer && NdumaData.hasAccount();
+        var canRemoveFromHome = !isOrganizer && SeevaData.hasAccount();
         var eventMenuWrap = document.getElementById('eventMenuWrap');
         if (eventMenuWrap) eventMenuWrap.style.display = ((isOrganizer && info.status !== 'passato') || canRemoveFromHome) ? '' : 'none';
 
@@ -1198,7 +1198,7 @@
         // Tap per vederla a schermo intero (Fil, 2026-07-10): cursor:zoom-in
         // per far capire che è cliccabile, vedi openPhotoLightbox più sotto.
         var photoHTML = event.photoUrl
-          ? '<img id="eventPhotoImg" src="' + NdumaData.escapeHTML(event.photoUrl) + '" alt="" style="width:100%; height:160px; object-fit:cover; border-radius:18px; margin-bottom:16px; box-shadow:0 6px 18px rgba(58,50,90,0.14); cursor:zoom-in;">'
+          ? '<img id="eventPhotoImg" src="' + SeevaData.escapeHTML(event.photoUrl) + '" alt="" style="width:100%; height:160px; object-fit:cover; border-radius:18px; margin-bottom:16px; box-shadow:0 6px 18px rgba(58,50,90,0.14); cursor:zoom-in;">'
           : '';
 
         // Con più location proposte, quella "vera" da mostrare qui non è più
@@ -1206,8 +1206,8 @@
         // quella confermata, o finché non lo è quella in testa ai voti —
         // stessa idea del "miglior giorno" (Fil, 2026-07-21). Con 0 o 1 sola
         // location tutto resta identico a sempre.
-        var mapsUrl = NdumaData.buildMapsUrl(event);
-        var resolvedLocation = NdumaData.resolveEventLocation(event);
+        var mapsUrl = SeevaData.buildMapsUrl(event);
+        var resolvedLocation = SeevaData.resolveEventLocation(event);
         var isMultiLocation = (event.locationOptions || []).length > 1;
         var locationNotConfirmedYet = isMultiLocation && !event.confirmedLocationOptionId;
         // Tessera compatta invece della riga di testo (Fil, 2026-08-23:
@@ -1220,12 +1220,12 @@
           + '<div class="info-tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z"></path><circle cx="12" cy="9" r="2.5"></circle></svg></div>'
           + '<div class="info-tile-body">'
           + '<div class="info-tile-label">Dove</div>'
-          + '<div class="info-tile-value">' + NdumaData.escapeHTML(resolvedLocation.address) + '</div>'
+          + '<div class="info-tile-value">' + SeevaData.escapeHTML(resolvedLocation.address) + '</div>'
           + (locationNotConfirmedYet ? '<div style="font-size:11px; color:var(--ink-soft); margin-top:1px;">In testa ai voti, non ancora definitiva</div>' : '')
           + '</div>';
         var locationHTML = !resolvedLocation.address ? ''
           : mapsUrl
-            ? '<a class="info-tile is-clickable" href="' + NdumaData.escapeHTML(mapsUrl) + '" target="_blank" rel="noopener" style="text-decoration:none; color:inherit;">' + locationTileInner + '</a>'
+            ? '<a class="info-tile is-clickable" href="' + SeevaData.escapeHTML(mapsUrl) + '" target="_blank" rel="noopener" style="text-decoration:none; color:inherit;">' + locationTileInner + '</a>'
             : '<div class="info-tile">' + locationTileInner + '</div>';
 
         // Solo per chi organizza, solo su un evento annullato: rilancia lo
@@ -1268,7 +1268,7 @@
           var AVATAR_TILE_COLORS = ['#FF7A29', '#6B3F73', '#9C6BA3', '#4F8B5C'];
           var avatarsHTML = avatarSource.slice(0, 3).map(function (r, i) {
             var initial = (r.name || '?').trim().charAt(0).toUpperCase() || '?';
-            return '<span style="background:' + AVATAR_TILE_COLORS[i % AVATAR_TILE_COLORS.length] + ';">' + NdumaData.escapeHTML(initial) + '</span>';
+            return '<span style="background:' + AVATAR_TILE_COLORS[i % AVATAR_TILE_COLORS.length] + ';">' + SeevaData.escapeHTML(initial) + '</span>';
           }).join('');
           whoComingTileHTML = ''
             + '<div class="who-coming-tile" id="whoComingTile">'
@@ -1360,8 +1360,8 @@
           + cancelledMessageHTML
           + repeatBoxHTML
           + (event.descriptionAudioUrl
-              ? '<audio controls src="' + NdumaData.escapeHTML(event.descriptionAudioUrl) + '" style="width:100%; margin:2px 2px 16px;"></audio>'
-              : (event.description ? '<div class="card-date" style="margin:2px 2px 16px;">' + NdumaData.escapeHTML(event.description) + '</div>' : ''))
+              ? '<audio controls src="' + SeevaData.escapeHTML(event.descriptionAudioUrl) + '" style="width:100%; margin:2px 2px 16px;"></audio>'
+              : (event.description ? '<div class="card-date" style="margin:2px 2px 16px;">' + SeevaData.escapeHTML(event.description) + '</div>' : ''))
           + confirmedSummaryHTML
           + locationHTML
           + availabilityHTML
@@ -1374,7 +1374,7 @@
           + whoComingModalHTML;
 
         // rianima/rende cliccabile il contenuto appena creato
-        if (window.NdumaUI) window.NdumaUI.refresh();
+        if (window.SeevaUI) window.SeevaUI.refresh();
 
         bindEvents();
         bindDayBars();
@@ -1387,7 +1387,7 @@
         if (!url) return;
         var overlay = document.createElement('div');
         overlay.className = 'photo-lightbox';
-        overlay.innerHTML = '<img src="' + NdumaData.escapeHTML(url) + '" alt="">';
+        overlay.innerHTML = '<img src="' + SeevaData.escapeHTML(url) + '" alt="">';
         overlay.addEventListener('click', function () { overlay.remove(); });
         document.body.appendChild(overlay);
       }
@@ -1399,7 +1399,7 @@
          chiamata; onDone (opzionale) gira solo in caso di successo, prima
          di render() — serve a openConfirmDayPopup per chiudersi. */
       async function confirmDateOption(optionId, btnEl, onDone) {
-        var label = NdumaData.formatDateLabel(
+        var label = SeevaData.formatDateLabel(
           (event.dateOptions.filter(function (o) { return o.id === optionId; })[0] || {}).dateISO || ''
         );
         var sure = window.confirm('Confermare "' + label + '"? Questa data diventa subito quella definitiva dell\'evento, anche se non tutti hanno ancora risposto. Non si può annullare da qui.');
@@ -1410,7 +1410,7 @@
         // voti, a scelta dell'organizzatore solo in caso di pareggio —
         // stesso principio della data, stesso popup a quadrati qui sotto.
         if ((event.locationOptions || []).length > 1) {
-          var locInfo = NdumaData.computeLocationLeader(event);
+          var locInfo = SeevaData.computeLocationLeader(event);
           if (locInfo.tiedOptions.length > 1) {
             openConfirmLocationPopup(locInfo.tiedOptions, function (locationOptionId) {
               finishConfirmDate(optionId, locationOptionId, btnEl, onDone);
@@ -1429,11 +1429,11 @@
         btnEl.textContent = 'Confermo...';
         btnEl.disabled = true;
         try {
-          event = await NdumaData.confirmEventDate(event.id, optionId, locationOptionId);
+          event = await SeevaData.confirmEventDate(event.id, optionId, locationOptionId);
         } catch (err) {
           btnEl.textContent = originalText;
           btnEl.disabled = false;
-          window.alert('Non sono riuscito a confermare (' + NdumaData.friendlyErrorMessage(err) + '). Riprova.');
+          window.alert('Non sono riuscito a confermare (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
           return;
         }
         if (onDone) onDone();
@@ -1464,7 +1464,7 @@
             return (p.availableLocationOptionIds || []).indexOf(opt.id) !== -1;
           }).length;
           return '<div class="chip day-card" data-location-option-id="' + opt.id + '" style="width:100%; height:auto; padding:10px 12px; text-align:left;">'
-            + '<div class="day-num" style="font-size:13px; font-weight:600;">' + NdumaData.escapeHTML(opt.address) + '</div>'
+            + '<div class="day-num" style="font-size:13px; font-weight:600;">' + SeevaData.escapeHTML(opt.address) + '</div>'
             + '<div class="day-bar-badge" style="margin:4px 0 0;"><span aria-hidden="true" style="display:inline-flex;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7"></path></svg></span>' + count + '</div>'
             + '</div>';
         }).join('');
@@ -1541,9 +1541,9 @@
           }).length;
           var parts = shortDateParts(opt.dateISO);
           return '<div class="chip day-card" data-day-option-id="' + opt.id + '">'
-            + '<div class="day-dow">' + NdumaData.escapeHTML(parts.dow) + '</div>'
-            + '<div class="day-num">' + NdumaData.escapeHTML(parts.day) + '</div>'
-            + '<div class="day-month">' + NdumaData.escapeHTML(parts.month) + '</div>'
+            + '<div class="day-dow">' + SeevaData.escapeHTML(parts.dow) + '</div>'
+            + '<div class="day-num">' + SeevaData.escapeHTML(parts.day) + '</div>'
+            + '<div class="day-month">' + SeevaData.escapeHTML(parts.month) + '</div>'
             + '<div class="day-bar-badge" style="margin:4px auto 0; width:fit-content;"><span aria-hidden="true" style="display:inline-flex;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7"></path></svg></span>' + count + '</div>'
             + '</div>';
         }).join('');
@@ -1603,9 +1603,9 @@
         var confirmedDateCard = document.getElementById('confirmedDateCard');
         if (confirmedDateCard) {
           confirmedDateCard.addEventListener('click', function () {
-            var info = NdumaData.computeEventStatus(event);
+            var info = SeevaData.computeEventStatus(event);
             if (!info.bestOption) return;
-            var ics = NdumaData.buildEventICS(event, info.bestOption.dateISO);
+            var ics = SeevaData.buildEventICS(event, info.bestOption.dateISO);
             var blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
             var url = URL.createObjectURL(blob);
 
@@ -1627,8 +1627,8 @@
             document.body.removeChild(a);
             window.setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
 
-            if (window.NdumaUI) {
-              window.NdumaUI.toast('Scaricato "' + fileName + '": aprilo dai tuoi Download/File per aggiungerlo al calendario 📅');
+            if (window.SeevaUI) {
+              window.SeevaUI.toast('Scaricato "' + fileName + '": aprilo dai tuoi Download/File per aggiungerlo al calendario 📅');
             }
           });
         }
@@ -1639,7 +1639,7 @@
         var manualConfirmBtn = document.getElementById('manualConfirmBtn');
         if (manualConfirmBtn) {
           manualConfirmBtn.addEventListener('click', function () {
-            var info = NdumaData.computeEventStatus(event);
+            var info = SeevaData.computeEventStatus(event);
             var isTie = info.status === 'tie';
             var optionsToShow = isTie ? info.tiedOptions : (event.dateOptions || []);
             if (optionsToShow.length === 1) {
@@ -1662,10 +1662,10 @@
             var originalText = cancelEventManuallyLink.textContent;
             cancelEventManuallyLink.textContent = 'Annullo...';
             try {
-              event = await NdumaData.cancelEventManually(event.id);
+              event = await SeevaData.cancelEventManually(event.id);
             } catch (err) {
               cancelEventManuallyLink.textContent = originalText;
-              window.alert('Non sono riuscito ad annullare (' + NdumaData.friendlyErrorMessage(err) + '). Riprova.');
+              window.alert('Non sono riuscito ad annullare (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
               return;
             }
             render();
@@ -1687,10 +1687,10 @@
             var originalText = withdrawLink.textContent;
             withdrawLink.textContent = 'Segnalo...';
             try {
-              event = await NdumaData.withdrawFromEvent(event.id, guestName);
+              event = await SeevaData.withdrawFromEvent(event.id, guestName);
             } catch (err) {
               withdrawLink.textContent = originalText;
-              window.alert('Non sono riuscito a segnalarlo (' + NdumaData.friendlyErrorMessage(err) + '). Riprova.');
+              window.alert('Non sono riuscito a segnalarlo (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
               return;
             }
             render();
@@ -1703,7 +1703,7 @@
         var rejoinLink = document.getElementById('rejoinEventLink');
         if (rejoinLink) {
           rejoinLink.addEventListener('click', async function () {
-            var info = NdumaData.computeEventStatus(event);
+            var info = SeevaData.computeEventStatus(event);
             if (!info.bestOption) return;
 
             var originalText = rejoinLink.textContent;
@@ -1713,10 +1713,10 @@
               // dopotutto": si riusa quella che aveva già dato (se ne aveva
               // data una), non si tocca qui.
               var existingLocIds = (findExistingParticipant() || {}).availableLocationOptionIds || [];
-              event = await NdumaData.upsertParticipant(event.id, guestName, [info.bestOption.id], existingLocIds);
+              event = await SeevaData.upsertParticipant(event.id, guestName, [info.bestOption.id], existingLocIds);
             } catch (err) {
               rejoinLink.textContent = originalText;
-              window.alert('Non sono riuscito ad aggiornare la tua risposta (' + NdumaData.friendlyErrorMessage(err) + '). Riprova.');
+              window.alert('Non sono riuscito ad aggiornare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
               return;
             }
             render();
@@ -1734,7 +1734,7 @@
             var input = document.getElementById('shareLinkInput');
 
             if (navigator.share) {
-              navigator.share({ title: 'nduma — ' + event.name, url: input.value })
+              navigator.share({ title: 'seeva — ' + event.name, url: input.value })
                 .catch(function () { /* utente ha annullato il foglio di condivisione: nessun errore da mostrare */ });
               return;
             }
@@ -1775,7 +1775,7 @@
         var claimSkipLink = document.getElementById('claimSkipLink');
         if (claimSkipLink) {
           claimSkipLink.addEventListener('click', function () {
-            try { sessionStorage.setItem('nduma:claimDismissed:' + event.id, '1'); } catch (err) { /* ignora */ }
+            try { sessionStorage.setItem('seeva:claimDismissed:' + event.id, '1'); } catch (err) { /* ignora */ }
             render();
           });
         }
@@ -1861,7 +1861,7 @@
             // quella confermata (o in testa ai voti) come punto di partenza:
             // "Ripeti" riparte comunque da zero su tutto il resto, niente
             // votazione multipla riportata pari pari (Fil, 2026-07-21).
-            var repeatLocation = NdumaData.resolveEventLocation(event);
+            var repeatLocation = SeevaData.resolveEventLocation(event);
             var repeatDraft = {
               eventName: event.name,
               description: event.description,
@@ -1876,7 +1876,7 @@
               currentStep: 1
             };
             try {
-              sessionStorage.setItem('nduma:eventDraft', JSON.stringify(repeatDraft));
+              sessionStorage.setItem('seeva:eventDraft', JSON.stringify(repeatDraft));
               sessionStorage.setItem('cs-nav-direction', 'forward');
             } catch (err) { /* ignora: nel peggiore dei casi si riparte da un form vuoto */ }
 
@@ -1923,12 +1923,12 @@
             var sure = window.confirm('Cancellare questa spesa? Non si può annullare.');
             if (!sure) return;
             try {
-              await NdumaData.deleteEventExpense(id);
+              await SeevaData.deleteEventExpense(id);
             } catch (err) {
-              window.alert('Non sono riuscito a cancellare la spesa (' + NdumaData.friendlyErrorMessage(err) + ').');
+              window.alert('Non sono riuscito a cancellare la spesa (' + SeevaData.friendlyErrorMessage(err) + ').');
               return;
             }
-            event = await NdumaData.getEventById(event.id);
+            event = await SeevaData.getEventById(event.id);
             render();
           });
         });
@@ -1969,14 +1969,14 @@
             if (!text) { input.focus(); return; }
             addItemBtn.textContent = 'Aggiungo...';
             try {
-              await NdumaData.addEventItem(event.id, text);
+              await SeevaData.addEventItem(event.id, text);
             } catch (err) {
-              window.alert('Non sono riuscito ad aggiungere la voce (' + NdumaData.friendlyErrorMessage(err) + ').');
+              window.alert('Non sono riuscito ad aggiungere la voce (' + SeevaData.friendlyErrorMessage(err) + ').');
               addItemBtn.textContent = '+ Aggiungi';
               return;
             }
             itemsAccordionOpen = true;
-            event = await NdumaData.getEventById(event.id);
+            event = await SeevaData.getEventById(event.id);
             refreshItemsSection();
           });
         }
@@ -1993,22 +1993,22 @@
             if (action === 'claim') {
               var got = false;
               try {
-                got = await NdumaData.claimEventItem(id);
+                got = await SeevaData.claimEventItem(id);
               } catch (err) {
-                window.alert('Non sono riuscito a prenotarla (' + NdumaData.friendlyErrorMessage(err) + ').');
+                window.alert('Non sono riuscito a prenotarla (' + SeevaData.friendlyErrorMessage(err) + ').');
                 return;
               }
               if (!got) window.alert('Qualcun altro l\'ha già presa un attimo fa.');
             } else {
               try {
-                await NdumaData.releaseEventItem(id);
+                await SeevaData.releaseEventItem(id);
               } catch (err) {
-                window.alert('Non sono riuscito a liberarla (' + NdumaData.friendlyErrorMessage(err) + ').');
+                window.alert('Non sono riuscito a liberarla (' + SeevaData.friendlyErrorMessage(err) + ').');
                 return;
               }
             }
             itemsAccordionOpen = true;
-            event = await NdumaData.getEventById(event.id);
+            event = await SeevaData.getEventById(event.id);
             refreshItemsSection(id);
           });
         });
@@ -2022,9 +2022,9 @@
             var sure = window.confirm('Eliminare questa voce?');
             if (!sure) return;
             try {
-              await NdumaData.deleteEventItem(id);
+              await SeevaData.deleteEventItem(id);
             } catch (err) {
-              window.alert('Non sono riuscito a eliminarla (' + NdumaData.friendlyErrorMessage(err) + ').');
+              window.alert('Non sono riuscito a eliminarla (' + SeevaData.friendlyErrorMessage(err) + ').');
               return;
             }
             // Collassa la riga prima di ridisegnare la sezione (Fil: stessa
@@ -2041,7 +2041,7 @@
               await new Promise(function (r) { window.setTimeout(r, 240); });
             }
             itemsAccordionOpen = true;
-            event = await NdumaData.getEventById(event.id);
+            event = await SeevaData.getEventById(event.id);
             refreshItemsSection();
           });
         });
@@ -2049,8 +2049,8 @@
         // Fumetto "una volta sola" (Fil, 2026-07-25): spiega tocco/swipe la
         // prima volta che la sezione si vede aperta con almeno una voce.
         var itemsHintSlot = document.getElementById('itemsHintSlot');
-        if (itemsHintSlot && window.NdumaUI && NdumaUI.showOnceHint && (event.items || []).length) {
-          NdumaUI.showOnceHint('itemsTapSwipe', itemsHintSlot,
+        if (itemsHintSlot && window.SeevaUI && SeevaUI.showOnceHint && (event.items || []).length) {
+          SeevaUI.showOnceHint('itemsTapSwipe', itemsHintSlot,
             'Tocca una voce per dire che la porti tu (o per liberarla, se l\'avevi presa tu); scorri una voce verso sinistra per eliminarla.',
             itemsAccordionBody, ['click']);
         }
@@ -2073,7 +2073,7 @@
       function refreshItemsSection(justChangedId) {
         var wrap = document.getElementById('itemsSectionWrap');
         if (!wrap) return;
-        var info = NdumaData.computeEventStatus(event);
+        var info = SeevaData.computeEventStatus(event);
 
         var firstRects = {};
         wrap.querySelectorAll('.item-swipe-wrap[data-item-id]').forEach(function (rowEl) {
@@ -2081,7 +2081,7 @@
         });
 
         wrap.innerHTML = buildItemsSectionHTML(info, justChangedId);
-        if (window.NdumaUI) window.NdumaUI.refresh();
+        if (window.SeevaUI) window.SeevaUI.refresh();
         bindItemsEvents();
 
         wrap.querySelectorAll('.item-swipe-wrap[data-item-id]').forEach(function (rowEl) {
@@ -2109,16 +2109,16 @@
         // già prima e lo è dopo, chi ha appena risposto ha "chiuso" l'evento
         // e merita lo stesso popup di festa di chi lo crea, non solo il
         // riepilogo silenzioso che si vede ricaricando la pagina più tardi.
-        var wasConfirmed = NdumaData.computeEventStatus(event).status === 'done';
+        var wasConfirmed = SeevaData.computeEventStatus(event).status === 'done';
 
         var originalText = btnEl.textContent;
         btnEl.disabled = true;
         btnEl.textContent = 'Salvo...';
 
         try {
-          event = await NdumaData.upsertParticipant(event.id, guestName, selectedIds, selectedLocIds);
+          event = await SeevaData.upsertParticipant(event.id, guestName, selectedIds, selectedLocIds);
         } catch (err) {
-          if (formError) formError.textContent = 'Non sono riuscito a salvare la tua disponibilità (' + NdumaData.friendlyErrorMessage(err) + '). Riprova.';
+          if (formError) formError.textContent = 'Non sono riuscito a salvare la tua disponibilità (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.';
           btnEl.disabled = false;
           btnEl.textContent = originalText;
           return;
@@ -2127,7 +2127,7 @@
         editingAvailability = false;
         render();
 
-        var infoAfter = NdumaData.computeEventStatus(event);
+        var infoAfter = SeevaData.computeEventStatus(event);
         if (!wasConfirmed && infoAfter.status === 'done' && infoAfter.bestOption) {
           showEventConfirmedPopup(infoAfter);
         }
@@ -2148,8 +2148,8 @@
           + '<div class="signup-modal">'
           + '<div class="signup-modal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="34" height="34"><path d="M12 3.5l2.1 4.6 5 .5-3.8 3.4 1.1 5-4.4-2.6-4.4 2.6 1.1-5-3.8-3.4 5-.5z"></path></svg></div>'
           + '<div class="signup-modal-title">Evento confermato!</div>'
-          + '<div class="signup-modal-text" style="margin-bottom:6px;">' + NdumaData.escapeHTML(event.name) + '</div>'
-          + '<div class="signup-modal-text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><rect x="3" y="5" width="18" height="16" rx="3"></rect><line x1="16" y1="3" x2="16" y2="7"></line><line x1="8" y1="3" x2="8" y2="7"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>' + NdumaData.escapeHTML(NdumaData.formatDateLabel(info.bestOption.dateISO)) + '</div>'
+          + '<div class="signup-modal-text" style="margin-bottom:6px;">' + SeevaData.escapeHTML(event.name) + '</div>'
+          + '<div class="signup-modal-text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><rect x="3" y="5" width="18" height="16" rx="3"></rect><line x1="16" y1="3" x2="16" y2="7"></line><line x1="8" y1="3" x2="8" y2="7"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>' + SeevaData.escapeHTML(SeevaData.formatDateLabel(info.bestOption.dateISO)) + '</div>'
           + '</div>';
 
         var dismissed = false;
@@ -2199,7 +2199,7 @@
         // per far notare il menu ⋮ la prima volta che un organizzatore
         // rivede un suo evento (Fil, 2026-07-07). Sparisce per sempre al
         // primo click sul menu, su qualunque evento (non serve per ognuno).
-        var MENU_DOT_KEY = 'nduma:hintSeen:menuDot';
+        var MENU_DOT_KEY = 'seeva:hintSeen:menuDot';
         if (menuDot) {
           try {
             if (!localStorage.getItem(MENU_DOT_KEY)) menuDot.style.display = '';
@@ -2228,13 +2228,13 @@
             var originalText = toggleItemsBtn.textContent;
             toggleItemsBtn.textContent = nextEnabled ? 'Attivo...' : 'Disattivo...';
             try {
-              await NdumaData.setEventItemsEnabled(event.id, nextEnabled);
+              await SeevaData.setEventItemsEnabled(event.id, nextEnabled);
             } catch (err) {
               toggleItemsBtn.textContent = originalText;
-              window.alert('Non sono riuscito a cambiare la lista "chi porta cosa" (' + NdumaData.friendlyErrorMessage(err) + ').');
+              window.alert('Non sono riuscito a cambiare la lista "chi porta cosa" (' + SeevaData.friendlyErrorMessage(err) + ').');
               return;
             }
-            event = await NdumaData.getEventById(event.id);
+            event = await SeevaData.getEventById(event.id);
             render();
           });
         }
@@ -2247,13 +2247,13 @@
             var originalText = toggleExpensesBtn.textContent;
             toggleExpensesBtn.textContent = nextEnabled ? 'Attivo...' : 'Disattivo...';
             try {
-              await NdumaData.setEventExpensesEnabled(event.id, nextEnabled);
+              await SeevaData.setEventExpensesEnabled(event.id, nextEnabled);
             } catch (err) {
               toggleExpensesBtn.textContent = originalText;
-              window.alert('Non sono riuscito a cambiare la divisione spese (' + NdumaData.friendlyErrorMessage(err) + ').');
+              window.alert('Non sono riuscito a cambiare la divisione spese (' + SeevaData.friendlyErrorMessage(err) + ').');
               return;
             }
-            event = await NdumaData.getEventById(event.id);
+            event = await SeevaData.getEventById(event.id);
             render();
           });
         }
@@ -2268,16 +2268,16 @@
             // disponibile" e stia solo pulendo la sua home (Fil, 2026-07-20).
             var existingParticipant = findExistingParticipant();
             var wasAvailable = !!(existingParticipant && (existingParticipant.availableDateOptionIds || []).length > 0);
-            var sure = window.confirm(NdumaData.buildRemoveFromHomeConfirmMessage(event.name, wasAvailable));
+            var sure = window.confirm(SeevaData.buildRemoveFromHomeConfirmMessage(event.name, wasAvailable));
             if (!sure) return;
 
             var originalText = removeFromHomeBtn.textContent;
             removeFromHomeBtn.textContent = 'Rimuovo...';
             try {
-              await NdumaData.removeEventFromHome(event.id);
+              await SeevaData.removeEventFromHome(event.id);
             } catch (err) {
               removeFromHomeBtn.textContent = originalText;
-              window.alert('Non sono riuscito a rimuovere l\'evento dalla tua home (' + NdumaData.friendlyErrorMessage(err) + '). Riprova.');
+              window.alert('Non sono riuscito a rimuovere l\'evento dalla tua home (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
               return;
             }
             // eventi.html da sola (senza ?only=) non è più un posto dove si
@@ -2292,7 +2292,7 @@
           deleteBtn.addEventListener('click', async function () {
             // Non annullabile: conferma esplicita prima di procedere (Fil,
             // 2026-07-07). Chi aveva risposto disponibile riceve email +
-            // notifica in-app da NdumaData.deleteEvent() stesso.
+            // notifica in-app da SeevaData.deleteEvent() stesso.
             dropdown.classList.remove('open');
             var sure = window.confirm('Eliminare "' + event.name + '"? Chi aveva già risposto disponibile riceverà un avviso. Non si può annullare.');
             if (!sure) return;
@@ -2300,10 +2300,10 @@
             var originalText = deleteBtn.textContent;
             deleteBtn.textContent = 'Elimino...';
             try {
-              await NdumaData.deleteEvent(event.id);
+              await SeevaData.deleteEvent(event.id);
             } catch (err) {
               deleteBtn.textContent = originalText;
-              window.alert('Non sono riuscito a eliminare l\'evento (' + NdumaData.friendlyErrorMessage(err) + '). Riprova.');
+              window.alert('Non sono riuscito a eliminare l\'evento (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
               return;
             }
             // eventi.html da sola (senza ?only=) non è più un posto dove si
@@ -2372,9 +2372,9 @@
         renderExpenseEmojiSlot();
         expenseEmojiPicker.style.display = 'none';
 
-        var confirmedNames = NdumaData.getConfirmedParticipantNames(event);
+        var confirmedNames = SeevaData.getConfirmedParticipantNames(event);
         expensePaidBySelect.innerHTML = confirmedNames.map(function (n) {
-          return '<option value="' + NdumaData.escapeHTML(n) + '">' + NdumaData.escapeHTML(n) + '</option>';
+          return '<option value="' + SeevaData.escapeHTML(n) + '">' + SeevaData.escapeHTML(n) + '</option>';
         }).join('');
         // Di base propone te stesso come chi ha pagato, se sei tra i
         // partecipanti confermati: il caso più comune è che chi registra la
@@ -2393,8 +2393,8 @@
           var checked = includedLower ? includedLower.indexOf(n.toLowerCase()) !== -1 : true;
           return ''
             + '<label class="option-row">'
-            + '<input type="checkbox" class="expense-include-checkbox" value="' + NdumaData.escapeHTML(n) + '"' + (checked ? ' checked' : '') + '>'
-            + '<span class="option-row-title">' + NdumaData.escapeHTML(n) + '</span>'
+            + '<input type="checkbox" class="expense-include-checkbox" value="' + SeevaData.escapeHTML(n) + '"' + (checked ? ' checked' : '') + '>'
+            + '<span class="option-row-title">' + SeevaData.escapeHTML(n) + '</span>'
             + '</label>';
         }).join('');
 
@@ -2435,23 +2435,23 @@
           expenseSaveBtn.textContent = 'Salvo...';
           try {
             if (editingExpenseId) {
-              await NdumaData.updateEventExpense(editingExpenseId, {
+              await SeevaData.updateEventExpense(editingExpenseId, {
                 description: description, amount: amount, paidByName: paidByName, includedNames: includedNames, emoji: selectedExpenseEmoji
               });
             } else {
-              await NdumaData.addEventExpense(event.id, {
+              await SeevaData.addEventExpense(event.id, {
                 description: description, amount: amount, paidByName: paidByName, includedNames: includedNames, emoji: selectedExpenseEmoji
               });
             }
           } catch (err) {
-            expenseModalError.textContent = NdumaData.friendlyErrorMessage(err);
+            expenseModalError.textContent = SeevaData.friendlyErrorMessage(err);
             expenseSaveBtn.disabled = false;
             expenseSaveBtn.textContent = originalText;
             return;
           }
           expenseSaveBtn.disabled = false;
           expenseSaveBtn.textContent = originalText;
-          event = await NdumaData.getEventById(event.id);
+          event = await SeevaData.getEventById(event.id);
           closeExpenseModal();
           render();
         });
@@ -2464,14 +2464,14 @@
          buildConfirmedSummaryHTML). */
       var attendeeAvatars = {};
       async function loadAttendeeAvatarsIfNeeded() {
-        var info = NdumaData.computeEventStatus(event);
+        var info = SeevaData.computeEventStatus(event);
         if ((info.status !== 'done' && info.status !== 'passato') || !info.bestOption) return;
         var names = (event.participants || [])
           .filter(function (p) { return (p.availableDateOptionIds || []).indexOf(info.bestOption.id) !== -1; })
           .map(function (p) { return p.name; });
         if (!names.length) return;
         try {
-          var rows = await NdumaData.getAvatarsForNames(names);
+          var rows = await SeevaData.getAvatarsForNames(names);
           rows.forEach(function (r) {
             if (r.avatarUrl && r.username) attendeeAvatars[r.username.toLowerCase()] = r.avatarUrl;
           });

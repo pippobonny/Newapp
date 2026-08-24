@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>nduma — Notifiche</title>
+<title>seeva — Notifiche</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="nduma">
+<meta name="apple-mobile-web-app-title" content="seeva">
 <script>
   /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
      Android/Chrome 100dvh non combacia col vero window.innerHeight quando
@@ -72,22 +72,22 @@
       /* Stessa regola d'accesso di tutta l'app: Notifiche non è mai il "posto
          giusto" per un ospite bloccato su un invito, quindi qui basta sapere
          se bisogna rimandarlo altrove o mostrare "serve un profilo". */
-      var gate = NdumaData.checkAccessGate(null);
+      var gate = SeevaData.checkAccessGate(null);
       if (gate.action === 'redirect') {
         window.location.href = gate.url;
         return;
       }
       if (gate.action === 'block') {
-        listEl.innerHTML = NdumaData.accountRequiredBlockHTML(
+        listEl.innerHTML = SeevaData.accountRequiredBlockHTML(
           'Per vedere le notifiche dei tuoi eventi e delle tue liste devi prima creare un profilo.'
         );
-        if (window.NdumaUI) window.NdumaUI.refresh();
+        if (window.SeevaUI) window.SeevaUI.refresh();
         return;
       }
 
-      await NdumaData.renderSessionWarningIfNeeded();
+      await SeevaData.renderSessionWarningIfNeeded();
 
-      var myUsername = (NdumaData.getGuestName() || '').toLowerCase();
+      var myUsername = (SeevaData.getGuestName() || '').toLowerCase();
 
       // Fil, 2026-07-23: badge delle notifiche in SVG stile navbar invece
       // delle emoji — n.emoji resta la chiave per scegliere il disegno
@@ -145,7 +145,7 @@
       async function loadFriendRequests() {
         var requests = [];
         try {
-          requests = await NdumaData.getMyPendingFriendRequests();
+          requests = await SeevaData.getMyPendingFriendRequests();
         } catch (err) { /* niente richieste mostrate, il resto della pagina non si blocca */ }
 
         var section = document.getElementById('friendRequestsSection');
@@ -155,7 +155,7 @@
               + '<div class="notif-item reveal" style="align-items:center;">'
               + '<div class="notif-icon friend">' + NOTIF_EMOJI_SVG['👋'] + '</div>'
               + '<div style="flex:1;">'
-              + '<div class="notif-text"><b>' + NdumaData.escapeHTML(r.ownerUsername) + '</b> vuole aggiungerti come amico vero nella sua lista "' + NdumaData.escapeHTML(r.friendListName) + '".</div>'
+              + '<div class="notif-text"><b>' + SeevaData.escapeHTML(r.ownerUsername) + '</b> vuole aggiungerti come amico vero nella sua lista "' + SeevaData.escapeHTML(r.friendListName) + '".</div>'
               + '<div class="notif-time">' + timeAgo(r.requestedAt) + '</div>'
               + '<div style="display:flex; gap:8px; margin-top:8px;">'
               + '<button type="button" class="primary-btn" style="margin:0; padding:8px 14px; font-size:14px;" data-accept-friend="' + r.friendId + '">Accetta</button>'
@@ -179,7 +179,7 @@
         section.querySelectorAll('[data-decline-friend]').forEach(function (btn) {
           btn.addEventListener('click', function () { respondToRequest(btn.getAttribute('data-decline-friend'), false, btn); });
         });
-        if (window.NdumaUI) window.NdumaUI.refresh();
+        if (window.SeevaUI) window.SeevaUI.refresh();
       }
 
       async function respondToRequest(friendId, accept, btn) {
@@ -187,9 +187,9 @@
         var buttons = row ? row.querySelectorAll('button') : [];
         buttons.forEach(function (b) { b.disabled = true; });
         try {
-          await NdumaData.respondFriendRequest(friendId, accept);
+          await SeevaData.respondFriendRequest(friendId, accept);
         } catch (err) {
-          window.alert('Non sono riuscito a rispondere (' + NdumaData.friendlyErrorMessage(err) + ').');
+          window.alert('Non sono riuscito a rispondere (' + SeevaData.friendlyErrorMessage(err) + ').');
           buttons.forEach(function (b) { b.disabled = false; });
           return;
         }
@@ -200,7 +200,7 @@
       // primo caricamento e poi da sola ogni tot secondi (Fil, 2026-07-21:
       // niente più refresh manuale della pagina per vedere una notifica
       // arrivata mentre questa scheda era già aperta — vedi
-      // NdumaData.startAutoRefresh in data.js). Effetto collaterale
+      // SeevaData.startAutoRefresh in data.js). Effetto collaterale
       // accettato: se avevi aperto l'accordion "Notifiche precedenti", un
       // refresh in background lo richiude — capita solo se lasci la pagina
       // aperta per 30s+ senza toccarla.
@@ -209,9 +209,9 @@
 
         var events;
         try {
-          events = await NdumaData.getEvents();
+          events = await SeevaData.getEvents();
         } catch (err) {
-          notifBodyEl.innerHTML = '<div class="empty-hint">Non riesco a caricare le notifiche (' + NdumaData.escapeHTML(NdumaData.friendlyErrorMessage(err)) + ').</div>';
+          notifBodyEl.innerHTML = '<div class="empty-hint">Non riesco a caricare le notifiche (' + SeevaData.escapeHTML(SeevaData.friendlyErrorMessage(err)) + ').</div>';
           return;
         }
 
@@ -222,7 +222,7 @@
            notifiche restano comunque visibili. */
         var eventNotices = [];
         try {
-          eventNotices = await NdumaData.getEventNotices(NdumaData.getGuestName());
+          eventNotices = await SeevaData.getEventNotices(SeevaData.getGuestName());
         } catch (err) { /* ignora: solo queste notifiche in più si perdono */ }
 
         // getEvents() torna già solo gli eventi "miei" (organizzatore, invitato
@@ -231,11 +231,11 @@
         // liste non sono più collegate agli eventi dopo la creazione.
         //
         // La costruzione vera (stati evento + avvisi congelati, ordinati per
-        // attività più recente) vive in NdumaData.buildNotifications: unica
+        // attività più recente) vive in SeevaData.buildNotifications: unica
         // fonte di verità, così anche il pallino "hai notifiche nuove?" in Home
         // usa esattamente la stessa lista, senza duplicare la logica qui
         // (Fil, 2026-07-17).
-        var notifications = NdumaData.buildNotifications(events, eventNotices, myUsername);
+        var notifications = SeevaData.buildNotifications(events, eventNotices, myUsername);
 
         var newBodyHTML;
         if (!notifications.length) {
@@ -252,7 +252,7 @@
           // l'abbia notata almeno una volta. Riuso lo stesso accordion già
           // usato per le spese (expense-accordion in style.css), stesso
           // comportamento, contenuto diverso.
-          var previousSeenAt = NdumaData.getNotificationsSeenAt();
+          var previousSeenAt = SeevaData.getNotificationsSeenAt();
           var previousSeenTime = previousSeenAt ? new Date(previousSeenAt).getTime() : null;
           var OLD_NOTIF_THRESHOLD_MS = 2 * 24 * 60 * 60 * 1000; // due giorni
           var now = Date.now();
@@ -328,22 +328,22 @@
           });
         }
 
-        if (window.NdumaUI) window.NdumaUI.refresh();
+        if (window.SeevaUI) window.SeevaUI.refresh();
 
         // Segna "vista fino a qui" solo ora che la pagina è davvero disegnata
         // (notifiche vere + richieste amicizia): è quello che spegne il
         // pallino sulla campanella in Home (Fil, 2026-07-17).
-        NdumaData.markNotificationsSeen();
+        SeevaData.markNotificationsSeen();
       }
 
       await refreshNotifications();
-      // window.__ndumaUnmount (non solo NdumaData.startAutoRefresh senza
+      // window.__seevaUnmount (non solo SeevaData.startAutoRefresh senza
       // catturarlo): letto da script.js prima di cambiare pagina via SPA,
       // altrimenti questo timer continuerebbe a girare in background anche
       // dopo essere andati via da qui (Fil, 2026-08-23, in vista di portare
       // anche questa pagina nel sistema SPA — stesso motivo già commentato
       // su index.html/eventi.html/amici.html).
-      window.__ndumaUnmount = NdumaData.startAutoRefresh(refreshNotifications);
+      window.__seevaUnmount = SeevaData.startAutoRefresh(refreshNotifications);
     })();
   </script>
   <script src="script.js"></script>
