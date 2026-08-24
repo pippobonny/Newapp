@@ -1466,6 +1466,13 @@
      sito non è già aperto come app aggiunta alla Home, e solo se non è già
      stato chiuso in passato (non deve tornare a infastidire ogni volta). */
   function initIosInstallHint() {
+    // Fil, 2026-08-24, verifica chiesta dall'app: il commento qui sopra ha
+    // sempre detto "solo in Home", ma il controllo non c'è mai stato — con
+    // la navigazione SPA (spaRenderView chiama questa funzione a ogni
+    // cambio tab, non solo al primo caricamento) il banner poteva comparire
+    // in cima al contenuto di QUALSIASI pagina, non solo Home.
+    if (currentFile() !== 'index.html') return;
+
     var mount = document.querySelector('.content');
     if (!mount) return;
 

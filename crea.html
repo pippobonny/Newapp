@@ -1048,6 +1048,12 @@
         Object.keys(wizardStepEls).forEach(function (key) {
           wizardStepEls[key].style.display = (parseInt(key, 10) === n) ? '' : 'none';
         });
+        // Fil, 2026-08-24: niente doppio bottone indietro a video — sugli
+        // step 2/3 la pillola inline "← Indietro" basta da sola, coerente
+        // con lo stile del wizard; la bolla viola (pensata per uscire DEL
+        // TUTTO dalla creazione) resta visibile solo al primo step, che è
+        // l'unico dove serve davvero.
+        crBackBtn.style.display = (n === 1) ? '' : 'none';
         wizardDotEls.forEach(function (dot) {
           var dotStep = parseInt(dot.getAttribute('data-step'), 10);
           dot.classList.toggle('active', dotStep === n);
@@ -1065,22 +1071,51 @@
         }
       }
 
+      /* ---------- tasto indietro (pillola inline + sistema) durante il wizard ----------
+         Fil, 2026-08-24, bug segnalato dall'app: sia la bolla viola
+         (a.back-btn) sia il tasto/gesto indietro di sistema uscivano dritti
+         verso la home anche a metà creazione, scavalcando gli step. Ora ogni
+         "Continua" spinge una entry di history con lo stesso URL (cambia
+         solo lo stato): un unico popstate consuma quella entry, che sia
+         arrivato da history.back() (pillola "← Indietro" dentro lo step) o
+         dal tasto di sistema — nessuna logica duplicata tra i due. La bolla
+         viola resta con l'href di sempre ma si nasconde sugli step 2/3 (vedi
+         showStep sopra): niente due bottoni indietro insieme a video, e
+         quello che resta negli step del wizard è la pillola inline, coerente
+         con lo stile della pagina — la bolla torna visibile solo al primo
+         step, dove è l'unico modo di uscire davvero (verso la home, o verso
+         l'evento in modalità modifica: vedi il suo href riscritto più
+         sotto). */
+      function pushWizardHistoryStep(n) {
+        try { history.pushState({ seevaSpa: true, crWizardStep: n }, '', location.href); } catch (err) { /* ignora */ }
+      }
+      function handleWizardPopState(e) {
+        showStep((e.state && e.state.crWizardStep) || 1);
+      }
+      window.addEventListener('popstate', handleWizardPopState);
+
+      // Visibile solo allo step 1 (vedi showStep sopra): niente da
+      // intercettare sul click, segue sempre il suo href di default.
+      var crBackBtn = document.getElementById('crBackBtn');
+
       document.getElementById('step1NextBtn').addEventListener('click', function () {
         step1Error.textContent = '';
         var name = document.getElementById('eventName').value.trim();
         if (!name) { step1Error.textContent = 'Serve almeno un nome per l\'evento.'; return; }
         showStep(2);
+        pushWizardHistoryStep(2);
       });
 
-      document.getElementById('step2BackBtn').addEventListener('click', function () { showStep(1); });
+      document.getElementById('step2BackBtn').addEventListener('click', function () { history.back(); });
 
       document.getElementById('step2NextBtn').addEventListener('click', function () {
         step2Error.textContent = '';
         if (totalInviteesCount() === 0) { step2Error.textContent = 'Aggiungi almeno un invitato.'; return; }
         showStep(3);
+        pushWizardHistoryStep(3);
       });
 
-      document.getElementById('step3BackBtn').addEventListener('click', function () { showStep(2); });
+      document.getElementById('step3BackBtn').addEventListener('click', function () { history.back(); });
 
       function addManualName() {
         var name = manualNameInput.value.trim();
@@ -1816,8 +1851,7 @@
           return;
         }
 
-        var crBackBtn = document.getElementById('crBackBtn');
-        if (crBackBtn) crBackBtn.setAttribute('href', 'evento.html?id=' + encodeURIComponent(editEventId));
+        crBackBtn.setAttribute('href', 'evento.html?id=' + encodeURIComponent(editEventId));
 
         if (pageTitleEl) pageTitleEl.textContent = 'Modifica evento';
         createEventBtn.textContent = 'Salva modifiche →';
@@ -1940,7 +1974,11 @@
       // registrazione qui sopra: non fa nulla se non stavi registrando.
       // mounted=false spegne anche le risposte di rete in ritardo, vedi
       // sopra.
-      window.__seevaUnmount = function () { stopRecording(); mounted = false; };
+      window.__seevaUnmount = function () {
+        stopRecording();
+        mounted = false;
+        window.removeEventListener('popstate', handleWizardPopState);
+      };
     })();
   </script>
 

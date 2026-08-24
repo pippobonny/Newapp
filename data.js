@@ -2793,14 +2793,18 @@
     tie: 'Pareggio'
   };
 
-  /* Genera l'HTML di una card evento, usato sia in Home che in Eventi (e in
-     Profilo, solo per gli eventi "passato": vedi profilo.html).
-     opts.swipeToRemove (Fil, 2026-07-20, solo Home): avvolge la card in un
-     wrapper con un cestino rivelato dallo swipe verso sinistra (vedi
+  /* Genera l'HTML di una card evento, usato sia in Eventi che in Profilo
+     (solo per gli eventi "passato": vedi profilo.html) — non più in Home,
+     che dal restyling del 2026-08-24 mostra solo tessere aggregate, non
+     più una lista di card.
+     opts.swipeToRemove (Fil, 2026-07-20, nato per Home; dal 2026-08-24
+     passato a Profilo, l'unica pagina rimasta con una vera lista
+     scorrevole di card — vedi bug segnalato dall'app): avvolge la card in
+     un wrapper con un cestino rivelato dallo swipe verso sinistra (vedi
      initSwipeToRemove in script.js), stessa azione del bottone "Rimuovi
      dalla home" nel menu ⋮ di evento.html — non per l'organizzatore (non ha
      senso rimuoversi dal proprio evento) né per chi non ha un account.
-     ATTENZIONE: chiamata da index.html con .map(function (e) { return
+     ATTENZIONE: chiamata con .map(function (e) { return
      SeevaData.renderEventCardHTML(e, {swipeToRemove:true}); }), MAI con
      .map(SeevaData.renderEventCardHTML) diretto — Array.map passerebbe
      l'indice come secondo argomento al posto di opts. */

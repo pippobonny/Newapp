@@ -603,7 +603,12 @@
         });
 
         if (mine.length) {
-          myEventsList.innerHTML = mine.map(SeevaData.renderEventCardHTML).join('');
+          // swipeToRemove:true (Fil, 2026-08-24, bug segnalato dall'app):
+          // la Home non mostra più una lista di card evento (solo tessere
+          // aggregate), quindi questa è rimasta l'unica pagina con una vera
+          // lista scorrevole di card — stesso gesto/cestino rosso che
+          // c'era prima in Home.
+          myEventsList.innerHTML = mine.map(function (e) { return SeevaData.renderEventCardHTML(e, { swipeToRemove: true }); }).join('');
         } else {
           myEventsList.innerHTML = '<div class="empty-hint">Nessun evento passato ancora: qui trovi l\'archivio di quelli tuoi già conclusi.</div>';
         }
