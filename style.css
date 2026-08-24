@@ -92,14 +92,6 @@
       0 2px 6px rgba(0, 0, 0, 0.2),
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
-
-  /* Stessa "lastra di vetro bianca" di .header/.navbar sopra, dimenticata
-     qui (Fil, 2026-08-24: "appena percettibile con la schermata chiara, se
-     metti modalità scura si vede tantissimo il riquadro bianco attorno" —
-     la pillola "Presente a tutti gli ultimi eventi" in cima alla Home). */
-  .attendance-badge {
-    background: rgba(44, 34, 51, 0.75);
-  }
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -383,6 +375,21 @@ a.back-btn:active { transform: scale(0.92); }
   color: var(--ink);
   box-shadow: 0 2px 8px rgba(58, 50, 90, 0.1);
   transition: opacity 0.22s ease;
+}
+
+/* Va DOPO la regola base sopra, non nel blocco dark-mode in cima al file:
+   quello (righe ~56-90) viene prima nel sorgente, quindi qualunque
+   proprietà diretta impostata lì (non una custom property in :root) perde
+   comunque contro questa stessa regola più sotto, a parità di specificità
+   — il cascade CSS non guarda i media query, guarda l'ordine. Ci sono
+   cascato anch'io la prima volta (Fil, 2026-08-24): sembrava applicato ma
+   .attendance-badge restava bianco perché la regola base qui sotto vince
+   sempre. Stessa "lastra di vetro bianca" di .header/.navbar, corretta
+   nel posto giusto stavolta. */
+@media (prefers-color-scheme: dark) {
+  .attendance-badge {
+    background: rgba(44, 34, 51, 0.75);
+  }
 }
 
 .bell {
