@@ -1233,7 +1233,7 @@
         // creazione, dove restano solo le date e gli invitati/quota da
         // scegliere di nuovo (non aveva funzionato con quelli di prima).
         var repeatBoxHTML = (isOrganizer && info.status === 'cancelled')
-          ? '<div class="add-date-btn" id="repeatEventBtn" style="margin-bottom:20px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="vertical-align:-2px; margin-right:4px;"><path d="M17 2.1l4 4-4 4"></path><path d="M3 12.6v-2a4 4 0 0 1 4-4h14"></path><path d="M7 21.9l-4-4 4-4"></path><path d="M21 11.4v2a4 4 0 0 1-4 4H3"></path></svg>Ripeti questo evento con nuove date</div>'
+          ? '<div class="repeat-btn" id="repeatEventBtn" style="margin-bottom:20px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M17 2.1l4 4-4 4"></path><path d="M3 12.6v-2a4 4 0 0 1 4-4h14"></path><path d="M7 21.9l-4-4 4-4"></path><path d="M21 11.4v2a4 4 0 0 1-4 4H3"></path></svg>Ripeti questo evento con nuove date</div>'
           : '';
 
         // Unica via d'uscita per un ospite bloccato qui (niente navbar, niente

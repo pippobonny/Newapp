@@ -560,7 +560,7 @@
 
   /* ---------- 2. Effetto ripple ---------- */
   function initRipples() {
-    var selector = '.card, .primary-btn, .chip, .pill, .nav-item .icon, .settings-row, .bell, .back-btn, .add-date-btn, .remove-date, .home-tile, .info-tile.is-clickable, .who-coming-tile';
+    var selector = '.card, .primary-btn, .chip, .pill, .nav-item .icon, .settings-row, .bell, .back-btn, .add-date-btn, .repeat-btn, .remove-date, .home-tile, .info-tile.is-clickable, .who-coming-tile';
 
     document.querySelectorAll(selector).forEach(function (el) {
       // evita di ricollegare il listener se l'elemento era gia' stato inizializzato

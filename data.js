@@ -2802,7 +2802,7 @@
       return (n || '').trim().toLowerCase() === myNameLower;
     });
     var repeatBtnHTML = ((info.status === 'cancelled' && isOrganizer) || (info.status === 'passato' && (isOrganizer || wasThere)))
-      ? '<div class="add-date-btn" data-repeat-event="' + event.id + '" style="margin-top:10px; margin-bottom:0; text-align:center;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="vertical-align:-2px; margin-right:4px;"><path d="M17 2.1l4 4-4 4"></path><path d="M3 12.6v-2a4 4 0 0 1 4-4h14"></path><path d="M7 21.9l-4-4 4-4"></path><path d="M21 11.4v2a4 4 0 0 1-4 4H3"></path></svg>Ripeti questo evento</div>'
+      ? '<div class="repeat-btn" data-repeat-event="' + event.id + '" style="margin-top:10px; margin-bottom:0;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M17 2.1l4 4-4 4"></path><path d="M3 12.6v-2a4 4 0 0 1 4-4h14"></path><path d="M7 21.9l-4-4 4-4"></path><path d="M21 11.4v2a4 4 0 0 1-4 4H3"></path></svg>Ripeti questo evento</div>'
       : '';
 
     var cardHTML = ''

@@ -1301,6 +1301,29 @@ label.event-photo-preview {
   margin-bottom: 20px;
 }
 
+/* Ripeti questo evento (card annullata, lista + dettaglio): non è un'azione
+   minore come "+Aggiungi una spesa" (quella usa .add-date-btn, tint tenue),
+   è l'unica cosa che si può ancora fare su un evento morto — merita il peso
+   di un CTA vero. Prima riusava .add-date-btn: pillola beige generica,
+   stonava dentro una card dal bordo rosso "annullato" (Fil, 2026-08-24:
+   "come pulsante degli annullati non mi piace"). Pieno come .primary-btn,
+   ma più compatto per stare in una card di lista. */
+.repeat-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--peach);
+  color: #FFF8F0;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 11px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 6px 16px rgba(58,50,90,0.12);
+}
+.repeat-btn svg { flex-shrink: 0; }
+
 .primary-btn {
   display: block;
   width: 100%;
@@ -2296,6 +2319,7 @@ a.notif-item:active { background: var(--track-soft); }
 .bell,
 .back-btn,
 .add-date-btn,
+.repeat-btn,
 .remove-date,
 .home-tile,
 .info-tile.is-clickable,
@@ -2313,6 +2337,7 @@ a.notif-item:active { background: var(--track-soft); }
 .bell:active,
 .back-btn:active,
 .add-date-btn:active,
+.repeat-btn:active,
 .home-tile:active,
 .info-tile.is-clickable:active,
 .who-coming-tile:active {
