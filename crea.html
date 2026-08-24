@@ -189,9 +189,10 @@
           </label>
           <label class="option-tile" id="openInviteField">
             <div class="option-tile-top">
-              <span class="option-tile-title">Apri il link a tutti</span>
+              <span class="option-tile-title">Apri il link a tutti<span class="option-tile-info-btn" id="openInviteInfoBtn" role="button" aria-label="Cosa significa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="11" x2="12" y2="16"></line><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"></circle></svg></span></span>
               <input type="checkbox" id="openInviteCheckbox" class="option-row-switch">
             </div>
+            <div class="option-tile-info-popup" id="openInviteInfoPopup" style="display:none;">Attivalo solo se vuoi che chiunque abbia il link possa aggiungersi da solo, anche se non l'hai scritto qui sopra. Comodo per eventi aperti a un gruppo largo, ma il link diventa di fatto un accesso libero.</div>
             <span class="option-tile-hint">anche a chi non hai scritto sopra</span>
           </label>
         </div>
@@ -872,6 +873,35 @@
       var saveAsListCheckbox = document.getElementById('saveAsListCheckbox');
       var openInviteField = document.getElementById('openInviteField');
       var openInviteCheckbox = document.getElementById('openInviteCheckbox');
+
+      /* Fumetto "cosa significa" a comparsa, non più automatico (Fil,
+         2026-08-25, bug segnalato: mostrarlo da solo al primo arrivo sullo
+         step 2 faceva crescere questa tile più della sua vicina nella
+         stessa riga della griglia, "sballava le dimensioni dei riquadri").
+         preventDefault+stopPropagation: il bottone vive dentro un <label>
+         (l'intera tile lo è, per il tap-ovunque-attiva-lo-switch), senza
+         fermare qui il click toccare "i" attiverebbe anche lo switch sotto. */
+      var openInviteInfoBtn = document.getElementById('openInviteInfoBtn');
+      var openInviteInfoPopup = document.getElementById('openInviteInfoPopup');
+      if (openInviteInfoBtn && openInviteInfoPopup) {
+        openInviteInfoBtn.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          openInviteInfoPopup.style.display = openInviteInfoPopup.style.display === 'none' ? '' : 'none';
+        });
+        // Stesso motivo di sopra: un tap sul testo del fumetto (es. per
+        // leggerlo con calma) non deve attivare/disattivare lo switch.
+        openInviteInfoPopup.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        });
+        document.addEventListener('click', function (e) {
+          if (openInviteInfoPopup.style.display === 'none') return;
+          if (e.target === openInviteInfoBtn || openInviteInfoBtn.contains(e.target)) return;
+          if (openInviteInfoPopup.contains(e.target)) return;
+          openInviteInfoPopup.style.display = 'none';
+        });
+      }
       var expensesEnabledCheckbox = document.getElementById('expensesEnabledCheckbox');
       var itemsEnabledCheckbox = document.getElementById('itemsEnabledCheckbox');
       var stagedExpensesField = document.getElementById('stagedExpensesField');
@@ -1061,14 +1091,6 @@
         });
         var screenEl = document.querySelector('.screen');
         if (screenEl) screenEl.scrollTop = 0;
-
-        // fumetto "una volta sola" (Fil, 2026-07-07) che spiega l'invito
-        // aperto, mostrato appena si arriva sul passo 2.
-        if (n === 2 && window.SeevaUI && SeevaUI.showOnceHint) {
-          SeevaUI.showOnceHint('openInvite', openInviteCheckbox.closest('.option-tile'),
-            'Attivalo solo se vuoi che chiunque abbia il link possa aggiungersi da solo, anche se non l\'hai scritto qui sopra. Comodo per eventi aperti a un gruppo largo, ma il link diventa di fatto un accesso libero.',
-            openInviteCheckbox, ['focus', 'change']);
-        }
       }
 
       /* ---------- tasto indietro (pillola inline + sistema) durante il wizard ----------

@@ -1214,6 +1214,10 @@ a.back-btn:active { transform: scale(0.92); }
   flex-direction: column;
   gap: 6px;
   cursor: pointer;
+  /* Ancora per .option-tile-info-popup qui sotto (Fil, 2026-08-25): a
+     comparsa invece che sempre visibile, non deve spingere giù le altre
+     tile della griglia — position:absolute, non flusso normale. */
+  position: relative;
 }
 
 /* Una sola tile visibile nella coppia (es. "salva come lista" nascosto
@@ -1243,6 +1247,44 @@ a.back-btn:active { transform: scale(0.92); }
   font-size: 10.5px;
   color: var(--ink-soft);
   line-height: 1.3;
+}
+
+/* Pulsante "i" e fumetto a comparsa (Fil, 2026-08-25): sostituisce il
+   vecchio fumetto "una volta sola" che compariva da solo appena arrivavi
+   allo step — spingeva giù il contenuto (mai position:absolute per lui,
+   vedi .hint-bubble più sopra), ma qui la tile vive affiancata a un'altra
+   nella stessa riga della griglia: crescendo solo lei, sballava
+   l'allineamento delle due. A comparsa invece è sempre position:absolute,
+   apposta per non toccare mai l'altezza della riga. */
+.option-tile-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  margin-left: 4px;
+  border-radius: 50%;
+  background: var(--track-soft);
+  color: var(--ink-soft);
+  vertical-align: -2px;
+}
+.option-tile-info-btn:active { background: var(--lavender-soft); color: var(--lavender); }
+
+.option-tile-info-popup {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 100%;
+  margin-top: 6px;
+  background: var(--lavender-soft);
+  color: var(--lavender);
+  font-size: 11.5px;
+  line-height: 1.4;
+  padding: 8px 10px;
+  border-radius: 9px;
+  box-shadow: 0 6px 16px rgba(58,50,90,0.18);
+  z-index: 5;
+  cursor: default;
 }
 
 .option-tile .option-row-switch {
