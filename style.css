@@ -287,10 +287,21 @@ a.back-btn {
 }
 a.back-btn:active { transform: scale(0.92); }
 
+/* min-width:0 è necessario perché sia il flex-shrink a valere qualcosa:
+   di default un figlio flex non si restringe sotto la sua larghezza intrinseca
+   (il testo tutto su una riga), quindi un nome evento lungo spingeva
+   .header-menu-wrap (il pulsante ⋮, margin-left:auto) fuori dallo schermo,
+   invisibile e non toccabile — trovato 2026-08-24 testando un titolo lungo
+   su evento.html. Qui il titolo tronca con "…" invece di spingere. */
 .header-title {
   font-family: 'Fraunces', serif;
   font-size: 18px;
   font-weight: 600;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .profile {
