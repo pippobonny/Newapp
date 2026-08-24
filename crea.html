@@ -1113,13 +1113,27 @@
         try { history.pushState({ seevaSpa: true, crWizardStep: n }, '', location.href); } catch (err) { /* ignora */ }
       }
       function handleWizardPopState(e) {
+        // Fil, 2026-08-25: se l'URL non è più questa pagina, il popstate ha
+        // fatto uscire davvero (niente altre entry di wizard da consumare,
+        // eravamo al primo step) — non c'è più uno step da mostrare, e
+        // "tornare indietro" qui conta come lo stesso abbandono volontario
+        // della bolla viola qui sotto: niente bozza da recuperare al
+        // prossimo giro (vedi draftStillPending più sotto).
+        if (window.location.pathname.indexOf('crea.html') === -1) {
+          draftStillPending = false;
+          return;
+        }
         showStep((e.state && e.state.crWizardStep) || 1);
       }
       window.addEventListener('popstate', handleWizardPopState);
 
       // Visibile solo allo step 1 (vedi showStep sopra): niente da
-      // intercettare sul click, segue sempre il suo href di default.
+      // intercettare sul click, segue sempre il suo href di default — solo
+      // marcata come uscita volontaria (Fil, 2026-08-25: "se torni alla
+      // home si cancella la bozza, se fai refresh resta salvata") prima di
+      // seguirlo, vedi draftStillPending più sotto.
       var crBackBtn = document.getElementById('crBackBtn');
+      crBackBtn.addEventListener('click', function () { draftStillPending = false; });
 
       document.getElementById('step1NextBtn').addEventListener('click', function () {
         step1Error.textContent = '';
@@ -1621,6 +1635,11 @@
           return;
         }
 
+        // Salvato per davvero: niente più bozza da autosalvare all'uscita
+        // (vedi il listener "pagehide" più sotto), anzi va tolta quella
+        // eventualmente rimasta da un tentativo precedente.
+        draftStillPending = false;
+
         // Spese e voci segnate prima di creare l'evento (Fil, 2026-07-25):
         // solo ora esiste davvero un event.id a cui agganciarle. Pagate/
         // proposte da te, divise tra te più tutti gli invitati (stessa
@@ -1729,6 +1748,35 @@
       var DRAFT_KEY = 'seeva:eventDraft';
       var JUST_CREATED_LIST_KEY = 'seeva:justCreatedListId';
       var RETURN_FLAG_KEY = 'seeva:returnToEventCreation';
+
+      // Fil, 2026-08-25, bug segnalato: un aggiornamento pagina a metà
+      // creazione perdeva tutto, si ripartiva daccapo — collectDraft() qui
+      // sotto raccoglieva già tutto il necessario (nato per il giro "+ Crea
+      // una lista amici"), gli mancava solo un salvataggio automatico
+      // all'uscita, non solo su quel giro specifico.
+      // draftStillPending parte true e resta tale finché non capita uno di
+      // due casi, entrambi trattati come "questa bozza non serve più":
+      // 1) l'evento è stato creato/salvato per davvero (vedi createEventBtn);
+      // 2) sei tornato indietro volontariamente (bolla viola o tasto di
+      //    sistema, solo al primo step — vedi crBackBtn/handleWizardPopState
+      //    più sopra), scelto apposta ("preferisco che tornare alla home
+      //    cancelli la bozza, un refresh invece la tenga", Fil). Un
+      //    ricaricamento vero della pagina non passa da nessuno dei due,
+      //    quindi la bozza resta e si ripristina da sola (restoreDraftIfAny).
+      // Il salvataggio/pulizia vero e proprio è chiamato sia su "pagehide"
+      // (ricaricamento/uscita vera dalla scheda) sia da window.__seevaUnmount
+      // più sotto (cambio tab SPA, che non scatena mai un vero pagehide).
+      var draftStillPending = true;
+      function saveOrClearDraftOnExit() {
+        try {
+          if (draftStillPending) {
+            sessionStorage.setItem(DRAFT_KEY, JSON.stringify(collectDraft()));
+          } else {
+            sessionStorage.removeItem(DRAFT_KEY);
+          }
+        } catch (err) { /* ignora: nel peggiore dei casi si perde solo la bozza */ }
+      }
+      window.addEventListener('pagehide', saveOrClearDraftOnExit);
 
       function collectDraft() {
         return {
@@ -2001,6 +2049,12 @@
         stopRecording();
         mounted = false;
         window.removeEventListener('popstate', handleWizardPopState);
+        // Cambio tab SPA verso un'altra pagina (Fil, 2026-08-25): non
+        // scatena mai un "pagehide" vero (la pagina non si scarica, vedi
+        // saveOrClearDraftOnExit sopra), quindi va richiamata a mano qui,
+        // altrimenti lasciare crea.html così perdeva comunque la bozza.
+        saveOrClearDraftOnExit();
+        window.removeEventListener('pagehide', saveOrClearDraftOnExit);
       };
     })();
   </script>
