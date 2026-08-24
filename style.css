@@ -1554,11 +1554,37 @@ label.event-photo-preview {
   gap: 10px;
   margin-bottom: 10px;
 }
+/* Verticale invece che in riga (Fil, 2026-08-25, secondo giro: "gioca con
+   la forma, c'è tanto spazio bianco sopra e sotto"): a metà larghezza
+   icona+testo+freccina sulla stessa riga non lasciava spazio vero al
+   valore ("Mer 9 settembre" troncava a "M", vedi il giro prima). Icona sopra,
+   valore sotto usa tutta la larghezza del riquadro invece di quel poco che
+   avanzava dopo icona e freccina — ci sta anche il caso peggiore (giorno a
+   due cifre, giorno della settimana e mese più lunghi, es. "Mer 21
+   settembre"). align-items:stretch esplicito, non basta il default:
+   .info-tile base qui sopra lo mette già a "center" (icona+testo
+   centrati sulla riga orizzontale di prima), che a colonna
+   centrerebbe .info-tile-body invece di allargarlo a tutta la
+   larghezza — va ribaltato apposta qui. .info-tile-icon non ne risente
+   comunque (ha già 38x38 espliciti, stretch non lo tocca). */
 .info-tile-row .info-tile {
   flex: 1;
   min-width: 0;
   margin-bottom: 0;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
 }
+.info-tile-row .info-tile-value {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+/* La freccina di "Tu" (vedi .info-tile-chevron) serviva a segnare che la
+   riga è cliccabile quando "Cambia →" non ci stava più per esteso — in
+   verticale non serve: tutto il riquadro resta comunque cliccabile, e
+   "Dove" (mai avuta una freccina) sta già bene così accanto. */
+.info-tile-row .info-tile-chevron { display: none; }
 .info-tile-icon {
   width: 38px;
   height: 38px;
