@@ -204,7 +204,7 @@
         event = eventId ? await NdumaData.getEventById(eventId) : null;
       } catch (err) {
         titleEl.textContent = 'Errore';
-        contentEl.innerHTML = '<div class="empty-hint">Non riesco a caricare questo evento (' + NdumaData.escapeHTML(err.message) + ').<br><a href="index.html">Torna alla Home →</a></div>';
+        contentEl.innerHTML = '<div class="empty-hint">Non riesco a caricare questo evento (' + NdumaData.escapeHTML(NdumaData.friendlyErrorMessage(err)) + ').<br><a href="index.html">Torna alla Home →</a></div>';
         return;
       }
 

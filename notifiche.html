@@ -211,7 +211,7 @@
         try {
           events = await NdumaData.getEvents();
         } catch (err) {
-          notifBodyEl.innerHTML = '<div class="empty-hint">Non riesco a caricare le notifiche (' + NdumaData.escapeHTML(err.message) + ').</div>';
+          notifBodyEl.innerHTML = '<div class="empty-hint">Non riesco a caricare le notifiche (' + NdumaData.escapeHTML(NdumaData.friendlyErrorMessage(err)) + ').</div>';
           return;
         }
 

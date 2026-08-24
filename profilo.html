@@ -476,7 +476,7 @@
         try {
           acc = await NdumaData.fetchOwnAccount();
         } catch (err) {
-          createError.textContent = 'Non sono riuscito a caricare il profilo (' + err.message + ').';
+          createError.textContent = 'Non sono riuscito a caricare il profilo (' + NdumaData.friendlyErrorMessage(err) + ').';
           return;
         }
         if (!acc) return;
@@ -579,7 +579,7 @@
         try {
           events = await NdumaData.getEvents();
         } catch (err) {
-          myEventsList.innerHTML = '<div class="empty-hint">Non riesco a caricare i tuoi eventi (' + NdumaData.escapeHTML(err.message) + ').</div>';
+          myEventsList.innerHTML = '<div class="empty-hint">Non riesco a caricare i tuoi eventi (' + NdumaData.escapeHTML(NdumaData.friendlyErrorMessage(err)) + ').</div>';
           return;
         }
 

@@ -259,7 +259,7 @@
         try {
           lists = await NdumaData.getFriendLists();
         } catch (err) {
-          listsContainer.innerHTML = '<div class="empty-hint">Non riesco a caricare le liste (' + NdumaData.escapeHTML(err.message) + ').</div>';
+          listsContainer.innerHTML = '<div class="empty-hint">Non riesco a caricare le liste (' + NdumaData.escapeHTML(NdumaData.friendlyErrorMessage(err)) + ').</div>';
           return;
         }
 
