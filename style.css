@@ -302,9 +302,10 @@ a.back-btn:active { transform: scale(0.92); }
 
 /* Bolla "Condividi" (Fil, 2026-08-25): stessa forma/posizione/logica di
    a.back-btn qui sopra, a specchio sul lato opposto — "una bolla come
-   quella viola, solo l'icona". Colore diverso apposta (arancione, lo
-   stesso delle azioni vere tipo i bottoni primari) per non confondersi
-   con la viola, che è solo navigazione. Vedi #shareFab in evento.html. */
+   quella viola, solo l'icona". Sfondo chiaro apposta ("la metterei sul
+   bianco", Fil, secondo giro), icona arancione sopra: resta un'azione
+   riconoscibile ma non si confonde con la viola (navigazione, sfondo
+   scuro). Vedi #shareFab in evento.html. */
 .share-fab {
   position: absolute;
   right: 18px;
@@ -312,12 +313,12 @@ a.back-btn:active { transform: scale(0.92); }
   width: 54px;
   height: 54px;
   border-radius: 50%;
-  background: var(--peach);
-  color: #FFF8F0;
+  background: var(--card);
+  color: var(--peach);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 12px 26px rgba(58,50,90,0.3);
+  box-shadow: 0 12px 26px rgba(58,50,90,0.22);
   cursor: pointer;
   z-index: 30;
   transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), opacity 0.15s ease;
