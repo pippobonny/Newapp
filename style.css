@@ -228,6 +228,13 @@ a { text-decoration: none; color: inherit; }
   border-radius: 0;
   background: none;
   box-shadow: none;
+  /* Il bordo bianco (rgba(255,255,255,0.6)) di .header base era pensato per
+     il vecchio pannello di vetro sfumato: senza quello sfondo, restava un
+     riquadro bianco intorno all'header — invisibile su schermo chiaro,
+     ben visibile in dark mode (Fil, 2026-08-24, foto reale dal telefono:
+     "appena percettibile con la schermata chiara, se metti modalità
+     scura si vede tantissimo il riquadro bianco"). */
+  border: none;
   justify-content: flex-start;
   gap: 14px;
   /* Stacco dal resto della pagina (Fil, 2026-08-23, terza versione: né la
