@@ -1255,20 +1255,28 @@ a.back-btn:active { transform: scale(0.92); }
    vedi .hint-bubble più sopra), ma qui la tile vive affiancata a un'altra
    nella stessa riga della griglia: crescendo solo lei, sballava
    l'allineamento delle due. A comparsa invece è sempre position:absolute,
-   apposta per non toccare mai l'altezza della riga. */
+   apposta per non toccare mai l'altezza della riga.
+   Secondo giro (Fil, 2026-08-25): troppo piccolo e mimetizzato nel testo
+   del titolo — spostato fuori, a cavallo dell'angolo in alto a destra
+   della tile (metà dentro metà fuori, come un badge), ingrandito e con
+   ombra vera per staccarsi sia dalla tile sotto sia dallo sfondo pagina
+   dietro. */
 .option-tile-info-btn {
-  display: inline-flex;
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 15px;
-  height: 15px;
-  margin-left: 4px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  background: var(--track-soft);
-  color: var(--ink-soft);
-  vertical-align: -2px;
+  background: var(--card);
+  color: var(--lavender);
+  box-shadow: 0 3px 10px rgba(58,50,90,0.22);
+  z-index: 2;
 }
-.option-tile-info-btn:active { background: var(--lavender-soft); color: var(--lavender); }
+.option-tile-info-btn:active { background: var(--lavender-soft); }
 
 .option-tile-info-popup {
   position: absolute;
