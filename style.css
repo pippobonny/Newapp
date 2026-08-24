@@ -374,13 +374,16 @@ a.back-btn:active { transform: scale(0.92); }
   margin-top: 3px;
 }
 
-/* Badge scherzoso sulla presenza agli eventi: ora sta sopra la card, nell'area aurora */
+/* Badge scherzoso sulla presenza agli eventi: sotto al profilo (Fil, 2026-08-24) */
 .top-badge-wrap {
   position: relative;
   z-index: 1;
   display: flex;
   justify-content: center;
   padding-top: 26px;
+  /* .content sotto ha già 4px di padding-top suo: 22 + 4 = 26, come sopra
+     (Fil, 2026-08-24: "stesso spazio sopra e sotto"). */
+  padding-bottom: 22px;
 }
 
 .attendance-badge {
