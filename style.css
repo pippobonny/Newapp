@@ -400,7 +400,11 @@ a.back-btn:active { transform: scale(0.92); }
   font-weight: 600;
   color: var(--ink);
   box-shadow: 0 2px 8px rgba(58, 50, 90, 0.1);
-  transition: opacity 0.22s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+  /* padding/font-size/border-radius in coda (Fil, 2026-08-24): servono
+     all'invito a installare qui sotto, che passa da bolla piccola a
+     rettangolo grosso — senza animarli anche loro il cambio di forma
+     scatterebbe di colpo invece di "espandersi". */
+  transition: opacity 0.22s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease, padding 0.3s ease, font-size 0.3s ease, border-radius 0.3s ease;
 }
 
 /* Notifica arrivata mentre sei sulla Home (Fil, 2026-08-24): il badge si
@@ -414,11 +418,21 @@ a.back-btn:active { transform: scale(0.92); }
 }
 
 /* Invito a installare l'app al posto delle solite frasi (Fil, 2026-08-24,
-   vedi initHomeInstallPrompt in script.js): stesso badge, stesso "espandersi"
-   di sopra, solo che stavolta è cliccabile (apre il dialogo nativo o le
-   istruzioni manuali). */
+   vedi initHomeInstallPrompt in script.js): stesso vetro smerigliato
+   trasparente di sempre (niente colore pieno: "non mi piace arancione, ecc"),
+   solo molto più grande — abbastanza da perdere la forma a bolla e diventare
+   un rettangolo dai bordi arrotondati, per farsi notare ("bello grosso per
+   invogliare", Fil). Cliccabile (apre il dialogo nativo o le istruzioni
+   manuali). */
 .attendance-badge--install {
   cursor: pointer;
+  padding: 16px 22px;
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: 18px;
+  max-width: 82%;
+  text-align: center;
+  line-height: 1.35;
 }
 
 /* Va DOPO la regola base sopra, non nel blocco dark-mode in cima al file:

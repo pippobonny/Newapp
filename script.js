@@ -1501,8 +1501,8 @@
       // installata: ricontrolla, non fidarsi del riferimento chiuso sopra.
       var badge = document.getElementById('attendanceBadge');
       if (!badge || isAppInstalled()) return;
-      badge.innerHTML = '📲 Installa l\'app: quasi zero spazio sul telefono';
-      badge.classList.add('attendance-badge--flash', 'attendance-badge--install');
+      badge.innerHTML = '📲 Installa l\'app: non occupa spazio sul telefono';
+      badge.classList.add('attendance-badge--install');
       badge.addEventListener('click', onInstallBadgeTap);
     }, 2000);
   }
@@ -1546,7 +1546,7 @@
       + '<div class="card-title">Installa seeva</div>'
       + '<div class="list-delete" id="installPromptCloseBtn">Chiudi ✕</div>'
       + '</div>'
-      + '<div class="signup-modal-text" style="text-align:left; margin-bottom:10px;">Non è una nuova app da scaricare: è una scorciatoia leggera che apre seeva a schermo intero come un\'app vera, senza occupare praticamente spazio sul telefono.</div>'
+      + '<div class="signup-modal-text" style="text-align:left; margin-bottom:10px;">Non occupa spazio nella memoria del telefono.</div>'
       + stepsHTML
       + '</div>';
     document.body.appendChild(overlay);
