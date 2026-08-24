@@ -937,6 +937,49 @@
     showRealAttendanceBadge(el);
   }
 
+  /* Quando arriva una notifica nuova mentre sei sulla Home (Fil, 2026-08-24),
+     il badge presenza la mostra un attimo al posto della solita frase:
+     "si ingrandisce con un'animazione e torna come prima da solo dopo 5
+     secondi". Chiamata da index.html (che sa quando refreshHome trova una
+     notifica più recente di quella vista l'ultima volta) via
+     window.SeevaUI.flashAttendanceBadge(testo). */
+  var attendanceFlashTimer = null;
+  var attendanceFlashOriginal = null;
+
+  function flashAttendanceBadge(rawText) {
+    var el = document.getElementById('attendanceBadge');
+    if (!el) return;
+
+    // rawText è HTML già pronto (es. "<b>Nome</b> è confermato!", vedi
+    // SeevaData.buildNotifications): un <div> di scarto per estrarre solo il
+    // testo, senza tag e con le entity già decodificate, senza reinserirlo
+    // mai nel documento (nessun rischio, non è mai letto come markup).
+    var tmp = document.createElement('div');
+    tmp.innerHTML = rawText;
+    var text = (tmp.textContent || '').trim();
+    if (!text) return;
+
+    if (attendanceFlashTimer) {
+      clearTimeout(attendanceFlashTimer);
+    } else {
+      // Solo la prima volta che il badge "vero" viene coperto: salvato per
+      // ripristinarlo dopo. Se arriva un'altra notifica mentre il badge sta
+      // ancora mostrando la precedente, non risalvare — sovrascriverebbe
+      // l'originale con la notifica appena mostrata.
+      attendanceFlashOriginal = el.textContent;
+    }
+
+    el.textContent = '🔔 ' + text;
+    el.classList.add('attendance-badge--flash');
+
+    attendanceFlashTimer = setTimeout(function () {
+      attendanceFlashTimer = null;
+      el.classList.remove('attendance-badge--flash');
+      el.textContent = attendanceFlashOriginal;
+      attendanceFlashOriginal = null;
+    }, 5000);
+  }
+
   /* ---------- 6. Chip: piccolo "pop" alla selezione ---------- */
   function initChipPop() {
     document.querySelectorAll('.chip').forEach(function (chip) {
@@ -1784,7 +1827,8 @@
     // Fil, 2026-08-23: stessa funzione già usata per i numeri delle barre
     // di progresso (initProgressBars più sopra), esposta anche a chi non è
     // dentro questo file — la usa index.html per i numeri sui riquadri.
-    animateCount: animateCount
+    animateCount: animateCount,
+    flashAttendanceBadge: flashAttendanceBadge
   };
 
   document.addEventListener('DOMContentLoaded', function () {

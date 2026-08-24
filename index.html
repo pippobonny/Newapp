@@ -189,6 +189,11 @@
       // altrimenti l'animazione ripartirebbe da 0 ogni volta, sembrando un
       // reset invece che un aggiornamento.
       var lastTileCounts = { waiting: null, confirmed: null, cancelled: null };
+      // Per capire se una notifica è "nuova" rispetto all'ultimo giro di
+      // refreshHome (non solo "non letta": quella potrebbe già esserci da
+      // prima) — vedi uso più sotto, insieme a flashAttendanceBadge.
+      var lastNotifKey = null;
+      var notifBellInitialized = false;
       function setTileCount(el, key, value) {
         if (lastTileCounts[key] === value) return;
         var isFirstRender = lastTileCounts[key] === null;
@@ -266,6 +271,24 @@
           // un'icona vera (non più l'emoji 🔔) — trema leggermente quando
           // c'è qualcosa di non letto, si ferma da sola appena letta.
           if (homeBellEl) homeBellEl.classList.toggle('has-unread', unreadCount > 0);
+
+          // Notifica arrivata proprio ora, mentre sei sulla Home (Fil,
+          // 2026-08-24): il badge presenza la mostra un attimo. Al primo
+          // giro (pagina appena aperta, notificationsForBell contiene tutta
+          // la storia pregressa) memorizziamo solo la più recente, senza far
+          // scattare l'animazione — altrimenti "lampeggerebbe" ad ogni
+          // apertura della Home anche per notifiche vecchie.
+          var newestNotif = notificationsForBell[0];
+          var newestKey = newestNotif ? [newestNotif.time, newestNotif.eventId, newestNotif.icon].join('|') : null;
+          if (!notifBellInitialized) {
+            notifBellInitialized = true;
+            lastNotifKey = newestKey;
+          } else if (newestKey && newestKey !== lastNotifKey) {
+            lastNotifKey = newestKey;
+            if (window.SeevaUI && window.SeevaUI.flashAttendanceBadge) {
+              window.SeevaUI.flashAttendanceBadge(newestNotif.text);
+            }
+          }
         } catch (err) { /* ignora: il pallino resta semplicemente com'era */ }
       }
 

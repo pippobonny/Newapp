@@ -400,7 +400,17 @@ a.back-btn:active { transform: scale(0.92); }
   font-weight: 600;
   color: var(--ink);
   box-shadow: 0 2px 8px rgba(58, 50, 90, 0.1);
-  transition: opacity 0.22s ease;
+  transition: opacity 0.22s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+}
+
+/* Notifica arrivata mentre sei sulla Home (Fil, 2026-08-24): il badge si
+   ingrandisce un po' e mostra il testo della notifica al posto della solita
+   frase, poi torna com'era da solo dopo 5s — vedi flashAttendanceBadge in
+   script.js, chiamata da refreshHome in index.html quando trova una
+   notifica più recente di quella vista l'ultima volta. */
+.attendance-badge--flash {
+  transform: scale(1.08);
+  box-shadow: 0 6px 18px rgba(58, 50, 90, 0.22);
 }
 
 /* Va DOPO la regola base sopra, non nel blocco dark-mode in cima al file:
