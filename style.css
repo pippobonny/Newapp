@@ -2460,7 +2460,13 @@ a.notif-item:active { background: var(--track-soft); }
 }
 
 /* Popup "crea il tuo profilo": mostrato in Home solo a chi non ha ancora un
-   profilo, per invogliare alla registrazione senza obbligarla. */
+   profilo, per invogliare alla registrazione senza obbligarla. Stesso
+   componente riusato per OGNI popup dell'app (gestione lista amici, "Chi
+   viene", spese, modifica disponibilità...). z-index sopra a.back-btn
+   (30): la bolla "torna indietro" restava sopra questi popup invece di
+   sparire sotto, capitava di vederla sovrapposta a pulsanti/testo del
+   popup quando questo arrivava vicino al suo angolo in basso a sinistra
+   (Fil, 2026-08-24: "finisce ogni tanto sovrapposto a tasti o scritte"). */
 .signup-overlay {
   position: absolute;
   inset: 0;
@@ -2470,7 +2476,7 @@ a.notif-item:active { background: var(--track-soft); }
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 20;
+  z-index: 50;
   padding: 20px;
 }
 
