@@ -25,9 +25,11 @@
      spedire in giro link su quel dominio vecchio altrimenti — è proprio
      quello che stava succedendo (link "Condividi" copiati mentre si era
      ancora sul vecchio dominio). Vale anche per l'app installata sul
-     telefono: se non è stata reinstallata da nduma.it, resta puntata al
-     vecchio indirizzo finché non viene tolta e rimessa da qui. */
-  var SITE_URL = 'https://nduma.it';
+     telefono: se non è stata reinstallata da seeva.it, resta puntata al
+     vecchio indirizzo finché non viene tolta e rimessa da qui.
+     Rebranding nduma -> seeva (Fil, 2026-08-24): dominio nuovo collegato
+     su Vercel e aggiunto alla allowlist "Redirect URLs" di Supabase. */
+  var SITE_URL = 'https://seeva.it';
 
   /* Fil, 2026-07-19: bug osservato da Virginia — modifica un evento, preme
      "Conferma", riceve "non sono riuscito a salvare", preme di nuovo e va
@@ -234,12 +236,8 @@
     if (event.description) descriptionParts.push(event.description);
     descriptionParts.push('Dettagli su seeva: ' + SITE_URL + '/evento.html?id=' + event.id);
 
-    // UID/PRODID: SITE_URL non ancora aggiornato al dominio nuovo (in attesa
-    // di conferma, vedi SITE_URL qui sopra) — "@nduma.it" resta com'era solo
-    // come namespace di unicità RFC 5545, non un link che deve risolvere
-    // davvero. Da aggiornare insieme a SITE_URL quando il dominio è pronto.
     var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//seeva//IT', 'BEGIN:VEVENT']
-      .concat(['UID:' + event.id + '@nduma.it', 'DTSTAMP:' + icsDateStamp()])
+      .concat(['UID:' + event.id + '@seeva.it', 'DTSTAMP:' + icsDateStamp()])
       .concat(dtLines)
       .concat([
         'SUMMARY:' + icsEscape(event.name),
@@ -1209,7 +1207,7 @@
      Fil, 2026-07-20: prima era window.location.origin, quindi chi partiva
      da un segnalibro/PWA sul vecchio dominio Vercel tornava lì anche dopo
      Google — usa sempre SITE_URL (il dominio vero), non da dove si è
-     partiti. NB: perché funzioni davvero, nduma.it deve anche essere nella
+     partiti. NB: perché funzioni davvero, seeva.it deve anche essere nella
      lista "Redirect URLs" del pannello Supabase (Authentication → URL
      Configuration) — altrimenti Supabase ignora questo valore e torna comunque
      al suo "Site URL" configurato lì, non qui nel codice. */
