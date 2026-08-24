@@ -29,15 +29,16 @@ self.addEventListener('push', function (event) {
   var options = {
     body: data.body || '',
     // "icon" e' l'immagine grande mostrata quando la notifica e' espansa
-    // (a tutti gli effetti va bene anche a colori): il logo vero "nd",
-    // sfondo bianco (Fil, 2026-07-19).
+    // (a tutti gli effetti va bene anche a colori): il logo vero "sv",
+    // sfondo scuro (Fil, 2026-07-19; logo/sfondo aggiornati 2026-08-24 col
+    // rebranding a seeva, vedi icon-192.png).
     icon: 'icon-192.png',
     // "badge" invece e' la sagoma piccola nella barra di stato (Android):
     // il sistema la trasforma SEMPRE in una silhouette monocroma usando il
     // canale alpha del file. icon-192.png e' un PNG opaco (nessuna
     // trasparenza), per cui Android non trova nessuna sagoma da ritagliare
     // e mostra un quadratino bianco pieno. badge-96.png e' un file dedicato,
-    // con sfondo trasparente e la sagoma bianca del segno "nd" ritagliata
+    // con sfondo trasparente e la sagoma bianca del segno "sv" ritagliata
     // dal logo vero: quella sì che Android riesce a mostrare come icona
     // nella barra di stato (Fil, 2026-07-19).
     badge: 'badge-96.png',
