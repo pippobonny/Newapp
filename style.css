@@ -92,6 +92,14 @@
       0 2px 6px rgba(0, 0, 0, 0.2),
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
+
+  /* Stessa "lastra di vetro bianca" di .header/.navbar sopra, dimenticata
+     qui (Fil, 2026-08-24: "appena percettibile con la schermata chiara, se
+     metti modalità scura si vede tantissimo il riquadro bianco attorno" —
+     la pillola "Presente a tutti gli ultimi eventi" in cima alla Home). */
+  .attendance-badge {
+    background: rgba(44, 34, 51, 0.75);
+  }
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
