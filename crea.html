@@ -336,6 +336,34 @@
       // in ritardo non deve più toccare nulla di questa vecchia schermata.
       var mounted = true;
 
+      // Fil, 2026-08-25, bug segnalato: "per un secondo riapre sul primo
+      // step" a un refresh a metà creazione — restoreDraftIfAny() più sotto
+      // (che salta già allo step giusto) arriva dopo due await di rete
+      // (renderSessionWarningIfNeeded, getFriendLists): nel frattempo il
+      // browser fa in tempo a dipingere lo step 1 di default (l'unico
+      // visibile nell'HTML statico), lo step giusto arriva un attimo dopo —
+      // il flash. Questo blocco duplica SOLO il cambio di step (non i
+      // valori dei campi, quelli restano a restoreDraftIfAny) e gira PRIMA
+      // di ogni await qui sotto, quindi prima che il browser dipinga
+      // qualunque cosa: lo step giusto è già lì al primissimo paint.
+      try {
+        var earlyDraft = JSON.parse(sessionStorage.getItem('seeva:eventDraft') || 'null');
+        var earlyStep = (earlyDraft && earlyDraft.currentStep) || 1;
+        if (earlyStep !== 1) {
+          [1, 2, 3].forEach(function (n) {
+            var stepEl = document.getElementById('wizardStep' + n);
+            if (stepEl) stepEl.style.display = (n === earlyStep) ? '' : 'none';
+          });
+          document.querySelectorAll('.wizard-dot').forEach(function (dot) {
+            var dotStep = parseInt(dot.getAttribute('data-step'), 10);
+            dot.classList.toggle('active', dotStep === earlyStep);
+            dot.classList.toggle('done', dotStep < earlyStep);
+          });
+          var earlyBackBtn = document.getElementById('crBackBtn');
+          if (earlyBackBtn) earlyBackBtn.style.display = 'none';
+        }
+      } catch (err) { /* ignora: nel dubbio resta lo step 1 di default */ }
+
       /* Solo chi ha un profilo può creare eventi: senza, sostituiamo il form
          con un messaggio bloccante che invita a crearne uno. Un ospite
          bloccato da un invito (checkAccessGate) viene invece rimandato al
