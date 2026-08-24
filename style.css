@@ -3299,7 +3299,10 @@ a.notif-item:active { background: var(--track-soft); }
    e resa più grande/pesante: sono le due azioni primarie della Home, non
    un'appendice — vanno lette per prime, con un peso visivo vicino a quello
    del riquadro grande sotto. */
-.home-grid-actions { grid-template-columns: 1fr 1fr; grid-template-rows: none; margin-top: 20px; }
+/* Fil, 2026-08-24: stessa distanza di .home-events-title sotto (28px resi
+   a schermo) tra l'header e queste tile, quanto tra "I tuoi eventi" e le
+   sue. */
+.home-grid-actions { grid-template-columns: 1fr 1fr; grid-template-rows: none; margin-top: 24px; }
 .home-tile.is-action { min-height: 128px; background: var(--surface-dark); flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 0; padding: 20px; }
 .home-tile.is-action .home-tile-icon { stroke: #fff; width: 26px; height: 26px; margin-bottom: 12px; }
 .home-tile.is-action .home-tile-label { color: #fff; font-size: 16px; font-weight: 600; margin-top: 0; }
