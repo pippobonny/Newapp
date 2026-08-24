@@ -158,6 +158,7 @@
     });
 
     bindInternalLinkNavigation(screen);
+    initBackBtnModalGuard(screen);
   }
 
   // --- Uscita: al click su un link interno, scorre nella direzione giusta poi naviga ---
@@ -241,6 +242,43 @@
         }, 160);
       });
     });
+  }
+
+  /* La bolla "torna indietro" (a.back-btn) è absolute rispetto a .screen,
+     mentre molti popup (.signup-overlay) di evento.html/crea.html vengono
+     costruiti dentro .content, che ha il suo z-index/stacking-context
+     (position:relative + z-index:1): un figlio di .content non riesce a
+     "vincere" contro un elemento fuori da .content confrontando solo il
+     proprio z-index interno, qualunque valore gli si dia — il browser
+     confronta prima .content nel suo insieme contro i suoi fratelli dentro
+     .screen. Risultato: la bolla restava sopra il popup invece di sparire
+     sotto, capitava di vederla sovrapposta a pulsanti/testo del popup
+     (Fil, 2026-08-24). Invece di rincorrere lo z-index, più semplice ed
+     affidabile: nascondere proprio la bolla finché un .signup-overlay è
+     visibile da qualche parte in .screen, qualunque sia il suo genitore
+     nel DOM — un MutationObserver invece di agganciarsi a ogni singolo
+     punto dell'app che apre/chiude un popup (sono tanti, sparsi su più
+     file), così vale anche per popup aggiunti in futuro senza doverci
+     ripensare qui. */
+  function initBackBtnModalGuard(screen) {
+    if (!screen) screen = document.querySelector('.screen');
+    if (!screen) return;
+
+    function sync() {
+      var overlays = screen.querySelectorAll('.signup-overlay');
+      var modalOpen = false;
+      for (var i = 0; i < overlays.length; i++) {
+        if (getComputedStyle(overlays[i]).display !== 'none') { modalOpen = true; break; }
+      }
+      screen.classList.toggle('has-open-modal', modalOpen);
+    }
+
+    sync();
+
+    if (screen.__seevaModalObserver) screen.__seevaModalObserver.disconnect();
+    var observer = new MutationObserver(sync);
+    observer.observe(screen, { subtree: true, attributes: true, attributeFilter: ['style', 'class'], childList: true });
+    screen.__seevaModalObserver = observer;
   }
 
   /* ---------- 1a-bis. SPA leggera tra le 5 tab principali (Fil, 2026-07-22) ----------
@@ -399,6 +437,7 @@
       // questa, i loro click passavano come navigazione vera invece che SPA
       // — vedi il commento su bindInternalLinkNavigation più sopra.
       bindInternalLinkNavigation(screen);
+      initBackBtnModalGuard(screen);
 
       spaBusy = false;
     }, 160);

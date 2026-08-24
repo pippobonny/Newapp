@@ -283,9 +283,18 @@ a.back-btn {
   box-shadow: 0 12px 26px rgba(58,50,90,0.3);
   text-decoration: none;
   z-index: 30;
-  transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1);
+  transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), opacity 0.15s ease;
 }
 a.back-btn:active { transform: scale(0.92); }
+
+/* .has-open-modal la mette script.js (initBackBtnModalGuard) quando un
+   .signup-overlay qualsiasi è visibile in questa .screen: vedi il
+   commento lì per il perché (un semplice z-index più alto sul popup non
+   basta se il popup vive dentro .content, che ha già il suo). */
+.screen.has-open-modal a.back-btn {
+  opacity: 0;
+  pointer-events: none;
+}
 
 /* min-width:0 è necessario perché sia il flex-shrink a valere qualcosa:
    di default un figlio flex non si restringe sotto la sua larghezza intrinseca
