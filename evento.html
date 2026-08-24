@@ -330,9 +330,9 @@
           await NdumaData.claimEventInvitee(event.shareToken, inviteeId, null, NdumaData.getAccount().id);
         } catch (err) {
           if (window.NdumaUI && NdumaUI.toast) {
-            NdumaUI.toast('Non sono riuscito a collegarti (' + err.message + ').');
+            NdumaUI.toast('Non sono riuscito a collegarti (' + NdumaData.friendlyErrorMessage(err) + ').');
           } else {
-            window.alert('Non sono riuscito a collegarti (' + err.message + ').');
+            window.alert('Non sono riuscito a collegarti (' + NdumaData.friendlyErrorMessage(err) + ').');
           }
           return;
         }
@@ -1433,7 +1433,7 @@
         } catch (err) {
           btnEl.textContent = originalText;
           btnEl.disabled = false;
-          window.alert('Non sono riuscito a confermare (' + err.message + '). Riprova.');
+          window.alert('Non sono riuscito a confermare (' + NdumaData.friendlyErrorMessage(err) + '). Riprova.');
           return;
         }
         if (onDone) onDone();
@@ -1665,7 +1665,7 @@
               event = await NdumaData.cancelEventManually(event.id);
             } catch (err) {
               cancelEventManuallyLink.textContent = originalText;
-              window.alert('Non sono riuscito ad annullare (' + err.message + '). Riprova.');
+              window.alert('Non sono riuscito ad annullare (' + NdumaData.friendlyErrorMessage(err) + '). Riprova.');
               return;
             }
             render();
@@ -1690,7 +1690,7 @@
               event = await NdumaData.withdrawFromEvent(event.id, guestName);
             } catch (err) {
               withdrawLink.textContent = originalText;
-              window.alert('Non sono riuscito a segnalarlo (' + err.message + '). Riprova.');
+              window.alert('Non sono riuscito a segnalarlo (' + NdumaData.friendlyErrorMessage(err) + '). Riprova.');
               return;
             }
             render();
@@ -1716,7 +1716,7 @@
               event = await NdumaData.upsertParticipant(event.id, guestName, [info.bestOption.id], existingLocIds);
             } catch (err) {
               rejoinLink.textContent = originalText;
-              window.alert('Non sono riuscito ad aggiornare la tua risposta (' + err.message + '). Riprova.');
+              window.alert('Non sono riuscito ad aggiornare la tua risposta (' + NdumaData.friendlyErrorMessage(err) + '). Riprova.');
               return;
             }
             render();
@@ -1925,7 +1925,7 @@
             try {
               await NdumaData.deleteEventExpense(id);
             } catch (err) {
-              window.alert('Non sono riuscito a cancellare la spesa (' + err.message + ').');
+              window.alert('Non sono riuscito a cancellare la spesa (' + NdumaData.friendlyErrorMessage(err) + ').');
               return;
             }
             event = await NdumaData.getEventById(event.id);
@@ -1971,7 +1971,7 @@
             try {
               await NdumaData.addEventItem(event.id, text);
             } catch (err) {
-              window.alert('Non sono riuscito ad aggiungere la voce (' + err.message + ').');
+              window.alert('Non sono riuscito ad aggiungere la voce (' + NdumaData.friendlyErrorMessage(err) + ').');
               addItemBtn.textContent = '+ Aggiungi';
               return;
             }
@@ -1995,7 +1995,7 @@
               try {
                 got = await NdumaData.claimEventItem(id);
               } catch (err) {
-                window.alert('Non sono riuscito a prenotarla (' + err.message + ').');
+                window.alert('Non sono riuscito a prenotarla (' + NdumaData.friendlyErrorMessage(err) + ').');
                 return;
               }
               if (!got) window.alert('Qualcun altro l\'ha già presa un attimo fa.');
@@ -2003,7 +2003,7 @@
               try {
                 await NdumaData.releaseEventItem(id);
               } catch (err) {
-                window.alert('Non sono riuscito a liberarla (' + err.message + ').');
+                window.alert('Non sono riuscito a liberarla (' + NdumaData.friendlyErrorMessage(err) + ').');
                 return;
               }
             }
@@ -2024,7 +2024,7 @@
             try {
               await NdumaData.deleteEventItem(id);
             } catch (err) {
-              window.alert('Non sono riuscito a eliminarla (' + err.message + ').');
+              window.alert('Non sono riuscito a eliminarla (' + NdumaData.friendlyErrorMessage(err) + ').');
               return;
             }
             // Collassa la riga prima di ridisegnare la sezione (Fil: stessa
@@ -2118,7 +2118,7 @@
         try {
           event = await NdumaData.upsertParticipant(event.id, guestName, selectedIds, selectedLocIds);
         } catch (err) {
-          if (formError) formError.textContent = 'Non sono riuscito a salvare la tua disponibilità (' + err.message + '). Riprova.';
+          if (formError) formError.textContent = 'Non sono riuscito a salvare la tua disponibilità (' + NdumaData.friendlyErrorMessage(err) + '). Riprova.';
           btnEl.disabled = false;
           btnEl.textContent = originalText;
           return;
@@ -2231,7 +2231,7 @@
               await NdumaData.setEventItemsEnabled(event.id, nextEnabled);
             } catch (err) {
               toggleItemsBtn.textContent = originalText;
-              window.alert('Non sono riuscito a cambiare la lista "chi porta cosa" (' + err.message + ').');
+              window.alert('Non sono riuscito a cambiare la lista "chi porta cosa" (' + NdumaData.friendlyErrorMessage(err) + ').');
               return;
             }
             event = await NdumaData.getEventById(event.id);
@@ -2250,7 +2250,7 @@
               await NdumaData.setEventExpensesEnabled(event.id, nextEnabled);
             } catch (err) {
               toggleExpensesBtn.textContent = originalText;
-              window.alert('Non sono riuscito a cambiare la divisione spese (' + err.message + ').');
+              window.alert('Non sono riuscito a cambiare la divisione spese (' + NdumaData.friendlyErrorMessage(err) + ').');
               return;
             }
             event = await NdumaData.getEventById(event.id);
@@ -2277,7 +2277,7 @@
               await NdumaData.removeEventFromHome(event.id);
             } catch (err) {
               removeFromHomeBtn.textContent = originalText;
-              window.alert('Non sono riuscito a rimuovere l\'evento dalla tua home (' + err.message + '). Riprova.');
+              window.alert('Non sono riuscito a rimuovere l\'evento dalla tua home (' + NdumaData.friendlyErrorMessage(err) + '). Riprova.');
               return;
             }
             // eventi.html da sola (senza ?only=) non è più un posto dove si
@@ -2303,7 +2303,7 @@
               await NdumaData.deleteEvent(event.id);
             } catch (err) {
               deleteBtn.textContent = originalText;
-              window.alert('Non sono riuscito a eliminare l\'evento (' + err.message + '). Riprova.');
+              window.alert('Non sono riuscito a eliminare l\'evento (' + NdumaData.friendlyErrorMessage(err) + '). Riprova.');
               return;
             }
             // eventi.html da sola (senza ?only=) non è più un posto dove si
@@ -2444,7 +2444,7 @@
               });
             }
           } catch (err) {
-            expenseModalError.textContent = err.message;
+            expenseModalError.textContent = NdumaData.friendlyErrorMessage(err);
             expenseSaveBtn.disabled = false;
             expenseSaveBtn.textContent = originalText;
             return;

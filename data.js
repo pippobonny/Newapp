@@ -253,22 +253,45 @@
     return div.innerHTML;
   }
 
-  /* Traduce gli errori tecnici (Postgres/PostgREST/rete) in un messaggio
-     comprensibile, per i punti dove un caricamento fallito diventa TUTTO
-     il contenuto mostrato (una pagina/lista intera sostituita da questo
-     messaggio, non un banner accanto ad altro) — lì un "invalid input
-     syntax for type uuid" in mezzo a una frase italiana si vede subito ed
-     è la prima cosa che il bug report cita. Non toccare gli errori di
-     login/registrazione: quelli di Supabase Auth (es. "Invalid login
-     credentials") sono già comprensibili così come sono, tradurli qui
-     rischierebbe di nascondere info utile a chi si sta registrando. Trovato
-     testando link con un id scritto a mano/corrotto, 2026-08-24. */
+  /* Traduce gli errori tecnici (Postgres/PostgREST/rete/JS) in un messaggio
+     comprensibile, usata ovunque un errore finisce mostrato a schermo.
+     La maggior parte dei "throw new Error(...)" scritti a mano in questo
+     file (loginAccount: "Email o password non corretti", throwSupabaseError
+     per l'account orfano, i messaggi delle Edge Function via
+     extractFunctionErrorMessage — quelli sono testo italiano scritto da noi,
+     non "Invalid login credentials" grezzo di Supabase) sono GIÀ
+     comprensibili così come sono: per questo la funzione fa "pass-through"
+     di default e sostituisce il messaggio solo se riconosce pattern
+     davvero tecnici (Postgres/PostgREST, errori JS tipo "is not a
+     function", risposte di rete). Ampliata 2026-08-24 (prima toccava solo
+     4-5 pattern e usava un fallback generico anche per messaggi già buoni,
+     su richiesta di Fil "ripulisci pure tutto, non voglio errore") per
+     coprire anche i ~30 punti "riprova" (salva/elimina/conferma) oltre ai
+     5 caricamenti a pagina intera del giro precedente. */
   function friendlyErrorMessage(err, fallback) {
-    var msg = ((err && err.message) || '').toLowerCase();
+    var raw = (err && err.message) || '';
+    var msg = raw.toLowerCase();
+    if (!msg) return fallback || 'problema imprevisto';
     if (msg.indexOf('invalid input syntax') !== -1) return 'il link non è valido';
-    if (msg.indexOf('failed to fetch') !== -1 || msg.indexOf('networkerror') !== -1 || msg.indexOf('load failed') !== -1) return 'controlla la connessione e riprova';
+    if (msg.indexOf('failed to fetch') !== -1 || msg.indexOf('networkerror') !== -1
+      || msg.indexOf('load failed') !== -1 || msg.indexOf('network request failed') !== -1
+      || msg.indexOf('err_internet') !== -1 || msg.indexOf('err_network') !== -1) {
+      return 'controlla la connessione e riprova';
+    }
     if (isAuthTokenError(err)) return 'la tua sessione è scaduta, esci e accedi di nuovo';
-    return fallback || 'si è verificato un problema imprevisto';
+    var looksTechnical = msg.indexOf('violates') !== -1 || msg.indexOf('constraint') !== -1
+      || msg.indexOf('duplicate key') !== -1 || msg.indexOf('relation "') !== -1
+      || msg.indexOf('column "') !== -1 || msg.indexOf('permission denied') !== -1
+      || msg.indexOf('row-level security') !== -1 || msg.indexOf('syntax error') !== -1
+      || msg.indexOf('pgrst') !== -1 || msg.indexOf('does not exist') !== -1
+      || msg.indexOf('is not a function') !== -1 || msg.indexOf('cannot read propert') !== -1
+      || msg.indexOf('undefined is not') !== -1 || msg.indexOf('null is not') !== -1
+      || msg.indexOf('unexpected token') !== -1 || msg.indexOf('[object object]') !== -1
+      || msg.indexOf('functionshttperror') !== -1 || msg.indexOf('functionsfetcherror') !== -1
+      || msg.indexOf('functionsrelayerror') !== -1 || msg.indexOf('non-2xx') !== -1
+      || msg.indexOf('500') !== -1 || msg.indexOf('502') !== -1 || msg.indexOf('503') !== -1;
+    if (looksTechnical) return fallback || 'problema imprevisto';
+    return raw;
   }
 
   /* ---------- profilo/account ----------

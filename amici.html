@@ -385,7 +385,7 @@
         try {
           newList = await NdumaData.createFriendList(name);
         } catch (err) {
-          formError.textContent = 'Non sono riuscito a creare la lista (' + err.message + ').';
+          formError.textContent = 'Non sono riuscito a creare la lista (' + NdumaData.friendlyErrorMessage(err) + ').';
           return;
         }
         // se stai tornando a un evento in bozza, ricorda quale lista hai appena
@@ -426,7 +426,7 @@
             try {
               await NdumaData.deleteFriendList(deleteListId);
             } catch (err) {
-              formError.textContent = 'Non sono riuscito a eliminare la lista (' + err.message + ').';
+              formError.textContent = 'Non sono riuscito a eliminare la lista (' + NdumaData.friendlyErrorMessage(err) + ').';
               return;
             }
             renderLists();
@@ -469,7 +469,7 @@
         try {
           await NdumaData.addFriendToList(openListId, name, linkedAccountId);
         } catch (err) {
-          friendModalError.textContent = 'Non sono riuscito ad aggiungere l\'amico (' + err.message + ').';
+          friendModalError.textContent = 'Non sono riuscito ad aggiungere l\'amico (' + NdumaData.friendlyErrorMessage(err) + ').';
           return;
         }
         friendModalInput.value = '';
@@ -516,7 +516,7 @@
           try {
             await NdumaData.removeFriendFromList(openListId, removeFriendId);
           } catch (err) {
-            friendModalError.textContent = 'Non sono riuscito a rimuovere l\'amico (' + err.message + ').';
+            friendModalError.textContent = 'Non sono riuscito a rimuovere l\'amico (' + NdumaData.friendlyErrorMessage(err) + ').';
             return;
           }
           renderLists();

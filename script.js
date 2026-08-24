@@ -1177,7 +1177,7 @@
         } catch (err) {
           trash.setAttribute('data-busy', '0');
           trash.textContent = originalText;
-          window.alert('Non sono riuscito a rimuovere l\'evento dalla tua home (' + err.message + '). Riprova.');
+          window.alert('Non sono riuscito a rimuovere l\'evento dalla tua home (' + NdumaData.friendlyErrorMessage(err) + '). Riprova.');
           closeSwipeCard(card);
           return;
         }
@@ -1724,7 +1724,7 @@
       try {
         await window.NdumaData.reportProblem(message, { recentErrors: recentClientErrors });
       } catch (err) {
-        errorEl.textContent = 'Non sono riuscito a inviarla (' + err.message + '). Riprova.';
+        errorEl.textContent = 'Non sono riuscito a inviarla (' + NdumaData.friendlyErrorMessage(err) + '). Riprova.';
         sendBtn.disabled = false;
         sendBtn.textContent = originalText;
         return;

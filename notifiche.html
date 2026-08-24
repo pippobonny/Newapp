@@ -189,7 +189,7 @@
         try {
           await NdumaData.respondFriendRequest(friendId, accept);
         } catch (err) {
-          window.alert('Non sono riuscito a rispondere (' + err.message + ').');
+          window.alert('Non sono riuscito a rispondere (' + NdumaData.friendlyErrorMessage(err) + ').');
           buttons.forEach(function (b) { b.disabled = false; });
           return;
         }

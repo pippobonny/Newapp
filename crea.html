@@ -1556,7 +1556,7 @@
             event = await NdumaData.createEvent(payload);
           }
         } catch (err) {
-          formError.textContent = 'Non sono riuscito a salvare l\'evento (' + err.message + '). Riprova.';
+          formError.textContent = 'Non sono riuscito a salvare l\'evento (' + NdumaData.friendlyErrorMessage(err) + '). Riprova.';
           createEventBtn.textContent = defaultBtnLabel;
           createEventBtn.disabled = false;
           return;

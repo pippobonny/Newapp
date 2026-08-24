@@ -643,9 +643,9 @@
           }
         } catch (err) {
           if (window.NdumaUI) {
-            window.NdumaUI.toast('Non sono riuscito: ' + err.message);
+            window.NdumaUI.toast('Non sono riuscito: ' + NdumaData.friendlyErrorMessage(err));
           } else {
-            window.alert('Non sono riuscito: ' + err.message);
+            window.alert('Non sono riuscito: ' + NdumaData.friendlyErrorMessage(err));
           }
         }
         await refreshPushRow();
@@ -665,7 +665,7 @@
           try {
             await NdumaData.loginAccount(loginEmail, loginPassword);
           } catch (err) {
-            createError.textContent = err.message;
+            createError.textContent = NdumaData.friendlyErrorMessage(err);
             createBtn.disabled = false;
             createBtn.textContent = 'Accedi';
             return;
@@ -730,7 +730,7 @@
             });
           }
         } catch (err) {
-          createError.textContent = err.message;
+          createError.textContent = NdumaData.friendlyErrorMessage(err);
           createBtn.disabled = false;
           createBtn.textContent = isEditMode ? 'Salva modifiche' : 'Crea profilo';
           return;
@@ -769,7 +769,7 @@
         try {
           await NdumaData.requestPasswordReset(email);
         } catch (err) {
-          createError.textContent = 'Non sono riuscito a inviare la richiesta (' + err.message + '). Riprova.';
+          createError.textContent = 'Non sono riuscito a inviare la richiesta (' + NdumaData.friendlyErrorMessage(err) + '). Riprova.';
           forgotPasswordLink.textContent = originalText;
           return;
         }
@@ -800,7 +800,7 @@
         try {
           await NdumaData.signInWithGoogle();
         } catch (err) {
-          createError.textContent = 'Non sono riuscito ad aprire l\'accesso Google (' + err.message + ').';
+          createError.textContent = 'Non sono riuscito ad aprire l\'accesso Google (' + NdumaData.friendlyErrorMessage(err) + ').';
           googleSignInBtn.disabled = false;
         }
       });
@@ -849,7 +849,7 @@
           });
           showWelcomeView(newAccount);
         } catch (err) {
-          googleProfileError.textContent = err.message;
+          googleProfileError.textContent = NdumaData.friendlyErrorMessage(err);
           googleProfileBtn.disabled = false;
           googleProfileBtn.textContent = 'Fatto';
         }
@@ -870,7 +870,7 @@
         try {
           await NdumaData.resetPassword(token, newPassword);
         } catch (err) {
-          resetPasswordError.textContent = err.message;
+          resetPasswordError.textContent = NdumaData.friendlyErrorMessage(err);
           resetPasswordBtn.disabled = false;
           resetPasswordBtn.textContent = 'Salva nuova password';
           return;
@@ -887,7 +887,7 @@
           try {
             await NdumaData.updateAccount({ username: newName });
           } catch (err) {
-            window.alert('Non sono riuscito a salvare il nome utente: ' + err.message);
+            window.alert('Non sono riuscito a salvare il nome utente: ' + NdumaData.friendlyErrorMessage(err));
             return;
           }
         } else {
@@ -927,7 +927,7 @@
             await NdumaData.deleteOwnAccount();
           } catch (err) {
             deleteAccountRow.style.pointerEvents = '';
-            window.alert('Non sono riuscito a eliminare l\'account (' + err.message + ').');
+            window.alert('Non sono riuscito a eliminare l\'account (' + NdumaData.friendlyErrorMessage(err) + ').');
             return;
           }
           window.location.href = 'profilo.html';
