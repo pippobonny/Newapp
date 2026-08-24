@@ -161,6 +161,24 @@
     }
   }
 
+  // "oggi"/"domani"/"tra N giorni" a partire da una data ISO (Fil,
+  // 2026-08-24, per il promemoria "prossimo evento" nel badge presenza di
+  // Home): stesso spirito di timeAgo in notifiche.html ma al contrario,
+  // verso il futuro. Mezzanotte-a-mezzanotte, non ore esatte — un evento
+  // stasera resta "oggi" anche se sono già le 23.
+  function daysUntilLabel(dateISO) {
+    try {
+      var today = new Date(); today.setHours(0, 0, 0, 0);
+      var target = new Date(dateISO + 'T00:00:00');
+      var diffDays = Math.round((target - today) / 86400000);
+      if (diffDays <= 0) return 'oggi';
+      if (diffDays === 1) return 'domani';
+      return 'tra ' + diffDays + ' giorni';
+    } catch (err) {
+      return '';
+    }
+  }
+
   // "19:00:00" (come arriva dal DB) -> "19:00". Torna null se non c'è
   // orario, così chi la usa può decidere da solo cosa scrivere in quel caso
   // (Fil, 2026-07-20).
@@ -2571,6 +2589,22 @@
       status = 'almost';
     }
 
+    // Mai deciso (waiting/almost/tie) ma con TUTTE le date proposte ormai
+    // passate (Fil, 2026-08-24): nessuno può più votarle né l'organizzatore
+    // confermarle, non ha senso restare "da confermare" all'infinito — si
+    // annulla da solo, stesso trattamento silenzioso (cancelledManually
+    // resta false) del ramo "nessuno disponibile" qui sopra. "Passata" come
+    // per la conversione done->passato qui sotto: tutto il giorno incluso,
+    // non l'ora esatta.
+    if ((status === 'waiting' || status === 'almost' || status === 'tie') && (event.dateOptions || []).length) {
+      var allDatesExpired = event.dateOptions.every(function (o) {
+        return new Date(o.dateISO + 'T23:59:59').getTime() < Date.now();
+      });
+      if (allDatesExpired) {
+        status = 'cancelled';
+      }
+    }
+
     // Un evento CONFERMATO diventa "passato" (Fil: "12 ore dopo la data
     // dell'evento") una volta finita anche la mattina del giorno successivo:
     // le date sono salvate senza orario, quindi si dà tutto il giorno
@@ -2940,6 +2974,7 @@
     buildMapsUrl: buildMapsUrl,
     formatDateLabel: formatDateLabel,
     shortDateLabel: shortDateLabel,
+    daysUntilLabel: daysUntilLabel,
     formatTimeLabel: formatTimeLabel,
     formatDateTimeLabel: formatDateTimeLabel,
     buildEventICS: buildEventICS,

@@ -899,6 +899,18 @@
       return;
     }
 
+    // Prossimo evento confermato ancora da vivere (Fil, 2026-08-24): alternato
+    // a rotazione con la frase presenza qui sotto (vedi startBadgeRotation),
+    // stesso array di eventi già scaricato qui, nessuna richiesta in più.
+    var upcoming = events
+      .map(function (e) { return { event: e, info: SeevaData.computeEventStatus(e) }; })
+      .filter(function (x) { return x.info.status === 'done' && x.info.bestOption; })
+      .filter(function (x) { return new Date(x.info.bestOption.dateISO + 'T23:59:59') >= new Date(); })
+      .sort(function (a, b) { return a.info.bestOption.dateISO < b.info.bestOption.dateISO ? -1 : 1; })[0];
+    var reminderText = upcoming
+      ? '📅 ' + upcoming.event.name + ' ' + SeevaData.daysUntilLabel(upcoming.info.bestOption.dateISO)
+      : null;
+
     // solo eventi davvero conclusi (confermati o passati), e solo quelli a cui
     // hai risposto in qualche modo (anche "non ci sono mai": conta come assenza,
     // non va escluso, altrimenti la statistica premierebbe chi ignora l'invito)
@@ -918,7 +930,9 @@
 
     var recent = attended.slice(0, 5);
     if (!recent.length) {
-      el.textContent = '✨ Ancora nessun evento concluso da valutare';
+      var noRecentPhrase = '✨ Ancora nessun evento concluso da valutare';
+      el.textContent = noRecentPhrase;
+      startBadgeRotation(el, noRecentPhrase, reminderText);
       return;
     }
 
@@ -943,9 +957,53 @@
       phrase = '📉 Presenze in calo ultimamente...';
     }
     el.textContent = phrase;
+    startBadgeRotation(el, phrase, reminderText);
+  }
+
+  /* ---------- rotazione frase presenza / promemoria prossimo evento ----------
+     Fil, 2026-08-24: "metterei anche a rotazione le solite frasi e un
+     promemoria di quando hai il prossimo evento confermato" — alternate ogni
+     4.5s con un fade, SOLO se c'è davvero un promemoria da mostrare (altrimenti
+     resta ferma la frase presenza di sempre, come prima di questa modifica).
+     Si ferma da sola (niente overwrite) se nel frattempo il badge è occupato
+     da un flash di notifica o dall'invito a installare — quei due vincono
+     sempre, la rotazione aspetta il giro dopo. */
+  var badgeRotationTimer = null;
+  var badgeRotationShowingAlt = false;
+
+  function stopBadgeRotation() {
+    if (badgeRotationTimer) { clearInterval(badgeRotationTimer); badgeRotationTimer = null; }
+    badgeRotationShowingAlt = false;
+  }
+
+  function startBadgeRotation(el, baseText, altText) {
+    stopBadgeRotation();
+    if (!altText) return;
+
+    badgeRotationTimer = setInterval(function () {
+      var badge = document.getElementById('attendanceBadge');
+      if (!badge) { stopBadgeRotation(); return; }
+      if (attendanceFlashTimer || badge.classList.contains('attendance-badge--install')) return;
+
+      badge.style.opacity = '0';
+      window.setTimeout(function () {
+        var badge2 = document.getElementById('attendanceBadge');
+        if (!badge2) return;
+        badgeRotationShowingAlt = !badgeRotationShowingAlt;
+        badge2.textContent = badgeRotationShowingAlt ? altText : baseText;
+        badge2.style.opacity = '';
+      }, 220);
+    }, 4500);
   }
 
   function initAttendanceBadge() {
+    // Fermata subito, non dopo il controllo qui sotto: richiamata su OGNI
+    // cambio tab (vedi il commento "richiamarle sempre" più sopra), anche
+    // quando si lascia Home per un'altra pagina — senza fermarla qui la
+    // rotazione avviata lì continuerebbe a girare a vuoto in background
+    // finché non si autoestingue da sola al giro successivo.
+    stopBadgeRotation();
+
     var el = document.getElementById('attendanceBadge');
     if (!el || typeof SeevaData === 'undefined') return;
 
