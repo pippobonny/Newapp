@@ -658,11 +658,21 @@
         return allIds.some(function (id) { return ids.indexOf(id) === -1; });
       }
 
+      /* Aggiornata da buildAvailabilitySectionHTML ogni volta che viene
+         chiamata (Fil, 2026-08-25): dice a render() più sotto se il risultato
+         è una singola tessera compatta (info-tile) o un form/sezione intera —
+         solo nel primo caso ha senso affiancarla a "Dove" in una riga, come i
+         riquadri della Home. Va riazzerata a mano da chi chiama
+         buildAvailabilitySectionHTML per un altro percorso (es. il "claim"
+         di un invitato non ancora reclamato) non la tocca affatto. */
+      var availabilityIsCompactTile = false;
+
       /* ---------- sezione "quando sei disponibile" ----------
          Niente più campo "il tuo nome": l'identità arriva da SeevaData
          (account o nome ospite già impostato altrove). Se non c'è ancora
          nessun nome su questo dispositivo, non si può rispondere da qui. */
       function buildAvailabilitySectionHTML() {
+        availabilityIsCompactTile = false;
         var existingParticipant = findExistingParticipant();
 
         // stato di base, mai toccato: niente da mostrare qui (Fil,
@@ -704,6 +714,10 @@
           var statusIconSVG = isAvailable
             ? '<path d="M8 12.5l2.5 2.5L16 9.5"></path>'
             : '<line x1="9.5" y1="9.5" x2="14.5" y2="14.5"></line><line x1="14.5" y1="9.5" x2="9.5" y2="14.5"></line>';
+          // Segnalato fuori (Fil, 2026-08-25): render() lo affianca a "Dove"
+          // in una riga sola quando entrambi sono tessere compatte, invece
+          // di impilarle — solo in questo ramo lo sono davvero.
+          availabilityIsCompactTile = true;
           return ''
             + '<div class="info-tile is-clickable" id="changeAvailabilityBtn">'
             + '<div class="info-tile-icon' + (isAvailable ? ' is-available' : ' is-absent') + '"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle>' + statusIconSVG + '</svg></div>'
@@ -888,9 +902,15 @@
         var votesForBest = (event.participants || []).filter(function (p) {
           return (p.availableDateOptionIds || []).indexOf(info.bestOption.id) !== -1;
         }).length;
+        // Icona colorata in base allo stato vero (Fil, 2026-08-25: "un
+        // colore in base a quello che è", ma "colori simili", niente
+        // arcobaleno) — stessi due colori già usati per il badge di stato
+        // (.badge.waiting/.badge.almost in style.css), non un terzo
+        // inventato apposta: chi è quasi risolto (almost) spicca un po' di
+        // più di chi è ancora lontano (waiting).
         return ''
           + '<div class="confirmed-date-card is-leading">'
-          + '<div class="confirmed-date-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg></div>'
+          + '<div class="confirmed-date-icon status-' + info.status + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg></div>'
           + '<div>'
           + '<div class="confirmed-date-label">In testa ai voti</div>'
           + '<div class="confirmed-date-value">' + SeevaData.escapeHTML(SeevaData.formatDateLabel(info.bestOption.dateISO)) + '</div>'
@@ -1217,8 +1237,11 @@
         // <a> attorno a tutta la tessera quando c'è una mappa da aprire
         // (non un onclick con l'URL incollato dentro l'attributo: più
         // sicuro, e funziona anche se JS fosse lento a legarsi).
+        // is-location (Fil, 2026-08-25): "un colore in base a quello che
+        // è" — solo l'icona, non tutta la tessera, e un tono diverso da
+        // quello (già in uso altrove) di "in testa ai voti"/stato.
         var locationTileInner = ''
-          + '<div class="info-tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z"></path><circle cx="12" cy="9" r="2.5"></circle></svg></div>'
+          + '<div class="info-tile-icon is-location"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z"></path><circle cx="12" cy="9" r="2.5"></circle></svg></div>'
           + '<div class="info-tile-body">'
           + '<div class="info-tile-label">Dove</div>'
           + '<div class="info-tile-value">' + SeevaData.escapeHTML(resolvedLocation.address) + '</div>'
@@ -1310,12 +1333,25 @@
         // data" su un evento già annullato) — stesso trattamento "chiuso" di
         // isConfirmedSimple, solo col messaggio giusto per lo stato.
         var claimCandidates = isConfirmedSimple ? null : findClaimCandidates();
+        availabilityIsCompactTile = false; // riazzerato: il percorso "claim" qui sotto non passa da buildAvailabilitySectionHTML
         var availabilityHTML = isConfirmedSimple ? ''
           : info.status === 'cancelled' ? ''
           : (claimCandidates ? buildClaimPromptHTML(claimCandidates) : buildAvailabilitySectionHTML());
         var confirmedSummaryHTML = isConfirmedSimple ? buildConfirmedSummaryHTML(info)
           : (info.status === 'waiting' || info.status === 'almost') ? buildLeadingDateSummaryHTML(info)
           : '';
+
+        // "Dove" affiancata a "Tu" in una riga sola, stile riquadri Home
+        // (Fil, 2026-08-25: "sembra tutto troppo in colonna") — solo quando
+        // ENTRAMBE sono tessere compatte (availabilityIsCompactTile, vedi
+        // sopra): se "Tu" è ancora un form da compilare resta a piena
+        // larghezza come sempre, affiancarla a "Dove" non avrebbe senso.
+        var locationAndAvailabilityHTML;
+        if (locationHTML && availabilityIsCompactTile) {
+          locationAndAvailabilityHTML = '<div class="info-tile-row">' + locationHTML + availabilityHTML + '</div>';
+        } else {
+          locationAndAvailabilityHTML = locationHTML + availabilityHTML;
+        }
 
         // "📅 I giorni in cui ci sei" nel menu ⋮ (Fil, 2026-07-19): stessa
         // condizione della vecchia versione inline (branch "sei tu che
@@ -1364,8 +1400,7 @@
               ? '<audio controls src="' + SeevaData.escapeHTML(event.descriptionAudioUrl) + '" style="width:100%; margin:2px 2px 16px;"></audio>'
               : (event.description ? '<div class="card-date" style="margin:2px 2px 16px;">' + SeevaData.escapeHTML(event.description) + '</div>' : ''))
           + confirmedSummaryHTML
-          + locationHTML
-          + availabilityHTML
+          + locationAndAvailabilityHTML
           + shareSectionHTML
           + manualConfirmTopHTML
           + whoComingTileHTML

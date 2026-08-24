@@ -1541,6 +1541,24 @@ label.event-photo-preview {
   margin-bottom: 10px;
 }
 .info-tile.is-clickable { cursor: pointer; }
+
+/* "Dove" + "Tu" affiancate invece di impilate (Fil, 2026-08-25: "sembra
+   tutto troppo in colonna", stile riquadri Home) — solo quando entrambe
+   sono tessere compatte, vedi locationAndAvailabilityHTML in evento.html.
+   min-width:0 sul figlio è la parte che conta: senza, un .info-tile con
+   testo lungo non si restringe mai sotto la sua dimensione naturale,
+   l'ellissi di .info-tile-value (già pensata per un valore lungo) non
+   scatterebbe mai in metà spazio. */
+.info-tile-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.info-tile-row .info-tile {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+}
 .info-tile-icon {
   width: 38px;
   height: 38px;
@@ -1556,6 +1574,11 @@ label.event-photo-preview {
 .info-tile-icon.is-available svg { stroke: var(--confirmed); }
 .info-tile-icon.is-absent { background: var(--cancel-soft); }
 .info-tile-icon.is-absent svg { stroke: var(--cancel); }
+/* "Dove" (Fil, 2026-08-25): tono viola tenue, diverso da verde/rosso qui
+   sopra (quelli restano un vero stato, sì/no) e da giallo/viola della
+   card "in testa ai voti" qui sotto — un fatto neutro, non uno stato. */
+.info-tile-icon.is-location { background: var(--lavender-soft); }
+.info-tile-icon.is-location svg { stroke: var(--lavender); }
 .info-tile-body { flex: 1; min-width: 0; }
 .info-tile-label {
   font-size: 10.5px;
@@ -2734,6 +2757,11 @@ a.notif-item:active { background: var(--track-soft); }
   font-size: 22px;
   flex-shrink: 0;
 }
+/* Solo su "in testa ai voti" (Fil, 2026-08-25), stessi due colori del
+   badge di stato (.badge.waiting/.badge.almost qui sopra) — non un terzo
+   colore inventato, coerenza con quello che l'utente vede già altrove. */
+.confirmed-date-icon.status-waiting { background: var(--sky-soft); color: #7A3F82; }
+.confirmed-date-icon.status-almost { background: var(--butter-soft); color: #9C4A0F; }
 
 .confirmed-date-label {
   font-size: 11px;
