@@ -2808,9 +2808,9 @@
     var cardHTML = ''
       + '<a class="card reveal' + (info.status === 'done' ? ' is-done' : '') + (info.status === 'cancelled' ? ' is-cancelled' : '') + '" href="evento.html?id=' + encodeURIComponent(event.id) + '">'
       + '<div class="card-top" style="' + (showProgress ? '' : 'margin-bottom:0;') + '">'
-      + '<div style="display:flex; align-items:center; gap:10px;">'
+      + '<div class="card-top-left" style="display:flex; align-items:center; gap:10px;">'
       + thumbHTML
-      + '<div>'
+      + '<div style="min-width:0;">'
       + '<div class="card-title">' + escapeHTML(event.name) + '</div>'
       + '<div class="card-date">' + escapeHTML(info.dateLabel) + '</div>'
       + '</div>'

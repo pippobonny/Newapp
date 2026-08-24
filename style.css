@@ -546,10 +546,20 @@ a.back-btn:active { transform: scale(0.92); }
   margin-bottom: 10px;
 }
 
+.card-top-left {
+  min-width: 0;
+}
+
+/* Stesso bug del titolo evento nell'header (vedi .header-title): un nome
+   evento lungo, senza freno, spingeva il .badge di stato fuori dalla card
+   invece di lasciargli spazio — trovato 2026-08-24 nella stessa sessione. */
 .card-title {
   font-family: 'Fraunces', serif;
   font-size: 17px;
   font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .card-date {
@@ -564,6 +574,7 @@ a.back-btn:active { transform: scale(0.92); }
   padding: 5px 10px;
   border-radius: 999px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .badge.waiting { background: var(--sky-soft); color: #7A3F82; }
