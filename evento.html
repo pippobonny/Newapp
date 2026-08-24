@@ -725,7 +725,13 @@
             + '<div class="info-tile-label">Tu</div>'
             + '<div class="info-tile-value">' + SeevaData.escapeHTML(statusText) + '</div>'
             + '</div>'
-            + '<div style="color:var(--ink-soft); font-size:12.5px; font-weight:600;">Cambia →</div>'
+            // "Cambia →" (parola intera) sostituito da una freccina sola
+            // (Fil, 2026-08-25, bug segnalato dopo l'affiancamento a "Dove"):
+            // a metà larghezza non c'era più spazio per il valore, che
+            // finiva troncato a una sola lettera. Stessa freccina già usata
+            // su "Chi viene" (.who-coming-chevron), qui in versione propria
+            // perché questa tessera non ha lo sfondo/padding di chi-coming.
+            + '<div class="info-tile-chevron">›</div>'
             + '</div>';
         }
 

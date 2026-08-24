@@ -1596,6 +1596,11 @@ label.event-photo-preview {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* "Tu" (Fil, 2026-08-25): freccina al posto di "Cambia →" — libera spazio
+   vero per .info-tile-value qui sopra, che a metà larghezza (affiancata a
+   "Dove") ne aveva bisogno. Stessa idea di .who-coming-chevron, valori
+   diversi (quello ha lo sfondo del suo .who-coming-tile, questo no). */
+.info-tile-chevron { color: var(--ink-soft); font-size: 17px; flex-shrink: 0; }
 .info-tile-value a { color: inherit; }
 
 /* Tessera "chi viene": invitati + grafico dei giorni dietro un tap invece
