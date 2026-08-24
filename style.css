@@ -1897,7 +1897,12 @@ label.event-photo-preview {
 }
 
 .share-row input {
+  /* Un <input> di testo ha un min-width intrinseco (min-content) diverso da
+     un div: flex:1 da solo non basta a farlo restringere sotto quel minimo,
+     e su schermi stretti (320px) il pulsante "Condividi" finiva tagliato
+     fuori dalla card — trovato 2026-08-24. */
   flex: 1;
+  min-width: 0;
   border: none;
   background: var(--card);
   border-radius: 12px;
