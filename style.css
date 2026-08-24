@@ -235,6 +235,12 @@ a { text-decoration: none; color: inherit; }
      "appena percettibile con la schermata chiara, se metti modalità
      scura si vede tantissimo il riquadro bianco"). */
   border: none;
+  /* .header base ha anche un backdrop-filter (blur+saturate) pensato per lo
+     stesso vecchio pannello di vetro: senza sfondo dietro resta comunque un
+     rettangolo con la saturazione alzata, leggermente diverso dal resto
+     della pagina — "una barra a sé" (Fil, 2026-08-24). Via anche questo. */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   justify-content: flex-start;
   gap: 14px;
   /* Stacco dal resto della pagina (Fil, 2026-08-23, terza versione: né la
