@@ -685,11 +685,21 @@ a.back-btn:active { transform: scale(0.92); }
 }
 
 /* Filter pills (eventi.html) */
+/* Su schermi stretti (320px, i vari filtri di eventi.html: "Confermati" /
+   "In attesa" / "Annullati" / "Tutti") 4 pill non ci stavano affiancate:
+   si schiacciavano sotto la loro larghezza naturale e il testo veniva
+   tagliato senza puntini, tipo "Conferma" al posto di "Confermati" —
+   trovato 2026-08-24 testando a 320px. Riga scorrevole invece di pill
+   compresse: ogni pill tiene la sua larghezza piena (flex-shrink:0), la
+   riga scorre in orizzontale solo se davvero non ci sta tutta. */
 .pill-row {
   display: flex;
   gap: 8px;
   margin-bottom: 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.pill-row::-webkit-scrollbar { display: none; }
 
 .pill {
   font-size: 12.5px;
@@ -699,6 +709,8 @@ a.back-btn:active { transform: scale(0.92); }
   background: var(--card);
   color: var(--ink-soft);
   box-shadow: 0 2px 8px rgba(58,50,90,0.06);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .pill.active {
