@@ -74,6 +74,19 @@
          regola position:absolute riguarda solo gli <a>. -->
     <a class="back-btn" href="index.html" id="backBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M15 18l-6-6 6-6"></path></svg></a>
 
+    <!-- Bug/idea segnalata dall'app (Fil, 2026-08-25): niente più
+         riquadro con dentro il link scritto per esteso — solo
+         l'organizzatore, solo finché ha senso invitare, una bolla a
+         specchio di quella viola (stessa forma/posizione, lato opposto)
+         con solo l'icona condividi: "la gente ormai la riconosce". Tap
+         apre il foglio di condivisione di sistema se disponibile
+         (navigator.share, WhatsApp ecc.), altrimenti copia il link —
+         stessa logica di sempre, vedi setupShareFab() più sotto. Statica come
+         a.back-btn (mai dentro contentEl.innerHTML, altrimenti si
+         perderebbe/riapparirebbe ad ogni render), nascosta di default e
+         mostrata da render() solo quando serve. -->
+    <div class="share-fab" id="shareFab" style="display:none;" title="Condividi questo link con gli amici"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M12 3v12"></path><path d="M7 8l5-5 5 5"></path><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"></path></svg></div>
+
     <div class="content" id="eventContent">
       <div class="empty-hint">Caricamento...</div>
     </div>
@@ -1188,18 +1201,15 @@
         // SeevaData.SITE_URL (il dominio vero), non da dove si sta
         // guardando la pagina in quel momento.
         var shareUrl = SeevaData.SITE_URL + window.location.pathname + window.location.search;
-        var shareLabel = 'Condividi questo link con gli amici';
 
         // il link da condividere lo vede solo chi organizza, e solo finché
         // ha ancora senso invitare gente: una volta confermato (o passato)
-        // non serve più condividere nulla (Fil, 2026-07-07).
-        var shareSectionHTML = (isOrganizer && !isConfirmedSimple)
-          ? ''
-            + '<div class="share-box" id="shareBox">'
-            + '<div class="share-label" id="shareLabel">' + SeevaData.escapeHTML(shareLabel) + '</div>'
-            + '<div class="share-row"><input type="text" id="shareLinkInput" readonly value="' + SeevaData.escapeHTML(shareUrl) + '"><button type="button" id="shareActionBtn">Condividi</button></div>'
-            + '</div>'
-          : '';
+        // non serve più condividere nulla (Fil, 2026-07-07). La bolla vera
+        // e propria (#shareFab) è statica nell'HTML, non generata qui: si
+        // mostra/nasconde soltanto, vedi subito sotto.
+        var showShareFab = isOrganizer && !isConfirmedSimple;
+        var shareFabEl = document.getElementById('shareFab');
+        if (shareFabEl) shareFabEl.style.display = showShareFab ? '' : 'none';
 
         // Modifica/elimina ora vivono nel menu ⋮ dell'header (vedi
         // setupHeaderMenu più sotto, legato una sola volta): qui si aggiorna
@@ -1418,7 +1428,6 @@
               : (event.description ? '<div class="card-date" style="margin:2px 2px 16px;">' + SeevaData.escapeHTML(event.description) + '</div>' : ''))
           + confirmedSummaryHTML
           + locationAndAvailabilityHTML
-          + shareSectionHTML
           + manualConfirmTopHTML
           + whoComingTileHTML
           + expensesSectionHTML
@@ -1781,37 +1790,12 @@
           });
         }
 
-        // Bottone "Condividi" (prima "Copia"): su telefono usa la vera
-        // condivisione di sistema (Web Share API) così si apre il foglio con
-        // WhatsApp, Messaggi, ecc. — richiesto da Fil il 2026-07-05. Non tutti
-        // i browser desktop la supportano: lì si ripiega sul copia-negli-
-        // appunti di prima, stesso feedback "Copiato ✓".
-        var shareActionBtn = document.getElementById('shareActionBtn');
-        if (shareActionBtn) {
-          shareActionBtn.addEventListener('click', function () {
-            var input = document.getElementById('shareLinkInput');
-
-            if (navigator.share) {
-              navigator.share({ title: 'seeva — ' + event.name, url: input.value })
-                .catch(function () { /* utente ha annullato il foglio di condivisione: nessun errore da mostrare */ });
-              return;
-            }
-
-            var done = function () {
-              shareActionBtn.textContent = 'Copiato ✓';
-              window.setTimeout(function () { shareActionBtn.textContent = 'Condividi'; }, 1500);
-            };
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-              navigator.clipboard.writeText(input.value).then(done).catch(function () {
-                input.select();
-                try { document.execCommand('copy'); done(); } catch (err) { /* ignora */ }
-              });
-            } else {
-              input.select();
-              try { document.execCommand('copy'); done(); } catch (err) { /* ignora */ }
-            }
-          });
-        }
+        // Il vecchio bottone "Condividi" (dentro il riquadro col link
+        // scritto) è stato tolto (Fil, 2026-08-25): la bolla #shareFab lo
+        // sostituisce, legata una sola volta in setupShareFab() più sotto —
+        // #shareFab è statica come a.back-btn, non va rilegata ad ogni
+        // bindEvents() (che qui gira a ogni render/refresh) o si
+        // accumulerebbero listener duplicati sullo stesso nodo.
 
         document.querySelectorAll('#dayGrid .chip').forEach(function (chip) {
           chip.addEventListener('click', function () {
@@ -2373,6 +2357,51 @@
         }
       }
       setupHeaderMenu();
+
+      /* ---------- bolla "Condividi" (Fil, 2026-08-25) ----------
+         Legata una sola volta come setupHeaderMenu() qui sopra: #shareFab è
+         statica in evento.html (vedi vicino ad a.back-btn), render() la
+         mostra/nasconde soltanto. Su telefono usa la vera condivisione di
+         sistema (Web Share API) così si apre il foglio con WhatsApp,
+         Messaggi ecc. — richiesto da Fil il 2026-07-05, poi ridisegnato il
+         2026-08-25 ("una bolla come quella viola, solo l'icona, la gente
+         ormai la riconosce"). Non tutti i browser desktop la supportano:
+         lì si ripiega sul copia-negli-appunti, con un toast al posto del
+         vecchio testo "Copiato ✓" (niente più label da cambiare, la bolla
+         ha solo l'icona). shareUrl ricalcolato qui al tap, non catturato
+         da un giro di render() passato: l'URL/query string potrebbero
+         essere cambiati nel frattempo (es. su un giro senza ?id= esplicito). */
+      function setupShareFab() {
+        var shareFab = document.getElementById('shareFab');
+        if (!shareFab) return;
+
+        shareFab.addEventListener('click', function () {
+          var shareUrl = SeevaData.SITE_URL + window.location.pathname + window.location.search;
+
+          if (navigator.share) {
+            navigator.share({ title: 'seeva — ' + event.name, url: shareUrl })
+              .catch(function () { /* utente ha annullato il foglio di condivisione: nessun errore da mostrare */ });
+            return;
+          }
+
+          var done = function () {
+            if (window.SeevaUI && SeevaUI.toast) SeevaUI.toast('Link copiato ✓');
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(shareUrl).then(done).catch(function () {
+              var tempInput = document.createElement('input');
+              tempInput.value = shareUrl;
+              tempInput.style.position = 'fixed';
+              tempInput.style.opacity = '0';
+              document.body.appendChild(tempInput);
+              tempInput.select();
+              try { document.execCommand('copy'); done(); } catch (err) { /* ignora */ }
+              document.body.removeChild(tempInput);
+            });
+          }
+        });
+      }
+      setupShareFab();
 
       /* ---------- popup aggiungi/modifica spesa ----------
          Legato una sola volta come setupHeaderMenu(): il popup vive fuori da

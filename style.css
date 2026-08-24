@@ -300,10 +300,36 @@ a.back-btn {
 }
 a.back-btn:active { transform: scale(0.92); }
 
+/* Bolla "Condividi" (Fil, 2026-08-25): stessa forma/posizione/logica di
+   a.back-btn qui sopra, a specchio sul lato opposto — "una bolla come
+   quella viola, solo l'icona". Colore diverso apposta (arancione, lo
+   stesso delle azioni vere tipo i bottoni primari) per non confondersi
+   con la viola, che è solo navigazione. Vedi #shareFab in evento.html. */
+.share-fab {
+  position: absolute;
+  right: 18px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--peach);
+  color: #FFF8F0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 26px rgba(58,50,90,0.3);
+  cursor: pointer;
+  z-index: 30;
+  transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), opacity 0.15s ease;
+}
+.share-fab:active { transform: scale(0.92); }
+
 /* .has-open-modal la mette script.js (initBackBtnModalGuard) quando un
    .signup-overlay qualsiasi è visibile in questa .screen: vedi il
    commento lì per il perché (un semplice z-index più alto sul popup non
-   basta se il popup vive dentro .content, che ha già il suo). */
+   basta se il popup vive dentro .content, che ha già il suo). Stesso
+   trattamento anche per la bolla condividi, non solo quella viola. */
+.screen.has-open-modal .share-fab,
 .screen.has-open-modal a.back-btn {
   opacity: 0;
   pointer-events: none;
@@ -2079,40 +2105,6 @@ label.event-photo-preview {
   font-weight: 600;
   color: var(--lavender);
   margin-bottom: 8px;
-}
-
-.share-row {
-  display: flex;
-  gap: 8px;
-}
-
-.share-row input {
-  /* Un <input> di testo ha un min-width intrinseco (min-content) diverso da
-     un div: flex:1 da solo non basta a farlo restringere sotto quel minimo,
-     e su schermi stretti (320px) il pulsante "Condividi" finiva tagliato
-     fuori dalla card — trovato 2026-08-24. */
-  flex: 1;
-  min-width: 0;
-  border: none;
-  background: var(--card);
-  border-radius: 12px;
-  padding: 10px 12px;
-  font-family: 'Inter', sans-serif;
-  font-size: 12.5px;
-  color: var(--ink-soft);
-}
-
-.share-row button {
-  border: none;
-  background: var(--mint);
-  color: #FFF8F0;
-  font-weight: 600;
-  font-size: 12.5px;
-  padding: 0 14px;
-  border-radius: 12px;
-  cursor: pointer;
-  flex-shrink: 0;
-  font-family: 'Inter', sans-serif;
 }
 
 /* Notifications list */

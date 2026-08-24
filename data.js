@@ -2863,10 +2863,13 @@
       ? '<img src="' + escapeHTML(event.photoUrl) + '" alt="" style="width:44px; height:44px; border-radius:12px; object-fit:cover; flex-shrink:0;">'
       : '';
 
-    // Su un evento annullato o passato il conteggio non significa più nulla
-    // (non c'è più niente da confermare): la barra di avanzamento si toglie,
-    // resta solo titolo/data/badge, così la card è più corta e pulita.
-    var showProgress = info.status !== 'cancelled' && info.status !== 'passato' && info.status !== 'tie';
+    // Su un evento annullato, passato o già confermato il conteggio non
+    // significa più nulla (non c'è più niente da confermare, la decisione
+    // è già presa): la barra di avanzamento si toglie, resta solo
+    // titolo/data/badge, così la card è più corta e pulita. "done" aggiunto
+    // 2026-08-25 (bug segnalato dall'app): restava visibile anche lì,
+    // stessa dimenticanza già corretta per annullato/passato/pareggio.
+    var showProgress = info.status !== 'cancelled' && info.status !== 'passato' && info.status !== 'tie' && info.status !== 'done';
     var progressHTML = showProgress
       ? ''
         + '<div class="progress-row">'
