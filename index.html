@@ -131,20 +131,18 @@
          richiede un account: niente più "continua senza registrazione" fuori
          dal flusso di invito (vedi amico.html). Un ospite bloccato su un
          evento o su una lista viene rimandato lì; chi non ha proprio nessun
-         account e nessun invito attivo vede la schermata "serve un profilo"
-         al posto della Home. */
+         account e nessun invito attivo va sulla pagina di presentazione
+         invece della vecchia schermata "serve un profilo" (Fil, 2026-08-25,
+         bug segnalato dall'app: "aggiungere una pagina di benvenuto la
+         prima volta che uno entra sul sito, spiegando cosa è l'app") — chi
+         invece è già loggato continua giù, dritto sulla vera Home. */
       var gate = SeevaData.checkAccessGate(null);
       if (gate.action === 'redirect') {
         window.location.href = gate.url;
         return;
       }
       if (gate.action === 'block') {
-        document.querySelector('.top-badge-wrap').style.display = 'none';
-        document.querySelector('.header').style.display = 'none';
-        document.querySelector('.content').innerHTML = SeevaData.accountRequiredBlockHTML(
-          'Per vedere gli eventi e organizzarti con gli amici devi prima creare un profilo.'
-        );
-        if (window.SeevaUI) window.SeevaUI.refresh();
+        window.location.replace('presentazione.html');
         return;
       }
 
