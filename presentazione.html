@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>seeva — Organizza uscite con gli amici, senza il caos dei gruppi</title>
+<meta name="description" content="seeva propone le date, raccoglie le disponibilità, sceglie quella giusta e tiene il conto di chi viene e di chi deve cosa. Registrati gratis.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<meta name="theme-color" content="#FF7A29">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="favicon.ico">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+<style>
+  /* ============================================================
+     CSS della pagina di presentazione (seeva.it/presentazione).
+     Riusa style.css per token di colore, font e per il mockup
+     "vero" della Home (classi .phone/.screen/.header/.home-tile
+     invariate) — qui sotto solo il layout nuovo, con dati finti
+     nel mockup. Tutto sotto il prefisso .land- per non toccare
+     nessuna classe dell'app.
+     ============================================================ */
+
+  body.land-body {
+    display: block;
+    padding: 0;
+    background: var(--bg);
+    align-items: initial;
+  }
+
+  .land-wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* --- Nav minimale in cima --- */
+  .land-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 22px 24px;
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+  .land-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 19px;
+    color: var(--ink);
+  }
+  .land-logo-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 11px;
+    background: var(--peach);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 16px;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(58, 50, 90, 0.15);
+  }
+  .land-nav-login {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--ink-soft);
+    padding: 9px 16px;
+    border-radius: 999px;
+  }
+  .land-nav-login:hover { color: var(--ink); }
+
+  /* --- Hero (Fil, 2026-08-25: niente più mockup della Home qui — solo
+       benvenuto/testo, centrato, pagina più snella e leggera) --- */
+  .land-hero {
+    text-align: center;
+    padding: 44px 24px 56px;
+    max-width: 680px;
+    margin: 0 auto;
+  }
+  .land-hero .land-cta-row { justify-content: center; }
+  .land-hero p.land-sub { margin-left: auto; margin-right: auto; }
+  .land-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--lavender-soft);
+    color: var(--lavender);
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 12.5px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    margin-bottom: 18px;
+  }
+  .land-hero h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 42px;
+    line-height: 1.14;
+    color: var(--ink);
+    margin: 0 0 18px;
+    letter-spacing: -0.5px;
+  }
+  .land-hero h1 em {
+    font-style: normal;
+    color: var(--peach);
+  }
+  .land-hero p.land-sub {
+    font-family: 'Inter', sans-serif;
+    font-size: 16.5px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    max-width: 480px;
+    margin: 0 0 30px;
+  }
+  .land-cta-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .land-btn {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 14.5px;
+    padding: 15px 26px;
+    border-radius: 16px;
+    text-align: center;
+    cursor: pointer;
+    border: none;
+    display: inline-block;
+  }
+  .land-btn-primary {
+    background: var(--peach);
+    color: #FFF8F0;
+    box-shadow: 0 10px 24px rgba(255, 122, 41, 0.32);
+  }
+  .land-btn-secondary {
+    background: var(--card);
+    color: var(--ink);
+    box-shadow: 0 2px 10px rgba(58, 50, 90, 0.08);
+  }
+  .land-hint {
+    font-family: 'Inter', sans-serif;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin-top: 14px;
+  }
+
+  /* --- Sezioni generiche --- */
+  .land-section {
+    padding: 54px 24px;
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+  .land-section-head {
+    text-align: center;
+    max-width: 560px;
+    margin: 0 auto 40px;
+  }
+  .land-section-head .land-eyebrow { margin-bottom: 14px; }
+  .land-section-head h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 30px;
+    color: var(--ink);
+    margin: 0 0 10px;
+  }
+  .land-section-head p {
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  /* --- Come funziona: 3 step --- */
+  .land-steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+  .land-step {
+    background: var(--card);
+    border-radius: 22px;
+    padding: 26px 22px;
+    box-shadow: 0 2px 10px rgba(58, 50, 90, 0.06);
+  }
+  .land-step-num {
+    width: 34px;
+    height: 34px;
+    border-radius: 11px;
+    background: var(--surface-dark);
+    color: #fff;
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+  .land-step h3 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 17px;
+    color: var(--ink);
+    margin: 0 0 8px;
+  }
+  .land-step p {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+
+  /* --- Funzioni: righe compatte affiancate, si aprono a fisarmonica
+       (<details>/<summary>, niente JS) invece di card grosse tutte aperte
+       (Fil, 2026-08-25: "più piccole, una affianco all'altra, chi vuole
+       saperne di più preme"). Due colonne, ogni riga È il bottone. --- */
+  .land-features {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .land-feature {
+    background: var(--card);
+    border-radius: 16px;
+    box-shadow: 0 2px 10px rgba(58, 50, 90, 0.06);
+    overflow: hidden;
+  }
+  .land-feature summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 16px;
+  }
+  .land-feature summary::-webkit-details-marker { display: none; }
+  .land-feature-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .land-feature-icon svg { width: 16px; height: 16px; }
+  .land-feature summary h3 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--ink);
+    margin: 0;
+    flex: 1;
+  }
+  .land-feature-chevron {
+    color: var(--ink-soft);
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+  }
+  .land-feature[open] .land-feature-chevron { transform: rotate(180deg); }
+  .land-feature p {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    margin: 0;
+    padding: 0 16px 16px 60px;
+  }
+
+  /* --- Perché seeva: card evidenziata --- */
+  .land-why {
+    background: linear-gradient(135deg, var(--lavender), #4A2A52);
+    border-radius: 28px;
+    padding: 44px 40px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    align-items: center;
+  }
+  .land-why h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 26px;
+    color: #fff;
+    margin: 0 0 14px;
+  }
+  .land-why p {
+    font-family: 'Inter', sans-serif;
+    font-size: 14.5px;
+    line-height: 1.65;
+    color: rgba(255,255,255,0.82);
+    margin: 0;
+  }
+  .land-why-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .land-why-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 14px 16px;
+  }
+  .land-why-item svg { flex-shrink: 0; margin-top: 1px; color: var(--butter); }
+  .land-why-item span {
+    font-family: 'Inter', sans-serif;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: #fff;
+    font-weight: 500;
+  }
+
+  /* --- CTA finale --- */
+  .land-final {
+    text-align: center;
+    padding: 70px 24px 50px;
+  }
+  .land-final h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 28px;
+    color: var(--ink);
+    margin: 0 0 12px;
+  }
+  .land-final p {
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    color: var(--ink-soft);
+    max-width: 440px;
+    margin: 0 auto 26px;
+    line-height: 1.55;
+  }
+  .land-final .land-cta-row { justify-content: center; }
+
+  /* --- Footer --- */
+  .land-footer {
+    border-top: 1px solid rgba(58, 50, 90, 0.08);
+    padding: 26px 24px 40px;
+    max-width: 1080px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .land-footer-note {
+    font-family: 'Inter', sans-serif;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+  }
+  .land-footer-note a { text-decoration: underline; }
+
+  /* --- Responsive --- */
+  @media (max-width: 860px) {
+    .land-hero h1 { font-size: 32px; }
+    .land-steps { grid-template-columns: 1fr; }
+    .land-features { grid-template-columns: repeat(2, 1fr); }
+    .land-why { grid-template-columns: 1fr; padding: 32px 24px; }
+    .land-section-head h2 { font-size: 25px; }
+  }
+  @media (max-width: 520px) {
+    .land-features { grid-template-columns: 1fr; }
+    .land-nav { padding: 18px 18px; }
+    .land-hero { padding-left: 18px; padding-right: 18px; }
+    .land-section { padding: 44px 18px; }
+    .land-why h2 { font-size: 22px; }
+  }
+</style>
+</head>
+<body class="land-body">
+
+  <nav class="land-nav">
+    <div class="land-logo">
+      <span class="land-logo-mark">sv</span>
+      seeva
+    </div>
+    <a class="land-nav-login" href="profilo.html?mode=login">Accedi</a>
+  </nav>
+
+  <div class="land-wrap">
+  <section class="land-hero">
+    <span class="land-eyebrow">Ciao, benvenuto 👋</span>
+    <h1>Basta gruppi WhatsApp per capire <em>quando uscite</em>.</h1>
+    <p class="land-sub">Proponi le date, i tuoi amici rispondono, seeva sceglie quella che va bene a più persone — e tiene il conto di chi viene e di chi deve cosa. Tutto in un posto solo, niente più scroll infinito.</p>
+    <div class="land-cta-row">
+      <a class="land-btn land-btn-primary" href="profilo.html">Registrati gratis</a>
+      <a class="land-btn land-btn-secondary" href="profilo.html?mode=login">Ho già un account</a>
+    </div>
+    <div class="land-hint">Gratuita, ci mette due minuti — e non occupa spazio nel telefono: si apre dal browser come un sito, nessun download da store. Se hai già ricevuto un invito a un evento, aprilo pure dal link che ti hanno mandato.</div>
+  </section>
+  </div>
+
+  <section class="land-section">
+    <div class="land-section-head">
+      <span class="land-eyebrow">Come funziona</span>
+      <h2>Tre passaggi, non venti messaggi</h2>
+      <p>Dalla proposta alla serata organizzata, senza ripetere le stesse domande a ogni amico.</p>
+    </div>
+    <div class="land-steps">
+      <div class="land-step">
+        <div class="land-step-num">1</div>
+        <h3>Proponi</h3>
+        <p>Crei un evento e proponi una o più date possibili. Aggiungi chi vuoi invitare, o mandi un link a tutti.</p>
+      </div>
+      <div class="land-step">
+        <div class="land-step-num">2</div>
+        <h3>Gli amici rispondono</h3>
+        <p>Ognuno dice per quali date c'è. Niente più "io ci sono ma dipende", tutto tracciato in un posto solo.</p>
+      </div>
+      <div class="land-step">
+        <div class="land-step-num">3</div>
+        <h3>Vi organizzate</h3>
+        <p>seeva calcola la data con più disponibilità. Da lì, chi viene è confermato e si possono dividere le spese.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="land-section">
+    <div class="land-section-head">
+      <span class="land-eyebrow">Cosa puoi fare</span>
+      <h2>Tutto quello che serve per organizzarsi</h2>
+      <p>Le funzioni pensate per il tipo di caos che si crea sempre quando si prova a mettere d'accordo un gruppo.</p>
+    </div>
+    <div class="land-features">
+      <details class="land-feature">
+        <summary>
+          <div class="land-feature-icon" style="background:var(--peach);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M3 10h18"></path><path d="M8 3v4M16 3v4"></path></svg>
+          </div>
+          <h3>Trova la data giusta</h3>
+          <svg class="land-feature-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M6 9l6 6 6-6"></path></svg>
+        </summary>
+        <p>Proponi più date, i tuoi amici votano quelle che vanno bene, vince quella con più disponibilità.</p>
+      </details>
+      <details class="land-feature">
+        <summary>
+          <div class="land-feature-icon" style="background:var(--confirmed);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+          </div>
+          <h3>Sai sempre chi viene</h3>
+          <svg class="land-feature-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M6 9l6 6 6-6"></path></svg>
+        </summary>
+        <p>Da confermare, confermati o annullati: lo stato di ogni evento a colpo d'occhio, sempre aggiornato.</p>
+      </details>
+      <details class="land-feature">
+        <summary>
+          <div class="land-feature-icon" style="background:var(--lavender);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5M9 8l1.2 1M15 8l-1.2 1"></path><path d="M8.5 15.5c1-1 2.2-1.5 3.5-1.5s2.5.5 3.5 1.5"></path></svg>
+          </div>
+          <h3>Spese condivise</h3>
+          <svg class="land-feature-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M6 9l6 6 6-6"></path></svg>
+        </summary>
+        <p>Aggiungi chi ha pagato cosa, seeva calcola le quote di ciascuno. Niente più calcoli a mano.</p>
+      </details>
+      <details class="land-feature">
+        <summary>
+          <div class="land-feature-icon" style="background:var(--sky);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3"></circle><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"></path><circle cx="17" cy="9" r="2.4"></circle><path d="M15.5 13.3c2.6 0.3 4.5 2.2 4.5 5.7"></path></svg>
+          </div>
+          <h3>Amici e liste</h3>
+          <svg class="land-feature-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M6 9l6 6 6-6"></path></svg>
+        </summary>
+        <p>Salva i gruppi che inviti spesso — la squadra, i compagni di viaggio — e invitali con un tocco.</p>
+      </details>
+      <details class="land-feature">
+        <summary>
+          <div class="land-feature-icon" style="background:var(--butter);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-6 6v3.2c0 .87-.35 1.7-.97 2.32L4 15.5h16l-1.03-1.98A3.28 3.28 0 0 1 18 11.2V9a6 6 0 0 0-6-6z"></path><path d="M9.5 18.5a2.5 2.5 0 0 0 5 0"></path></svg>
+          </div>
+          <h3>Notifiche</h3>
+          <svg class="land-feature-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M6 9l6 6 6-6"></path></svg>
+        </summary>
+        <p>Sai subito quando qualcuno risponde o quando una data si sblocca, senza controllare a mano.</p>
+      </details>
+      <details class="land-feature">
+        <summary>
+          <div class="land-feature-icon" style="background:var(--cancel);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"></path><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"></path></svg>
+          </div>
+          <h3>Link d'invito</h3>
+          <svg class="land-feature-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M6 9l6 6 6-6"></path></svg>
+        </summary>
+        <p>Mandi un link, chi lo apre entra direttamente nell'evento — non serve nemmeno registrarsi per rispondere.</p>
+      </details>
+      <details class="land-feature">
+        <summary>
+          <div class="land-feature-icon" style="background:var(--surface-dark);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2.5"></rect><line x1="10" y1="19" x2="14" y2="19"></line></svg>
+          </div>
+          <h3>Zero spazio occupato</h3>
+          <svg class="land-feature-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M6 9l6 6 6-6"></path></svg>
+        </summary>
+        <p>Non è un'app da scaricare dallo store: si apre dal browser come un sito, non consuma memoria sul telefono. Se vuoi puoi comunque aggiungerla alla schermata home in un tocco, resta comunque leggerissima.</p>
+      </details>
+    </div>
+  </section>
+
+  <section class="land-section">
+    <div class="land-why">
+      <div>
+        <h2>Perché non un gruppo WhatsApp</h2>
+        <p>In un gruppo la data si perde tra gli sticker, nessuno ricorda chi aveva detto sì e le spese restano segnate a mente da qualcuno. seeva tiene una fonte sola per data, partecipanti e spese — sempre lì, senza dover risalire la chat.</p>
+      </div>
+      <div class="land-why-list">
+        <div class="land-why-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M20 6 9 17l-5-5"></path></svg>
+          <span>Una sola risposta per persona, non venti messaggi</span>
+        </div>
+        <div class="land-why-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M20 6 9 17l-5-5"></path></svg>
+          <span>Chi viene si vede subito, non va dedotto dallo scroll</span>
+        </div>
+        <div class="land-why-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M20 6 9 17l-5-5"></path></svg>
+          <span>Le spese restano scritte, non affidate alla memoria</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="land-final">
+    <h2>Pronto a provarla?</h2>
+    <p>Ti bastano due minuti per registrarti. Il prossimo evento lo proponi tu.</p>
+    <div class="land-cta-row">
+      <a class="land-btn land-btn-primary" href="profilo.html">Registrati gratis</a>
+      <a class="land-btn land-btn-secondary" href="profilo.html?mode=login">Ho già un account</a>
+    </div>
+  </section>
+
+  <footer class="land-footer">
+    <div class="land-logo">
+      <span class="land-logo-mark">sv</span>
+      seeva
+    </div>
+    <div class="land-footer-note">Hai già un account? <a href="index.html">Vai alla tua Home →</a></div>
+  </footer>
+
+</body>
+</html>
