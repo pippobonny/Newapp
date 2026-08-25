@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>seeva — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<meta name="theme-color" content="#FF7A29">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="favicon.ico">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<script>
+  /* Stesso fix altezza delle altre pagine (vedi index.html/eventi.html):
+     serve solo se questa pagina viene aperta dentro l'app installata. */
+  (function () {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (!isStandalone) return;
+    function setAppHeight() {
+      document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+    }
+    setAppHeight();
+    window.addEventListener('resize', setAppHeight);
+    window.addEventListener('orientationchange', setAppHeight);
+  })();
+</script>
+<style>
+  /* Pagina admin (Fil, 2026-08-25): non linkata da nessun'altra pagina
+     dell'app, e i dati veri arrivano solo se get_admin_dashboard lato
+     server riconosce chi è loggato -- vedi data.js/getAdminDashboard.
+     Stile a parte, come presentazione.html, per non toccare style.css. */
+  .admin-msg {
+    text-align: center;
+    color: var(--ink-soft);
+    padding: 60px 24px;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  .admin-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .admin-stat {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 14px 16px;
+    box-shadow: 0 4px 16px rgba(58,50,90,0.06);
+  }
+  .admin-stat-num {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 700;
+    font-size: 24px;
+    color: var(--ink);
+    line-height: 1.1;
+  }
+  .admin-stat-label {
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-top: 2px;
+  }
+  .admin-updated {
+    font-size: 12px;
+    color: var(--ink-soft);
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .admin-table-wrap {
+    background: var(--card);
+    border-radius: 16px;
+    overflow-x: auto;
+    box-shadow: 0 4px 16px rgba(58,50,90,0.06);
+    -webkit-overflow-scrolling: touch;
+  }
+  .admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .admin-table th, .admin-table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid rgba(140,124,145,0.15);
+  }
+  .admin-table th {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+    font-weight: 600;
+  }
+  .admin-table tr:last-child td { border-bottom: none; }
+  .admin-user-name { font-weight: 600; color: var(--ink); }
+  .admin-user-email { color: var(--ink-soft); font-size: 12px; }
+  .admin-app-badge {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .admin-app-badge.yes { background: var(--confirmed-soft); color: #2E5C38; }
+  .admin-app-badge.no { background: var(--cancel-soft); color: var(--cancel); }
+  .admin-note {
+    font-size: 12px;
+    color: var(--ink-soft);
+    text-align: center;
+    margin-top: 14px;
+    padding: 0 12px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+  <div class="phone">
+   <div class="screen">
+    <div class="header simple">
+      <div class="header-title">Admin</div>
+    </div>
+    <a class="back-btn" href="index.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M15 18l-6-6 6-6"></path></svg></a>
+
+    <div class="content" id="adminContent">
+      <p class="admin-msg">Caricamento…</p>
+    </div>
+   </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="data.js"></script>
+  <script>
+    (async function () {
+      var contentEl = document.getElementById('adminContent');
+
+      /* Prima riga di difesa, solo estetica: senza account loggato non c'è
+         nemmeno da provare la chiamata. Quella vera (impossibile da
+         aggirare) è dentro get_admin_dashboard lato server. */
+      if (!SeevaData.hasAccount()) {
+        contentEl.innerHTML = ''
+          + '<p class="admin-msg">Devi accedere con il tuo account per vedere questa pagina.</p>'
+          + '<p style="text-align:center;"><button type="button" class="primary-btn" id="adminLoginBtn" style="max-width:220px;">Accedi</button></p>';
+        var loginBtn = document.getElementById('adminLoginBtn');
+        if (loginBtn) loginBtn.addEventListener('click', function () {
+          window.location.href = 'profilo.html?mode=login';
+        });
+        return;
+      }
+
+      await SeevaData.renderSessionWarningIfNeeded();
+
+      var dashboard;
+      try {
+        dashboard = await SeevaData.getAdminDashboard();
+      } catch (err) {
+        contentEl.innerHTML = '<p class="admin-msg">' + SeevaData.escapeHTML(SeevaData.friendlyErrorMessage(err, 'Errore nel caricamento dei dati.')) + '</p>';
+        return;
+      }
+
+      if (!dashboard || !dashboard.authorized) {
+        contentEl.innerHTML = '<p class="admin-msg">Questa pagina è visibile solo all\'amministratore.</p>';
+        return;
+      }
+
+      var totals = dashboard.totals || {};
+      var users = dashboard.users || [];
+
+      function fmtDate(iso) {
+        if (!iso) return '—';
+        try {
+          return new Date(iso).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' });
+        } catch (err) { return '—'; }
+      }
+
+      function pct(part, total) {
+        if (!total) return '0%';
+        return Math.round((part / total) * 100) + '%';
+      }
+
+      var html = '';
+
+      html += '<div class="admin-stats">';
+      html += '<div class="admin-stat"><div class="admin-stat-num">' + (totals.accounts != null ? totals.accounts : '—') + '</div><div class="admin-stat-label">Utenti registrati</div></div>';
+      html += '<div class="admin-stat"><div class="admin-stat-num">' + (totals.withApp != null ? totals.withApp : '—') + '</div><div class="admin-stat-label">Con notifiche attive (' + pct(totals.withApp, totals.accounts) + ')</div></div>';
+      html += '<div class="admin-stat"><div class="admin-stat-num">' + (totals.events != null ? totals.events : '—') + '</div><div class="admin-stat-label">Eventi creati in totale</div></div>';
+      html += '<div class="admin-stat"><div class="admin-stat-num">' + (totals.responses != null ? totals.responses : '—') + '</div><div class="admin-stat-label">Risposte a eventi</div></div>';
+      html += '</div>';
+
+      if (dashboard.generatedAt) {
+        html += '<div class="admin-updated">Aggiornato al ' + SeevaData.escapeHTML(fmtDate(dashboard.generatedAt)) + '</div>';
+      }
+
+      html += '<div class="admin-table-wrap"><table class="admin-table"><thead><tr>'
+        + '<th>Utente</th><th>Registrato</th><th>App attiva</th><th>Eventi creati</th><th>Risposte</th><th>Invitato a</th><th>Ultima risposta</th>'
+        + '</tr></thead><tbody>';
+
+      users.forEach(function (u) {
+        var fullName = [u.nome, u.cognome].filter(Boolean).join(' ');
+        html += '<tr>'
+          + '<td><div class="admin-user-name">' + SeevaData.escapeHTML(u.username || '—') + '</div>'
+          + (fullName ? '<div class="admin-user-email">' + SeevaData.escapeHTML(fullName) + '</div>' : '')
+          + '<div class="admin-user-email">' + SeevaData.escapeHTML(u.email || '') + '</div></td>'
+          + '<td>' + SeevaData.escapeHTML(fmtDate(u.createdAt)) + '</td>'
+          + '<td><span class="admin-app-badge ' + (u.hasApp ? 'yes' : 'no') + '">' + (u.hasApp ? 'Sì' : 'No') + '</span></td>'
+          + '<td>' + (u.eventsCreated != null ? u.eventsCreated : 0) + '</td>'
+          + '<td>' + (u.eventsResponded != null ? u.eventsResponded : 0) + '</td>'
+          + '<td>' + (u.eventsInvited != null ? u.eventsInvited : 0) + '</td>'
+          + '<td>' + SeevaData.escapeHTML(fmtDate(u.lastResponseAt)) + '</td>'
+          + '</tr>';
+      });
+
+      html += '</tbody></table></div>';
+
+      html += '<div class="admin-note">"App attiva" = ha dato il permesso per le notifiche push su almeno un dispositivo (è il modo più affidabile che abbiamo per capire chi usa davvero l\'app, non tracciamo il download in sé). Le email di sistema (invito, amicizia, evento modificato/eliminato) vengono già mandate solo a chi risulta "No" qui.</div>';
+
+      contentEl.innerHTML = html;
+    })();
+  </script>
+</body>
+</html>

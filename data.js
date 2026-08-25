@@ -608,6 +608,20 @@
     };
   }
 
+  /* Cruscotto amministratore (Fil, 2026-08-25): pagina admin.html, mai linkata
+     da nessun'altra pagina. Il controllo vero e proprio non e' qui -- e'
+     lato server, dentro get_admin_dashboard (guarda auth.uid(), l'id della
+     sessione Supabase vera di chi chiama, mai un id passato dal client, e
+     lo confronta con l'email dell'account, impossibile da falsificare da
+     fuori). Chiunque non sia loggato con l'account giusto riceve solo
+     { authorized: false }, mai i dati sugli altri utenti -- stesso pattern
+     "found:false" gia' usato in begin_password_reset. */
+  async function getAdminDashboard() {
+    var res = await supabase.rpc('get_admin_dashboard');
+    if (res.error) throwSupabaseError(res.error);
+    return res.data || { authorized: false };
+  }
+
   /* Aggiorna l'account esistente. "input" può contenere solo i campi cambiati;
      gli altri vengono letti dal profilo attuale. input.password vuoto/assente
      = non cambiare la password (gestito lato server). Stesso discorso per
@@ -2960,6 +2974,7 @@
     deleteOwnAccount: deleteOwnAccount,
     updateAccount: updateAccount,
     fetchOwnAccount: fetchOwnAccount,
+    getAdminDashboard: getAdminDashboard,
     uploadAvatar: uploadAvatar,
     uploadEventPhoto: uploadEventPhoto,
     uploadEventAudio: uploadEventAudio,
