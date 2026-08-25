@@ -451,7 +451,8 @@ a.back-btn:active { transform: scale(0.92); }
    un rettangolo dai bordi arrotondati, per farsi notare ("bello grosso per
    invogliare", Fil). Cliccabile (apre il dialogo nativo o le istruzioni
    manuali). */
-.attendance-badge--install {
+.attendance-badge--install,
+.attendance-badge--photo {
   cursor: pointer;
   padding: 16px 22px;
   font-size: 15px;

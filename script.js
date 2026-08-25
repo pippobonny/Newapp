@@ -453,6 +453,7 @@
       initTodayDate();
       initAttendanceBadge();
       initHomeInstallPrompt();
+      initHomePhotoPrompt();
       // Lega i link della vista appena montata (Fil, 2026-08-23): senza
       // questa, i loro click passavano come navigazione vera invece che SPA
       // — vedi il commento su bindInternalLinkNavigation più sopra.
@@ -983,7 +984,7 @@
     badgeRotationTimer = setInterval(function () {
       var badge = document.getElementById('attendanceBadge');
       if (!badge) { stopBadgeRotation(); return; }
-      if (attendanceFlashTimer || badge.classList.contains('attendance-badge--install')) return;
+      if (attendanceFlashTimer || badge.classList.contains('attendance-badge--install') || badge.classList.contains('attendance-badge--photo')) return;
 
       badge.style.opacity = '0';
       window.setTimeout(function () {
@@ -1577,6 +1578,57 @@
     }, 2000);
   }
 
+  /* ---------- invito (temporaneo) a caricare la foto profilo ----------
+     Fil, 2026-08-25 (bug segnalato dall'app): "invogliare la gente a
+     caricare l'immagine del profilo, con una voce simile a quella che dice
+     di installare l'app, ma che sparisce da sola dopo poco" -- stessa
+     bolla grande dell'invito a installare qui sopra (stesso trattamento
+     CSS, vedi .attendance-badge--photo in style.css), ma per chi non ha
+     ancora una foto profilo. A differenza dell'invito a installare (che
+     resta finche' non installi), questo torna da solo alla frase normale
+     dopo pochi secondi -- e' un invito, non un blocco.
+     Non compete con l'invito a installare ne' con un flash di notifica:
+     se uno dei due sta gia' occupando il badge, questo aspetta il giro
+     dopo (richiamata a ogni tab/refresh, vedi i punti da cui viene
+     chiamata) invece di accavallarsi. */
+  function initHomePhotoPrompt() {
+    var el = document.getElementById('attendanceBadge');
+    if (!el) return; // non siamo in Home
+
+    if (!window.SeevaData || typeof SeevaData.hasAccount !== 'function' || !SeevaData.hasAccount()) return;
+
+    var acc = SeevaData.getAccount();
+    if (!acc || acc.avatarUrl) return; // ha gia' una foto
+
+    // Un po' dopo l'eventuale invito a installare (che scatta a 2000ms),
+    // cosi' se deve comparire anche quello vince sempre lui.
+    window.setTimeout(function () {
+      var badge = document.getElementById('attendanceBadge');
+      if (!badge) return;
+      if (attendanceFlashTimer || badge.classList.contains('attendance-badge--install') || badge.classList.contains('attendance-badge--photo')) return;
+
+      var acc2 = SeevaData.getAccount();
+      if (!acc2 || acc2.avatarUrl) return; // potrebbe averla appena caricata
+
+      stopBadgeRotation();
+      badge.innerHTML = '📸 Aggiungi una foto profilo, fatti riconoscere dagli amici';
+      badge.classList.add('attendance-badge--photo');
+
+      function goToProfile() { window.location.href = 'profilo.html'; }
+      badge.addEventListener('click', goToProfile);
+
+      window.setTimeout(function () {
+        var badge2 = document.getElementById('attendanceBadge');
+        if (!badge2) return;
+        badge2.classList.remove('attendance-badge--photo');
+        badge2.removeEventListener('click', goToProfile);
+        // initAttendanceBadge ricalcola e rimette la frase giusta (e
+        // riavvia la rotazione se prevista), niente da ripristinare a mano.
+        initAttendanceBadge();
+      }, 6000);
+    }, 2600);
+  }
+
   function onInstallBadgeTap() {
     // Chrome/Android con l'evento disponibile (vedi beforeinstallprompt qui
     // sopra): il vero dialogo nativo di sistema, un tap e via — nessun
@@ -2056,6 +2108,7 @@
     initBottomOverscrollGuard();
     initSplashScreen();
     initHomeInstallPrompt();
+    initHomePhotoPrompt();
     initInstallPromptPopup();
     initReportProblem();
     initGlobalNotifWatcher();
