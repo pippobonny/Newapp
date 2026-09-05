@@ -58,6 +58,19 @@
     return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   }
 
+  /* Fil, 2026-09-05: memorizza che QUESTO device ha l'app installata, letto
+     poi da initOpenInAppBanner più sotto. Serve perché un link (es. evento
+     condiviso) si apre quasi sempre in Safari/Chrome normale anche quando
+     l'app è installata — lì isAppInstalled() risulta false, quindi da solo
+     non basta a sapere se conviene proporre di aprire l'app. Il flag si
+     scrive solo quando l'app gira DAVVERO in standalone (l'unico momento in
+     cui sappiamo con certezza che è installata) e resta in localStorage,
+     condiviso con Safari/Chrome per lo stesso dominio anche fuori dalla PWA. */
+  var INSTALLED_FLAG_KEY = 'seeva:appInstalled';
+  if (isAppInstalled()) {
+    try { localStorage.setItem(INSTALLED_FLAG_KEY, '1'); } catch (err) { /* ignora */ }
+  }
+
   /* ---------- 1. Transizioni di pagina: slide direzionale ---------- */
   // Il bordo del telefono (.phone) non si muove mai: scorre solo .screen
   // (header + content). La direzione (sinistra/destra) dipende dalla posizione
@@ -1141,6 +1154,48 @@
     SeevaData.startAutoRefresh(checkGlobalNotifications);
   }
 
+  /* ---------- "hai l'app installata, aprila da lì" ----------
+     Fil, 2026-09-05: su Android il capture_links del manifest già fa
+     riaprire l'app installata da sola quando si clicca un link — qui serve
+     solo per iOS/Safari, dove non esiste alcun modo (né per il sistema né
+     per JS) di rilanciare automaticamente una PWA installata da un tab
+     normale: il massimo possibile è avvisare chi ha già l'app (vedi
+     INSTALLED_FLAG_KEY qui sopra) che conviene aprire l'evento da lì invece
+     che continuare nel browser. Stessa bolla/animazione del banner
+     notifiche (showGlobalNotifBanner), mostrata solo sulle pagine che si
+     raggiungono davvero da un link condiviso (evento.html, amico.html) —
+     sulle 5 tab principali non avrebbe senso, ci si arriva quasi sempre già
+     dentro l'app o dalla Home del browser normale. */
+  function initOpenInAppBanner() {
+    if (isAppInstalled()) return; // siamo già dentro l'app: nulla da proporre
+
+    var page = currentFile();
+    if (page !== 'evento.html' && page !== 'amico.html') return;
+
+    var installed = false;
+    try { installed = localStorage.getItem(INSTALLED_FLAG_KEY) === '1'; } catch (err) { /* ignora */ }
+    if (!installed) return;
+
+    var phone = document.querySelector('.phone');
+    if (!phone) return;
+
+    var banner = document.createElement('div');
+    banner.className = 'notif-banner';
+    banner.innerHTML = '<span class="notif-banner-dot">📲</span><span class="notif-banner-text">Hai seeva installata: aprila dalla schermata Home</span>';
+    phone.appendChild(banner);
+
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        banner.classList.add('show');
+      });
+    });
+
+    window.setTimeout(function () {
+      banner.classList.remove('show');
+      window.setTimeout(function () { banner.remove(); }, 320);
+    }, 5000);
+  }
+
   /* ---------- 6. Chip: piccolo "pop" alla selezione ---------- */
   function initChipPop() {
     document.querySelectorAll('.chip').forEach(function (chip) {
@@ -2112,6 +2167,7 @@
     initInstallPromptPopup();
     initReportProblem();
     initGlobalNotifWatcher();
+    initOpenInAppBanner();
   });
 
   // Gestisce il tasto "indietro" del browser (bfcache): la pagina torna dalla cache

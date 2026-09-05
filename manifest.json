@@ -2,9 +2,11 @@
   "name": "seeva",
   "short_name": "seeva",
   "description": "Organizza eventi con i tuoi amici",
+  "id": "/index.html",
   "start_url": "index.html",
   "scope": ".",
   "display": "standalone",
+  "capture_links": "existing-client-navigate",
   "background_color": "#FFFFFF",
   "theme_color": "#FF7A29",
   "icons": [
