@@ -1489,8 +1489,14 @@
         var availabilityHTML = isConfirmedSimple ? ''
           : info.status === 'cancelled' ? ''
           : (claimCandidates ? buildClaimPromptHTML(claimCandidates) : buildAvailabilitySectionHTML());
+        // Bug Fil, 2026-09-13: "In testa ai voti" presuppone un confronto tra
+        // più date proposte — a data singola bestOption vince sempre e
+        // subito (è l'unica opzione, 0 voti compresi), quindi la card
+        // diceva "in testa ai voti" per una data che non sta "vincendo" su
+        // niente. La data è già mostrata subito sotto in "Quando" con
+        // Ci sono/Non ci sono: qui, a data singola, non serve ripeterla.
         var confirmedSummaryHTML = isConfirmedSimple ? buildConfirmedSummaryHTML(info)
-          : (info.status === 'waiting' || info.status === 'almost') ? buildLeadingDateSummaryHTML(info)
+          : (event.dateOptions.length > 1 && (info.status === 'waiting' || info.status === 'almost')) ? buildLeadingDateSummaryHTML(info)
           : '';
 
         // "Dove" affiancata a "Tu" in una riga sola, stile riquadri Home

@@ -442,6 +442,15 @@ a.back-btn:active { transform: scale(0.92); }
 .attendance-badge--flash {
   transform: scale(1.08);
   box-shadow: 0 6px 18px rgba(58, 50, 90, 0.22);
+  /* Bug Fil, 2026-09-13: il testo della notifica (molto più lungo della
+     solita frase breve) non aveva alcun limite di larghezza — il badge,
+     centrato in .top-badge-wrap, cresceva oltre lo schermo e sbordava sia
+     a destra che a sinistra. Stesso trattamento di .header-title: tronca
+     con "…" invece di allargarsi senza limite. */
+  max-width: 82%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* Invito a installare l'app al posto delle solite frasi (Fil, 2026-08-24,
