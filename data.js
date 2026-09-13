@@ -1359,7 +1359,7 @@
     + 'expensesEnabled:expenses_enabled, '
     + 'dateOptions:date_options!date_options_event_id_fkey(id, dateISO:date_iso), '
     + 'locationOptions:location_options!location_options_event_id_fkey(id, address, placeId:place_id, lat, lng), '
-    + 'participants(name, availableDateOptionIds:available_date_option_ids, availableLocationOptionIds:available_location_option_ids, accountId:account_id, createdAt:created_at, hiddenFromHome:hidden_from_home), '
+    + 'participants(name, availableDateOptionIds:available_date_option_ids, availableLocationOptionIds:available_location_option_ids, accountId:account_id, createdAt:created_at, hiddenFromHome:hidden_from_home, note), '
     + 'invitees:event_invitees(id, name, accountId:account_id, claimedAt:claimed_at)';
 
   /* ---------- visibilità eventi ----------
@@ -2379,7 +2379,7 @@
      sessione vera si usa account_id come chiave — due persone con lo stesso
      nome sullo stesso evento non si sovrascrivono più a vicenda (Task 6) —
      altrimenti si ripiega sul nome, solo per chi è davvero ospite. */
-  async function upsertParticipant(eventId, guestName, availableDateOptionIds, availableLocationOptionIds) {
+  async function upsertParticipant(eventId, guestName, availableDateOptionIds, availableLocationOptionIds, note) {
     var name = (guestName || '').trim();
     if (!name && !hasAccount()) return null;
 
@@ -2387,7 +2387,12 @@
       p_event_id: eventId,
       p_name: name || null,
       p_available_date_option_ids: availableDateOptionIds,
-      p_available_location_option_ids: availableLocationOptionIds || []
+      p_available_location_option_ids: availableLocationOptionIds || [],
+      // Nota facoltativa (Fil, 2026-09-13: "siì ci sono ma arrivo dopo
+      // cena") -- solo il form a data singola in evento.html la manda
+      // davvero; altrove resta undefined, la RPC allora non tocca quella
+      // già salvata (vedi coalesce(p_note, note) lato server).
+      p_note: (typeof note === 'string') ? note : undefined
     });
     if (res.error) throwSupabaseError(res.error);
 
@@ -2398,6 +2403,41 @@
     if (res.data && res.data.notifyOrganizer) {
       notifyEventResponse(eventId, res.data.name, !!res.data.available);
     }
+
+    clearEventsCache();
+    return getEventById(eventId);
+  }
+
+  /* ---------- bacheca commenti (Fil, 2026-09-13) ----------
+     Stesso pattern di upsertParticipant qui sopra: RPC SECURITY DEFINER,
+     così funziona anche per chi risponde senza account (ospite dal
+     link). Niente tempo reale: la lista arriva dentro get_event_public
+     (come items/expenses), si aggiorna quando la pagina si riapre o si
+     ricarica, non mentre qualcuno sta scrivendo altrove. */
+  async function postEventComment(eventId, guestName, message) {
+    var name = (guestName || '').trim();
+    if (!name && !hasAccount()) return null;
+
+    var res = await supabase.rpc('post_event_comment', {
+      p_event_id: eventId,
+      p_name: name || null,
+      p_message: message
+    });
+    if (res.error) throwSupabaseError(res.error);
+
+    clearEventsCache();
+    return getEventById(eventId);
+  }
+
+  /* L'autore può cancellare il proprio commento, l'organizzatore
+     qualunque commento sul proprio evento -- controllato lato server in
+     delete_event_comment, mai fidandosi del solo client. */
+  async function deleteEventComment(eventId, commentId, guestName) {
+    var res = await supabase.rpc('delete_event_comment', {
+      p_comment_id: commentId,
+      p_name: (guestName || '').trim() || null
+    });
+    if (res.error) throwSupabaseError(res.error);
 
     clearEventsCache();
     return getEventById(eventId);
@@ -2874,7 +2914,7 @@
       : 'var(--mint)';
 
     var thumbHTML = event.photoUrl
-      ? '<img src="' + escapeHTML(event.photoUrl) + '" alt="" style="width:44px; height:44px; border-radius:12px; object-fit:cover; flex-shrink:0;">'
+      ? '<img src="' + escapeHTML(event.photoUrl) + '" alt="" loading="lazy" style="width:44px; height:44px; border-radius:12px; object-fit:cover; flex-shrink:0;">'
       : '';
 
     // Su un evento annullato, passato o già confermato il conteggio non
@@ -2993,6 +3033,8 @@
     cancelEventManually: cancelEventManually,
     getEventNotices: getEventNotices,
     upsertParticipant: upsertParticipant,
+    postEventComment: postEventComment,
+    deleteEventComment: deleteEventComment,
     withdrawFromEvent: withdrawFromEvent,
     removeEventFromHome: removeEventFromHome,
     buildRemoveFromHomeConfirmMessage: buildRemoveFromHomeConfirmMessage,

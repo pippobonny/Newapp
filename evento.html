@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>seeva — Evento</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.json">
@@ -103,6 +104,10 @@
        contenuto viene scritto qui dentro da render() invece che dentro
        contentEl.innerHTML — vedi whoComingModalHTML in render(). -->
   <div id="whoComingModalWrap"></div>
+
+  <!-- Stesso motivo di whoComingModalWrap qui sopra: il popup commenti
+       deve sfocare tutto lo schermo, non solo .content. -->
+  <div id="commentsModalWrap"></div>
 
   <!-- Aggiungi/modifica una spesa (Fil, 2026-07-13): stesso stile del popup
        lista amici in amici.html, riusato qui perché il form ha più campi di
@@ -645,7 +650,7 @@
             : statusKey === 'absent'
               ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><circle cx="12" cy="12" r="9"></circle><line x1="9.5" y1="9.5" x2="14.5" y2="14.5"></line><line x1="14.5" y1="9.5" x2="9.5" y2="14.5"></line></svg>'
               : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg>';
-          return { name: name, statusKey: statusKey, statusIconSVG: statusIconSVG };
+          return { name: name, statusKey: statusKey, statusIconSVG: statusIconSVG, note: participant ? participant.note : null };
         }).sort(function (a, b) { return STATUS_ORDER[a.statusKey] - STATUS_ORDER[b.statusKey]; });
 
         // Righe piene una per persona -> bolle affiancate, colore = stato
@@ -661,8 +666,19 @@
         // Restituisce anche "rows" grezzo (Fil, 2026-08-23), non solo
         // l'HTML: buildWhoComingTileHTML più sotto lo riusa per il
         // conteggio "N di M disponibili" senza ricalcolare tutto da capo.
+        // Note di arrivo (Fil, 2026-09-13: "sì ci sono ma arrivo dopo
+        // cena"): riga in più, piccola e solo se qualcuno ne ha lasciata
+        // una -- non tocca le bolle compatte qui sopra, che restano come
+        // sono sempre state.
+        var notedRows = rows.filter(function (r) { return r.note; });
+        var notesHTML = notedRows.length
+          ? '<div class="card-date" style="margin:8px 2px 0;">' + notedRows.map(function (r) {
+              return '<b>' + SeevaData.escapeHTML(r.name) + ':</b> ' + SeevaData.escapeHTML(r.note);
+            }).join(' · ') + '</div>'
+          : '';
+
         return {
-          html: '<div class="section-title first">Invitati</div><div class="invitee-chip-wrap">' + rowsHTML + '</div>',
+          html: '<div class="section-title first">Invitati</div><div class="invitee-chip-wrap">' + rowsHTML + '</div>' + notesHTML,
           rows: rows
         };
       }
@@ -765,9 +781,16 @@
         // non c'è scelta. Due bottoni semplici (Fil, 2026-07-10) al posto del
         // chip + "Conferma disponibilità" + "Non sono mai disponibile".
         if (event.dateOptions.length === 1) {
+          // Nota facoltativa (Fil, 2026-09-13: "sì ci sono ma arrivo dopo
+          // cena, o non so quando arrivo"): un campo solo, sempre visibile
+          // invece di un secondo passaggio dopo "Ci sono" -- chi non gli
+          // interessa lo ignora, zero tap in più per chi risponde e basta.
+          // Precompilata se stai cambiando risposta (existingParticipant).
+          var noteValue = (existingParticipant && existingParticipant.note) || '';
           return ''
             + '<div class="section-title">Ci sarai?</div>'
             + buildLocationChipGridHTML(preselectedLocations)
+            + '<div class="field"><input type="text" id="singleDateNoteInput" placeholder="Nota per gli altri, es. orario di arrivo (facoltativo)" value="' + SeevaData.escapeHTML(noteValue) + '"></div>'
             + '<div class="form-error" id="formError"></div>'
             + '<button type="button" class="primary-btn" id="singleDateYesBtn" data-option-id="' + event.dateOptions[0].id + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="15" height="15" style="vertical-align:-2px; margin-right:4px;"><circle cx="12" cy="12" r="9"></circle><path d="M8 12.5l2.5 2.5L16 9.5"></path></svg>Ci sono</button>'
             + '<div class="add-date-btn" id="singleDateNoBtn" style="margin-top:10px;">Non ci sono</div>';
@@ -877,7 +900,7 @@
               var avatarUrl = attendeeAvatars[name.toLowerCase()];
               var initial = (name.trim().charAt(0) || '?').toUpperCase();
               var circleInner = avatarUrl
-                ? '<img src="' + SeevaData.escapeHTML(avatarUrl) + '" alt="">'
+                ? '<img src="' + SeevaData.escapeHTML(avatarUrl) + '" alt="" loading="lazy">'
                 : SeevaData.escapeHTML(initial);
               return ''
                 + '<div class="attendee-bubble">'
@@ -1009,7 +1032,7 @@
             var avatarUrl = attendeeAvatars[name.toLowerCase()];
             var initial = (name.trim().charAt(0) || '?').toUpperCase();
             return avatarUrl
-              ? '<img src="' + SeevaData.escapeHTML(avatarUrl) + '" alt="">'
+              ? '<img src="' + SeevaData.escapeHTML(avatarUrl) + '" alt="" loading="lazy">'
               : SeevaData.escapeHTML(initial);
           };
 
@@ -1109,7 +1132,7 @@
             var takerAvatarUrl = it.takenByName ? attendeeAvatars[it.takenByName.toLowerCase()] : null;
             var takerInitial = (it.takenByName || '?').trim().charAt(0).toUpperCase();
             checkHTML = takerAvatarUrl
-              ? '<img src="' + SeevaData.escapeHTML(takerAvatarUrl) + '" alt="">'
+              ? '<img src="' + SeevaData.escapeHTML(takerAvatarUrl) + '" alt="" loading="lazy">'
               : SeevaData.escapeHTML(takerInitial);
           }
 
@@ -1286,13 +1309,35 @@
           ? '<div class="repeat-btn" id="repeatEventBtn" style="margin-bottom:20px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M17 2.1l4 4-4 4"></path><path d="M3 12.6v-2a4 4 0 0 1 4-4h14"></path><path d="M7 21.9l-4-4 4-4"></path><path d="M21 11.4v2a4 4 0 0 1-4 4H3"></path></svg>Ripeti questo evento con nuove date</div>'
           : '';
 
-        // Unica via d'uscita per un ospite bloccato qui (niente navbar, niente
-        // freccia indietro): un bottone ben visibile verso il profilo, per
-        // registrarsi e tornare a navigare liberamente in tutta l'app.
-        var guestLockBannerHTML = isLockedGuest
+        // Fil, 2026-09-13 ("si può semplificare ancora?"): il vecchio banner
+        // fisso ("Stai partecipando come ospite") ricompariva identico ad
+        // OGNI apertura della pagina -- troppa insistenza per chi ha appena
+        // risposto in due tap. Ora due pezzi separati:
+        // 1) guestExitLinkHTML, sempre presente ma minimo (solo testo): resta
+        //    l'unica via d'uscita per un ospite bloccato qui (niente navbar,
+        //    niente freccia indietro, vedi sopra), ma senza il tono da invito
+        //    promozionale.
+        // 2) guestNudgeHTML, la vera proposta di crearsi un profilo: stesso
+        //    trattamento già usato per l'invito a installare l'app in Home
+        //    (una tantum, non ad ogni visita) -- localStorage ricorda se
+        //    l'ospite l'ha già vista, per QUESTO dispositivo.
+        var guestExitLinkHTML = isLockedGuest
+          ? '<div style="text-align:center; margin-bottom:14px;"><a href="profilo.html" style="font-size:12.5px; color:var(--ink-soft); text-decoration:none;">← Il tuo profilo</a></div>'
+          : '';
+
+        var GUEST_NUDGE_SEEN_KEY = 'seeva:guestAppNudgeSeen';
+        var showGuestNudge = isLockedGuest;
+        if (showGuestNudge) {
+          try { showGuestNudge = !localStorage.getItem(GUEST_NUDGE_SEEN_KEY); } catch (err) { /* niente localStorage: mostrala comunque */ }
+        }
+        if (showGuestNudge) {
+          try { localStorage.setItem(GUEST_NUDGE_SEEN_KEY, '1'); } catch (err) { /* ignora */ }
+        }
+        var guestNudgeHTML = showGuestNudge
           ? '<div class="share-box" style="text-align:center; margin-bottom:16px;">'
-            + '<div class="share-label" style="margin-bottom:10px;">Stai partecipando come ospite</div>'
-            + '<a class="primary-btn" href="profilo.html" style="display:block; text-decoration:none; margin-bottom:0;">Crea il tuo profilo per accedere a tutta l\'app →</a>'
+            + '<div class="share-label" style="margin-bottom:10px;">Ti sei aggiunto come ospite</div>'
+            + '<div class="card-date" style="margin:0 0 10px;">Con un profilo ritrovi questo e i prossimi eventi in un posto solo, ci vuole un minuto.</div>'
+            + '<a class="primary-btn" href="profilo.html" style="display:block; text-decoration:none; margin-bottom:0;">Crea il tuo profilo →</a>'
             + '</div>'
           : '';
 
@@ -1306,7 +1351,13 @@
         var roster = isConfirmedSimple ? { html: '', rows: [] } : buildInviteesRosterHTML();
         var inviteesRosterHTML = roster.html;
 
-        var breakdownSectionHTML = isConfirmedSimple ? '' : ''
+        // Niente grafico "Chi c'è per ogni giorno" quando c'è una sola data
+        // proposta (Fil, 2026-09-11, bug segnalato dall'app: "quando è un
+        // solo giorno non metterlo") -- con un'unica data non c'è niente da
+        // confrontare, la barra sarebbe sempre e sola "leader" (vedi
+        // isLeader in buildDayBreakdownHTML, già condizionato a
+        // dateOptions.length > 1).
+        var breakdownSectionHTML = (isConfirmedSimple || event.dateOptions.length <= 1) ? '' : ''
           + '<div class="section-title">Chi c\'è per ogni giorno</div>'
           + buildDayBreakdownHTML();
 
@@ -1340,6 +1391,81 @@
             + breakdownSectionHTML
             + '</div></div>';
         }
+
+        // ---------- bacheca commenti (Fil, 2026-09-13, "siì ci sono
+        // ma..." + "si può fare una chat dentro un evento?") ----------
+        // A differenza di "Chi viene" qui sopra, questa tessera c'è
+        // sempre -- anche a zero commenti, anche prima che l'evento sia
+        // confermato: deve funzionare fin dalla fase di scelta della
+        // data (Fil), non solo a evento deciso. Stesso popup
+        // .signup-overlay/.signup-modal di "Chi viene", stesso trattamento
+        // "fuori da contentEl" (vedi commentsModalWrap qui sotto e nell'HTML
+        // statico) per lo stesso motivo del blur a schermo intero.
+        var allComments = event.comments || [];
+        var commentsSeenKey = 'seeva:commentsSeen:' + event.id;
+        var commentsSeenCount = 0;
+        try { commentsSeenCount = parseInt(localStorage.getItem(commentsSeenKey), 10) || 0; } catch (err) { /* ignora */ }
+        var commentsUnseenCount = Math.max(0, allComments.length - commentsSeenCount);
+        var COMMENT_AVATAR_COLORS = ['#FF7A29', '#6B3F73', '#9C6BA3', '#4F8B5C'];
+
+        function commentAvatarColor(name) {
+          var code = (name || '?').trim().toLowerCase().charCodeAt(0) || 0;
+          return COMMENT_AVATAR_COLORS[code % COMMENT_AVATAR_COLORS.length];
+        }
+
+        var commentsTileSubHTML = allComments.length
+          ? allComments.length + (allComments.length === 1 ? ' commento' : ' commenti') + ' · tocca per leggere'
+          : 'Ancora nessuno · tocca per scrivere il primo';
+        var commentsTileHTML = ''
+          + '<div class="who-coming-tile" id="commentsTile">'
+          + '<div class="comments-tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M21 11.5a8.4 8.4 0 0 1-8.4 8.4 8.3 8.3 0 0 1-3.8-.9L3 21l1.9-5.8a8.3 8.3 0 0 1-.9-3.8A8.4 8.4 0 0 1 12.6 3a8.4 8.4 0 0 1 8.4 8.4z"></path></svg></div>'
+          + '<div class="who-coming-body">'
+          + '<div class="who-coming-title">Commenti' + (commentsUnseenCount ? ' <span class="badge new">' + commentsUnseenCount + ' nuov' + (commentsUnseenCount === 1 ? 'o' : 'i') + '</span>' : '') + '</div>'
+          + '<div class="who-coming-sub">' + commentsTileSubHTML + '</div>'
+          + '</div>'
+          + '<div class="who-coming-chevron">›</div>'
+          + '</div>';
+
+        var commentRowsHTML = allComments.length
+          ? allComments.map(function (c) {
+              var canDelete = isOrganizer || (guestName && c.authorName && c.authorName.trim().toLowerCase() === guestName.trim().toLowerCase());
+              var initial = (c.authorName || '?').trim().charAt(0).toUpperCase() || '?';
+              var when;
+              try { when = new Date(c.createdAt).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).replace('.', ''); } catch (err) { when = ''; }
+              return ''
+                + '<div class="comment-row" data-comment-id="' + c.id + '">'
+                + '<div class="comment-avatar" style="background:' + commentAvatarColor(c.authorName) + ';">' + SeevaData.escapeHTML(initial) + '</div>'
+                + '<div class="comment-body">'
+                + '<div class="comment-head"><span class="comment-name">' + SeevaData.escapeHTML(c.authorName || '?') + '</span><span class="comment-time">' + SeevaData.escapeHTML(when) + '</span></div>'
+                + '<div class="comment-text">' + SeevaData.escapeHTML(c.message) + '</div>'
+                + (c.isFromResponse ? '<span class="comment-tag">Dalla risposta</span>' : '')
+                + (canDelete ? '<div class="comment-delete" data-delete-comment-id="' + c.id + '">Cancella</div>' : '')
+                + '</div>'
+                + '</div>';
+            }).join('')
+          : '<div class="empty-hint">Ancora nessun commento: scrivi il primo tu.</div>';
+
+        // Chi non ha ancora un nome (raro: vedi buildAvailabilitySectionHTML
+        // più sopra, stesso caso) legge i commenti ma non può scriverne --
+        // stesso trattamento "serve un nome dal profilo" usato là.
+        var commentComposerHTML = guestName
+          ? '<div class="comment-composer">'
+            + '<input type="text" class="comment-input" id="commentInput" placeholder="Scrivi un commento..." maxlength="500">'
+            + '<button type="button" class="comment-send" id="commentSendBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>'
+            + '</div>'
+          : '<div class="card-date" style="margin-top:10px;">Imposta prima un nome dal tuo profilo per poter scrivere.</div>';
+
+        var commentsModalHTML = ''
+          + '<div class="signup-overlay" id="commentsModal" style="display:none;">'
+          + '<div class="signup-modal" style="text-align:left; max-height:78vh; display:flex; flex-direction:column;">'
+          + '<div class="list-header" style="margin-bottom:4px; flex-shrink:0;">'
+          + '<div class="card-title">Commenti</div>'
+          + '<div class="list-delete" id="commentsCloseBtn">Chiudi ✕</div>'
+          + '</div>'
+          + '<div class="comment-list" id="commentList" style="overflow-y:auto;">' + commentRowsHTML + '</div>'
+          + '<div class="form-error" id="commentError" style="flex-shrink:0;"></div>'
+          + commentComposerHTML
+          + '</div></div>';
 
         var manualConfirmSectionHTML = buildManualConfirmSectionHTML(info);
 
@@ -1419,7 +1545,8 @@
         // popup vero (whoComingModalHTML) non è più qui dentro, vedi sotto —
         // al posto della lista intera sempre in vista di prima.
         contentEl.innerHTML = ''
-          + guestLockBannerHTML
+          + guestExitLinkHTML
+          + guestNudgeHTML
           + photoHTML
           + cancelledMessageHTML
           + repeatBoxHTML
@@ -1430,6 +1557,7 @@
           + locationAndAvailabilityHTML
           + manualConfirmTopHTML
           + whoComingTileHTML
+          + commentsTileHTML
           + expensesSectionHTML
           + '<div id="itemsSectionWrap">' + itemsSectionHTML + '</div>'
           + manualConfirmBottomHTML;
@@ -1439,6 +1567,9 @@
         // dentro .content lo sfondo sfocato non copriva l'header.
         var whoComingModalWrap = document.getElementById('whoComingModalWrap');
         if (whoComingModalWrap) whoComingModalWrap.innerHTML = whoComingModalHTML;
+
+        var commentsModalWrap = document.getElementById('commentsModalWrap');
+        if (commentsModalWrap) commentsModalWrap.innerHTML = commentsModalHTML;
 
         // rianima/rende cliccabile il contenuto appena creato
         if (window.SeevaUI) window.SeevaUI.refresh();
@@ -1843,14 +1974,17 @@
         var singleDateYesBtn = document.getElementById('singleDateYesBtn');
         if (singleDateYesBtn) {
           singleDateYesBtn.addEventListener('click', function () {
-            saveAvailability([singleDateYesBtn.getAttribute('data-option-id')], selectedLocationIds(), singleDateYesBtn);
+            var noteEl = document.getElementById('singleDateNoteInput');
+            saveAvailability([singleDateYesBtn.getAttribute('data-option-id')], selectedLocationIds(), singleDateYesBtn, noteEl ? noteEl.value.trim() : '');
           });
         }
 
         var singleDateNoBtn = document.getElementById('singleDateNoBtn');
         if (singleDateNoBtn) {
           singleDateNoBtn.addEventListener('click', function () {
-            saveAvailability([], [], singleDateNoBtn);
+            // Nessuna nota di arrivo ha senso su "Non ci sono": si ripulisce
+            // anche una nota lasciata in precedenza (Fil, 2026-09-13).
+            saveAvailability([], [], singleDateNoBtn, '');
           });
         }
 
@@ -1889,6 +2023,88 @@
         if (whoComingModal) {
           whoComingModal.addEventListener('click', function (e) {
             if (e.target === whoComingModal) whoComingModal.style.display = 'none';
+          });
+        }
+
+        // ---------- bacheca commenti: apri/chiudi/segna come letti ----------
+        var commentsTile = document.getElementById('commentsTile');
+        var commentsModal = document.getElementById('commentsModal');
+        var commentsCloseBtn = document.getElementById('commentsCloseBtn');
+        if (commentsTile && commentsModal) {
+          commentsTile.addEventListener('click', function () {
+            commentsModal.style.display = '';
+            // "N nuovi" segnato come letto appena apri, non a singolo
+            // messaggio: la prossima volta che riapri la pagina il badge
+            // è già a zero (Fil, 2026-09-13: stesso principio già usato per
+            // il resto -- niente da leggere/spuntare messaggio per messaggio).
+            try { localStorage.setItem(commentsSeenKey, String(allComments.length)); } catch (err) { /* ignora */ }
+          });
+        }
+        if (commentsCloseBtn && commentsModal) {
+          commentsCloseBtn.addEventListener('click', function () {
+            commentsModal.style.display = 'none';
+          });
+        }
+        if (commentsModal) {
+          commentsModal.addEventListener('click', function (e) {
+            if (e.target === commentsModal) commentsModal.style.display = 'none';
+          });
+        }
+
+        // Invio: bottone o Invio da tastiera. Dopo l'invio si richiama
+        // render() (stesso schema di saveAvailability) e si riapre subito
+        // il popup, che altrimenti render() ricrea chiuso da capo.
+        function sendEventComment() {
+          var inputEl = document.getElementById('commentInput');
+          var errorEl = document.getElementById('commentError');
+          var sendBtn = document.getElementById('commentSendBtn');
+          if (!inputEl) return;
+          var text = inputEl.value.trim();
+          if (errorEl) errorEl.textContent = '';
+          if (!text) return;
+          if (sendBtn) sendBtn.disabled = true;
+          SeevaData.postEventComment(event.id, guestName, text).then(function (updated) {
+            event = updated;
+            try { localStorage.setItem(commentsSeenKey, String((event.comments || []).length)); } catch (err) { /* ignora */ }
+            render();
+            var reopened = document.getElementById('commentsModal');
+            if (reopened) reopened.style.display = '';
+            var list = document.getElementById('commentList');
+            if (list) list.scrollTop = list.scrollHeight;
+          }).catch(function (err) {
+            if (sendBtn) sendBtn.disabled = false;
+            var errEl = document.getElementById('commentError');
+            if (errEl) errEl.textContent = 'Non sono riuscito a inviare il commento (' + SeevaData.friendlyErrorMessage(err) + ').';
+          });
+        }
+        var commentSendBtn = document.getElementById('commentSendBtn');
+        if (commentSendBtn) commentSendBtn.addEventListener('click', sendEventComment);
+        var commentInput = document.getElementById('commentInput');
+        if (commentInput) {
+          commentInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); sendEventComment(); }
+          });
+        }
+
+        // Cancella: l'autore o l'organizzatore (data-delete-comment-id
+        // presente solo per loro, vedi commentRowsHTML più sopra -- ma il
+        // controllo vero è comunque lato server, in delete_event_comment).
+        var commentListEl = document.getElementById('commentList');
+        if (commentListEl) {
+          commentListEl.addEventListener('click', function (e) {
+            var delEl = e.target.closest && e.target.closest('[data-delete-comment-id]');
+            if (!delEl) return;
+            if (!window.confirm('Cancellare questo commento?')) return;
+            var commentId = delEl.getAttribute('data-delete-comment-id');
+            SeevaData.deleteEventComment(event.id, commentId, guestName).then(function (updated) {
+              event = updated;
+              try { localStorage.setItem(commentsSeenKey, String((event.comments || []).length)); } catch (err) { /* ignora */ }
+              render();
+              var reopened = document.getElementById('commentsModal');
+              if (reopened) reopened.style.display = '';
+            }).catch(function (err) {
+              window.alert('Non sono riuscito a cancellare il commento (' + SeevaData.friendlyErrorMessage(err) + ').');
+            });
           });
         }
 
@@ -2142,7 +2358,7 @@
 
       /* Salva su Supabase e torna alla vista compatta: niente più navigazione
          verso la Home, si resta qui a vedere il riepilogo aggiornato. */
-      async function saveAvailability(selectedIds, selectedLocIds, btnEl) {
+      async function saveAvailability(selectedIds, selectedLocIds, btnEl, note) {
         var formError = document.getElementById('formError');
         if (formError) formError.textContent = '';
 
@@ -2158,7 +2374,7 @@
         btnEl.textContent = 'Salvo...';
 
         try {
-          event = await SeevaData.upsertParticipant(event.id, guestName, selectedIds, selectedLocIds);
+          event = await SeevaData.upsertParticipant(event.id, guestName, selectedIds, selectedLocIds, note);
         } catch (err) {
           if (formError) formError.textContent = 'Non sono riuscito a salvare la tua disponibilità (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.';
           btnEl.disabled = false;

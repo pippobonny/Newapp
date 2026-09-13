@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>seeva — Invito</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.json">
@@ -226,9 +227,53 @@
         });
       }
 
-      /* ---------- passo 2: accedi / registrati (se non hai già un account su questo
-         dispositivo), oppure conferma diretta se ce l'hai già ---------- */
+      /* ---------- passo 2, versione minima (Fil, 2026-09-13, "si può
+         semplificare ancora?") ----------
+         Solo per eventi aperti a tutti: chi apre un link pubblico e non ha
+         già un account su questo telefono salta dritto dal nome al
+         Conferma, senza la scelta Accedi/Registrati in mezzo -- chi
+         risponde a un invito pubblico vuole farlo in due tap, non valutare
+         se registrarsi. "Hai già un account? Accedi" resta disponibile
+         come opzione secondaria (apre renderConfirmFull, la schermata
+         completa di sempre) per chi lo vuole comunque. Un invito a una
+         persona specifica (evento non aperto a tutti) continua a vedere
+         la schermata completa come prima -- lì la registrazione ha più
+         senso, non arriva da un link girato a chiunque. */
       function renderConfirm(friend) {
+        var hasAcc = SeevaData.hasAccount();
+
+        if (!hasAcc && event.openInvite) {
+          contentEl.innerHTML = ''
+            + '<div class="card-date" style="margin:0 2px 16px;">Hai scelto <b>' + SeevaData.escapeHTML(friend.name) + '</b>.</div>'
+            + '<div class="field"><label>Come ti chiami?</label><input type="text" id="guestNameInput" placeholder="Il tuo nome" value="' + SeevaData.escapeHTML(friend.name) + '"></div>'
+            + '<div class="form-error" id="inviteError"></div>'
+            + '<button type="button" class="primary-btn" id="inviteConfirmBtn">Conferma →</button>'
+            + '<div style="text-align:center; margin-top:4px;"><span class="signup-skip-link" id="hasAccountLink">Hai già un account? Accedi</span></div>'
+            + '<div class="signup-skip-link" id="backLink">← Scegli un altro nome</div>';
+
+          if (window.SeevaUI) window.SeevaUI.refresh();
+
+          document.getElementById('backLink').addEventListener('click', renderSelection);
+          document.getElementById('hasAccountLink').addEventListener('click', function () { renderConfirmFull(friend); });
+          document.getElementById('inviteConfirmBtn').addEventListener('click', function () {
+            var btn = this;
+            var errorEl = document.getElementById('inviteError');
+            var name = document.getElementById('guestNameInput').value.trim();
+            errorEl.textContent = '';
+            if (!name) { errorEl.textContent = 'Scrivi il tuo nome.'; return; }
+            confirmClaim(friend, name, null, btn);
+          });
+          return;
+        }
+
+        renderConfirmFull(friend);
+      }
+
+      /* ---------- passo 2 completo: accedi / registrati / senza login (Fil,
+         2026-07-05; invariata -- resta la schermata per chi non ha un
+         account su un invito a persona specifica, o per chi sceglie
+         "Accedi" dalla versione minima qui sopra) ---------- */
+      function renderConfirmFull(friend) {
         var hasAcc = SeevaData.hasAccount();
         var existingGuestName = SeevaData.getGuestName() || '';
 

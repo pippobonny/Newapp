@@ -685,6 +685,8 @@ a.back-btn:active { transform: scale(0.92); }
 .badge.passato { background: var(--past-soft); color: var(--ink-soft); }
 .badge.linked { background: var(--mint-soft); color: #4A2B52; }
 .badge.tie { background: var(--butter); color: #4A2B52; }
+/* "N nuovi" sulla tessera commenti (Fil, 2026-09-13). */
+.badge.new { background: var(--peach-soft); color: #A34A0F; }
 
 /* puntino "c'è qualcosa qui" sul menu ⋮ dell'evento, prima volta soltanto
    (vedi setupHeaderMenu in evento.html) — niente testo, solo un richiamo
@@ -1736,6 +1738,88 @@ label.event-photo-preview {
 .who-coming-sub { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
 .who-coming-chevron { color: var(--ink-soft); font-size: 17px; flex-shrink: 0; }
 
+/* Tessera "Commenti" (Fil, 2026-09-13): stessa tessera di "Chi viene"
+   qui sopra (.who-coming-tile), solo un'icona sola al posto delle bolle
+   avatar impilate -- riusa lo stesso popup .signup-overlay/.signup-modal,
+   niente componente nuovo da disegnare da zero. */
+.comments-tile-icon {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--sky-soft); color: var(--lavender);
+}
+
+/* Righe messaggio dentro il popup commenti: avatar tondo con iniziale
+   (stessi colori di .who-coming-avatars), nome+ora in testa, testo
+   sotto -- stesso ritmo di .notif-item, verticale invece che a riga
+   piena con sfondo, perché qui ce ne può essere tanti uno via l'altro. */
+.comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 10px 0 4px;
+}
+.comment-row { display: flex; gap: 10px; }
+.comment-avatar {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Fraunces', serif; font-weight: 600; font-size: 12px; color: #fff;
+}
+.comment-body { min-width: 0; flex: 1; }
+.comment-head { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+.comment-name { font-weight: 600; font-size: 13px; color: var(--ink); }
+.comment-time { font-size: 11px; color: var(--ink-soft); }
+.comment-text { font-size: 13.5px; line-height: 1.45; margin-top: 2px; color: var(--ink); word-break: break-word; }
+.comment-tag {
+  display: inline-block;
+  margin-top: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #2E5C38;
+  background: var(--confirmed-soft);
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+.comment-delete {
+  font-size: 11px;
+  color: var(--ink-soft);
+  margin-top: 4px;
+  cursor: pointer;
+}
+
+.comment-composer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  flex-shrink: 0;
+}
+.comment-input {
+  flex: 1;
+  border: none;
+  background: var(--track-soft);
+  border-radius: 999px;
+  padding: 11px 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  color: var(--ink);
+}
+.comment-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--lavender-soft);
+}
+.comment-send {
+  width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+  background: var(--peach);
+  color: #FFF8F0;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 16px rgba(58,50,90,0.2);
+  border: none;
+  cursor: pointer;
+}
+.comment-send:disabled { opacity: 0.5; cursor: default; }
+
 /* Date chips (evento.html) */
 .chip-list {
   display: flex;
@@ -2389,8 +2473,15 @@ a.notif-item:active { background: var(--track-soft); }
   bottom: 20px;
   height: 64px;
   background: linear-gradient(180deg, rgba(255,255,255,0.75), rgba(255,255,255,0.4));
-  backdrop-filter: blur(18px) saturate(180%);
-  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  /* Fil, 2026-09-07: blur alleggerito da 18px a 9px (saturate da 180% a
+     140%). E' fissa sopra .content che scorre sotto di lei su OGNI
+     schermata dell'app: prima ricalcolava una sfocatura pesante a ogni
+     singolo frame di scroll (liste eventi/amici comprese), il tipo di
+     costo che su Android di fascia media si sente come uno scatto nello
+     scroll. Visivamente l'effetto vetro resta, solo piu' leggero da
+     calcolare. */
+  backdrop-filter: blur(9px) saturate(140%);
+  -webkit-backdrop-filter: blur(9px) saturate(140%);
   border: 1px solid rgba(255,255,255,0.75);
   border-radius: 999px;
   display: flex;
