@@ -1690,8 +1690,13 @@
      sull'evento, ha già un account con lo stesso username (quindi un'email
      vera). "Fire and forget" come sopra: non deve mai bloccare né far
      fallire la creazione dell'evento. */
-  function notifyEventInvite(eventId) {
-    supabase.functions.invoke('notify-event-invite', { body: { eventId: eventId } })
+  // onlyAccountIds (facoltativo, Fil 2026-09-26): invitati aggiunti DOPO la
+  // creazione (popup "Aggiungi persone" o Modifica) — l'invito arriva solo a
+  // loro, non di nuovo a chi era già invitato.
+  function notifyEventInvite(eventId, onlyAccountIds) {
+    var body = { eventId: eventId };
+    if (onlyAccountIds) body.onlyAccountIds = onlyAccountIds;
+    supabase.functions.invoke('notify-event-invite', { body: body })
       .catch(function (err) { /* non blocca: l'evento è comunque creato */ });
   }
 
@@ -2018,6 +2023,8 @@
       });
       var insInvRes = await supabase.from('event_invitees').insert(newInviteeRows);
       if (insInvRes.error) throw new Error(insInvRes.error.message);
+      var addedLinkedIds = addedInviteeEntries.map(function (e) { return e.accountId; }).filter(Boolean);
+      if (addedLinkedIds.length) notifyEventInvite(eventId, addedLinkedIds);
     }
 
     /* ---------- date: diff su date_iso ---------- */
@@ -2158,10 +2165,29 @@
       notifyDateRemoved(eventId, input.name || current.name, affectedByDateRemoval);
     }
 
+    /* Fil, 2026-09-26: aggiungere o togliere invitati NON è una modifica
+       che interessa agli altri — niente "evento modificato" per nessuno se
+       è cambiata solo la lista invitati. L'avviso parte solo se è cambiato
+       qualcosa dell'evento vero e proprio, e mai ai nuovi invitati (a loro
+       arriva già "Sei stato invitato", vedi sopra). */
+    var normTime = function (t) { return t ? String(t).slice(0, 5) : ''; };
+    var normStr = function (v) { return (v || '').toString().trim(); };
+    var eventDetailsChanged = mustReopen
+      || normStr(input.name || 'Evento senza nome') !== normStr(current.name)
+      || normStr(input.description) !== normStr(current.description)
+      || (input.descriptionAudioUrl || null) !== (current.descriptionAudioUrl || null)
+      || (input.photoUrl || null) !== (current.photoUrl || null)
+      || normStr(input.locationAddress) !== normStr(current.locationAddress)
+      || !!input.openInvite !== !!current.openInvite
+      || normTime(normalizeEventTime(input.eventTime)) !== normTime(current.eventTime)
+      || addedDateISOs.length > 0 || removedOptionIds.length > 0
+      || addedLocations.length > 0 || removedLocIds.length > 0;
+    var addedInviteeNamesLower = addedInviteeEntries.map(function (e) { return e.name.toLowerCase(); });
+
     var speciallyNotifiedLower = affectedByDateRemoval.map(function (a) { return a.name.toLowerCase(); });
-    var genericRecipients = newInviteeEntries.map(function (e) { return e.name; }).filter(function (n) {
+    var genericRecipients = !eventDetailsChanged ? [] : newInviteeEntries.map(function (e) { return e.name; }).filter(function (n) {
       var nl = n.toLowerCase();
-      return nl !== organizerLower && speciallyNotifiedLower.indexOf(nl) === -1;
+      return nl !== organizerLower && speciallyNotifiedLower.indexOf(nl) === -1 && addedInviteeNamesLower.indexOf(nl) === -1;
     });
     if (genericRecipients.length) {
       // Messaggio in-app specifico se l'evento è appena tornato in attesa
@@ -2441,6 +2467,42 @@
 
     clearEventsCache();
     return getEventById(eventId);
+  }
+
+  /* "Aggiungi persone" dal menu ⋮ della pagina evento (Fil, 2026-09-26):
+     solo inserimento di nuovi invitati, senza passare da tutto il giro di
+     Modifica. Chi c'è già (stesso nome, maiuscole ignorate) viene saltato.
+     Ai nuovi collegati a un account arriva "Sei stato invitato" (con data e
+     ora), agli altri invitati NIENTE: non è una modifica dell'evento.
+     Torna { event, added: [nomi], skipped: [nomi già presenti] }. */
+  async function addEventInvitees(eventId, entries) {
+    var current = await getEventById(eventId);
+    if (!current) throw new Error('Evento non trovato.');
+    var existingLower = (current.invitees || []).map(function (f) { return (f.name || '').trim().toLowerCase(); });
+    var organizerLower = (current.createdBy || '').trim().toLowerCase();
+    var seen = {};
+    var toAdd = [];
+    var skipped = [];
+    (entries || []).map(normalizeInviteeEntry).forEach(function (e) {
+      if (!e.name) return;
+      var lower = e.name.trim().toLowerCase();
+      if (existingLower.indexOf(lower) !== -1 || lower === organizerLower || seen[lower]) { skipped.push(e.name); return; }
+      seen[lower] = true;
+      toAdd.push(e);
+    });
+    if (toAdd.length) {
+      var rows = toAdd.map(function (e) {
+        var row = { event_id: eventId, name: e.name.trim() };
+        if (e.accountId) { row.account_id = e.accountId; row.claimed_at = new Date().toISOString(); }
+        return row;
+      });
+      var insRes = await supabase.from('event_invitees').insert(rows);
+      if (insRes.error) throw new Error(insRes.error.message);
+      var linkedIds = toAdd.map(function (e) { return e.accountId; }).filter(Boolean);
+      if (linkedIds.length) notifyEventInvite(eventId, linkedIds);
+    }
+    clearEventsCache();
+    return { event: await getEventById(eventId), added: toAdd.map(function (e) { return e.name; }), skipped: skipped };
   }
 
   /* Sollecito "Aspettiamo la tua risposta" (Edge Function
@@ -3086,6 +3148,7 @@
     deleteEventExpense: deleteEventExpense,
     setEventItemsEnabled: setEventItemsEnabled,
     nudgePendingInvitees: nudgePendingInvitees,
+    addEventInvitees: addEventInvitees,
     setEventExpensesEnabled: setEventExpensesEnabled,
     addEventItem: addEventItem,
     claimEventItem: claimEventItem,

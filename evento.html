@@ -49,6 +49,9 @@
         <span class="menu-dot" id="menuDot" style="display:none;"></span>
         <div class="menu-dropdown" id="eventMenuDropdown">
           <a class="menu-dropdown-item" id="menuEditLink" href="#" style="display:none;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg> Modifica</a>
+          <!-- "Aggiungi persone" (Fil, 2026-09-26): solo nuovi invitati, in un
+               popup, senza rifare tutto il giro di Modifica. -->
+          <div class="menu-dropdown-item" id="menuAddPeopleBtn" style="display:none;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="9" cy="8.5" r="3"></circle><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"></path><line x1="18" y1="8" x2="18" y2="14"></line><line x1="15" y1="11" x2="21" y2="11"></line></svg> Aggiungi persone</div>
           <div class="menu-dropdown-item" id="menuEditAvailabilityBtn" style="display:none;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="3" y="5" width="18" height="16" rx="3"></rect><line x1="16" y1="3" x2="16" y2="7"></line><line x1="8" y1="3" x2="8" y2="7"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> I giorni in cui ci sei</div>
           <!-- Sollecito a chi non ha ancora risposto (Fil, 2026-09-26): solo
                per chi organizza, solo su evento ancora aperto e con almeno
@@ -208,7 +211,11 @@
         var cameFromApp = ref.indexOf(window.location.origin) === 0;
         var refFile = cameFromApp ? ref.split('/').pop().split('#')[0] : ''; // "eventi.html?only=attesa" — tiene la query, non l'hash
         var refPath = refFile.split('?')[0]; // solo il nome file, per il controllo whitelist qui sotto
-        var REAL_APP_PAGES = ['index.html', 'eventi.html', 'crea.html', 'amici.html', 'notifiche.html', 'lista-invito.html', 'profilo.html'];
+        // crea.html tolta (Fil, 2026-09-26): dopo "Modifica" → OK (o dopo
+        // aver creato l'evento) il referrer è il form, quindi la freccia
+        // riportava dentro la modifica invece che in Home. Da crea.html si
+        // arriva qui solo a lavoro finito: la freccia resta su index.html.
+        var REAL_APP_PAGES = ['index.html', 'eventi.html', 'amici.html', 'notifiche.html', 'lista-invito.html', 'profilo.html'];
         if (REAL_APP_PAGES.indexOf(refPath) !== -1) {
           backBtn.setAttribute('href', refFile);
         }
@@ -931,6 +938,14 @@
             withdrawActionHTML = '<div style="text-align:center; margin-top:6px;"><span class="signup-skip-link" id="withdrawFromEventLink">Non potrò esserci →</span></div>';
           } else if (findExistingParticipant()) {
             withdrawActionHTML = '<div style="text-align:center; margin-top:6px;"><span class="signup-skip-link" id="rejoinEventLink">Ci sarò dopotutto →</span></div>';
+          } else if ((event.invitees || []).some(function (f) { return (f.name || '').trim().toLowerCase() === mine; })) {
+            // Invitato aggiunto a evento già confermato (Fil, 2026-09-26,
+            // "Aggiungi persone"): non ha mai risposto, quindi senza questo
+            // non avrebbe avuto nessun modo di dire se c'è.
+            withdrawActionHTML = ''
+              + '<div class="section-title">Ci sarai?</div>'
+              + '<button type="button" class="primary-btn" id="rejoinEventLink">Ci sono</button>'
+              + '<div class="add-date-btn" id="declineEventLink" style="margin-top:10px;">Non ci sono</div>';
           }
         }
 
@@ -1552,6 +1567,8 @@
             && !organizerHasCustomAvailability(findExistingParticipant());
           menuEditAvailabilityBtn.style.display = showMenuEditAvailability ? '' : 'none';
         }
+        var menuAddPeopleBtnEl = document.getElementById('menuAddPeopleBtn');
+        if (menuAddPeopleBtnEl) menuAddPeopleBtnEl.style.display = (isOrganizer && info.status !== 'cancelled' && info.status !== 'passato') ? '' : 'none';
         var menuNudgeBtnEl = document.getElementById('menuNudgeBtn');
         if (menuNudgeBtnEl) {
           var pendingCount = (roster.rows || []).filter(function (r) { return r.statusKey === 'pending'; }).length;
@@ -1955,6 +1972,22 @@
             } catch (err) {
               rejoinLink.textContent = originalText;
               window.alert('Non sono riuscito ad aggiornare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+              return;
+            }
+            render();
+          });
+        }
+
+        var declineLink = document.getElementById('declineEventLink');
+        if (declineLink) {
+          declineLink.addEventListener('click', async function () {
+            var originalText = declineLink.textContent;
+            declineLink.textContent = 'Salvo...';
+            try {
+              event = await SeevaData.upsertParticipant(event.id, guestName, [], []);
+            } catch (err) {
+              declineLink.textContent = originalText;
+              window.alert('Non sono riuscito a salvare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
               return;
             }
             render();
@@ -2462,6 +2495,149 @@
         phone.appendChild(overlay);
       }
 
+      /* Popup "Aggiungi persone" (Fil, 2026-09-26): stesso campo di crea.html
+         (nome + suggerimenti di chi ha l'app, SeevaUI.attachAccountSearch,
+         + nascosto finché non scrivi), elenco di chi stai aggiungendo con la
+         ✕, poi "Aggiungi". Solo aggiunte: per togliere qualcuno resta
+         Modifica. Ai nuovi con account arriva "Sei stato invitato", agli
+         altri invitati niente (vedi addEventInvitees in data.js). */
+      function openAddPeoplePopup() {
+        var phone = document.querySelector('.phone');
+        if (!phone) return;
+        var esc = SeevaData.escapeHTML;
+        var pending = [];
+        var existingLower = (event.invitees || []).map(function (f) { return (f.name || '').trim().toLowerCase(); });
+        existingLower.push((event.createdBy || '').trim().toLowerCase());
+
+        var overlay = document.createElement('div');
+        overlay.className = 'signup-overlay';
+        overlay.innerHTML = ''
+          + '<div class="signup-modal" style="text-align:left;">'
+          + '<div class="signup-modal-title" style="text-align:center;">Aggiungi persone</div>'
+          + '<div class="field" style="margin-bottom:6px;">'
+          + '<div class="inline-add-row">'
+          + '<input type="text" id="addPeopleInput" placeholder="Nome" autocomplete="off">'
+          + '<button type="button" id="addPeopleAddBtn" class="btn-reveal">+</button>'
+          + '</div>'
+          + '<div id="addPeopleList" style="max-height:34vh; overflow-y:auto;"></div>'
+          + '</div>'
+          + '<div class="form-error" id="addPeopleError"></div>'
+          + '<button type="button" class="primary-btn" id="addPeopleSaveBtn" style="margin-bottom:0;" disabled>Aggiungi</button>'
+          + '<div style="text-align:center; margin-top:12px;"><span class="signup-skip-link" id="addPeopleCancelBtn">Annulla</span></div>'
+          + '</div>';
+        phone.appendChild(overlay);
+
+        var input = overlay.querySelector('#addPeopleInput');
+        var addBtn = overlay.querySelector('#addPeopleAddBtn');
+        var listEl = overlay.querySelector('#addPeopleList');
+        var errorEl = overlay.querySelector('#addPeopleError');
+        var saveBtn = overlay.querySelector('#addPeopleSaveBtn');
+
+        function close() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+        overlay.querySelector('#addPeopleCancelBtn').addEventListener('click', close);
+
+        function renderList() {
+          listEl.innerHTML = pending.map(function (entry, idx) {
+            var marker = '';
+            if (entry.accountId) {
+              var initial = (entry.name.trim().charAt(0) || '?').toUpperCase();
+              marker = entry.avatarUrl
+                ? '<span class="linked-mini-avatar" title="Collegato a un account"><img src="' + esc(entry.avatarUrl) + '" alt="" loading="lazy"></span>'
+                : '<span class="linked-mini-avatar" title="Collegato a un account">' + esc(initial) + '</span>';
+            }
+            return '<div class="settings-row" style="margin-top:8px;">'
+              + '<div class="left" style="display:flex; align-items:center;">' + marker + esc(entry.name) + '</div>'
+              + '<span class="friend-remove" data-remove-idx="' + idx + '">✕</span>'
+              + '</div>';
+          }).join('');
+          saveBtn.disabled = !pending.length;
+          saveBtn.textContent = pending.length > 1 ? 'Aggiungi ' + pending.length + ' persone' : 'Aggiungi';
+        }
+
+        function addName() {
+          var name = input.value.trim();
+          if (!name) return;
+          var lower = name.toLowerCase();
+          if (existingLower.indexOf(lower) !== -1) { errorEl.textContent = name + ' è già tra gli invitati.'; return; }
+          if (pending.some(function (e) { return e.name.toLowerCase() === lower; })) { errorEl.textContent = 'Hai già aggiunto ' + name + '.'; return; }
+          errorEl.textContent = '';
+          var isLinked = input.dataset.linkedUsername === name;
+          pending.push({
+            name: name,
+            accountId: isLinked ? (input.dataset.linkedAccountId || null) : null,
+            avatarUrl: isLinked ? (input.dataset.linkedAvatarUrl || null) : null
+          });
+          input.value = '';
+          addBtn.classList.remove('is-visible');
+          delete input.dataset.linkedAccountId;
+          delete input.dataset.linkedUsername;
+          delete input.dataset.linkedAvatarUrl;
+          renderList();
+          input.focus();
+        }
+
+        var search = (window.SeevaUI && SeevaUI.attachAccountSearch) ? SeevaUI.attachAccountSearch(input, function () { addName(); }) : null;
+
+        // Come in crea.html: prima di aggiungere si aspetta che la ricerca
+        // account per il nome scritto sia finita, altrimenti chi scrive
+        // veloce aggiunge "a vuoto" una persona che l'app ce l'ha.
+        async function triggerAdd() {
+          if (!search) { addName(); return; }
+          var label = addBtn.textContent;
+          addBtn.disabled = true;
+          addBtn.textContent = '···';
+          try {
+            await Promise.all([search.flush(), new Promise(function (r) { window.setTimeout(r, 450); })]);
+          } finally {
+            addBtn.disabled = false;
+            addBtn.textContent = label;
+          }
+          addName();
+        }
+
+        input.addEventListener('input', function () {
+          addBtn.classList.toggle('is-visible', input.value.trim().length > 0);
+          errorEl.textContent = '';
+        });
+        input.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); triggerAdd(); }
+        });
+        addBtn.addEventListener('click', triggerAdd);
+        listEl.addEventListener('click', function (e) {
+          var idx = e.target.getAttribute('data-remove-idx');
+          if (idx === null) return;
+          pending.splice(parseInt(idx, 10), 1);
+          renderList();
+        });
+
+        saveBtn.addEventListener('click', async function () {
+          // Nome scritto ma non ancora confermato col +: lo si aggiunge
+          // comunque, è quello che uno si aspetta premendo "Aggiungi".
+          if (input.value.trim()) { await triggerAdd(); if (errorEl.textContent) return; }
+          if (!pending.length) return;
+          saveBtn.disabled = true;
+          saveBtn.textContent = 'Aggiungo...';
+          var result;
+          try {
+            result = await SeevaData.addEventInvitees(event.id, pending.map(function (e) { return { name: e.name, accountId: e.accountId }; }));
+          } catch (err) {
+            saveBtn.disabled = false;
+            renderList();
+            errorEl.textContent = 'Non sono riuscito ad aggiungerli (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.';
+            return;
+          }
+          close();
+          if (result.event) event = result.event;
+          render();
+          var n = (result.added || []).length;
+          if (window.SeevaUI && SeevaUI.toast && n) SeevaUI.toast(n === 1 ? (result.added[0] + ' aggiunto ✓') : (n + ' persone aggiunte ✓'));
+        });
+
+        renderList();
+        window.setTimeout(function () { input.focus(); }, 50);
+      }
+
       /* Esito del sollecito (Fil, 2026-09-26): a chi è arrivato e, a parte,
          chi non ha l'app (invitato solo col nome, nessun account collegato:
          nessuna notifica possibile) con il tasto per mandargli il link a
@@ -2561,6 +2737,14 @@
           dropdown.classList.remove('open');
         });
         dropdown.addEventListener('click', function (e) { e.stopPropagation(); });
+
+        var addPeopleBtn = document.getElementById('menuAddPeopleBtn');
+        if (addPeopleBtn) {
+          addPeopleBtn.addEventListener('click', function () {
+            dropdown.classList.remove('open');
+            openAddPeoplePopup();
+          });
+        }
 
         var nudgeBtn = document.getElementById('menuNudgeBtn');
         if (nudgeBtn) {
