@@ -50,6 +50,11 @@
         <div class="menu-dropdown" id="eventMenuDropdown">
           <a class="menu-dropdown-item" id="menuEditLink" href="#" style="display:none;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg> Modifica</a>
           <div class="menu-dropdown-item" id="menuEditAvailabilityBtn" style="display:none;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="3" y="5" width="18" height="16" rx="3"></rect><line x1="16" y1="3" x2="16" y2="7"></line><line x1="8" y1="3" x2="8" y2="7"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> I giorni in cui ci sei</div>
+          <!-- Sollecito a chi non ha ancora risposto (Fil, 2026-09-26): solo
+               per chi organizza, solo su evento ancora aperto e con almeno
+               un invitato in attesa. Visibilità aggiornata in render(), il
+               limite dei 15 minuti lo fa il server (notify-event-nudge). -->
+          <div class="menu-dropdown-item" id="menuNudgeBtn" style="display:none;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg> Sollecita chi non ha risposto</div>
           <!-- Spenta di default su ogni evento nuovo, visibile solo a chi
                organizza (Fil, 2026-07-21: "rimane nascosta appena crei
                l'evento e poi da lì se vuoi la metti"). Etichetta e stato
@@ -960,13 +965,32 @@
         // (.badge.waiting/.badge.almost in style.css), non un terzo
         // inventato apposta: chi è quasi risolto (almost) spicca un po' di
         // più di chi è ancora lontano (waiting).
+        // Data singola (Fil, 2026-09-26): nessun "in testa ai voti" né
+        // "non ancora definitiva" (è l'unica data, non sta vincendo su
+        // niente) — solo la data con l'ora, e "Oggi"/"Domani" come
+        // etichetta quando vale. L'ora c'è anche a più date: data e ora
+        // sono le due cose fondamentali di un invito.
+        var isSingleDate = (event.dateOptions || []).length === 1;
+        var dateTimeLabel = SeevaData.formatDateTimeLabel(info.bestOption.dateISO, event.eventTime);
+        var labelText, subText;
+        if (isSingleDate) {
+          var rel = SeevaData.daysUntilLabel ? SeevaData.daysUntilLabel(info.bestOption.dateISO) : '';
+          labelText = rel === 'oggi' ? 'Oggi' : rel === 'domani' ? 'Domani' : 'Quando';
+          subText = votesForBest ? (votesForBest + (votesForBest === 1 ? ' ci sarà' : ' ci saranno')) : '';
+        } else {
+          labelText = 'In testa ai voti';
+          subText = votesForBest + (votesForBest === 1 ? ' disponibile' : ' disponibili') + ' · non ancora definitiva';
+        }
+        var iconSVG = isSingleDate
+          ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><rect x="3" y="5" width="18" height="16" rx="3"></rect><line x1="16" y1="3" x2="16" y2="7"></line><line x1="8" y1="3" x2="8" y2="7"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>'
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg>';
         return ''
           + '<div class="confirmed-date-card is-leading">'
-          + '<div class="confirmed-date-icon status-' + info.status + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg></div>'
+          + '<div class="confirmed-date-icon status-' + info.status + '">' + iconSVG + '</div>'
           + '<div>'
-          + '<div class="confirmed-date-label">In testa ai voti</div>'
-          + '<div class="confirmed-date-value">' + SeevaData.escapeHTML(SeevaData.formatDateLabel(info.bestOption.dateISO)) + '</div>'
-          + '<div class="confirmed-date-add-cal" style="color:var(--ink-soft);">' + votesForBest + (votesForBest === 1 ? ' disponibile' : ' disponibili') + ' · non ancora definitiva</div>'
+          + '<div class="confirmed-date-label">' + labelText + '</div>'
+          + '<div class="confirmed-date-value">' + SeevaData.escapeHTML(dateTimeLabel) + '</div>'
+          + (subText ? '<div class="confirmed-date-add-cal" style="color:var(--ink-soft);">' + subText + '</div>' : '')
           + '</div>'
           + '</div>';
       }
@@ -1495,8 +1519,13 @@
         // diceva "in testa ai voti" per una data che non sta "vincendo" su
         // niente. La data è già mostrata subito sotto in "Quando" con
         // Ci sono/Non ci sono: qui, a data singola, non serve ripeterla.
+        // Fil, 2026-09-26: sbagliato togliere tutta la card -- andava tolta
+        // solo la frase. Senza card chi apriva l'invito non vedeva più né
+        // data né ora da nessuna parte ("Ci sarai?" non dice quando). Ora la
+        // card c'è sempre, a data singola solo con la data (+ ora), vedi
+        // buildLeadingDateSummaryHTML.
         var confirmedSummaryHTML = isConfirmedSimple ? buildConfirmedSummaryHTML(info)
-          : (event.dateOptions.length > 1 && (info.status === 'waiting' || info.status === 'almost')) ? buildLeadingDateSummaryHTML(info)
+          : (info.status === 'waiting' || info.status === 'almost') ? buildLeadingDateSummaryHTML(info)
           : '';
 
         // "Dove" affiancata a "Tu" in una riga sola, stile riquadri Home
@@ -1522,6 +1551,11 @@
             && info.status !== 'cancelled' && !claimCandidates
             && !organizerHasCustomAvailability(findExistingParticipant());
           menuEditAvailabilityBtn.style.display = showMenuEditAvailability ? '' : 'none';
+        }
+        var menuNudgeBtnEl = document.getElementById('menuNudgeBtn');
+        if (menuNudgeBtnEl) {
+          var pendingCount = (roster.rows || []).filter(function (r) { return r.statusKey === 'pending'; }).length;
+          menuNudgeBtnEl.style.display = (isOrganizer && !isConfirmedSimple && info.status !== 'cancelled' && info.status !== 'passato' && pendingCount > 0) ? '' : 'none';
         }
         var expensesSectionHTML = buildExpensesSectionHTML();
         var itemsSectionHTML = buildItemsSectionHTML(info);
@@ -2428,6 +2462,50 @@
         phone.appendChild(overlay);
       }
 
+      /* Esito del sollecito (Fil, 2026-09-26): a chi è arrivato e, a parte,
+         chi non ha l'app (invitato solo col nome, nessun account collegato:
+         nessuna notifica possibile) con il tasto per mandargli il link a
+         mano — stessa condivisione della bolla #shareFab. */
+      function showNudgeResultPopup(result) {
+        var phone = document.querySelector('.phone');
+        if (!phone) return;
+        var notifiedNames = result.notifiedNames || [];
+        var unreachable = result.unreachableNames || [];
+        var esc = SeevaData.escapeHTML;
+
+        var mainText = notifiedNames.length
+          ? 'Promemoria mandato a ' + notifiedNames.length + (notifiedNames.length === 1 ? ' persona' : ' persone') + ':<br><b>' + notifiedNames.map(esc).join(', ') + '</b>'
+          : 'Nessuno da sollecitare con l\'app.';
+        var unreachableHTML = unreachable.length
+          ? '<div class="signup-modal-text" style="margin-top:12px;"><b>' + unreachable.map(esc).join(', ') + '</b> ' + (unreachable.length === 1 ? 'non ha' : 'non hanno') + ' l\'app: mandagli tu il link.</div>'
+            + '<button type="button" class="primary-btn" id="nudgeShareBtn" style="margin-top:12px; margin-bottom:0;">Condividi il link</button>'
+          : '';
+
+        var overlay = document.createElement('div');
+        overlay.className = 'signup-overlay';
+        overlay.innerHTML = ''
+          + '<div class="signup-modal">'
+          + '<div class="signup-modal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="34" height="34"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg></div>'
+          + '<div class="signup-modal-title">' + (notifiedNames.length ? 'Sollecito inviato' : 'Sollecito') + '</div>'
+          + '<div class="signup-modal-text">' + mainText + '</div>'
+          + unreachableHTML
+          + '<div style="text-align:center; margin-top:12px;"><span class="signup-skip-link" id="nudgeCloseBtn">Chiudi</span></div>'
+          + '</div>';
+
+        function close() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+        phone.appendChild(overlay);
+        var closeBtn = overlay.querySelector('#nudgeCloseBtn');
+        if (closeBtn) closeBtn.addEventListener('click', close);
+        var shareBtn = overlay.querySelector('#nudgeShareBtn');
+        if (shareBtn) {
+          shareBtn.addEventListener('click', function () {
+            var fab = document.getElementById('shareFab');
+            if (fab) fab.click();
+          });
+        }
+      }
+
       /* ---------- menu ⋮ dell'header: Modifica/Elimina ----------
          Legato una sola volta (non dentro bindEvents, che invece viene
          richiamato ad ogni render() perché ricostruisce contentEl da zero):
@@ -2483,6 +2561,32 @@
           dropdown.classList.remove('open');
         });
         dropdown.addEventListener('click', function (e) { e.stopPropagation(); });
+
+        var nudgeBtn = document.getElementById('menuNudgeBtn');
+        if (nudgeBtn) {
+          nudgeBtn.addEventListener('click', async function () {
+            dropdown.classList.remove('open');
+            if (nudgeBtn.getAttribute('data-busy') === '1') return;
+            var sure = window.confirm('Mandare un promemoria a chi non ha ancora risposto?');
+            if (!sure) return;
+            nudgeBtn.setAttribute('data-busy', '1');
+            var result;
+            try {
+              result = await SeevaData.nudgePendingInvitees(event.id);
+            } catch (err) {
+              window.alert('Non sono riuscito a mandare il sollecito (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+              return;
+            } finally {
+              nudgeBtn.removeAttribute('data-busy');
+            }
+            if (result.cooldown) {
+              var mins = Math.max(1, Math.ceil((result.retryAfterSeconds || 60) / 60));
+              window.alert('Hai già sollecitato da poco. Puoi rimandarlo tra ' + mins + (mins === 1 ? ' minuto.' : ' minuti.'));
+              return;
+            }
+            showNudgeResultPopup(result);
+          });
+        }
 
         var toggleItemsBtn = document.getElementById('menuToggleItemsBtn');
         if (toggleItemsBtn) {

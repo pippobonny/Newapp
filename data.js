@@ -2443,6 +2443,27 @@
     return getEventById(eventId);
   }
 
+  /* Sollecito "Aspettiamo la tua risposta" (Edge Function
+     "notify-event-nudge", Fil 2026-09-26): solo l'organizzatore, dal menu ⋮
+     della pagina evento. A differenza delle altre notify-* NON è fire and
+     forget: la pagina deve sapere a chi è arrivato, chi non è raggiungibile
+     (invitati senza account) e, se si è troppo vicini al sollecito
+     precedente, quanti secondi mancano (limite di 15 minuti controllato dal
+     server). Torna { notified, notifiedNames, unreachableNames } oppure
+     { cooldown: true, retryAfterSeconds }. */
+  async function nudgePendingInvitees(eventId) {
+    var res = await supabase.functions.invoke('notify-event-nudge', { body: { eventId: eventId } });
+    if (res.error) {
+      var body = null;
+      try {
+        if (res.error.context && typeof res.error.context.json === 'function') body = await res.error.context.json();
+      } catch (err) { /* ignora */ }
+      if (body && body.error === 'cooldown') return { cooldown: true, retryAfterSeconds: body.retryAfterSeconds || 60 };
+      throw new Error((body && body.error) || res.error.message || 'Sollecito non inviato');
+    }
+    return res.data || { notified: 0, notifiedNames: [], unreachableNames: [] };
+  }
+
   /* Notifica push "qualcuno ha risposto al tuo evento" (Edge Function
      "notify-event-response") per il solo organizzatore. Fire and forget
      come le altre: non deve mai bloccare il salvataggio della risposta. */
@@ -3064,6 +3085,7 @@
     updateEventExpense: updateEventExpense,
     deleteEventExpense: deleteEventExpense,
     setEventItemsEnabled: setEventItemsEnabled,
+    nudgePendingInvitees: nudgePendingInvitees,
     setEventExpensesEnabled: setEventExpensesEnabled,
     addEventItem: addEventItem,
     claimEventItem: claimEventItem,
