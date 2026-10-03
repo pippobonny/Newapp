@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>seeva — Crea evento</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.json">
@@ -1040,7 +1041,7 @@
           if (entry.accountId) {
             var initial = (entry.name.trim().charAt(0) || '?').toUpperCase();
             linkedMarker = entry.avatarUrl
-              ? '<span class="linked-mini-avatar" title="Collegato a un account"><img src="' + SeevaData.escapeHTML(entry.avatarUrl) + '" alt=""></span>'
+              ? '<span class="linked-mini-avatar" title="Collegato a un account"><img src="' + SeevaData.escapeHTML(entry.avatarUrl) + '" alt="" loading="lazy"></span>'
               : '<span class="linked-mini-avatar" title="Collegato a un account">' + SeevaData.escapeHTML(initial) + '</span>';
           }
           return ''

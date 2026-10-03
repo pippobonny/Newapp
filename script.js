@@ -71,6 +71,13 @@
     try { localStorage.setItem(INSTALLED_FLAG_KEY, '1'); } catch (err) { /* ignora */ }
   }
 
+  // Fil, 2026-09-07: chi tocca "Non mostrare più" nel popup di installazione
+  // (vedi initInstallPromptPopup/maybeAutoShowInstallPrompt più sotto) non
+  // deve più vedersi il popup aprirsi da solo — permanente, a differenza del
+  // "Più tardi" che vale solo per la sessione corrente (sessionStorage qui
+  // sotto, seeva:installPromptShownThisSession).
+  var INSTALL_DISMISS_FOREVER_KEY = 'seeva:installPromptDismissedForever';
+
   /* ---------- 1. Transizioni di pagina: slide direzionale ---------- */
   // Il bordo del telefono (.phone) non si muove mai: scorre solo .screen
   // (header + content). La direzione (sinistra/destra) dipende dalla posizione
@@ -1708,11 +1715,6 @@
   function initInstallPromptPopup() {
     if (document.getElementById('installPromptOverlay')) return;
 
-    var isIos = /iphone|ipad|ipod/i.test(navigator.userAgent || '');
-    var stepsHTML = isIos
-      ? '<div class="card-date" style="margin:0;">Tocca <b>Condividi</b> ⬆️ nella barra di Safari, poi <b>"Aggiungi alla schermata Home"</b>.</div>'
-      : '<div class="card-date" style="margin:0;">Apri il menu ⋮ del browser (di solito in alto a destra) e tocca <b>"Installa app"</b> o <b>"Aggiungi a schermata Home"</b>.</div>';
-
     var overlay = document.createElement('div');
     overlay.className = 'signup-overlay';
     overlay.id = 'installPromptOverlay';
@@ -1723,18 +1725,108 @@
       + '<div class="card-title">Installa seeva</div>'
       + '<div class="list-delete" id="installPromptCloseBtn">Chiudi ✕</div>'
       + '</div>'
-      + '<div class="signup-modal-text" style="text-align:left; margin-bottom:10px;">Non occupa spazio nella memoria del telefono.</div>'
-      + stepsHTML
+      + '<div id="installPromptBody"></div>'
+      + '<div class="field-hint" id="installPromptForeverBtn" style="text-align:center; margin-top:16px; cursor:pointer; text-decoration:underline;">Non mostrare più</div>'
       + '</div>';
     document.body.appendChild(overlay);
 
     overlay.querySelector('#installPromptCloseBtn').addEventListener('click', function () { overlay.style.display = 'none'; });
     overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.style.display = 'none'; });
+    overlay.querySelector('#installPromptForeverBtn').addEventListener('click', function () {
+      try { localStorage.setItem(INSTALL_DISMISS_FOREVER_KEY, '1'); } catch (err) { /* ignora */ }
+      overlay.style.display = 'none';
+    });
+  }
+
+  /* Riempie #installPromptBody da zero ogni volta che si apre (invece che
+     una volta sola all'init): deferredInstallPrompt puo' diventare
+     disponibile dopo l'init, quindi va ricontrollato lì per lì, non
+     congelato al primo popup (Fil, 2026-09-07, popup "Installa ora"
+     proposto anche subito dopo la registrazione, non solo dal tap sul
+     badge). */
+  function renderInstallPromptBody() {
+    var body = document.getElementById('installPromptBody');
+    if (!body) return;
+
+    var isIos = /iphone|ipad|ipod/i.test(navigator.userAgent || '');
+
+    var reasonHTML = isIos
+      ? '<div class="signup-modal-text" style="text-align:left; margin-bottom:10px;">Non occupa spazio sul telefono. Su iPhone è anche l\'unico modo per ricevere le notifiche quando qualcuno risponde ai tuoi eventi (Apple non le consegna se seeva resta solo nel browser).</div>'
+      : '<div class="signup-modal-text" style="text-align:left; margin-bottom:10px;">Non occupa spazio sul telefono, e ricevi subito le notifiche quando qualcuno risponde ai tuoi eventi.</div>';
+
+    // Chrome/Android con l'evento nativo già disponibile: un vero bottone
+    // dentro al popup (il tap su QUESTO bottone è il gesto dell'utente che
+    // il browser richiede per accettare .prompt(), anche se il popup si è
+    // aperto da solo — vedi maybeAutoShowInstallPrompt).
+    if (deferredInstallPrompt) {
+      body.innerHTML = reasonHTML
+        + '<button type="button" class="primary-btn" id="installPromptNativeBtn" style="margin-top:4px;">Installa ora</button>';
+      body.querySelector('#installPromptNativeBtn').addEventListener('click', function () {
+        if (!deferredInstallPrompt) return;
+        var promptEvent = deferredInstallPrompt;
+        deferredInstallPrompt = null;
+        promptEvent.prompt();
+        var overlay = document.getElementById('installPromptOverlay');
+        if (overlay) overlay.style.display = 'none';
+      });
+      return;
+    }
+
+    // Icone disegnate a mano (SVG, currentColor per seguire dark/light mode)
+    // per somigliare alle icone vere di iOS, cosi' chi legge le riconosce
+    // sullo schermo invece di doverle immaginare da un\'emoji (Fil, 2026-09-07).
+    var shareIconSvg = '<svg width="15" height="18" viewBox="0 0 17 21" fill="none" style="vertical-align:-3px; margin:0 1px;"><path d="M8.5 1v11.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4.5 5L8.5 1L12.5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M1.5 9.5V18.5C1.5 19.6 2.4 20.5 3.5 20.5H13.5C14.6 20.5 15.5 19.6 15.5 18.5V9.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>';
+    var moreIconSvg = '<svg width="17" height="17" viewBox="0 0 20 20" fill="none" style="vertical-align:-3px; margin:0 1px;"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="1.6"/><circle cx="6" cy="10" r="1.3" fill="currentColor"/><circle cx="10" cy="10" r="1.3" fill="currentColor"/><circle cx="14" cy="10" r="1.3" fill="currentColor"/></svg>';
+
+    // Procedura riscritta (Fil, 2026-09-07: quella vecchia "non si capiva
+    // bene"). Due correzioni rispetto a prima: 1) con iOS 26 il layout
+    // "compatto" di Safari (ora di default) nasconde il pulsante Condividi
+    // dalla barra finche' non tocchi prima il pulsante "..."; 2) mancava il passo finale
+    // di conferma "Aggiungi" senza il quale l'icona non viene creata
+    // davvero. Passaggi numerati invece di un'unica frase, piu' facili da
+    // seguire uno alla volta mentre si guarda il telefono.
+    var stepsHTML = isIos
+      ? '<div class="card-date" style="margin:0;"><b>1.</b> Se non vedi subito il pulsante <b>Condividi</b> ' + shareIconSvg + ', tocca prima ' + moreIconSvg + ' nella barra di Safari.</div>'
+        + '<div class="card-date" style="margin:8px 0 0;"><b>2.</b> Scorri e tocca <b>"Aggiungi alla schermata Home"</b>.</div>'
+        + '<div class="card-date" style="margin:8px 0 0;"><b>3.</b> Conferma toccando <b>"Aggiungi"</b> in alto a destra.</div>'
+      : '<div class="card-date" style="margin:0;">Apri il menu ⋮ del browser (di solito in alto a destra) e tocca <b>"Installa app"</b> o <b>"Aggiungi a schermata Home"</b>.</div>';
+
+    body.innerHTML = reasonHTML + stepsHTML;
   }
 
   function openInstallInstructionsPopup() {
     var overlay = document.getElementById('installPromptOverlay');
-    if (overlay) overlay.style.display = 'flex';
+    if (!overlay) return;
+    renderInstallPromptBody();
+    overlay.style.display = 'flex';
+  }
+
+  /* ---------- popup "Installa seeva" mostrato da solo (non solo al tap sul
+     badge) ----------
+     Fil, 2026-09-07: "voglio quasi obbligare la gente a installarla". Non
+     un blocco vero (chiuderlo resta possibile, altrimenti chi lo vede
+     appena registrato rischia di chiudere l'app invece di installarla) ma
+     ben più invasivo del solo badge: si apre da sé la prima volta dopo la
+     registrazione (redirect a index.html) e poi di nuovo a ogni apertura
+     dell'app dal browser normale, finché non installa o non tocca "Non
+     mostrare più". Una sola volta per sessione (sessionStorage), non a ogni
+     singola navigazione interna tra Home ed evento/i, altrimenti diventa
+     davvero fastidioso invece che solo insistente. */
+  function maybeAutoShowInstallPrompt() {
+    if (!document.getElementById('attendanceBadge')) return; // non siamo in Home
+    if (isAppInstalled()) return;
+    if (!window.SeevaData || typeof SeevaData.hasAccount !== 'function' || !SeevaData.hasAccount()) return;
+
+    try {
+      if (localStorage.getItem(INSTALL_DISMISS_FOREVER_KEY) === '1') return;
+      if (sessionStorage.getItem('seeva:installPromptShownThisSession') === '1') return;
+    } catch (err) { /* ignora, meglio mostrarlo che no */ }
+
+    window.setTimeout(function () {
+      if (isAppInstalled()) return; // potrebbe essere cambiato nel frattempo
+      try { sessionStorage.setItem('seeva:installPromptShownThisSession', '1'); } catch (err) { /* ignora */ }
+      openInstallInstructionsPopup();
+    }, 1200);
   }
 
   /* ---------- suggerimenti account (username + foto) su un input testuale ----------
@@ -1808,7 +1900,7 @@
         dropdown.innerHTML = lastResults.map(function (acc) {
           var initial = (acc.username.trim().charAt(0) || '?').toUpperCase();
           var circle = acc.avatarUrl
-            ? '<img src="' + SeevaData.escapeHTML(acc.avatarUrl) + '" alt="">'
+            ? '<img src="' + SeevaData.escapeHTML(acc.avatarUrl) + '" alt="" loading="lazy">'
             : SeevaData.escapeHTML(initial);
           return ''
             + '<div class="account-search-item" data-account-id="' + acc.id + '" data-username="' + SeevaData.escapeHTML(acc.username) + '" data-avatar-url="' + SeevaData.escapeHTML(acc.avatarUrl || '') + '">'
@@ -2165,6 +2257,7 @@
     initHomeInstallPrompt();
     initHomePhotoPrompt();
     initInstallPromptPopup();
+    maybeAutoShowInstallPrompt();
     initReportProblem();
     initGlobalNotifWatcher();
     initOpenInAppBanner();

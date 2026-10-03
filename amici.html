@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>seeva — Amici</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.json">
@@ -226,7 +227,7 @@
         var avatarUrl = (friend.linkStatus === 'accepted' && friend.accountId) ? friendAvatarCache[friend.accountId] : null;
         var color = AVATAR_COLORS[colorIndex % AVATAR_COLORS.length];
         var inner = avatarUrl
-          ? '<img src="' + SeevaData.escapeHTML(avatarUrl) + '" alt="">'
+          ? '<img src="' + SeevaData.escapeHTML(avatarUrl) + '" alt="" loading="lazy">'
           : SeevaData.escapeHTML(initial);
         var bgStyle = avatarUrl ? '' : ' style="background:' + color + ';"';
         return '<div class="friend-list-avatar' + (extraClass ? ' ' + extraClass : '') + '"' + bgStyle + '>' + inner + '</div>';
@@ -334,7 +335,7 @@
             var avatarUrl = friendAvatarCache[f.accountId];
             var initial = (f.name.trim().charAt(0) || '?').toUpperCase();
             linkedMarker = avatarUrl
-              ? '<span class="linked-mini-avatar" title="Amicizia confermata"><img src="' + SeevaData.escapeHTML(avatarUrl) + '" alt=""></span>'
+              ? '<span class="linked-mini-avatar" title="Amicizia confermata"><img src="' + SeevaData.escapeHTML(avatarUrl) + '" alt="" loading="lazy"></span>'
               : '<span class="linked-mini-avatar" title="Amicizia confermata">' + SeevaData.escapeHTML(initial) + '</span>';
           } else if (f.linkStatus === 'pending') {
             linkedMarker = '<span class="linked-mini-avatar" style="background:var(--butter-soft); color:var(--ink);" title="In attesa che confermi lui/lei"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg></span>';
