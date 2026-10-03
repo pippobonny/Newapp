@@ -1359,7 +1359,7 @@
     + 'expensesEnabled:expenses_enabled, '
     + 'dateOptions:date_options!date_options_event_id_fkey(id, dateISO:date_iso), '
     + 'locationOptions:location_options!location_options_event_id_fkey(id, address, placeId:place_id, lat, lng), '
-    + 'participants(name, availableDateOptionIds:available_date_option_ids, availableLocationOptionIds:available_location_option_ids, accountId:account_id, createdAt:created_at, hiddenFromHome:hidden_from_home, note), '
+    + 'participants(name, availableDateOptionIds:available_date_option_ids, availableLocationOptionIds:available_location_option_ids, accountId:account_id, createdAt:created_at, hiddenFromHome:hidden_from_home, note, maybe), '
     + 'invitees:event_invitees(id, name, accountId:account_id, claimedAt:claimed_at)';
 
   /* ---------- visibilità eventi ----------
@@ -1489,6 +1489,52 @@
      place_id quando c'è (più preciso, apre proprio quel luogo) altrimenti le
      coordinate, altrimenti l'indirizzo scritto a mano. Torna null se l'evento
      non ha nessuna posizione salvata. */
+  /* Testo da condividere (WhatsApp ecc.) per un evento (Fil, 2026-10-03):
+     non più solo il link nudo, ma un messaggio che si capisce già leggendolo
+     nel gruppo — nome, chi organizza, quando, dove, inizio descrizione e
+     il link per rispondere in fondo. Le righe senza dato vengono saltate.
+     Più date da votare -> "3 date proposte dal 10 al 12 ottobre — vota la tua". */
+  function buildEventShareText(event, url) {
+    var lines = [];
+    lines.push('🎉 *' + (event.name || 'Evento') + '*' + (event.createdBy ? ' — organizza ' + event.createdBy : ''));
+
+    var opts = (event.dateOptions || []).slice().sort(function (a, b) { return a.dateISO < b.dateISO ? -1 : 1; });
+    var confirmed = event.confirmedDateOptionId
+      ? opts.filter(function (o) { return o.id === event.confirmedDateOptionId; })[0]
+      : null;
+    var single = confirmed || (opts.length === 1 ? opts[0] : null);
+    var timeLabel = formatTimeLabel(event.eventTime);
+    var isVote = false;
+    if (single) {
+      lines.push('📅 ' + formatDateLabel(single.dateISO) + (timeLabel ? ' alle ' + timeLabel : ''));
+    } else if (opts.length > 1) {
+      isVote = true;
+      var a = new Date(opts[0].dateISO + 'T00:00:00');
+      var b = new Date(opts[opts.length - 1].dateISO + 'T00:00:00');
+      var monthA = a.toLocaleDateString('it-IT', { month: 'long' });
+      var monthB = b.toLocaleDateString('it-IT', { month: 'long' });
+      var range = monthA === monthB
+        ? 'dal ' + a.getDate() + ' al ' + b.getDate() + ' ' + monthB
+        : 'dal ' + a.getDate() + ' ' + monthA + ' al ' + b.getDate() + ' ' + monthB;
+      lines.push('📅 ' + opts.length + ' date proposte ' + range + (timeLabel ? ', alle ' + timeLabel : '') + ' — vota la tua');
+    }
+
+    var locOpts = event.locationOptions || [];
+    if (locOpts.length > 1 && !event.confirmedLocationOptionId) {
+      lines.push('📍 ' + locOpts.length + ' posti proposti');
+    } else {
+      var loc = resolveEventLocation(event);
+      if (loc && loc.address) lines.push('📍 ' + loc.address);
+    }
+
+    var desc = String(event.description || '').replace(/\s+/g, ' ').trim();
+    if (desc) lines.push('📝 ' + (desc.length > 90 ? desc.slice(0, 90).replace(/\s+\S*$/, '') + '…' : desc));
+
+    lines.push('');
+    lines.push((isVote ? 'Vota qui 👉 ' : 'Ci sei? Rispondi qui 👉 ') + url);
+    return lines.join('\n');
+  }
+
   function buildMapsUrl(event) {
     var loc = resolveEventLocation(event);
     if (loc.placeId) {
@@ -1636,6 +1682,16 @@
       var dateRes = await supabase.from('date_options').insert(dateRows).select('id');
       if (dateRes.error) throw new Error(dateRes.error.message);
       createdOptionIds = (dateRes.data || []).map(function (r) { return r.id; });
+    }
+
+    // Data fissa = confermato da subito (Fil, 2026-10-03): "aperitivo
+    // venerdì, chi c'è c'è" non deve aspettare che rispondano tutti, né
+    // annullarsi da solo se qualcuno non risponde. Le risposte servono solo
+    // a sapere chi viene. Così parte anche il promemoria del giorno prima
+    // (send-event-reminders guarda solo gli eventi confermati).
+    if (createdOptionIds.length === 1) {
+      var confRes = await supabase.from('events').update({ confirmed_date_option_id: createdOptionIds[0] }).eq('id', eventId);
+      if (confRes.error) throw new Error(confRes.error.message);
     }
 
     // Più location tra cui votare (Fil, 2026-07-21): solo se ne sono state
@@ -2148,6 +2204,19 @@
       if (reopenRes.error) throw new Error(reopenRes.error.message);
     }
 
+    // Data fissa = confermato (Fil, 2026-10-03, vedi createEvent): se dopo
+    // la modifica resta una sola data e l'evento non è (più) confermato,
+    // si conferma su quella.
+    var reconfirmedFixed = false;
+    if ((mustReopen || !current.confirmedDateOptionId) && !current.manuallyCancelled) {
+      var leftOptsRes = await supabase.from('date_options').select('id').eq('event_id', eventId);
+      if (!leftOptsRes.error && leftOptsRes.data && leftOptsRes.data.length === 1) {
+        var fixRes = await supabase.from('events').update({ confirmed_date_option_id: leftOptsRes.data[0].id }).eq('id', eventId);
+        if (fixRes.error) throw new Error(fixRes.error.message);
+        reconfirmedFixed = true;
+      }
+    }
+
     /* ---------- notifiche: data tolta (email + avviso in-app), e un avviso
        generico "evento modificato" per chi resta invitato (chi ha già
        ricevuto l'avviso più specifico sulla data tolta non riceve anche
@@ -2196,7 +2265,7 @@
       // generiche di notifyEventModified: costruirne una dedicata sarebbe
       // stato un'altra Edge Function per un caso che l'avviso in-app (il
       // canale principale dell'app) già spiega bene.
-      var genericMessage = mustReopen
+      var genericMessage = (mustReopen && !reconfirmedFixed)
         ? '"' + (input.name || current.name) + '" è tornato in attesa: l\'organizzatore ha aggiunto nuove opzioni, la tua risposta di prima non basta più — vota di nuovo.'
         : '"' + (input.name || current.name) + '" è stato modificato dall\'organizzatore.';
       var genericRows = genericRecipients.map(function (n) {
@@ -2204,7 +2273,7 @@
           recipient_name: n,
           event_name: input.name || current.name,
           message: genericMessage,
-          emoji: mustReopen ? '🗳️' : '✏️'
+          emoji: (mustReopen && !reconfirmedFixed) ? '🗳️' : '✏️'
         };
       });
       pushEventNotices(genericRows);
@@ -2405,11 +2474,15 @@
      sessione vera si usa account_id come chiave — due persone con lo stesso
      nome sullo stesso evento non si sovrascrivono più a vicenda (Task 6) —
      altrimenti si ripiega sul nome, solo per chi è davvero ospite. */
-  async function upsertParticipant(eventId, guestName, availableDateOptionIds, availableLocationOptionIds, note) {
+  /* maybe (Fil, 2026-10-03): risposta "Forse" sugli eventi confermati /
+     a data fissa -- si salva come "nessuna data" + maybe=true: conta come
+     "ha risposto" (niente sollecito) ma non come "viene". Qualunque altra
+     risposta lo rimette a false (lo fa la RPC). */
+  async function upsertParticipant(eventId, guestName, availableDateOptionIds, availableLocationOptionIds, note, maybe) {
     var name = (guestName || '').trim();
     if (!name && !hasAccount()) return null;
 
-    var res = await supabase.rpc('upsert_participant', {
+    var res = await supabase.rpc('upsert_participant_v2', {
       p_event_id: eventId,
       p_name: name || null,
       p_available_date_option_ids: availableDateOptionIds,
@@ -2418,7 +2491,8 @@
       // cena") -- solo il form a data singola in evento.html la manda
       // davvero; altrove resta undefined, la RPC allora non tocca quella
       // già salvata (vedi coalesce(p_note, note) lato server).
-      p_note: (typeof note === 'string') ? note : undefined
+      p_note: (typeof note === 'string') ? note : undefined,
+      p_maybe: maybe === true ? true : undefined
     });
     if (res.error) throwSupabaseError(res.error);
 
@@ -2427,7 +2501,7 @@
     // qui ci si limita a lanciare la push, l'avviso in-app l'ha già scritto
     // lei nella stessa transazione (Fil, 2026-07-20).
     if (res.data && res.data.notifyOrganizer) {
-      notifyEventResponse(eventId, res.data.name, !!res.data.available);
+      notifyEventResponse(eventId, res.data.name, !!res.data.available, !!res.data.maybe);
     }
 
     clearEventsCache();
@@ -2529,8 +2603,8 @@
   /* Notifica push "qualcuno ha risposto al tuo evento" (Edge Function
      "notify-event-response") per il solo organizzatore. Fire and forget
      come le altre: non deve mai bloccare il salvataggio della risposta. */
-  function notifyEventResponse(eventId, responderName, available) {
-    supabase.functions.invoke('notify-event-response', { body: { eventId: eventId, responderName: responderName, available: available } })
+  function notifyEventResponse(eventId, responderName, available, maybe) {
+    supabase.functions.invoke('notify-event-response', { body: { eventId: eventId, responderName: responderName, available: available, maybe: !!maybe } })
       .catch(function (err) { /* non blocca: la risposta è comunque salvata */ });
   }
 
@@ -2705,6 +2779,27 @@
       ? (event.dateOptions || []).filter(function (o) { return o.id === event.confirmedDateOptionId; })[0]
       : null;
 
+    // Scadenza del voto per gli eventi a più date (Fil, 2026-10-03): non si
+    // aspetta più che rispondano tutti. Il voto chiude alle 9 di 2 giorni
+    // prima della prima data proposta; se l'evento è stato creato dopo quel
+    // momento, alle 9 del giorno della prima data. Alla scadenza vince la
+    // data in testa; pareggio o nessun "sì" -> decide l'organizzatore
+    // (status 'tie'), mai annullato da solo. Stessa regola lato server in
+    // send-event-reminders, che salva la conferma e avvisa tutti.
+    var isMultiDate = (event.dateOptions || []).length > 1;
+    var voteDeadlineISO = null;
+    if (isMultiDate && !confirmedOption) {
+      var sortedISOs = event.dateOptions.map(function (o) { return o.dateISO; }).sort();
+      var firstD = new Date(sortedISOs[0] + 'T00:00:00');
+      var dl = new Date(firstD.getTime()); dl.setDate(dl.getDate() - 2);
+      var createdDay = event.createdAt ? new Date(event.createdAt) : null;
+      if (createdDay) createdDay.setHours(0, 0, 0, 0);
+      if (createdDay && createdDay.getTime() > dl.getTime()) dl = firstD;
+      voteDeadlineISO = dl.getFullYear() + '-' + ('0' + (dl.getMonth() + 1)).slice(-2) + '-' + ('0' + dl.getDate()).slice(-2);
+    }
+    var votePastDeadline = !!voteDeadlineISO && Date.now() >= new Date(voteDeadlineISO + 'T09:00:00').getTime();
+    var noVotes = false;
+
     var status = 'waiting';
     var cancelledManually = false;
     if (confirmedOption) {
@@ -2717,7 +2812,12 @@
       // Hanno risposto tutti quelli della lista (disponibili o "non ci sono
       // mai"): a questo punto l'evento si risolve da solo, non ha più senso
       // restare in attesa di qualcun altro.
-      if (activeNonOrganizerCount === 0) {
+      if (activeNonOrganizerCount === 0 && isMultiDate) {
+        // Più date e nessun invitato disponibile per nessuna (Fil,
+        // 2026-10-03): non si annulla da solo, sceglie l'organizzatore.
+        status = 'tie';
+        noVotes = true;
+      } else if (activeNonOrganizerCount === 0) {
         // Nessun vero invitato disponibile per nessuna data (solo tu, se
         // proprio nessuno ha risposto "sì" a niente): si annulla.
         status = 'cancelled';
@@ -2725,6 +2825,16 @@
         // Più date appaiate al primo posto: si resta in sospeso finché
         // l'organizzatore non ne sceglie una a mano (invece di far vincere
         // in automatico e silenziosamente la prima inserita).
+        status = 'tie';
+      } else {
+        status = 'done';
+      }
+    } else if (votePastDeadline) {
+      // Voto chiuso senza che abbiano risposto tutti (Fil, 2026-10-03).
+      if (activeNonOrganizerCount === 0) {
+        status = 'tie';
+        noVotes = true;
+      } else if (tiedOptions.length > 1) {
         status = 'tie';
       } else {
         status = 'done';
@@ -2771,7 +2881,7 @@
     } else if (status === 'cancelled') {
       dateLabel = 'Evento annullato';
     } else if (status === 'tie') {
-      dateLabel = 'Pareggio: in attesa che l\'organizzatore scelga';
+      dateLabel = noVotes ? 'In attesa che l\'organizzatore scelga' : 'Pareggio: in attesa che l\'organizzatore scelga';
     } else if ((event.dateOptions || []).length === 1) {
       dateLabel = shortDateLabel(event.dateOptions[0].dateISO);
     } else if ((event.dateOptions || []).length > 1) {
@@ -2783,6 +2893,8 @@
     return {
       status: status,
       cancelledManually: cancelledManually,
+      voteDeadlineISO: voteDeadlineISO,
+      noVotes: noVotes,
       count: count,
       // Quanti hanno risposto (disponibili o "non ci sono mai") su quanti
       // invitati in tutto: usato nelle card per "N di M hanno risposto"
@@ -3132,6 +3244,7 @@
     computeLocationLeader: computeLocationLeader,
     resolveEventLocation: resolveEventLocation,
     buildMapsUrl: buildMapsUrl,
+    buildEventShareText: buildEventShareText,
     formatDateLabel: formatDateLabel,
     shortDateLabel: shortDateLabel,
     daysUntilLabel: daysUntilLabel,

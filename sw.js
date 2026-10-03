@@ -45,12 +45,29 @@ self.addEventListener('push', function (event) {
     data: { url: data.url || 'index.html' }
   };
 
+  // Pulsanti di risposta (Fil, 2026-10-03): solo se il server li chiede
+  // (data.rsvp, inviti/solleciti di eventi confermati a data fissa). Chrome
+  // su Android ne mostra al massimo 2, quindi Ci sono / Non ci sono; il
+  // "Forse" si dà aprendo l'evento. Su iPhone i pulsanti non compaiono e
+  // la notifica funziona come prima.
+  if (data.rsvp) {
+    options.actions = [
+      { action: 'rsvp-yes', title: '✅ Ci sono' },
+      { action: 'rsvp-no', title: '❌ Non ci sono' }
+    ];
+  }
+
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener('notificationclick', function (event) {
   event.notification.close();
   var url = (event.notification.data && event.notification.data.url) || 'index.html';
+  // Tocco su un pulsante di risposta: si apre l'evento con ?rsvp=yes|no e
+  // la pagina salva la risposta da sola (vedi fondo di evento.html).
+  if (event.action === 'rsvp-yes' || event.action === 'rsvp-no') {
+    url += (url.indexOf('?') === -1 ? '?' : '&') + 'rsvp=' + (event.action === 'rsvp-yes' ? 'yes' : 'no');
+  }
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {

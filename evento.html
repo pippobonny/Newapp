@@ -464,8 +464,11 @@
         var introHTML = !hasDates ? ''
           : isTie
           ? ''
-            + '<div class="section-title">Pareggio: scegli tu la data</div>'
-            + '<div class="card-date" style="margin:0 2px 10px;">Queste date hanno lo stesso numero di persone disponibili — l\'evento resta in sospeso finché non ne confermi una.</div>'
+            + (info.noVotes
+              ? '<div class="section-title">Nessuno ha votato: scegli tu</div>'
+                + '<div class="card-date" style="margin:0 2px 10px;">Nessun invitato ha indicato una data. Scegline una tu, oppure annulla l\'evento.</div>'
+              : '<div class="section-title">Pareggio: scegli tu la data</div>'
+                + '<div class="card-date" style="margin:0 2px 10px;">Queste date hanno lo stesso numero di persone disponibili — l\'evento resta in sospeso finché non ne confermi una.</div>')
           : ''
             + '<div class="section-title">Vuoi confermare tu, senza aspettare?</div>'
             + '<div class="card-date" style="margin:0 2px 10px;">Puoi fissare subito una data, anche prima che rispondano tutti.</div>';
@@ -653,15 +656,17 @@
         // Chi c'è prima, poi chi manca a rispondere, poi chi ha detto di no:
         // così le informazioni più utili ("chi viene") si leggono subito,
         // senza dover scorrere tutta la lista.
-        var STATUS_ORDER = { available: 0, pending: 1, absent: 2 };
+        var STATUS_ORDER = { available: 0, maybe: 1, pending: 2, absent: 3 };
         var rows = names.map(function (name) {
           var participant = participantByName[name.trim().toLowerCase()];
-          var statusKey = !participant ? 'pending' : ((participant.availableDateOptionIds || []).length > 0 ? 'available' : 'absent');
+          var statusKey = !participant ? 'pending' : ((participant.availableDateOptionIds || []).length > 0 ? 'available' : (participant.maybe ? 'maybe' : 'absent'));
           var statusIconSVG = statusKey === 'available'
             ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><circle cx="12" cy="12" r="9"></circle><path d="M8 12.5l2.5 2.5L16 9.5"></path></svg>'
             : statusKey === 'absent'
               ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><circle cx="12" cy="12" r="9"></circle><line x1="9.5" y1="9.5" x2="14.5" y2="14.5"></line><line x1="14.5" y1="9.5" x2="9.5" y2="14.5"></line></svg>'
-              : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg>';
+              : statusKey === 'maybe'
+                ? '<span style="margin-right:3px;">🤔</span>'
+                : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg>';
           return { name: name, statusKey: statusKey, statusIconSVG: statusIconSVG, note: participant ? participant.note : null };
         }).sort(function (a, b) { return STATUS_ORDER[a.statusKey] - STATUS_ORDER[b.statusKey]; });
 
@@ -934,26 +939,71 @@
         if (info.status === 'done' && !isOrganizer && guestName) {
           var mine = guestName.toLowerCase();
           var iAmAttending = attendeeNames.some(function (n) { return n.toLowerCase() === mine; });
+          var myParticipant = findExistingParticipant();
+          var noteFieldHTML = '<div class="field"><input type="text" id="confirmedNoteInput" placeholder="Nota per gli altri, es. orario di arrivo (facoltativo)"></div>';
           if (iAmAttending) {
             withdrawActionHTML = '<div style="text-align:center; margin-top:6px;"><span class="signup-skip-link" id="withdrawFromEventLink">Non potrò esserci →</span></div>';
-          } else if (findExistingParticipant()) {
+          } else if (myParticipant && myParticipant.maybe) {
+            // Ha risposto "Forse" (Fil, 2026-10-03): resta la scelta
+            // definitiva a portata di mano.
+            withdrawActionHTML = ''
+              + '<div class="section-title">Hai risposto forse 🤔 Hai deciso?</div>'
+              + '<button type="button" class="primary-btn" id="rejoinEventLink">Ci sono</button>'
+              + '<div class="add-date-btn" id="declineEventLink" style="margin-top:10px;">Non ci sono</div>';
+          } else if (myParticipant) {
             withdrawActionHTML = '<div style="text-align:center; margin-top:6px;"><span class="signup-skip-link" id="rejoinEventLink">Ci sarò dopotutto →</span></div>';
-          } else if ((event.invitees || []).some(function (f) { return (f.name || '').trim().toLowerCase() === mine; })) {
-            // Invitato aggiunto a evento già confermato (Fil, 2026-09-26,
-            // "Aggiungi persone"): non ha mai risposto, quindi senza questo
-            // non avrebbe avuto nessun modo di dire se c'è.
+          } else if ((event.invitees || []).some(function (f) { return (f.name || '').trim().toLowerCase() === mine; }) || event.openInvite) {
+            // Non ha ancora risposto: invitato aggiunto dopo (Fil,
+            // 2026-09-26) o evento a data fissa confermato da subito (Fil,
+            // 2026-10-03). Ci sono / Forse / Non ci sono.
             withdrawActionHTML = ''
               + '<div class="section-title">Ci sarai?</div>'
+              + noteFieldHTML
               + '<button type="button" class="primary-btn" id="rejoinEventLink">Ci sono</button>'
+              + '<div class="add-date-btn" id="maybeEventLink" style="margin-top:10px;">Forse</div>'
               + '<div class="add-date-btn" id="declineEventLink" style="margin-top:10px;">Non ci sono</div>';
           }
         }
+
+        // Chi non ha ancora risposto, solo per chi organizza e solo prima
+        // dell'evento (Fil, 2026-10-03): con gli eventi a data fissa
+        // confermati da subito, è l'unico posto dove vederlo.
+        var pendingHTML = '';
+        if (isOrganizer && info.status === 'done') {
+          var answeredLower = (event.participants || []).map(function (p) { return (p.name || '').trim().toLowerCase(); });
+          var orgLower = (event.createdBy || '').trim().toLowerCase();
+          var pendingNames = (event.invitees || []).map(function (f) { return f.name; }).filter(function (n) {
+            var l = (n || '').trim().toLowerCase();
+            return l && l !== orgLower && answeredLower.indexOf(l) === -1;
+          });
+          if (pendingNames.length) {
+            pendingHTML = '<div class="card-date" style="margin:8px 2px 0;">Non hanno ancora risposto: <b>' + pendingNames.map(SeevaData.escapeHTML).join(', ') + '</b></div>';
+          }
+        }
+        var notedAttendees = (event.participants || []).filter(function (p) {
+          return p.note && (p.availableDateOptionIds || []).indexOf(info.bestOption.id) !== -1;
+        });
+        var notesHTML = notedAttendees.length
+          ? '<div class="card-date" style="margin:8px 2px 0;">' + notedAttendees.map(function (p) {
+              return '<b>' + SeevaData.escapeHTML(p.name) + ':</b> ' + SeevaData.escapeHTML(p.note);
+            }).join(' · ') + '</div>'
+          : '';
+
+        var maybeNames = (event.participants || []).filter(function (p) {
+          return p.maybe && (p.availableDateOptionIds || []).length === 0;
+        }).map(function (p) { return p.name; });
+        var maybeHTML = maybeNames.length
+          ? '<div class="card-date" style="margin:8px 2px 0;">🤔 Forse: <b>' + maybeNames.map(SeevaData.escapeHTML).join(', ') + '</b></div>'
+          : '';
 
         return ''
           + '<div class="section-title first">Quando</div>'
           + dateCardHTML
           + '<div class="section-title">Chi ci sarà</div>'
           + bubblesHTML
+          + maybeHTML
+          + notesHTML
+          + pendingHTML
           + withdrawActionHTML;
       }
 
@@ -995,6 +1045,11 @@
         } else {
           labelText = 'In testa ai voti';
           subText = votesForBest + (votesForBest === 1 ? ' disponibile' : ' disponibili') + ' · non ancora definitiva';
+          // Scadenza del voto (Fil, 2026-10-03), vedi computeEventStatus.
+          if (info.voteDeadlineISO) {
+            var dlLabel = new Date(info.voteDeadlineISO + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'long' }).replace('.', '');
+            subText += '<br>Si vota fino a ' + SeevaData.escapeHTML(dlLabel) + ' alle 9';
+          }
         }
         var iconSVG = isSingleDate
           ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><rect x="3" y="5" width="18" height="16" rx="3"></rect><line x1="16" y1="3" x2="16" y2="7"></line><line x1="8" y1="3" x2="8" y2="7"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>'
@@ -1269,7 +1324,10 @@
         // non serve più condividere nulla (Fil, 2026-07-07). La bolla vera
         // e propria (#shareFab) è statica nell'HTML, non generata qui: si
         // mostra/nasconde soltanto, vedi subito sotto.
-        var showShareFab = isOrganizer && !isConfirmedSimple;
+        // Fil, 2026-10-03: anche sugli eventi confermati, fino al giorno
+        // dell'evento -- gli eventi a data fissa nascono confermati e
+        // l'organizzatore deve poter continuare a girare l'invito su WhatsApp.
+        var showShareFab = isOrganizer && info.status !== 'passato' && info.status !== 'cancelled';
         var shareFabEl = document.getElementById('shareFab');
         if (shareFabEl) shareFabEl.style.display = showShareFab ? '' : 'none';
 
@@ -1387,8 +1445,11 @@
         // (avatar + "N di M disponibili") che apre un popup con entrambi
         // dentro, stesso popup già usato per gestire le liste amici
         // (.signup-overlay/.signup-modal, vedi amici.html).
-        var roster = isConfirmedSimple ? { html: '', rows: [] } : buildInviteesRosterHTML();
-        var inviteesRosterHTML = roster.html;
+        // Su un evento confermato (non passato) il roster serve comunque per
+        // sapere chi non ha ancora risposto (Sollecita), anche se l'elenco
+        // "Invitati" non si mostra (Fil, 2026-10-03).
+        var roster = info.status === 'passato' ? { html: '', rows: [] } : buildInviteesRosterHTML();
+        var inviteesRosterHTML = isConfirmedSimple ? '' : roster.html;
 
         // Niente grafico "Chi c'è per ogni giorno" quando c'è una sola data
         // proposta (Fil, 2026-09-11, bug segnalato dall'app: "quando è un
@@ -1572,7 +1633,7 @@
         var menuNudgeBtnEl = document.getElementById('menuNudgeBtn');
         if (menuNudgeBtnEl) {
           var pendingCount = (roster.rows || []).filter(function (r) { return r.statusKey === 'pending'; }).length;
-          menuNudgeBtnEl.style.display = (isOrganizer && !isConfirmedSimple && info.status !== 'cancelled' && info.status !== 'passato' && pendingCount > 0) ? '' : 'none';
+          menuNudgeBtnEl.style.display = (isOrganizer && info.status !== 'cancelled' && info.status !== 'passato' && pendingCount > 0) ? '' : 'none';
         }
         var expensesSectionHTML = buildExpensesSectionHTML();
         var itemsSectionHTML = buildItemsSectionHTML(info);
@@ -1968,10 +2029,30 @@
               // dopotutto": si riusa quella che aveva già dato (se ne aveva
               // data una), non si tocca qui.
               var existingLocIds = (findExistingParticipant() || {}).availableLocationOptionIds || [];
-              event = await SeevaData.upsertParticipant(event.id, guestName, [info.bestOption.id], existingLocIds);
+              var noteEl = document.getElementById('confirmedNoteInput');
+              var noteVal = noteEl ? noteEl.value.trim() : undefined;
+              event = await SeevaData.upsertParticipant(event.id, guestName, [info.bestOption.id], existingLocIds, noteVal);
             } catch (err) {
               rejoinLink.textContent = originalText;
               window.alert('Non sono riuscito ad aggiornare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+              return;
+            }
+            render();
+          });
+        }
+
+        var maybeLink = document.getElementById('maybeEventLink');
+        if (maybeLink) {
+          maybeLink.addEventListener('click', async function () {
+            var originalText = maybeLink.textContent;
+            maybeLink.textContent = 'Salvo...';
+            try {
+              var existingLocIds = (findExistingParticipant() || {}).availableLocationOptionIds || [];
+              var noteEl = document.getElementById('confirmedNoteInput');
+              event = await SeevaData.upsertParticipant(event.id, guestName, [], existingLocIds, noteEl ? noteEl.value.trim() : undefined, true);
+            } catch (err) {
+              maybeLink.textContent = originalText;
+              window.alert('Non sono riuscito a salvare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
               return;
             }
             render();
@@ -2888,19 +2969,23 @@
         shareFab.addEventListener('click', function () {
           var shareUrl = SeevaData.SITE_URL + window.location.pathname + window.location.search;
 
+          // Testo completo (Fil, 2026-10-03): data, luogo, descrizione e link
+          // dentro al testo. Il link va nel "text" e non anche in "url":
+          // con entrambi alcune app (WhatsApp su iPhone) tengono solo il link.
+          var shareText = SeevaData.buildEventShareText(event, shareUrl);
           if (navigator.share) {
-            navigator.share({ title: 'seeva — ' + event.name, url: shareUrl })
+            navigator.share({ text: shareText })
               .catch(function () { /* utente ha annullato il foglio di condivisione: nessun errore da mostrare */ });
             return;
           }
 
           var done = function () {
-            if (window.SeevaUI && SeevaUI.toast) SeevaUI.toast('Link copiato ✓');
+            if (window.SeevaUI && SeevaUI.toast) SeevaUI.toast('Messaggio copiato ✓');
           };
           if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(shareUrl).then(done).catch(function () {
-              var tempInput = document.createElement('input');
-              tempInput.value = shareUrl;
+            navigator.clipboard.writeText(shareText).then(done).catch(function () {
+              var tempInput = document.createElement('textarea');
+              tempInput.value = shareText;
               tempInput.style.position = 'fixed';
               tempInput.style.opacity = '0';
               document.body.appendChild(tempInput);
@@ -3077,6 +3162,32 @@
       await loadAttendeeAvatarsIfNeeded();
 
       render();
+
+      /* Risposta dai pulsanti della notifica (Fil, 2026-10-03): sw.js apre
+         evento.html?id=...&rsvp=yes|no. Si salva la risposta solo se
+         l'evento è confermato e chi apre è un invitato (non l'organizzatore),
+         poi si toglie il parametro dall'indirizzo così un ricaricamento non
+         la ripete. */
+      var rsvp = params.get('rsvp');
+      if (rsvp === 'yes' || rsvp === 'no') {
+        try {
+          var cleanParams = new URLSearchParams(window.location.search);
+          cleanParams.delete('rsvp');
+          history.replaceState(null, '', window.location.pathname + '?' + cleanParams.toString());
+        } catch (err) { /* ignora */ }
+        var rsvpInfo = SeevaData.computeEventStatus(event);
+        if (!isOrganizer && guestName && rsvpInfo.status === 'done' && rsvpInfo.bestOption) {
+          try {
+            var rsvpLocIds = (findExistingParticipant() || {}).availableLocationOptionIds || [];
+            event = await SeevaData.upsertParticipant(event.id, guestName, rsvp === 'yes' ? [rsvpInfo.bestOption.id] : [], rsvpLocIds);
+            await loadAttendeeAvatarsIfNeeded();
+            render();
+            if (window.SeevaUI && SeevaUI.toast) SeevaUI.toast(rsvp === 'yes' ? 'Risposta salvata: ci sei ✓' : 'Risposta salvata: non ci sei');
+          } catch (err) {
+            if (window.SeevaUI && SeevaUI.toast) SeevaUI.toast('Non sono riuscito a salvare la risposta: rispondi qui sotto.');
+          }
+        }
+      }
     })();
   </script>
   <script src="script.js"></script>
