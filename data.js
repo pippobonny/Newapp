@@ -2855,7 +2855,13 @@
       var allDatesExpired = event.dateOptions.every(function (o) {
         return new Date(o.dateISO + 'T23:59:59').getTime() < Date.now();
       });
-      if (allDatesExpired) {
+      if (allDatesExpired && !isMultiDate && activeNonOrganizerCount > 0 && event.dateOptions[0].dateISO >= '2026-10-04') {
+        // Eventi a data singola non confermati (creati prima delle regole
+        // nuove, Fil 2026-10-03): se almeno un invitato aveva detto "ci
+        // sono", l'evento si è fatto -> passato, non annullato. Solo per
+        // date dal 4 ottobre 2026 in poi: quelli prima restano com'erano.
+        status = 'done';
+      } else if (allDatesExpired) {
         status = 'cancelled';
       }
     }

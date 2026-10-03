@@ -759,7 +759,9 @@
           // precompilato — il dettaglio completo (più date, location) non
           // sparisce, si vede lì.
           var statusText;
-          if (!isAvailable) {
+          if (!isAvailable && existingParticipant.maybe) {
+            statusText = 'Forse 🤔';
+          } else if (!isAvailable) {
             statusText = 'Non disponibile';
           } else if (ids.length === 1) {
             var onlyOpt = event.dateOptions.filter(function (o) { return o.id === ids[0]; })[0];
@@ -810,6 +812,9 @@
             + '<div class="field"><input type="text" id="singleDateNoteInput" placeholder="Nota per gli altri, es. orario di arrivo (facoltativo)" value="' + SeevaData.escapeHTML(noteValue) + '"></div>'
             + '<div class="form-error" id="formError"></div>'
             + '<button type="button" class="primary-btn" id="singleDateYesBtn" data-option-id="' + event.dateOptions[0].id + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="15" height="15" style="vertical-align:-2px; margin-right:4px;"><circle cx="12" cy="12" r="9"></circle><path d="M8 12.5l2.5 2.5L16 9.5"></path></svg>Ci sono</button>'
+            // "Forse" (Fil, 2026-10-03): solo a chi non ha ancora risposto
+            // (o aveva già detto forse), non a chi ha già deciso.
+            + ((!isOrganizer && (!existingParticipant || existingParticipant.maybe)) ? '<div class="add-date-btn" id="singleDateMaybeBtn" style="margin-top:10px;">Forse</div>' : '')
             + '<div class="add-date-btn" id="singleDateNoBtn" style="margin-top:10px;">Non ci sono</div>';
         }
 
@@ -2133,6 +2138,14 @@
           });
         }
 
+        var singleDateMaybeBtn = document.getElementById('singleDateMaybeBtn');
+        if (singleDateMaybeBtn) {
+          singleDateMaybeBtn.addEventListener('click', function () {
+            var noteEl = document.getElementById('singleDateNoteInput');
+            saveAvailability([], selectedLocationIds(), singleDateMaybeBtn, noteEl ? noteEl.value.trim() : '', true);
+          });
+        }
+
         var singleDateNoBtn = document.getElementById('singleDateNoBtn');
         if (singleDateNoBtn) {
           singleDateNoBtn.addEventListener('click', function () {
@@ -2512,7 +2525,7 @@
 
       /* Salva su Supabase e torna alla vista compatta: niente più navigazione
          verso la Home, si resta qui a vedere il riepilogo aggiornato. */
-      async function saveAvailability(selectedIds, selectedLocIds, btnEl, note) {
+      async function saveAvailability(selectedIds, selectedLocIds, btnEl, note, maybe) {
         var formError = document.getElementById('formError');
         if (formError) formError.textContent = '';
 
@@ -2528,7 +2541,7 @@
         btnEl.textContent = 'Salvo...';
 
         try {
-          event = await SeevaData.upsertParticipant(event.id, guestName, selectedIds, selectedLocIds, note);
+          event = await SeevaData.upsertParticipant(event.id, guestName, selectedIds, selectedLocIds, note, maybe === true);
         } catch (err) {
           if (formError) formError.textContent = 'Non sono riuscito a salvare la tua disponibilità (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.';
           btnEl.disabled = false;
@@ -3176,10 +3189,12 @@
           history.replaceState(null, '', window.location.pathname + '?' + cleanParams.toString());
         } catch (err) { /* ignora */ }
         var rsvpInfo = SeevaData.computeEventStatus(event);
-        if (!isOrganizer && guestName && rsvpInfo.status === 'done' && rsvpInfo.bestOption) {
+        var rsvpOption = (rsvpInfo.status === 'done' && rsvpInfo.bestOption) ? rsvpInfo.bestOption
+          : ((event.dateOptions || []).length === 1 && rsvpInfo.status !== 'cancelled' && rsvpInfo.status !== 'passato') ? event.dateOptions[0] : null;
+        if (!isOrganizer && guestName && rsvpOption) {
           try {
             var rsvpLocIds = (findExistingParticipant() || {}).availableLocationOptionIds || [];
-            event = await SeevaData.upsertParticipant(event.id, guestName, rsvp === 'yes' ? [rsvpInfo.bestOption.id] : [], rsvpLocIds);
+            event = await SeevaData.upsertParticipant(event.id, guestName, rsvp === 'yes' ? [rsvpOption.id] : [], rsvpLocIds);
             await loadAttendeeAvatarsIfNeeded();
             render();
             if (window.SeevaUI && SeevaUI.toast) SeevaUI.toast(rsvp === 'yes' ? 'Risposta salvata: ci sei ✓' : 'Risposta salvata: non ci sei');
