@@ -105,7 +105,7 @@
     font-weight: 600;
   }
   .admin-app-badge.yes { background: var(--confirmed-soft); color: #2E5C38; }
-  .admin-app-badge.no { background: var(--cancel-soft); color: var(--cancel); }
+  .admin-app-badge.no { background: var(--cancel-soft); color: var(--cancel-ink); }
   .admin-note {
     font-size: 12px;
     color: var(--ink-soft);
@@ -195,7 +195,7 @@
       }
 
       html += '<div class="admin-table-wrap"><table class="admin-table"><thead><tr>'
-        + '<th>Utente</th><th>Registrato</th><th>App attiva</th><th>Eventi creati</th><th>Risposte</th><th>Invitato a</th><th>Ultima risposta</th>'
+        + '<th>Utente</th><th>Registrato</th><th>Notifiche attive</th><th>Eventi creati</th><th>Risposte</th><th>Invitato a</th><th>Ultima risposta</th>'
         + '</tr></thead><tbody>';
 
       users.forEach(function (u) {
@@ -215,7 +215,7 @@
 
       html += '</tbody></table></div>';
 
-      html += '<div class="admin-note">"App attiva" = ha dato il permesso per le notifiche push su almeno un dispositivo (è il modo più affidabile che abbiamo per capire chi usa davvero l\'app, non tracciamo il download in sé). Le email di sistema (invito, amicizia, evento modificato/eliminato) vengono già mandate solo a chi risulta "No" qui.</div>';
+      html += '<div class="admin-note">"Notifiche attive" = ha dato il permesso per le notifiche push su almeno un dispositivo. Non tracciamo l\'installazione in sé: chi installa l\'app ma non attiva le notifiche risulta "No". Le email di sistema (invito, amicizia, evento modificato/eliminato) vengono già mandate solo a chi risulta "No" qui.</div>';
 
       contentEl.innerHTML = html;
     })();

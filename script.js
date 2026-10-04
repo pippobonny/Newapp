@@ -925,7 +925,7 @@
     // stesso array di eventi già scaricato qui, nessuna richiesta in più.
     var upcoming = events
       .map(function (e) { return { event: e, info: SeevaData.computeEventStatus(e) }; })
-      .filter(function (x) { return x.info.status === 'done' && x.info.bestOption; })
+      .filter(function (x) { return x.info.status === 'done' && x.info.bestOption && !SeevaData.amINotGoing(x.event); })
       .filter(function (x) { return new Date(x.info.bestOption.dateISO + 'T23:59:59') >= new Date(); })
       .sort(function (a, b) { return a.info.bestOption.dateISO < b.info.bestOption.dateISO ? -1 : 1; })[0];
     var reminderText = upcoming
@@ -2145,6 +2145,52 @@
     await showPushPrompt();
   }
 
+  /* Notifiche mai attivate su Android (2026-10-04, dopo "un'amica ha
+     installato l'app da Samsung Internet ma in admin non risulta").
+     In admin "App attiva" = ha le notifiche push attive. Il popup per
+     attivarle però partiva SOLO subito dopo login/registrazione fatti
+     dentro l'app installata: su Android l'app installata condivide il login
+     col browser, quindi chi si registra nel browser e poi installa l'app
+     entra già loggato e il popup non lo vede mai (infatti nessun Android a
+     parte Fil ha le notifiche attive). Ora: aprendo l'app installata, se le
+     notifiche non sono attive (e non le hai bloccate), il popup compare
+     una volta per apertura dell'app. */
+  function initStandalonePushOffer() {
+    try {
+      if (!window.SeevaData || !window.SeevaData.isStandaloneApp || !window.SeevaData.isStandaloneApp()) return;
+      if (sessionStorage.getItem('seeva:pushOfferedThisSession')) return;
+      sessionStorage.setItem('seeva:pushOfferedThisSession', '1');
+    } catch (err) { return; }
+    window.setTimeout(function () { offerPushPromptIfNeeded(); }, 2500);
+  }
+
+  /* Notifiche: (1) il service worker può chiedere alla pagina di aprire
+     un indirizzo quando non riesce a farlo lui (vedi notificationclick in
+     sw.js); (2) aprendo l'app si tolgono dalla barra le notifiche di seeva
+     già vecchie -- ipotesi di Fil, 2026-10-04: restavano lì dopo aver già
+     visto tutto dall'app, e toccarle dopo non portava da nessuna parte. */
+  function initNotificationHousekeeping() {
+    if (!('serviceWorker' in navigator)) return;
+    try {
+      navigator.serviceWorker.addEventListener('message', function (e) {
+        var d = e.data || {};
+        if (d.type === 'seeva-navigate' && d.url && d.url.indexOf(location.origin) === 0) {
+          location.href = d.url;
+        }
+      });
+      if (navigator.serviceWorker.startMessages) navigator.serviceWorker.startMessages();
+    } catch (err) { /* ignora */ }
+    function clearShown() {
+      if (document.visibilityState !== 'visible') return;
+      navigator.serviceWorker.getRegistration('sw.js').then(function (reg) {
+        if (!reg || !reg.getNotifications) return;
+        return reg.getNotifications().then(function (list) { list.forEach(function (n) { n.close(); }); });
+      }).catch(function () { /* ignora */ });
+    }
+    clearShown();
+    document.addEventListener('visibilitychange', clearShown);
+  }
+
   /* ---------- "Segnala problema" ----------
      Fil, 2026-07-20: bottone temporaneo per il giro di test con gli amici
      (da togliere più avanti — basterà cancellare questa funzione e la sua
@@ -2178,7 +2224,7 @@
       + '</div>'
       + '<div class="signup-modal-text" style="text-align:left; margin-bottom:10px;">Scrivi cosa è successo: pagina, dispositivo e (se ci sono stati) gli ultimi errori vengono allegati da soli.</div>'
       + '<textarea class="report-problem-textarea" id="reportProblemText" placeholder="Es. ho premuto Conferma e non è successo niente..."></textarea>'
-      + '<div class="field-hint" id="reportProblemError" style="color:var(--cancel); min-height:16px; margin-top:6px;"></div>'
+      + '<div class="field-hint" id="reportProblemError" style="color:var(--cancel-ink); min-height:16px; margin-top:6px;"></div>'
       + '<button type="button" class="primary-btn" id="reportProblemSendBtn" style="margin-top:14px;">Invia segnalazione</button>'
       + '</div>';
     document.body.appendChild(overlay);
@@ -2261,7 +2307,114 @@
     initReportProblem();
     initGlobalNotifWatcher();
     initOpenInAppBanner();
+    try { initTypedDates(); } catch (err) { /* mai bloccare la pagina per questo */ }
+    initStandalonePushOffer();
+    initNotificationHousekeeping();
   });
+
+  /* ---------- Date scrivibili a mano (Big Fra, 2026-10-03: "se non
+     voglio usare il calendario, vorrei poter inserire la data
+     manualmente") ----------
+     Ogni <input type="date"> dell'app riceve accanto un campo di testo
+     "gg/mm/aaaa" (le barre si mettono da sole) e resta usabile come prima
+     toccando l'icona calendario a destra. Il campo date originale resta la
+     "fonte di verità" (tutto il resto del codice legge/scrive .value lì):
+     qui teniamo solo sincronizzati i due. */
+  function initTypedDates() {
+    var proto = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+    function isoToText(iso) {
+      var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+      return m ? m[3] + '/' + m[2] + '/' + m[1] : '';
+    }
+    function textToISO(txt) {
+      var m = /^\s*(\d{1,2})[\/\.\-\s](\d{1,2})[\/\.\-\s](\d{2}|\d{4})\s*$/.exec(txt || '');
+      if (!m) return null;
+      var d = +m[1], mo = +m[2], y = +m[3];
+      if (y < 100) y += 2000;
+      var dt = new Date(y, mo - 1, d);
+      if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+      return y + '-' + pad(mo) + '-' + pad(d);
+    }
+    function enhance(dateInput) {
+      if (dateInput.__typedDate || dateInput.hasAttribute('data-no-typed')) return;
+      dateInput.__typedDate = true;
+      var wrap = document.createElement('span');
+      wrap.className = 'date-typed';
+      var text = document.createElement('input');
+      text.type = 'text';
+      text.className = 'date-typed-text';
+      text.setAttribute('inputmode', 'numeric');
+      text.setAttribute('autocomplete', 'off');
+      text.placeholder = 'gg/mm/aaaa';
+      dateInput.parentNode.insertBefore(wrap, dateInput);
+      wrap.appendChild(text);
+      wrap.appendChild(dateInput);
+      dateInput.classList.add('date-typed-native');
+      dateInput.setAttribute('tabindex', '-1');
+      dateInput.setAttribute('aria-label', 'Scegli dal calendario');
+
+      // Se il codice imposta .value da sé (bozza ripristinata, modifica
+      // evento), il testo si aggiorna comunque.
+      try {
+        Object.defineProperty(dateInput, 'value', {
+          configurable: true,
+          get: function () { return proto.get.call(this); },
+          set: function (v) { proto.set.call(this, v); text.value = isoToText(proto.get.call(this)); text.classList.remove('is-invalid'); }
+        });
+      } catch (err) { /* ignora: resta solo il calendario */ }
+      text.value = isoToText(proto.get.call(dateInput));
+
+      function fire() {
+        dateInput.dispatchEvent(new Event('input', { bubbles: true }));
+        dateInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      text.addEventListener('input', function (e) {
+        var v = text.value;
+        // barre automatiche solo mentre si scrive (non cancellando)
+        if (e.inputType && e.inputType.indexOf('delete') !== 0) {
+          var digits = v.replace(/\D/g, '').slice(0, 8);
+          var slashesOk = true;
+          for (var si = 0; si < v.length; si++) { if (v[si] === '/' && si !== 2 && si !== 5) slashesOk = false; }
+          if (slashesOk && /^\d+$/.test(v.replace(/\//g, ''))) {
+            v = digits.slice(0, 2) + (digits.length > 2 ? '/' + digits.slice(2, 4) : '') + (digits.length > 4 ? '/' + digits.slice(4) : '');
+            if (digits.length === 2 || digits.length === 4) v += '/';
+            text.value = v;
+          }
+        }
+        var iso = textToISO(text.value);
+        var before = proto.get.call(dateInput);
+        proto.set.call(dateInput, iso || '');
+        text.classList.toggle('is-invalid', !iso && text.value.replace(/\D/g, '').length >= 6);
+        if ((iso || '') !== before) fire();
+      });
+      text.addEventListener('blur', function () {
+        if (text.value && !textToISO(text.value)) text.classList.add('is-invalid');
+      });
+      dateInput.addEventListener('change', function () {
+        if (document.activeElement === text) return; // stai scrivendo: non toccare il testo
+        text.value = isoToText(proto.get.call(dateInput));
+        text.classList.remove('is-invalid');
+      });
+      dateInput.addEventListener('input', function () {
+        if (document.activeElement !== text) text.value = isoToText(proto.get.call(dateInput));
+      });
+    }
+    function scan(root) {
+      (root.querySelectorAll ? root.querySelectorAll('input[type="date"]') : []).forEach(enhance);
+    }
+    scan(document);
+    if (window.MutationObserver) {
+      new MutationObserver(function (muts) {
+        muts.forEach(function (m) {
+          m.addedNodes.forEach(function (n) {
+            if (n.nodeType !== 1) return;
+            if (n.matches && n.matches('input[type="date"]')) enhance(n); else scan(n);
+          });
+        });
+      }).observe(document.body, { childList: true, subtree: true });
+    }
+  }
 
   // Gestisce il tasto "indietro" del browser (bfcache): la pagina torna dalla cache
   // già con le vecchie classi di transizione, quindi la rimettiamo a posto di scatto.

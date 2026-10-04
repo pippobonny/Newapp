@@ -230,7 +230,7 @@
           return status !== 'done' && status !== 'cancelled' && status !== 'passato';
         }).length;
         var confirmedCount = events.filter(function (e) {
-          return SeevaData.computeEventStatus(e).status === 'done';
+          return SeevaData.computeEventStatus(e).status === 'done' && !SeevaData.amINotGoing(e);
         }).length;
         var cancelledCount = events.filter(function (e) {
           return SeevaData.computeEventStatus(e).status === 'cancelled';

@@ -448,6 +448,7 @@
          campo foto, si riusa quell'URL direttamente senza ricaricarla; se scegli
          un file nuovo, questo prende priorità e l'URL riportato si dimentica. */
       var pendingEventPhotoFile = null;
+      var pendingPhotoUpload = null;
       var carriedPhotoUrl = null;
       var eventPhotoFile = document.getElementById('eventPhotoFile');
       var eventPhotoPreview = document.getElementById('eventPhotoPreview');
@@ -461,6 +462,7 @@
 
       function clearEventPhoto() {
         pendingEventPhotoFile = null;
+        pendingPhotoUpload = null;
         carriedPhotoUrl = null;
         eventPhotoFile.value = '';
         eventPhotoPreview.innerHTML = '<span id="eventPhotoEmoji"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><rect x="3" y="4" width="18" height="16" rx="2.5"></rect><circle cx="8.5" cy="10" r="1.6"></circle><path d="M21 16l-5.5-5.5a2 2 0 0 0-2.8 0L4 19"></path></svg></span><span class="photo-placeholder-text" id="eventPhotoPlaceholder">Carica una tua immagine</span>';
@@ -476,6 +478,20 @@
         if (!file) return;
         pendingEventPhotoFile = file;
         carriedPhotoUrl = null;
+
+        // Caricamento subito, in sottofondo (2026-10-04, foto "caricata"
+        // da Jack ma mai arrivata): il File scelto vive solo in memoria e si
+        // perdeva se la pagina si ricaricava (iPhone che libera memoria
+        // aprendo la galleria, giro "+ Crea una lista amici"...). Appena è
+        // online teniamo solo il suo indirizzo, che la bozza sa conservare.
+        var thisFile = file;
+        pendingPhotoUpload = SeevaData.uploadEventPhoto(file).then(function (url) {
+          if (pendingEventPhotoFile === thisFile) {
+            carriedPhotoUrl = url;
+            pendingEventPhotoFile = null;
+          }
+          return url;
+        }, function () { return null; /* riproverà al momento di creare l'evento */ });
 
         var reader = new FileReader();
         reader.onload = function (ev) {
@@ -876,7 +892,33 @@
         };
         document.head.appendChild(script);
 
+        // Verifica prima di attaccare i suggerimenti (2026-10-04, "Posizione
+        // non funzionante" / "errore Google"): se il progetto Google non è
+        // abilitato (es. fatturazione disattivata -> REQUEST_DENIED), Google
+        // trasforma il campo in un "Oops! Qualcosa è andato storto"
+        // inutilizzabile. In quel caso NON lo attacchiamo: il campo resta
+        // un normale testo da scrivere a mano, con un avviso gentile.
         function onMapsReady() {
+          var decided = false;
+          function giveUp() {
+            if (decided) return; decided = true;
+            pendingAutocompleteAttachments = [];
+            locationHint.style.display = '';
+            locationHint.textContent = 'Suggerimenti di Google Maps non disponibili al momento: scrivi pure l\'indirizzo a mano.';
+          }
+          window.gm_authFailure = giveUp;
+          try {
+            var probe = new google.maps.places.AutocompleteService();
+            probe.getPlacePredictions({ input: 'Asti' }, function (_preds, status) {
+              if (decided) return;
+              if (status === 'OK' || status === 'ZERO_RESULTS') { decided = true; reallyReady(); }
+              else giveUp();
+            });
+            window.setTimeout(function () { if (!decided) giveUp(); }, 6000);
+          } catch (err) { giveUp(); }
+        }
+
+        function reallyReady() {
           mapsReady = true;
           attachLocationAutocomplete(eventLocationInput, selectedLocation);
           pendingAutocompleteAttachments.forEach(function (pair) { attachLocationAutocomplete(pair[0], pair[1]); });
@@ -1568,6 +1610,10 @@
             }
           }
 
+          if (pendingEventPhotoFile && pendingPhotoUpload) {
+            createEventBtn.textContent = 'Carico la foto...';
+            await pendingPhotoUpload;
+          }
           var photoUrl = carriedPhotoUrl || null;
           if (pendingEventPhotoFile) {
             createEventBtn.textContent = 'Carico la foto...';
@@ -1938,6 +1984,73 @@
       }
 
       restoreDraftIfAny();
+
+      /* ---------- Date già impegnate (Fil, 2026-10-04, #15) ----------
+         Mentre crei (o modifichi) un evento: sotto ogni data che hai già
+         impegnata con un altro tuo evento compare un avviso. Qui non si
+         blocca niente (magari lo stai organizzando apposta), è solo un
+         promemoria. */
+      var crBusyDates = {};
+      function crBusyText(iso) {
+        var list = crBusyDates[iso];
+        if (!list || !list.length) return '';
+        var b = SeevaData.classifyBusy(list, eventTimeInput.value || null);
+        var all = b.hard.concat(b.soft);
+        return all.map(SeevaData.busyLabel).join(', ');
+      }
+      function crDayLabel(iso) {
+        var d = new Date(iso + 'T00:00:00');
+        return d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
+      }
+      function updateBusyHints() {
+        document.querySelectorAll('.date-busy-hint').forEach(function (el) { el.remove(); });
+        if (!Object.keys(crBusyDates).length) return;
+        // date singole
+        dateRowList.querySelectorAll('.date-row').forEach(function (row) {
+          var inp = row.querySelector('input[type="date"]');
+          var txt = inp && inp.value ? crBusyText(inp.value) : '';
+          if (!txt) return;
+          var hint = document.createElement('div');
+          hint.className = 'date-busy-hint';
+          hint.textContent = '⚠️ Quel giorno hai già ' + txt;
+          row.parentNode.insertBefore(hint, row.nextSibling);
+        });
+        // range
+        var rs = document.getElementById('rangeStart').value;
+        var re = document.getElementById('rangeEnd').value;
+        if (rs && re && rs <= re) {
+          var lines = [];
+          var d = new Date(rs + 'T00:00:00'), end = new Date(re + 'T00:00:00'), guard = 0;
+          while (d <= end && guard++ < 62) {
+            var iso = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+            var t = crBusyText(iso);
+            if (t) lines.push(crDayLabel(iso) + ': ' + t);
+            d.setDate(d.getDate() + 1);
+          }
+          if (lines.length) {
+            var rangeRow = document.getElementById('rangeEnd').closest('.date-row');
+            var h = document.createElement('div');
+            h.className = 'date-busy-hint';
+            h.textContent = '⚠️ Giorni già impegnati — ' + lines.slice(0, 5).join(' · ') + (lines.length > 5 ? ' · e altri ' + (lines.length - 5) : '');
+            rangeRow.parentNode.insertBefore(h, rangeRow.nextSibling);
+          }
+        }
+      }
+      ['input', 'change'].forEach(function (evName) {
+        document.getElementById('wizardStep3').addEventListener(evName, function (e) {
+          if (e.target && e.target.type === 'date') updateBusyHints();
+        });
+      });
+      dateRowList.addEventListener('click', function (e) {
+        if (e.target && e.target.classList && e.target.classList.contains('remove-date')) window.setTimeout(updateBusyHints, 0);
+      });
+      eventTimeInput.addEventListener('change', updateBusyHints);
+      SeevaData.getMyBusyDates(editEventId || null).then(function (m) {
+        crBusyDates = m || {};
+        updateBusyHints();
+        // in modifica le date arrivano un attimo dopo: ricontrollo
+        window.setTimeout(updateBusyHints, 1500);
+      }, function () { /* ignora */ });
 
       /* ---------- popolamento in modalità modifica ---------- */
       if (isEditMode) {

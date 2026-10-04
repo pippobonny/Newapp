@@ -45,6 +45,11 @@
      stesso #F0E6EA, ora una variabile sola così la dark mode qui sotto la
      cambia in un posto solo. */
   --track-soft: #F0E6EA;
+  /* Colori da usare come TESTO (non come sfondo): in dark mode qui sotto
+     diventano più chiari, altrimenti viola/rosso scuri su sfondo scuro non
+     si leggono (2026-10-04). Per gli sfondi resta --lavender/--cancel. */
+  --lavender-ink: #6B3F73;
+  --cancel-ink: #BC4749;
 }
 
 /* Dark mode (Fil, 2026-07-21): segue il tema di sistema, nessun tasto/opzione
@@ -646,7 +651,7 @@ a.back-btn:active { transform: scale(0.92); }
 }
 
 .card.is-cancelled .card-date {
-  color: var(--cancel);
+  color: var(--cancel-ink);
 }
 
 .card-top {
@@ -775,7 +780,7 @@ a.back-btn:active { transform: scale(0.92); }
    testo intorno) e sembravano testo normale, non cliccabile. Stesso
    trattamento di .field-hint a: colore + grassetto (Fil, 2026-07-17). */
 .empty-hint a {
-  color: var(--lavender);
+  color: var(--lavender-ink);
   font-weight: 600;
 }
 
@@ -788,7 +793,7 @@ a.back-btn:active { transform: scale(0.92); }
    solo quando interagisci col campo a cui si riferisce, vedi showOnceHint. */
 .hint-bubble {
   background: var(--lavender-soft);
-  color: var(--lavender);
+  color: var(--lavender-ink);
   font-size: 11.5px;
   line-height: 1.4;
   padding: 6px 10px;
@@ -1137,7 +1142,7 @@ a.back-btn:active { transform: scale(0.92); }
   margin-top: 6px;
 }
 
-.field-hint a { color: var(--lavender); font-weight: 600; }
+.field-hint a { color: var(--lavender-ink); font-weight: 600; }
 
 /* Opzioni secondarie di un form (es. "salva come lista amici", "apri il
    link a tutti" in crea.html), raggruppate in un'unica bolla leggera invece
@@ -1311,7 +1316,7 @@ a.back-btn:active { transform: scale(0.92); }
   height: 26px;
   border-radius: 50%;
   background: var(--card);
-  color: var(--lavender);
+  color: var(--lavender-ink);
   box-shadow: 0 3px 10px rgba(58,50,90,0.22);
   z-index: 2;
 }
@@ -1324,7 +1329,7 @@ a.back-btn:active { transform: scale(0.92); }
   top: 100%;
   margin-top: 6px;
   background: var(--lavender-soft);
-  color: var(--lavender);
+  color: var(--lavender-ink);
   font-size: 11.5px;
   line-height: 1.4;
   padding: 8px 10px;
@@ -1487,7 +1492,7 @@ label.event-photo-preview {
   height: 34px;
   border-radius: 10px;
   background: var(--peach-soft);
-  color: var(--cancel);
+  color: var(--cancel-ink);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1549,7 +1554,7 @@ label.event-photo-preview {
 }
 
 .form-error {
-  color: var(--cancel);
+  color: var(--cancel-ink);
   font-size: 12.5px;
   font-weight: 600;
   margin: -10px 0 14px;
@@ -1610,7 +1615,7 @@ label.event-photo-preview {
 }
 /* Location: colore diverso dalle date (Fil, 2026-08-23: "stessi colori,
    confusionario") — due categorie diverse, due colori diversi. */
-.mini-chip.is-location { background: var(--lavender-soft); color: var(--lavender); }
+.mini-chip.is-location { background: var(--lavender-soft); color: var(--lavender-ink); }
 
 /* ---------- evento.html: tessere compatte "dove"/"tu" (Fil, 2026-08-23)
    ----------
@@ -1754,7 +1759,7 @@ label.event-photo-preview {
 .comments-tile-icon {
   width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  background: var(--sky-soft); color: var(--lavender);
+  background: var(--sky-soft); color: var(--lavender-ink);
 }
 
 /* Righe messaggio dentro il popup commenti: avatar tondo con iniziale
@@ -1956,7 +1961,7 @@ label.event-photo-preview {
   justify-content: center;
   border-radius: 16px;
   border: 1.5px solid var(--cancel);
-  color: var(--cancel);
+  color: var(--cancel-ink);
   font-weight: 600;
   font-size: 14.5px;
   font-family: 'Inter', sans-serif;
@@ -2198,7 +2203,7 @@ label.event-photo-preview {
 .share-box .share-label {
   font-size: 12.5px;
   font-weight: 600;
-  color: var(--lavender);
+  color: var(--lavender-ink);
   margin-bottom: 8px;
 }
 
@@ -2283,7 +2288,7 @@ a.notif-item:active { background: var(--track-soft); }
   gap: 10px;
 }
 
-.settings-row.danger { color: var(--cancel); }
+.settings-row.danger { color: var(--cancel-ink); }
 
 /* "Chi c'è per ogni giorno" (evento.html): bordo trasparente di base su ogni
    riga, così quando quella con più adesioni lo colora d'arancione non sposta
@@ -2957,7 +2962,7 @@ a.notif-item:active { background: var(--track-soft); }
 /* "Tocca la data per aggiungerla al calendario" (Fil, 2026-07-20). */
 .confirmed-date-add-cal {
   font-size: 11.5px;
-  color: var(--lavender);
+  color: var(--lavender-ink);
   font-weight: 600;
   margin-top: 4px;
 }
@@ -3279,7 +3284,7 @@ a.notif-item:active { background: var(--track-soft); }
 }
 
 .balance-pill-amount-positive { color: #1D6B47; background: #E4F3EA; }
-.balance-pill-amount-negative { color: var(--cancel); background: var(--cancel-soft); }
+.balance-pill-amount-negative { color: var(--cancel-ink); background: var(--cancel-soft); }
 .balance-pill-amount-neutral { color: var(--ink-soft); background: var(--past-soft); }
 
 .settlement-sentence-row {
@@ -3297,7 +3302,7 @@ a.notif-item:active { background: var(--track-soft); }
   height: 24px;
   border-radius: 50%;
   background: var(--card);
-  color: var(--lavender);
+  color: var(--lavender-ink);
   font-size: 10.5px;
   font-weight: 600;
   display: flex;
@@ -3309,7 +3314,7 @@ a.notif-item:active { background: var(--track-soft); }
 
 .settlement-sentence-text {
   font-size: 12.5px;
-  color: var(--lavender);
+  color: var(--lavender-ink);
   line-height: 1.4;
 }
 
@@ -3409,7 +3414,7 @@ a.notif-item:active { background: var(--track-soft); }
 
 .menu-dropdown-item + .menu-dropdown-item { border-top: 1px solid rgba(58,50,90,0.06); }
 
-.menu-dropdown-item.danger { color: var(--cancel); }
+.menu-dropdown-item.danger { color: var(--cancel-ink); }
 
 .menu-dropdown-item:active { background: var(--mint-soft); }
 
@@ -3675,4 +3680,128 @@ a.notif-item:active { background: var(--track-soft); }
   bottom: auto; top: 50%; right: -16px;
   width: 38px; height: 38px;
   margin-top: -19px;
+}
+
+/* eventi.html: confermati a cui hai detto "non ci sono" (2026-10-04) */
+.not-going-group { margin-top: 18px; }
+.not-going-group > summary {
+  cursor: pointer; list-style: none; font-size: 13.5px; font-weight: 600;
+  color: var(--ink-soft); padding: 10px 4px; user-select: none;
+}
+.not-going-group > summary::-webkit-details-marker { display: none; }
+.not-going-group > summary::before { content: '▸ '; }
+.not-going-group[open] > summary::before { content: '▾ '; }
+.not-going-group .event-card, .not-going-group > a { opacity: 0.75; }
+
+/* "La tua risposta" a 3 pulsanti (evento.html, 2026-10-04): la risposta
+   attuale è evidenziata, le altre sono subito accanto per cambiarla. */
+.rsvp-seg { display: flex; gap: 8px; margin: 4px 0 10px; }
+.rsvp-seg-btn {
+  flex: 1; min-height: 48px; padding: 10px 6px; border-radius: 16px;
+  border: 1.5px solid var(--track-soft); background: var(--card); color: var(--ink);
+  font: 600 14px 'Inter', sans-serif; cursor: pointer;
+  transition: transform .15s ease, background .2s ease, border-color .2s ease;
+}
+.rsvp-seg-btn:active { transform: scale(0.97); }
+.rsvp-seg-btn.is-yes.is-active { background: var(--confirmed); border-color: var(--confirmed); color: #fff; }
+.rsvp-seg-btn.is-maybe.is-active { background: var(--butter); border-color: var(--butter); color: #3D2244; }
+.rsvp-seg-btn.is-no.is-active { background: var(--cancel); border-color: var(--cancel); color: #fff; }
+.rsvp-seg.is-saving { opacity: .6; pointer-events: none; }
+.rsvp-flash { animation: rsvpFlash 1.2s ease; border-radius: 18px; }
+@keyframes rsvpFlash { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,122,41,0); } 30% { box-shadow: 0 0 0 6px rgba(255,122,41,.45); } }
+.invitee-chip.is-me { cursor: pointer; outline: 1.5px dashed var(--peach); outline-offset: 1px; }
+.invitee-chip-edit { font-size: 11px; font-weight: 600; color: var(--peach); margin-left: 3px; }
+
+.add-cal-link {
+  text-align: center; font-size: 13.5px; font-weight: 600; color: var(--lavender-ink);
+  padding: 10px; margin: 0 0 6px; border-radius: 12px; background: var(--lavender-soft); cursor: pointer;
+}
+
+/* Date già impegnate da un altro tuo evento (#15, 2026-10-04). */
+.day-card { position: relative; }
+.day-card.is-busy { opacity: 0.55; background: var(--track-soft); }
+.day-card .day-busy-lock { position: absolute; top: 4px; left: 6px; font-size: 10px; line-height: 1; }
+.busy-note {
+  font-size: 12.5px; line-height: 1.45; color: var(--ink); background: var(--butter-soft);
+  border-radius: 12px; padding: 8px 12px; margin: 0 0 10px;
+}
+.busy-note.is-hard { background: var(--cancel-soft); }
+.busy-note-list { font-size: 12px; line-height: 1.5; color: var(--ink-soft); margin: -6px 2px 14px; }
+.busy-note-list b { color: var(--ink); }
+.date-busy-hint { font-size: 12px; line-height: 1.4; color: var(--ink); background: var(--butter-soft); border-radius: 10px; padding: 6px 10px; margin: -4px 0 10px; }
+
+/* ===================================================================
+   MODALITÀ SCURA — correzioni contrasto (2026-10-04)
+   Segnalazioni: "Quando si terrà si vede bianco su bianco", "non si
+   vedono Forse e Non ci sono", "non si legge il coso in giallo".
+   Causa unica: i colori "-soft" (pastelli chiari) restavano chiari anche
+   in dark mode, mentre il testo (--ink) diventa chiaro -> chiaro su
+   chiaro. Ora i "-soft" diventano tinte scure, e i testi scuri fissati
+   a mano sopra di loro diventano chiari. Sta IN FONDO al file apposta:
+   a parità di specificità vince l'ultima regola.
+   =================================================================== */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --mint-soft: #4A2E20;
+    --peach-soft: #4A2E20;
+    --butter-soft: #4A3820;
+    --lavender-soft: #3D2A47;
+    --sky-soft: #3F2A49;
+    --cancel-soft: #4D2629;
+    --confirmed-soft: #213D28;
+    --past-soft: #352B3C;
+    --lavender-ink: #D9B8E0;
+    --cancel-ink: #F08E90;
+  }
+
+  .badge.waiting, .confirmed-date-icon.status-waiting { color: #E3BDE8; }
+  .badge.almost, .confirmed-date-icon.status-almost { color: #FFC48A; }
+  .badge.done, .invitee-chip.is-available, .comment-tag { color: #A6DDB0; }
+  .badge.cancelled, .invitee-chip.is-absent { color: #F4A9AB; }
+  .badge.linked { color: #EBD0F0; }
+  .badge.new { color: #FFB784; }
+  .admin-app-badge.yes { color: #A6DDB0; }
+
+  .balance-pill-amount-positive { background: #213D28; color: #A6DDB0; }
+  .confirmed-date-icon { background: rgba(255, 255, 255, 0.08); }
+  .notif-icon { color: var(--ink); }
+  .settlement-sentence-avatar { background: var(--lavender-soft); }
+
+  /* La data del "Si terrà" resta in evidenza: bordo arancio leggero. */
+  .confirmed-date-card { border: 1px solid rgba(255, 122, 41, 0.35); }
+
+  /* Giorni / location selezionati: oltre al colore, un bordo arancio,
+     così la scelta si vede bene anche su sfondo scuro. */
+  .chip.selected { box-shadow: inset 0 0 0 1.5px var(--peach); }
+
+  .rsvp-seg-btn { border-color: rgba(255, 255, 255, 0.14); }
+}
+
+/* Date scrivibili a mano (vedi initTypedDates in script.js, 2026-10-04):
+   campo di testo "gg/mm/aaaa" + l'input data vero, invisibile, sopra
+   l'icona calendario a destra (un tap lì apre il calendario di sempre). */
+.date-typed { position: relative; display: block; width: 100%; }
+.date-row .date-typed { flex: 1; min-width: 0; width: 1px; }
+.date-typed input.date-typed-text,
+.field .date-typed input.date-typed-text {
+  width: 100%;
+  padding-right: 42px !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23FF7A29' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='3'/%3E%3Cline x1='16' y1='2' x2='16' y2='6'/%3E%3Cline x1='8' y1='2' x2='8' y2='6'/%3E%3Cline x1='3' y1='10' x2='21' y2='10'/%3E%3C/svg%3E");
+  background-color: var(--card);
+  background-repeat: no-repeat;
+  background-position: right 13px center;
+  background-size: 17px;
+}
+.date-typed .date-typed-text.is-invalid { box-shadow: 0 0 0 2px var(--cancel-ink) !important; }
+.date-typed input.date-typed-native,
+.field .date-typed input.date-typed-native,
+.date-row .date-typed input.date-typed-native {
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: 42px !important; min-width: 0; height: 100%;
+  padding: 0 !important; margin: 0; border: 0; box-shadow: none !important;
+  opacity: 0; cursor: pointer; background: transparent; color: transparent;
+  flex: none;
+}
+.date-typed input.date-typed-native::-webkit-calendar-picker-indicator {
+  position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;
 }

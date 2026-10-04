@@ -136,7 +136,7 @@
         // riquadro "Da confermare" in Home lo conta già tra le sue, il
         // numero deve corrispondere a quello che si vede aprendolo.
         if (filter === 'attesa') return status === 'waiting' || status === 'almost' || status === 'tie';
-        if (filter === 'confermati') return status === 'done';
+        if (filter === 'confermati') return status === 'done' && !SeevaData.amINotGoing(event); // chi ha detto "non ci sono" non lo vede qui (Fil, 2026-10-04)
         if (filter === 'annullati') return status === 'cancelled';
         return true;
       }
@@ -146,6 +146,18 @@
         var newHTML = filtered.length
           ? filtered.map(SeevaData.renderEventCardHTML).join('')
           : '<div class="empty-hint">Nessun evento in questa categoria.</div>';
+        // Confermati a cui hai detto "non ci sono" (Fil, 2026-10-04): non
+        // contano tra i tuoi confermati, ma restano raggiungibili qui in
+        // fondo (chiusi), così puoi sempre aprirli e cambiare idea.
+        if (filter === 'confermati') {
+          var notGoing = events.filter(function (e) {
+            return SeevaData.computeEventStatus(e).status === 'done' && SeevaData.amINotGoing(e);
+          });
+          if (notGoing.length) {
+            newHTML += '<details class="not-going-group"><summary>Hai detto che non ci sei (' + notGoing.length + ')</summary>'
+              + notGoing.map(SeevaData.renderEventCardHTML).join('') + '</details>';
+          }
+        }
 
         // Fil, 2026-07-22: se il refresh automatico non ha trovato niente di
         // nuovo (il caso più comune), non tocca il DOM — altrimenti ogni

@@ -267,6 +267,19 @@
     return lines.join('\r\n');
   }
 
+  /* Indirizzo vero del calendario (Edge Function event-ics, 2026-10-04):
+     su iPhone è l'unico modo affidabile per far comparire "Aggiungi a
+     Calendario" — il file creato al volo nel browser lì non si apre. */
+  function eventIcsUrl(event, dateISO) {
+    return SUPABASE_URL + '/functions/v1/event-ics?id=' + encodeURIComponent(event.id)
+      + (dateISO ? '&date=' + encodeURIComponent(dateISO) : '');
+  }
+
+  function isIOS() {
+    var ua = (global.navigator && global.navigator.userAgent) || '';
+    return /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && global.navigator.maxTouchPoints > 1);
+  }
+
   function escapeHTML(str) {
     var div = document.createElement('div');
     div.textContent = str == null ? '' : String(str);
@@ -1587,6 +1600,18 @@
     try { sessionStorage.removeItem(EVENTS_CACHE_KEY); } catch (err) { /* ignora */ }
   }
 
+  /* Date sempre in ordine cronologico (Virgi, 2026-10-04: "dopo una
+     modifica vengono messe in ordine di inserimento, non di data"). Il
+     database le restituisce nell'ordine in cui sono state create: una data
+     aggiunta modificando l'evento finiva in fondo anche se veniva prima.
+     Si ordinano qui, una volta sola, così ogni pagina le vede giuste. */
+  function sortEventDates(ev) {
+    if (ev && Array.isArray(ev.dateOptions)) {
+      ev.dateOptions.sort(function (a, b) { return a.dateISO < b.dateISO ? -1 : (a.dateISO > b.dateISO ? 1 : 0); });
+    }
+    return ev;
+  }
+
   async function getEvents() {
     var cached = readEventsCache();
     if (cached) return cached;
@@ -1596,7 +1621,7 @@
       .select(EVENT_SELECT)
       .order('created_at', { ascending: false });
     if (res.error) throwSupabaseError(res.error);
-    var events = res.data || [];
+    var events = (res.data || []).map(sortEventDates);
     pruneCancelledEvents(events);
     var visible = filterVisibleEvents(events);
     writeEventsCache(visible);
@@ -1612,7 +1637,7 @@
     if (!id) return null;
     var res = await supabase.rpc('get_event_public', { p_id: id });
     if (res.error) throwSupabaseError(res.error);
-    if (res.data) pruneCancelledEvents([res.data]);
+    if (res.data) { sortEventDates(res.data); pruneCancelledEvents([res.data]); }
     return res.data || null;
   }
 
@@ -2934,6 +2959,96 @@
       .map(function (p) { return p.name; });
   }
 
+  /* "Non ci sono" su un evento confermato (Fil, 2026-10-04): per chi ha
+     risposto di no l'evento NON deve stare tra i suoi "Confermati" (Home,
+     Eventi, promemoria del prossimo evento). Vale anche per chi aveva votato
+     solo date diverse da quella poi fissata. "Forse" non conta come no.
+     L'organizzatore non risulta mai assente. Restano visibili sotto "Tutti". */
+  function amINotGoing(event) {
+    if (!event) return false;
+    var info = computeEventStatus(event);
+    if (info.status !== 'done' || !info.bestOption) return false;
+    var acc = getAccount();
+    var myId = acc && acc.id;
+    var myName = (getGuestName() || '').trim().toLowerCase();
+    if (event.createdByAccountId && myId && event.createdByAccountId === myId) return false;
+    if (myName && (event.createdBy || '').trim().toLowerCase() === myName) return false;
+    var me = (event.participants || []).filter(function (p) {
+      return (myId && p.accountId === myId) || (myName && (p.name || '').trim().toLowerCase() === myName);
+    })[0];
+    if (!me || me.maybe) return false;
+    return (me.availableDateOptionIds || []).indexOf(info.bestOption.id) === -1;
+  }
+
+  /* ---------- Date già impegnate (Fil, 2026-10-04, segnalazione #15) ----------
+     "Se hai già una data impegnata da un evento e ne arriva/crei uno nuovo,
+     quella data viene bloccata con scritto l'evento, con possibilità di
+     sblocco." Regole decise con Fil:
+     - contano TUTTI i tuoi eventi su quel giorno (organizzati, ci sono,
+       forse, non ancora risposto) TRANNE quelli dove hai detto "non ci sono";
+     - evento confermato o a data fissa -> data "bloccata" (hard);
+       evento a più date non ancora deciso -> solo le date che hai votato,
+       e solo come avviso (soft), visto che non è ancora sicuro;
+     - se entrambi hanno un orario e sono lontani (4 ore o più, es. pranzo
+       e cena) -> solo un piccolo avviso, niente blocco.
+     Restituisce { 'YYYY-MM-DD': [ { eventId, name, time, firm } ] }. */
+  async function getMyBusyDates(excludeEventId) {
+    if (!hasAccount()) return {};
+    var events;
+    try { events = await getEvents(); } catch (err) { return {}; }
+    var acc = getAccount();
+    var myId = acc && acc.id;
+    var myName = (getGuestName() || '').trim().toLowerCase();
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var map = {};
+    function add(iso, ev, firm) {
+      if (!iso || new Date(iso + 'T00:00:00') < today) return;
+      (map[iso] = map[iso] || []).push({ eventId: ev.id, name: ev.name, time: formatTimeLabel(ev.eventTime) || null, firm: firm });
+    }
+    (events || []).forEach(function (ev) {
+      if (!ev || ev.id === excludeEventId) return;
+      var info = computeEventStatus(ev);
+      if (info.status === 'cancelled' || info.status === 'passato') return;
+      var isOrg = (myId && ev.createdByAccountId === myId) || (myName && (ev.createdBy || '').trim().toLowerCase() === myName);
+      var me = (ev.participants || []).filter(function (p) {
+        return (myId && p.accountId === myId) || (myName && (p.name || '').trim().toLowerCase() === myName);
+      })[0];
+      var saidNo = !isOrg && me && !me.maybe && (me.availableDateOptionIds || []).length === 0;
+      var opts = ev.dateOptions || [];
+      if (info.status === 'done' && info.bestOption) {
+        if (amINotGoing(ev)) return;
+        add(info.bestOption.dateISO, ev, true);
+      } else if (opts.length === 1) {
+        if (saidNo) return;
+        add(opts[0].dateISO, ev, true);
+      } else if (me) {
+        // più date, non ancora deciso: solo i giorni che hai votato, come avviso
+        opts.forEach(function (o) {
+          if ((me.availableDateOptionIds || []).indexOf(o.id) !== -1) add(o.dateISO, ev, false);
+        });
+      }
+    });
+    return map;
+  }
+
+  /* Divide gli impegni di un giorno in "blocca" (hard) e "solo avviso"
+     (soft), tenendo conto dell'orario del nuovo evento (myTime "HH:MM"). */
+  function classifyBusy(entries, myTime) {
+    var hard = [], soft = [];
+    function mins(t) { var m = /^(\d{1,2}):(\d{2})/.exec(t || ''); return m ? (+m[1]) * 60 + (+m[2]) : null; }
+    var mine = mins(myTime);
+    (entries || []).forEach(function (e) {
+      var theirs = mins(e.time);
+      var farApart = mine !== null && theirs !== null && Math.abs(mine - theirs) >= 240;
+      if (e.firm && !farApart) hard.push(e); else soft.push(e);
+    });
+    return { hard: hard, soft: soft };
+  }
+
+  function busyLabel(e) {
+    return '"' + e.name + '"' + (e.time ? ' alle ' + e.time : '') + (e.firm ? '' : ' (non ancora confermato)');
+  }
+
   async function addEventExpense(eventId, input) {
     var res = await supabase.rpc('add_event_expense', {
       p_event_id: eventId,
@@ -3224,6 +3339,7 @@
     subscribeToPush: subscribeToPush,
     unsubscribeFromPush: unsubscribeFromPush,
     shouldOfferPushPrompt: shouldOfferPushPrompt,
+    isStandaloneApp: isStandaloneApp,
     startAutoRefresh: startAutoRefresh,
     getEvents: getEvents,
     getEventById: getEventById,
@@ -3247,6 +3363,10 @@
     hasUnreadNotifications: hasUnreadNotifications,
     countUnreadNotifications: countUnreadNotifications,
     computeEventStatus: computeEventStatus,
+    amINotGoing: amINotGoing,
+    getMyBusyDates: getMyBusyDates,
+    classifyBusy: classifyBusy,
+    busyLabel: busyLabel,
     computeLocationLeader: computeLocationLeader,
     resolveEventLocation: resolveEventLocation,
     buildMapsUrl: buildMapsUrl,
@@ -3276,6 +3396,8 @@
     formatEuro: formatEuro,
     computeExpenseBalances: computeExpenseBalances,
     SITE_URL: SITE_URL,
+    eventIcsUrl: eventIcsUrl,
+    isIOS: isIOS,
     GOOGLE_MAPS_API_KEY: GOOGLE_MAPS_API_KEY,
     getFriendLists: getFriendLists,
     getFriendListById: getFriendListById,

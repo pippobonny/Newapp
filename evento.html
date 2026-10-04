@@ -677,7 +677,9 @@
         // pillole di stato in giro per l'app, verde/rosso/neutro).
         var rowsHTML = rows.map(function (row) {
           var statusClass = row.statusKey === 'available' ? 'is-available' : row.statusKey === 'absent' ? 'is-absent' : '';
-          return '<span class="invitee-chip ' + statusClass + '">' + row.statusIconSVG + SeevaData.escapeHTML(row.name) + '</span>';
+          // La tua bolla si tocca per cambiare risposta (Big Fra, 2026-10-03).
+          var isMe = guestName && row.name.trim().toLowerCase() === guestName.trim().toLowerCase();
+          return '<span class="invitee-chip ' + statusClass + (isMe ? ' is-me' : '') + '"' + (isMe ? ' data-me-chip="1" title="Tocca per cambiare la tua risposta"' : '') + '>' + row.statusIconSVG + SeevaData.escapeHTML(row.name) + (isMe ? ' <span class="invitee-chip-edit">cambia</span>' : '') + '</span>';
         }).join('');
 
         // Restituisce anche "rows" grezzo (Fil, 2026-08-23), non solo
@@ -723,6 +725,55 @@
          di un invitato non ancora reclamato) non la tocca affatto. */
       var availabilityIsCompactTile = false;
 
+      /* ---------- Date già impegnate (Fil, 2026-10-04, #15) ----------
+         busyDates arriva da SeevaData.getMyBusyDates (i tuoi altri eventi
+         su quei giorni). Una data "bloccata" si sblocca con un tocco, solo
+         per quel giorno di QUESTO evento (ricordato su questo telefono). */
+      var busyDates = {};
+      function busyUnlockKey(iso) { return 'seeva:busyUnlock:' + event.id + ':' + iso; }
+      function isBusyUnlocked(iso) { try { return localStorage.getItem(busyUnlockKey(iso)) === '1'; } catch (err) { return false; } }
+      function unlockBusy(iso) { try { localStorage.setItem(busyUnlockKey(iso), '1'); } catch (err) { /* ignora */ } }
+      function busyFor(iso) { return SeevaData.classifyBusy(busyDates[iso], SeevaData.formatTimeLabel ? SeevaData.formatTimeLabel(event.eventTime) : (event.eventTime ? String(event.eventTime).slice(0, 5) : null)); }
+      function busyNamesText(list) { return list.map(SeevaData.busyLabel).join(', '); }
+      // Riga d'avviso per un giorno solo (eventi a data fissa / confermati).
+      function buildBusyNoteHTML(iso) {
+        if (!iso) return '';
+        var b = busyFor(iso);
+        if (b.hard.length && !isBusyUnlocked(iso)) {
+          return '<div class="busy-note is-hard">🔒 Quel giorno hai già ' + SeevaData.escapeHTML(busyNamesText(b.hard)) + '.</div>';
+        }
+        var all = b.hard.concat(b.soft);
+        if (all.length) return '<div class="busy-note">⚠️ Quel giorno hai anche ' + SeevaData.escapeHTML(busyNamesText(all)) + '.</div>';
+        return '';
+      }
+      // Chiede conferma prima di un "Ci sono" su un giorno bloccato.
+      function confirmBusyYes(iso) {
+        var b = busyFor(iso);
+        if (!b.hard.length || isBusyUnlocked(iso)) return true;
+        var ok = window.confirm('Quel giorno hai già ' + busyNamesText(b.hard) + '.\n\nVuoi rispondere "Ci sono" lo stesso?');
+        if (ok) unlockBusy(iso);
+        return ok;
+      }
+
+      /* ---------- "La tua risposta" a 3 pulsanti (Fil, 2026-10-04) ----------
+         Segnalazioni: "se metto Forse non posso cambiare", "il Ci sarò
+         dopotutto è super piccolo", "vorrei cambiare scelta dalle presenze".
+         Ora la risposta attuale è sempre un pulsante evidenziato e le
+         altre due sono lì accanto, grandi: un tap e cambi. "Forse" compare
+         solo a chi non ha ancora risposto o ha già risposto forse (regola
+         di Fil del 2026-10-03). ctx: 'single' = data singola non ancora
+         confermata, 'confirmed' = evento confermato. */
+      function buildRsvpSegHTML(currentKey, allowMaybe, ctx) {
+        function btn(key, label) {
+          return '<button type="button" class="rsvp-seg-btn is-' + key + (currentKey === key ? ' is-active' : '') + '" data-rsvp="' + key + '">' + label + '</button>';
+        }
+        return '<div class="rsvp-seg" id="rsvpSeg" data-ctx="' + ctx + '">'
+          + btn('yes', '✓ Ci sono')
+          + (allowMaybe ? btn('maybe', '🤔 Forse') : '')
+          + btn('no', '✕ Non ci sono')
+          + '</div>';
+      }
+
       /* ---------- sezione "quando sei disponibile" ----------
          Niente più campo "il tuo nome": l'identità arriva da SeevaData
          (account o nome ospite già impostato altrove). Se non c'è ancora
@@ -746,6 +797,17 @@
           return ''
             + '<div class="section-title">La tua disponibilità</div>'
             + '<div class="empty-hint">Imposta prima un nome dal tuo profilo per poter rispondere.<br><a href="profilo.html">Vai al profilo →</a></div>';
+        }
+
+        if (existingParticipant && !editingAvailability && event.dateOptions.length === 1 && !isOrganizer) {
+          var singleKey = (existingParticipant.availableDateOptionIds || []).length > 0 ? 'yes' : (existingParticipant.maybe ? 'maybe' : 'no');
+          return ''
+            + '<div class="section-title">La tua risposta</div>'
+            + buildBusyNoteHTML(event.dateOptions[0].dateISO)
+            + buildRsvpSegHTML(singleKey, singleKey === 'maybe', 'single')
+            + (singleKey === 'yes' ? '<div class="add-cal-link" id="addToCalLink">📅 Aggiungi al calendario</div>' : '')
+            + '<div class="form-error" id="formError"></div>'
+            + '<div style="text-align:center;"><span class="signup-skip-link" id="changeAvailabilityBtn">Aggiungi una nota per gli altri ›</span></div>';
         }
 
         if (existingParticipant && !editingAvailability) {
@@ -808,6 +870,7 @@
           var noteValue = (existingParticipant && existingParticipant.note) || '';
           return ''
             + '<div class="section-title">Ci sarai?</div>'
+            + buildBusyNoteHTML(event.dateOptions[0].dateISO)
             + buildLocationChipGridHTML(preselectedLocations)
             + '<div class="field"><input type="text" id="singleDateNoteInput" placeholder="Nota per gli altri, es. orario di arrivo (facoltativo)" value="' + SeevaData.escapeHTML(noteValue) + '"></div>'
             + '<div class="form-error" id="formError"></div>'
@@ -823,10 +886,19 @@
         // costringeva a scorrere parecchio prima di arrivare al bottone
         // "Conferma disponibilità". Data abbreviata (giorno/numero/mese) per
         // stare nello spazio stretto di una card piccola.
+        var busyLines = [];
         var dayCardsHTML = event.dateOptions.map(function (opt) {
           var selected = preselected.indexOf(opt.id) !== -1;
           var parts = shortDateParts(opt.dateISO);
-          return '<div class="chip day-card' + (selected ? ' selected' : '') + '" data-option-id="' + opt.id + '">'
+          // Giorno già impegnato (#15): bloccato finché non lo sblocchi.
+          var b = busyFor(opt.dateISO);
+          var locked = b.hard.length > 0 && !selected && !isBusyUnlocked(opt.dateISO);
+          var anyBusy = b.hard.concat(b.soft);
+          if (anyBusy.length) {
+            busyLines.push((locked ? '🔒 ' : '⚠️ ') + '<b>' + SeevaData.escapeHTML(parts.dow + ' ' + parts.day + ' ' + parts.month) + '</b>: hai già ' + SeevaData.escapeHTML(busyNamesText(anyBusy)) + (locked ? ' · tocca il giorno per sbloccarlo' : ''));
+          }
+          return '<div class="chip day-card' + (selected ? ' selected' : '') + (locked ? ' is-busy' : (anyBusy.length ? ' is-busy-soft' : '')) + '" data-option-id="' + opt.id + '" data-date-iso="' + opt.dateISO + '"' + (locked ? ' data-busy="1"' : '') + '>'
+            + (locked ? '<div class="day-busy-lock">🔒</div>' : (anyBusy.length ? '<div class="day-busy-lock">⚠️</div>' : ''))
             + '<div class="day-dow">' + SeevaData.escapeHTML(parts.dow) + '</div>'
             + '<div class="day-num">' + SeevaData.escapeHTML(parts.day) + '</div>'
             + '<div class="day-month">' + SeevaData.escapeHTML(parts.month) + '</div>'
@@ -837,6 +909,7 @@
         return ''
           + '<div class="section-title">Quando sei disponibile?</div>'
           + '<div class="day-grid" id="dayGrid">' + dayCardsHTML + '</div>'
+          + (busyLines.length ? '<div class="busy-note-list">' + busyLines.map(function (l) { return '<div>' + l + '</div>'; }).join('') + '</div>' : '')
           + buildLocationChipGridHTML(preselectedLocations)
           + '<div class="form-error" id="formError"></div>'
           + '<button type="button" class="primary-btn" id="confirmBtn">Conferma disponibilità</button>'
@@ -925,7 +998,7 @@
                 ? '<img src="' + SeevaData.escapeHTML(avatarUrl) + '" alt="" loading="lazy">'
                 : SeevaData.escapeHTML(initial);
               return ''
-                + '<div class="attendee-bubble">'
+                + '<div class="attendee-bubble"' + (guestName && !isOrganizer && name.toLowerCase() === guestName.toLowerCase() ? ' data-me-chip="1" style="cursor:pointer;"' : '') + '>'
                 + '<div class="attendee-bubble-circle">' + circleInner + '</div>'
                 + '<div class="attendee-bubble-name">' + SeevaData.escapeHTML(name) + '</div>'
                 + '</div>';
@@ -946,27 +1019,21 @@
           var iAmAttending = attendeeNames.some(function (n) { return n.toLowerCase() === mine; });
           var myParticipant = findExistingParticipant();
           var noteFieldHTML = '<div class="field"><input type="text" id="confirmedNoteInput" placeholder="Nota per gli altri, es. orario di arrivo (facoltativo)"></div>';
-          if (iAmAttending) {
-            withdrawActionHTML = '<div style="text-align:center; margin-top:6px;"><span class="signup-skip-link" id="withdrawFromEventLink">Non potrò esserci →</span></div>';
-          } else if (myParticipant && myParticipant.maybe) {
-            // Ha risposto "Forse" (Fil, 2026-10-03): resta la scelta
-            // definitiva a portata di mano.
+          if (myParticipant || iAmAttending) {
+            var confirmedKey = iAmAttending ? 'yes' : (myParticipant && myParticipant.maybe ? 'maybe' : 'no');
             withdrawActionHTML = ''
-              + '<div class="section-title">Hai risposto forse 🤔 Hai deciso?</div>'
-              + '<button type="button" class="primary-btn" id="rejoinEventLink">Ci sono</button>'
-              + '<div class="add-date-btn" id="declineEventLink" style="margin-top:10px;">Non ci sono</div>';
-          } else if (myParticipant) {
-            withdrawActionHTML = '<div style="text-align:center; margin-top:6px;"><span class="signup-skip-link" id="rejoinEventLink">Ci sarò dopotutto →</span></div>';
+              + '<div class="section-title">La tua risposta</div>'
+              + buildBusyNoteHTML(info.bestOption.dateISO)
+              + buildRsvpSegHTML(confirmedKey, confirmedKey === 'maybe', 'confirmed');
           } else if ((event.invitees || []).some(function (f) { return (f.name || '').trim().toLowerCase() === mine; }) || event.openInvite) {
             // Non ha ancora risposto: invitato aggiunto dopo (Fil,
             // 2026-09-26) o evento a data fissa confermato da subito (Fil,
             // 2026-10-03). Ci sono / Forse / Non ci sono.
             withdrawActionHTML = ''
               + '<div class="section-title">Ci sarai?</div>'
+              + buildBusyNoteHTML(info.bestOption.dateISO)
               + noteFieldHTML
-              + '<button type="button" class="primary-btn" id="rejoinEventLink">Ci sono</button>'
-              + '<div class="add-date-btn" id="maybeEventLink" style="margin-top:10px;">Forse</div>'
-              + '<div class="add-date-btn" id="declineEventLink" style="margin-top:10px;">Non ci sono</div>';
+              + buildRsvpSegHTML(null, true, 'confirmed');
           }
         }
 
@@ -1652,7 +1719,7 @@
         // fare aprendo la pagina. Eccezione: in pareggio manualConfirmTopHTML
         // (vedi sopra) sale subito sotto Invitati, perché lì è l'unica cosa
         // bloccante rimasta, non un dettaglio.
-        var cancelledMessageHTML = info.status !== 'cancelled' ? '' : '<div class="card-date" style="margin:2px 2px 16px; color:var(--cancel);">'
+        var cancelledMessageHTML = info.status !== 'cancelled' ? '' : '<div class="card-date" style="margin:2px 2px 16px; color:var(--cancel-ink);">'
           + (info.cancelledManually
               ? 'L\'organizzatore ha annullato l\'evento.'
               : 'Hanno risposto tutti gli invitati ma nessuno era disponibile: l\'evento si è annullato automaticamente.')
@@ -1926,31 +1993,16 @@
           confirmedDateCard.addEventListener('click', function () {
             var info = SeevaData.computeEventStatus(event);
             if (!info.bestOption) return;
-            var ics = SeevaData.buildEventICS(event, info.bestOption.dateISO);
-            var blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-            var url = URL.createObjectURL(blob);
+            addEventToCalendar(info.bestOption.dateISO);
+          });
+        }
 
-            // Fil, 2026-07-20: dopo due tentativi con trattamenti diversi
-            // per iOS/Android (rotti a turno su varianti che non riesco a
-            // testare -- Safari normale, PWA installata in standalone,
-            // Chrome/Samsung Internet), stesso comportamento OVUNQUE:
-            // scarica sempre il file con nome giusto ed estensione .ics, e
-            // lo si dice chiaramente. Meno "magico" di un'apertura diretta
-            // nel calendario, ma prevedibile in ogni contesto, PWA inclusa
-            // (dove aprire una nuova scheda semplicemente non esiste).
-            var safeName = (event.name || 'evento').replace(/[^\w\- ]/g, '').trim() || 'evento';
-            var fileName = safeName + '.ics';
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
-
-            if (window.SeevaUI) {
-              window.SeevaUI.toast('Scaricato "' + fileName + '": aprilo dai tuoi Download/File per aggiungerlo al calendario 📅');
-            }
+        // Data fissa non ancora confermata ma hai detto "Ci sono" (Fil,
+        // 2026-10-04): il calendario lo puoi aggiungere subito.
+        var addToCalLink = document.getElementById('addToCalLink');
+        if (addToCalLink) {
+          addToCalLink.addEventListener('click', function () {
+            addEventToCalendar(event.dateOptions[0].dateISO);
           });
         }
 
@@ -2089,6 +2141,15 @@
 
         document.querySelectorAll('#dayGrid .chip').forEach(function (chip) {
           chip.addEventListener('click', function () {
+            if (chip.getAttribute('data-busy') === '1' && !chip.classList.contains('selected')) {
+              var iso = chip.getAttribute('data-date-iso');
+              var b = busyFor(iso);
+              if (!window.confirm('Quel giorno hai già ' + busyNamesText(b.hard) + '.\n\nVuoi segnarti disponibile lo stesso?')) return;
+              unlockBusy(iso);
+              chip.removeAttribute('data-busy');
+              chip.classList.remove('is-busy');
+              chip.classList.add('is-busy-soft');
+            }
             chip.classList.toggle('selected');
           });
         });
@@ -2133,6 +2194,7 @@
         var singleDateYesBtn = document.getElementById('singleDateYesBtn');
         if (singleDateYesBtn) {
           singleDateYesBtn.addEventListener('click', function () {
+            if (!confirmBusyYes(event.dateOptions[0].dateISO)) return;
             var noteEl = document.getElementById('singleDateNoteInput');
             saveAvailability([singleDateYesBtn.getAttribute('data-option-id')], selectedLocationIds(), singleDateYesBtn, noteEl ? noteEl.value.trim() : '');
           });
@@ -2161,6 +2223,37 @@
             saveAvailability([], [], neverAvailableBtn);
           });
         }
+
+        // "La tua risposta" a 3 pulsanti (vedi buildRsvpSegHTML).
+        var rsvpSeg = document.getElementById('rsvpSeg');
+        if (rsvpSeg) {
+          rsvpSeg.querySelectorAll('[data-rsvp]').forEach(function (b) {
+            b.addEventListener('click', function () {
+              if (b.classList.contains('is-active') || rsvpSeg.classList.contains('is-saving')) return;
+              handleRsvpTap(b.getAttribute('data-rsvp'), rsvpSeg.getAttribute('data-ctx'), b);
+            });
+          });
+        }
+
+        // Tocchi la TUA bolla tra gli invitati / chi ci sarà -> ti porto a
+        // "La tua risposta" (o apro il form se l'evento ha più date).
+        document.querySelectorAll('[data-me-chip]').forEach(function (chip) {
+          chip.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var modal = document.getElementById('whoComingModal');
+            if (modal) modal.style.display = 'none';
+            var target = document.getElementById('rsvpSeg');
+            if (!target) {
+              var tile = document.getElementById('changeAvailabilityBtn');
+              if (tile) { editingAvailability = true; render(); }
+              target = document.getElementById('rsvpSeg') || document.getElementById('dayGrid') || document.getElementById('singleDateYesBtn');
+            }
+            if (target) {
+              target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              target.classList.remove('rsvp-flash'); void target.offsetWidth; target.classList.add('rsvp-flash');
+            }
+          });
+        });
 
         var changeAvailabilityBtn = document.getElementById('changeAvailabilityBtn');
         if (changeAvailabilityBtn) {
@@ -2521,6 +2614,78 @@
           rowEl.style.transition = 'transform 0.28s cubic-bezier(.22,1,.36,1)';
           rowEl.style.transform = '';
         });
+      }
+
+      function addEventToCalendar(dateISO) {
+            // iPhone (Michi, Pattu 2026-10-03: "non si collega al
+            // calendario"): apro l'indirizzo vero del .ics, iOS mostra da
+            // solo "Aggiungi a Calendario". Android resta com'era.
+            if (SeevaData.isIOS()) {
+              window.location.href = SeevaData.eventIcsUrl(event, dateISO);
+              return;
+            }
+            var ics = SeevaData.buildEventICS(event, dateISO);
+            var blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+            var url = URL.createObjectURL(blob);
+
+            // Fil, 2026-07-20: dopo due tentativi con trattamenti diversi
+            // per iOS/Android (rotti a turno su varianti che non riesco a
+            // testare -- Safari normale, PWA installata in standalone,
+            // Chrome/Samsung Internet), stesso comportamento OVUNQUE:
+            // scarica sempre il file con nome giusto ed estensione .ics, e
+            // lo si dice chiaramente. Meno "magico" di un'apertura diretta
+            // nel calendario, ma prevedibile in ogni contesto, PWA inclusa
+            // (dove aprire una nuova scheda semplicemente non esiste).
+            var safeName = (event.name || 'evento').replace(/[^\w\- ]/g, '').trim() || 'evento';
+            var fileName = safeName + '.ics';
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+
+            if (window.SeevaUI) {
+              window.SeevaUI.toast('Scaricato "' + fileName + '": aprilo dai tuoi Download/File per aggiungerlo al calendario 📅');
+            }
+      }
+
+      async function handleRsvpTap(key, ctx, btnEl) {
+        var seg = document.getElementById('rsvpSeg');
+        var existing = findExistingParticipant();
+        var locIds = (existing && existing.availableLocationOptionIds) || [];
+        if (ctx === 'single') {
+          var optId = event.dateOptions[0].id;
+          if (key === 'yes') { if (!confirmBusyYes(event.dateOptions[0].dateISO)) return; return saveAvailability([optId], locIds, btnEl); }
+          if (key === 'maybe') return saveAvailability([], locIds, btnEl, undefined, true);
+          return saveAvailability([], [], btnEl, '');
+        }
+        var info = SeevaData.computeEventStatus(event);
+        if (!info.bestOption) return;
+        var currentlyYes = !!(existing && (existing.availableDateOptionIds || []).indexOf(info.bestOption.id) !== -1);
+        if (key === 'yes' && !confirmBusyYes(info.bestOption.dateISO)) return;
+        if (key === 'no' && currentlyYes) {
+          var sure = window.confirm('Segnalare che non potrai esserci per "' + event.name + '"? L\'organizzatore riceverà una notifica.');
+          if (!sure) return;
+        }
+        var noteEl = document.getElementById('confirmedNoteInput');
+        var noteVal = noteEl ? noteEl.value.trim() : undefined;
+        var originalText = btnEl.textContent;
+        if (seg) seg.classList.add('is-saving');
+        btnEl.textContent = 'Salvo...';
+        try {
+          if (key === 'yes') event = await SeevaData.upsertParticipant(event.id, guestName, [info.bestOption.id], locIds, noteVal);
+          else if (key === 'maybe') event = await SeevaData.upsertParticipant(event.id, guestName, [], locIds, noteVal, true);
+          else if (currentlyYes) event = await SeevaData.withdrawFromEvent(event.id, guestName);
+          else event = await SeevaData.upsertParticipant(event.id, guestName, [], []);
+        } catch (err) {
+          btnEl.textContent = originalText;
+          if (seg) seg.classList.remove('is-saving');
+          window.alert('Non sono riuscito a salvare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+          return;
+        }
+        render();
       }
 
       /* Salva su Supabase e torna alla vista compatta: niente più navigazione
@@ -3175,6 +3340,16 @@
       await loadAttendeeAvatarsIfNeeded();
 
       render();
+
+      // Date già impegnate (#15): caricate dopo il primo disegno, per non
+      // rallentare l'apertura; se ce n'è almeno una si ridisegna.
+      if (SeevaData.hasAccount() && !isLockedGuest && !isOrganizer) {
+        SeevaData.getMyBusyDates(event.id).then(function (m) {
+          busyDates = m || {};
+          var relevant = (event.dateOptions || []).some(function (o) { return busyDates[o.dateISO]; });
+          if (relevant) render();
+        }, function () { /* ignora */ });
+      }
 
       /* Risposta dai pulsanti della notifica (Fil, 2026-10-03): sw.js apre
          evento.html?id=...&rsvp=yes|no. Si salva la risposta solo se

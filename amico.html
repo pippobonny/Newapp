@@ -130,7 +130,7 @@
           + '<div style="font-family:\'Fraunces\',serif; font-weight:600; font-size:19px; line-height:1.35; margin-bottom:14px;">'
           + SeevaData.escapeHTML(ownerLabel) + ' ti ha invitato a<br>"' + SeevaData.escapeHTML(event.name) + '"'
           + '</div>'
-          + '<div style="font-size:13.5px; line-height:1.55; color:var(--lavender); margin-bottom:22px; padding:0 6px;">seeva è una nuova app per organizzare eventi con gli amici senza i mille messaggi nel gruppo: rispondi con due tap quando puoi, gratis, senza pubblicità.</div>'
+          + '<div style="font-size:13.5px; line-height:1.55; color:var(--lavender-ink); margin-bottom:22px; padding:0 6px;">seeva è una nuova app per organizzare eventi con gli amici senza i mille messaggi nel gruppo: rispondi con due tap quando puoi, gratis, senza pubblicità.</div>'
           + '<button type="button" class="primary-btn" id="welcomeContinueBtn">Scopri l\'evento →</button>'
           + '</div>';
 
@@ -147,10 +147,15 @@
          essere coerente col resto dell'app invece di un semplice paragrafo. */
       function renderSelection() {
         var rows = invitees.map(function (f) {
+          // "Confermato" qui NON voleva dire "viene all'evento" ma solo "nome
+          // già collegato a un account" -> confondeva (segnalazione
+          // 2026-10-03: "risulta confermato ma non ho mai confermato").
+          // Ora lo diciamo chiaro e, se sei tu, ti portiamo ad accedere.
           if (f.isClaimed) {
             return ''
-              + '<div class="settings-row" style="opacity:0.55;">'
-              + '<div class="left">' + SeevaData.escapeHTML(f.name) + ' <span class="badge done">Confermato</span></div>'
+              + '<div class="settings-row" data-claimed-friend="' + f.id + '" style="cursor:pointer; opacity:0.7;">'
+              + '<div class="left">' + SeevaData.escapeHTML(f.name) + ' <span class="badge">Ha già un account</span></div>'
+              + '<div style="color:var(--ink-soft);">Sei tu? →</div>'
               + '</div>';
           }
           return ''
@@ -185,7 +190,7 @@
           + '<div class="card-date" style="margin:0 2px 16px;">Scegli chi sei tra questi nomi.</div>'
           + rows
           + addSelfRow
-          + (anySelectable || event.openInvite ? '' : '<div class="empty-hint">Sono già stati confermati tutti i nomi di questo invito.<br><a href="index.html">Vai alla Home →</a></div>');
+          + (anySelectable || event.openInvite ? '' : '<div class="empty-hint">Tutti i nomi di questo invito sono già collegati a un account: se sei uno di loro, accedi.<br><a href="index.html">Vai alla Home →</a></div>');
 
         if (window.SeevaUI) window.SeevaUI.refresh();
 
@@ -197,8 +202,27 @@
           });
         });
 
+        contentEl.querySelectorAll('[data-claimed-friend]').forEach(function (row) {
+          row.addEventListener('click', function () {
+            if (SeevaData.hasAccount()) { window.location.href = 'evento.html?id=' + encodeURIComponent(eventId); return; }
+            renderClaimedLogin();
+          });
+        });
+
         var addSelfRowEl = document.getElementById('addSelfRow');
         if (addSelfRowEl) addSelfRowEl.addEventListener('click', renderNameEntry);
+      }
+
+      /* Nome già collegato a un account (2026-10-04): chi lo tocca senza
+         essere loggato su questo telefono deve solo accedere -- l'evento lo
+         trova poi nella sua Home. Nessuna risposta viene data a suo nome. */
+      function renderClaimedLogin() {
+        contentEl.innerHTML = ''
+          + '<div class="card-date" style="margin:0 2px 16px;">Questo nome è già collegato a un account seeva. Non vuol dire che hai già risposto: se sei tu, accedi e troverai l\'evento nella tua Home per rispondere.</div>'
+          + '<a class="primary-btn" href="profilo.html?mode=login" style="display:block; text-align:center; text-decoration:none;">Accedi →</a>'
+          + '<div class="signup-skip-link" id="claimedBackLink">← Torna alla lista</div>';
+        if (window.SeevaUI) window.SeevaUI.refresh();
+        document.getElementById('claimedBackLink').addEventListener('click', renderSelection);
       }
 
       /* ---------- passo 1bis: "il mio nome non c'è" ----------
@@ -311,7 +335,7 @@
           + '<div id="registerPanel" style="display:none;">'
           + '<div class="profile-header" style="margin-bottom: 14px;">'
           + '<div class="avatar large" id="regAvatar">?</div>'
-          + '<label class="field-hint" for="regAvatarFile" style="cursor:pointer; color: var(--lavender); font-weight:600; display:inline-block; margin-top:8px;">Carica una foto</label>'
+          + '<label class="field-hint" for="regAvatarFile" style="cursor:pointer; color: var(--lavender-ink); font-weight:600; display:inline-block; margin-top:8px;">Carica una foto</label>'
           + '<input type="file" id="regAvatarFile" accept="image/*" style="display:none;">'
           + '</div>'
           + '<div class="field"><label>Nome</label><input type="text" id="regFirstName" placeholder="Il tuo nome"></div>'
