@@ -755,6 +755,56 @@
         return ok;
       }
 
+      /* Fumetto che esce dal giorno occupato nella griglia (Fil, 2026-10-04). */
+      var openBusyPopChip = null;
+      var busyPopTimer = null;
+      function hideBusyPop() {
+        var old = document.getElementById('busyPop');
+        if (old) old.remove();
+        openBusyPopChip = null;
+        if (busyPopTimer) { window.clearTimeout(busyPopTimer); busyPopTimer = null; }
+      }
+      function unlockBusyChip(chip) {
+        unlockBusy(chip.getAttribute('data-date-iso'));
+        chip.removeAttribute('data-busy');
+        chip.classList.remove('is-busy');
+        chip.classList.add('is-busy-soft');
+        var icon = chip.querySelector('.day-busy-lock');
+        if (icon) icon.textContent = '⚠️';
+        chip.classList.add('selected');
+        hideBusyPop();
+      }
+      function showBusyPop(chip, locked) {
+        hideBusyPop();
+        var grid = chip.parentNode;
+        var pop = document.createElement('div');
+        pop.id = 'busyPop';
+        pop.className = 'busy-pop' + (locked ? ' is-hard' : '');
+        pop.innerHTML = '<div class="busy-pop-text">' + (locked ? '🔒 ' : '⚠️ ') + SeevaData.escapeHTML(chip.getAttribute('data-busy-text') || '') + '</div>'
+          + (locked ? '<button type="button" class="busy-pop-btn">Sblocca</button>' : '');
+        grid.appendChild(pop);
+        // posizione: sotto il giorno, con la punta centrata sul giorno
+        var top = chip.offsetTop + chip.offsetHeight + 8;
+        var gridW = grid.clientWidth;
+        var popW = Math.min(240, gridW);
+        var center = chip.offsetLeft + chip.offsetWidth / 2;
+        var left = Math.max(0, Math.min(gridW - popW, center - popW / 2));
+        pop.style.top = top + 'px';
+        pop.style.left = left + 'px';
+        pop.style.width = popW + 'px';
+        pop.style.setProperty('--arrow-x', (center - left) + 'px');
+        openBusyPopChip = chip;
+        var btn = pop.querySelector('.busy-pop-btn');
+        if (btn) btn.addEventListener('click', function (e) { e.stopPropagation(); unlockBusyChip(chip); });
+        pop.addEventListener('click', function (e) { e.stopPropagation(); });
+        if (!locked) busyPopTimer = window.setTimeout(hideBusyPop, 4000);
+      }
+      document.addEventListener('click', function (e) {
+        if (!openBusyPopChip) return;
+        if (e.target.closest && (e.target.closest('#busyPop') || e.target.closest('#dayGrid .chip'))) return;
+        hideBusyPop();
+      });
+
       /* ---------- "La tua risposta" a 3 pulsanti (Fil, 2026-10-04) ----------
          Segnalazioni: "se metto Forse non posso cambiare", "il Ci sarò
          dopotutto è super piccolo", "vorrei cambiare scelta dalle presenze".
@@ -886,7 +936,6 @@
         // costringeva a scorrere parecchio prima di arrivare al bottone
         // "Conferma disponibilità". Data abbreviata (giorno/numero/mese) per
         // stare nello spazio stretto di una card piccola.
-        var busyLines = [];
         var dayCardsHTML = event.dateOptions.map(function (opt) {
           var selected = preselected.indexOf(opt.id) !== -1;
           var parts = shortDateParts(opt.dateISO);
@@ -894,10 +943,9 @@
           var b = busyFor(opt.dateISO);
           var locked = b.hard.length > 0 && !selected && !isBusyUnlocked(opt.dateISO);
           var anyBusy = b.hard.concat(b.soft);
-          if (anyBusy.length) {
-            busyLines.push((locked ? '🔒 ' : '⚠️ ') + '<b>' + SeevaData.escapeHTML(parts.dow + ' ' + parts.day + ' ' + parts.month) + '</b>: hai già ' + SeevaData.escapeHTML(busyNamesText(anyBusy)) + (locked ? ' · tocca il giorno per sbloccarlo' : ''));
-          }
-          return '<div class="chip day-card' + (selected ? ' selected' : '') + (locked ? ' is-busy' : (anyBusy.length ? ' is-busy-soft' : '')) + '" data-option-id="' + opt.id + '" data-date-iso="' + opt.dateISO + '"' + (locked ? ' data-busy="1"' : '') + '>'
+          // Niente legenda sotto la griglia (Fil, 2026-10-04): l'avviso
+          // compare in un fumetto che esce dal giorno quando lo tocchi.
+          return '<div class="chip day-card' + (selected ? ' selected' : '') + (locked ? ' is-busy' : (anyBusy.length ? ' is-busy-soft' : '')) + '" data-option-id="' + opt.id + '" data-date-iso="' + opt.dateISO + '"' + (locked ? ' data-busy="1"' : '') + (anyBusy.length ? ' data-busy-text="' + SeevaData.escapeHTML('Quel giorno hai già ' + busyNamesText(anyBusy)) + '"' : '') + '>'
             + (locked ? '<div class="day-busy-lock">🔒</div>' : (anyBusy.length ? '<div class="day-busy-lock">⚠️</div>' : ''))
             + '<div class="day-dow">' + SeevaData.escapeHTML(parts.dow) + '</div>'
             + '<div class="day-num">' + SeevaData.escapeHTML(parts.day) + '</div>'
@@ -909,7 +957,7 @@
         return ''
           + '<div class="section-title">Quando sei disponibile?</div>'
           + '<div class="day-grid" id="dayGrid">' + dayCardsHTML + '</div>'
-          + (busyLines.length ? '<div class="busy-note-list">' + busyLines.map(function (l) { return '<div>' + l + '</div>'; }).join('') + '</div>' : '')
+
           + buildLocationChipGridHTML(preselectedLocations)
           + '<div class="form-error" id="formError"></div>'
           + '<button type="button" class="primary-btn" id="confirmBtn">Conferma disponibilità</button>'
@@ -2141,16 +2189,16 @@
 
         document.querySelectorAll('#dayGrid .chip').forEach(function (chip) {
           chip.addEventListener('click', function () {
+            // Giorno con lucchetto: primo tocco -> fumetto con "Sblocca",
+            // secondo tocco (o "Sblocca") -> si sblocca e si seleziona.
             if (chip.getAttribute('data-busy') === '1' && !chip.classList.contains('selected')) {
-              var iso = chip.getAttribute('data-date-iso');
-              var b = busyFor(iso);
-              if (!window.confirm('Quel giorno hai già ' + busyNamesText(b.hard) + '.\n\nVuoi segnarti disponibile lo stesso?')) return;
-              unlockBusy(iso);
-              chip.removeAttribute('data-busy');
-              chip.classList.remove('is-busy');
-              chip.classList.add('is-busy-soft');
+              if (openBusyPopChip !== chip) { showBusyPop(chip, true); return; }
+              unlockBusyChip(chip);
+              return;
             }
             chip.classList.toggle('selected');
+            if (chip.classList.contains('selected') && chip.getAttribute('data-busy-text')) showBusyPop(chip, false);
+            else hideBusyPop();
           });
         });
 
