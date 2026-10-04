@@ -1850,10 +1850,28 @@
             : '<b>' + escapeHTML(event.name) + '</b> è stato annullato: hanno risposto tutti ma nessuno era disponibile.'
         });
       } else if (info.status === 'done') {
-        notifications.push({
-          icon: 'confirmed', emoji: '✅', time: latestEventActivityTime(event), eventId: event.id,
-          text: '<b>' + escapeHTML(event.name) + '</b> è confermato!'
-        });
+        // Nuova Home (2026-10-04): il testo dipende dalla TUA risposta.
+        // Prima chi non aveva ancora risposto leggeva "è confermato!" su un
+        // invito a data fissa appena arrivato, e non capiva di dover
+        // rispondere.
+        var meN = (event.participants || []).filter(function (p) { return (p.name || '').trim().toLowerCase() === myUsername; })[0];
+        var whenN = info.bestOption ? shortDateLabel(info.bestOption.dateISO) : '';
+        if (iAmOrganizer || (meN && (meN.maybe || (info.bestOption && (meN.availableDateOptionIds || []).indexOf(info.bestOption.id) !== -1)))) {
+          notifications.push({
+            icon: 'confirmed', emoji: '✅', time: latestEventActivityTime(event), eventId: event.id,
+            text: '<b>' + escapeHTML(event.name) + '</b> si fa' + (whenN ? ': ' + escapeHTML(whenN) : '') + '!'
+          });
+        } else if (!meN) {
+          notifications.push({
+            icon: 'new', emoji: '📅', time: ts, eventId: event.id,
+            text: 'Nuovo invito: <b>' + escapeHTML(event.name) + '</b>' + (whenN ? ', ' + escapeHTML(whenN) : '') + '. Ci sei?'
+          });
+        } else if ((meN.availableDateOptionIds || []).length) {
+          notifications.push({
+            icon: 'cancelled', emoji: '📅', time: latestEventActivityTime(event), eventId: event.id,
+            text: '<b>' + escapeHTML(event.name) + '</b>: la data scelta è ' + escapeHTML(whenN) + ' e quel giorno non c\u2019eri. L\u2019abbiamo messo tra gli annullati.'
+          });
+        }
       } else if (info.status === 'almost') {
         var missing = info.totalInvited - info.totalResponded;
         notifications.push({
@@ -2378,6 +2396,11 @@
       .eq('id', eventId);
     if (res.error) throw new Error(res.error.message);
     clearEventsCache();
+    // Push "Si fa!" agli invitati e "quel giorno non c'eri" a chi aveva
+    // votato solo altre date (Fil, 2026-10-04) — come la chiusura
+    // automatica del voto. "Fire and forget": non blocca la conferma.
+    supabase.functions.invoke('notify-date-chosen', { body: { eventId: eventId } })
+      .catch(function () { /* ignora */ });
     return getEventById(eventId);
   }
 
@@ -2980,6 +3003,206 @@
     return (me.availableDateOptionIds || []).indexOf(info.bestOption.id) === -1;
   }
 
+  /* ---------- Nuova Home: i tuoi eventi visti da TE (Fil, 2026-10-04) ----------
+     Prima Home/liste mostravano solo lo stato dell'EVENTO ("Confermato",
+     "In attesa"), mai la tua risposta: con gli eventi a data fissa
+     confermati da subito, chi non aveva ancora risposto vedeva
+     "Confermato". Qui ogni evento finisce in UNO solo di questi gruppi:
+     - toAnswer: tocca a te (rispondere, votare, o scegliere la data se
+       organizzi e c'è pareggio / nessun voto);
+     - agenda: data decisa e ci sei / forse / organizzi tu;
+     - undecided: data ancora da decidere (hai votato, o organizzi tu);
+     - notGoing: annullati + hai detto "non ci sono" + è stata scelta una
+       data che non avevi votato (Fil: "negli annullati, con notifica").
+     Ogni voce: { event, info, kind, dateISO, myKey, reason }.
+     Unica fonte per riquadri, liste e "Il prossimo": i numeri coincidono
+     sempre con quello che si vede aprendo. */
+  function localTodayISO() {
+    var d = new Date();
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+  }
+
+  function classifyMyEvents(events) {
+    var acc = getAccount();
+    var myId = acc && acc.id;
+    var myName = (getGuestName() || '').trim().toLowerCase();
+    var today = localTodayISO();
+    var out = { toAnswer: [], agenda: [], undecided: [], notGoing: [], next: null };
+
+    (events || []).forEach(function (ev) {
+      if (!ev) return;
+      var info = computeEventStatus(ev);
+      if (info.status === 'passato') return;
+      var opts = (ev.dateOptions || []).slice().sort(function (a, b) { return a.dateISO < b.dateISO ? -1 : 1; });
+      var isOrg = !!((myId && ev.createdByAccountId === myId) || (myName && (ev.createdBy || '').trim().toLowerCase() === myName));
+      var me = (ev.participants || []).filter(function (p) {
+        return (myId && p.accountId === myId) || (myName && (p.name || '').trim().toLowerCase() === myName);
+      })[0] || null;
+      var myDates = me ? (me.availableDateOptionIds || []) : [];
+      var item = { event: ev, info: info, kind: null, dateISO: null, myKey: null, reason: null };
+
+      if (info.status === 'cancelled') {
+        item.reason = 'cancelled';
+        item.dateISO = info.bestOption ? info.bestOption.dateISO : (opts[0] ? opts[0].dateISO : null);
+        out.notGoing.push(item);
+        return;
+      }
+
+      // Data decisa: confermata, oppure unica data proposta (eventi a data
+      // fissa creati prima delle regole nuove).
+      var decided = (info.status === 'done' && info.bestOption) ? info.bestOption
+        : (opts.length === 1 ? opts[0] : null);
+
+      if (decided) {
+        item.dateISO = decided.dateISO;
+        if (decided.dateISO < today) return; // giorno già passato: niente da fare
+        if (isOrg) { item.myKey = 'organizer'; out.agenda.push(item); return; }
+        if (!me) {
+          var multiLoc = (ev.locationOptions || []).length > 1 && !ev.confirmedLocationOptionId;
+          item.kind = multiLoc ? 'open' : 'fixed';
+          item.optionId = decided.id;
+          out.toAnswer.push(item);
+          return;
+        }
+        if (myDates.indexOf(decided.id) !== -1) { item.myKey = 'yes'; out.agenda.push(item); return; }
+        if (me.maybe) { item.myKey = 'maybe'; out.agenda.push(item); return; }
+        item.reason = myDates.length ? 'dateNotMine' : 'saidNo';
+        out.notGoing.push(item);
+        return;
+      }
+
+      // Data ancora da decidere (più date proposte).
+      var future = opts.filter(function (o) { return o.dateISO >= today; });
+      item.dateISO = future.length ? future[0].dateISO : (opts[0] ? opts[0].dateISO : null);
+      if (isOrg) {
+        if (info.status === 'tie') { item.kind = 'pickDate'; out.toAnswer.push(item); return; }
+        item.myKey = 'organizer';
+        out.undecided.push(item);
+        return;
+      }
+      if (!me) {
+        if (info.status === 'tie') { item.myKey = 'waiting'; out.undecided.push(item); return; }
+        item.kind = 'vote';
+        out.toAnswer.push(item);
+        return;
+      }
+      if (myDates.length) { item.myKey = 'voted'; out.undecided.push(item); return; }
+      item.reason = 'saidNo';
+      out.notGoing.push(item);
+    });
+
+    function byDate(a, b) { return (a.dateISO || '9999') < (b.dateISO || '9999') ? -1 : ((a.dateISO || '9999') > (b.dateISO || '9999') ? 1 : 0); }
+    // Da rispondere: prima chi scade prima (chiusura voto o data evento).
+    out.toAnswer.forEach(function (it) {
+      it.dueISO = (it.kind === 'vote' && it.info.voteDeadlineISO) ? it.info.voteDeadlineISO : it.dateISO;
+    });
+    out.toAnswer.sort(function (a, b) { return (a.dueISO || '9999') < (b.dueISO || '9999') ? -1 : 1; });
+    out.agenda.sort(byDate);
+    out.undecided.sort(byDate);
+    out.notGoing.sort(function (a, b) { return -byDate(a, b); });
+    out.next = out.agenda[0] || null;
+    return out;
+  }
+
+  // Etichette brevi per la data, usate dalle card nuove.
+  function dayParts(iso) {
+    var d = new Date(iso + 'T00:00:00');
+    var dow = d.toLocaleDateString('it-IT', { weekday: 'short' }).replace('.', '');
+    var mon = d.toLocaleDateString('it-IT', { month: 'short' }).replace('.', '');
+    return { dow: dow.charAt(0).toUpperCase() + dow.slice(1), day: d.getDate(), mon: mon, year: d.getFullYear() };
+  }
+
+  function relativeDayWord(iso) {
+    var t = localTodayISO();
+    if (iso === t) return 'Oggi';
+    var tm = new Date(t + 'T00:00:00'); tm.setDate(tm.getDate() + 1);
+    var tmISO = tm.getFullYear() + '-' + ('0' + (tm.getMonth() + 1)).slice(-2) + '-' + ('0' + tm.getDate()).slice(-2);
+    if (iso === tmISO) return 'Domani';
+    return null;
+  }
+
+  var MY_PILLS = {
+    yes: ['Ci sei', 'pill-yes'],
+    maybe: ['Forse', 'pill-maybe'],
+    organizer: ['Organizzi tu', 'pill-org'],
+    voted: ['Hai votato', 'pill-voted'],
+    waiting: ['Sceglie l’organizzatore', 'pill-voted'],
+    cancelled: ['Annullato', 'pill-no'],
+    saidNo: ['Non ci sei', 'pill-no'],
+    dateNotMine: ['Non c’eri', 'pill-no']
+  };
+
+  /* Card della nuova Home / liste: a sinistra la data, al centro nome e
+     stato dell'evento in parole semplici, a destra la TUA risposta.
+     opts.actions = true -> sotto la card i pulsanti rapidi (Da rispondere). */
+  function renderMyEventCardHTML(item, opts) {
+    opts = opts || {};
+    var ev = item.event, info = item.info;
+    var t = formatTimeLabel(ev.eventTime);
+    var loc = '';
+    if ((ev.locationOptions || []).length > 1 && !ev.confirmedLocationOptionId) {
+      loc = ev.locationOptions.length + ' posti proposti';
+    } else {
+      try { loc = resolveEventLocation(ev).address || ''; } catch (err) { /* ignora */ }
+    }
+    var dateHTML = '';
+    // Data non ancora decisa: "dal 10 ott" (la prima proposta), mai il
+    // giorno della settimana, che sembrerebbe la data definitiva.
+    var notDecidedYet = info.status !== 'done' && (ev.dateOptions || []).length > 1 && item.reason !== 'cancelled';
+    if (item.dateISO) {
+      var dp = dayParts(item.dateISO);
+      var rel = notDecidedYet ? null : relativeDayWord(item.dateISO);
+      dateHTML = '<div class="my-card-date' + (rel ? ' is-soon' : '') + '"><span class="my-card-dow">' + escapeHTML(notDecidedYet ? 'dal' : (rel || dp.dow)) + '</span><span class="my-card-day">' + dp.day + '</span><span class="my-card-mon">' + escapeHTML(dp.mon) + (dp.year !== new Date().getFullYear() ? ' ' + String(dp.year).slice(2) : '') + '</span></div>';
+    }
+    var undecided = (info.status !== 'done' && (ev.dateOptions || []).length > 1);
+    var statusLine;
+    if (item.reason === 'cancelled') {
+      statusLine = info.cancelledManually ? 'Annullato dall’organizzatore' : 'Annullato';
+    } else if (item.reason === 'dateNotMine') {
+      statusLine = 'È stata scelta una data in cui non c’eri';
+    } else if (item.kind === 'pickDate') {
+      statusLine = info.noVotes ? 'Nessuno ha votato: scegli tu la data' : 'Pareggio: scegli tu la data';
+    } else if (undecided) {
+      var n = (ev.dateOptions || []).length;
+      var dl = info.voteDeadlineISO ? dayParts(info.voteDeadlineISO) : null;
+      statusLine = 'Da decidere · ' + n + ' date' + (dl && info.status !== 'tie' ? ' · si vota fino a ' + dl.dow.toLowerCase() + ' ' + dl.day : '');
+    } else {
+      statusLine = 'Si fa' + (t ? ' · ore ' + t : '') + (loc ? ' · ' + loc : '');
+    }
+    if (ev.createdBy && item.myKey !== 'organizer' && (item.kind || item.reason)) statusLine += ' · da ' + ev.createdBy;
+
+    var pill = '';
+    if (item.kind === 'pickDate') pill = '<span class="my-pill pill-todo">Scegli</span>';
+    else if (item.kind) pill = '<span class="my-pill pill-todo">Rispondi</span>';
+    else {
+      var key = item.reason || item.myKey;
+      var pl = MY_PILLS[key];
+      if (pl) pill = '<span class="my-pill ' + pl[1] + '">' + pl[0] + '</span>';
+    }
+
+    var href = 'evento.html?id=' + encodeURIComponent(ev.id);
+    var cls = 'my-card' + (undecided && item.reason !== 'cancelled' ? ' is-undecided' : '') + (item.reason ? ' is-muted' : '');
+    var top = '<a class="my-card-main" href="' + href + '">'
+      + dateHTML
+      + '<div class="my-card-text"><div class="my-card-title">' + escapeHTML(ev.name) + '</div><div class="my-card-sub">' + escapeHTML(statusLine) + '</div></div>'
+      + pill
+      + '</a>';
+    var actions = '';
+    if (opts.actions) {
+      if (item.kind === 'fixed') {
+        actions = '<div class="my-card-actions" data-event-id="' + escapeHTML(ev.id) + '" data-option-id="' + escapeHTML(item.optionId) + '" data-date-iso="' + escapeHTML(item.dateISO || '') + '">'
+          + '<button type="button" class="my-act is-yes" data-quick="yes">Ci sono</button>'
+          + '<button type="button" class="my-act" data-quick="maybe">Forse</button>'
+          + '<button type="button" class="my-act" data-quick="no">Non ci sono</button>'
+          + '</div>';
+      } else {
+        var label = item.kind === 'vote' ? 'Vota le tue date' : item.kind === 'pickDate' ? 'Scegli la data' : 'Rispondi';
+        actions = '<div class="my-card-actions"><a class="my-act is-dark" href="' + href + '">' + label + '</a></div>';
+      }
+    }
+    return '<div class="' + cls + '" data-card-event="' + escapeHTML(ev.id) + '">' + top + actions + '</div>';
+  }
+
   /* ---------- Date già impegnate (Fil, 2026-10-04, segnalazione #15) ----------
      "Se hai già una data impegnata da un evento e ne arriva/crei uno nuovo,
      quella data viene bloccata con scritto l'evento, con possibilità di
@@ -3366,6 +3589,11 @@
     countUnreadNotifications: countUnreadNotifications,
     computeEventStatus: computeEventStatus,
     amINotGoing: amINotGoing,
+    classifyMyEvents: classifyMyEvents,
+    renderMyEventCardHTML: renderMyEventCardHTML,
+    dayParts: dayParts,
+    relativeDayWord: relativeDayWord,
+    localTodayISO: localTodayISO,
     getMyBusyDates: getMyBusyDates,
     classifyBusy: classifyBusy,
     busyLabel: busyLabel,

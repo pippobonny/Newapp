@@ -3746,6 +3746,69 @@ a.notif-item:active { background: var(--track-soft); }
 .busy-note-list b { color: var(--ink); }
 .date-busy-hint { font-size: 12px; line-height: 1.4; color: var(--ink); background: var(--butter-soft); border-radius: 10px; padding: 6px 10px; margin: -4px 0 10px; }
 
+/* ---------- Nuova Home (2026-10-04): card "tue" ----------
+   A sinistra la data, al centro nome + stato dell'evento in parole
+   semplici, a destra la TUA risposta colorata. Usata da "Il prossimo" in
+   Home e dalle liste Da rispondere / Agenda / Annullati (eventi.html). */
+.my-card {
+  background: var(--card); border-radius: 18px; margin-bottom: 10px;
+  box-shadow: 0 2px 8px rgba(58,50,90,0.06);
+  transition: opacity .25s ease, transform .25s ease;
+}
+.my-card.is-undecided { box-shadow: inset 0 0 0 1.5px var(--lavender-soft), 0 2px 8px rgba(58,50,90,0.06); }
+.my-card.is-muted { opacity: 0.8; }
+.my-card.is-leaving { opacity: 0; transform: translateX(30px); }
+.my-card-main { display: flex; align-items: center; gap: 12px; padding: 12px 14px; color: var(--ink); text-decoration: none; }
+.my-card-date { width: 40px; flex-shrink: 0; text-align: center; display: flex; flex-direction: column; line-height: 1.15; }
+.my-card-dow { font-size: 10.5px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; }
+.my-card-date.is-soon .my-card-dow { color: var(--peach); }
+.my-card-day { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 700; }
+.my-card-mon { font-size: 11px; color: var(--ink-soft); }
+.my-card-text { flex: 1; min-width: 0; }
+.my-card-title { font-weight: 700; font-size: 14.5px; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.my-card-sub { font-size: 12.5px; line-height: 1.35; color: var(--ink-soft); margin-top: 2px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.my-pill { flex-shrink: 0; font-size: 11.5px; font-weight: 700; padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+.my-pill.pill-yes { background: var(--confirmed-soft); color: #2E5C38; }
+.my-pill.pill-maybe { background: var(--butter-soft); color: #8A4210; }
+.my-pill.pill-org { background: var(--peach-soft); color: #8A4210; }
+.my-pill.pill-voted { background: var(--lavender-soft); color: var(--lavender-ink); }
+.my-pill.pill-no { background: var(--cancel-soft); color: #7A2B2D; }
+.my-pill.pill-todo { background: var(--peach); color: #FFFFFF; }
+.my-card-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 0 12px 12px; }
+.my-card-actions:has(> a:only-child) { grid-template-columns: 1fr; }
+.my-act {
+  height: 42px; border-radius: 12px; border: 1.5px solid var(--track-soft); background: var(--card);
+  color: var(--ink); font: 600 13.5px 'Inter', sans-serif; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; text-decoration: none;
+}
+.my-act.is-yes { background: var(--confirmed); border-color: var(--confirmed); color: #FFFFFF; }
+.my-act.is-dark { background: var(--surface-dark); border-color: var(--surface-dark); color: #FFF8F0; grid-column: 1 / -1; }
+.my-act:disabled { opacity: .55; }
+.home-next-slot { margin: 14px 16px 24px; }
+.home-next-slot:empty { display: none; }
+.home-next-label { font-size: 11.5px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; margin: 0 4px 6px; }
+.agenda-chips { display: flex; gap: 8px; overflow-x: auto; margin: 0 0 6px; padding-bottom: 4px; }
+.agenda-chip {
+  flex-shrink: 0; height: 36px; padding: 0 14px; border-radius: 999px; border: 0;
+  background: var(--card); color: var(--ink); font: 600 13px 'Inter', sans-serif; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(58,50,90,0.06);
+}
+.agenda-chip span { color: var(--ink-soft); font-weight: 600; margin-left: 2px; }
+.agenda-chip.active { background: var(--surface-dark); color: #FFF8F0; }
+.agenda-chip.active span { color: rgba(255,248,240,0.7); }
+.agenda-group-title { font-family: 'Fraunces', serif; font-size: 17px; font-weight: 700; margin: 18px 4px 10px; }
+.agenda-more {
+  width: 100%; height: 46px; border-radius: 14px; border: 0; background: var(--card); color: var(--lavender-ink);
+  font: 600 14px 'Inter', sans-serif; box-shadow: 0 2px 8px rgba(58,50,90,0.06); cursor: pointer; margin-top: 4px;
+}
+.agenda-foot, .list-hint { font-size: 12.5px; color: var(--ink-soft); text-align: center; margin: 16px 0 8px; }
+.list-hint { text-align: left; margin: 0 4px 10px; }
+@media (prefers-color-scheme: dark) {
+  .my-pill.pill-yes { color: #A6DDB0; }
+  .my-pill.pill-maybe, .my-pill.pill-org { color: #FFC48A; }
+  .my-pill.pill-no { color: #F4A9AB; }
+}
+
 /* ===================================================================
    MODALITÀ SCURA — correzioni contrasto (2026-10-04)
    Segnalazioni: "Quando si terrà si vede bianco su bianco", "non si

@@ -923,13 +923,11 @@
     // Prossimo evento confermato ancora da vivere (Fil, 2026-08-24): alternato
     // a rotazione con la frase presenza qui sotto (vedi startBadgeRotation),
     // stesso array di eventi già scaricato qui, nessuna richiesta in più.
-    var upcoming = events
-      .map(function (e) { return { event: e, info: SeevaData.computeEventStatus(e) }; })
-      .filter(function (x) { return x.info.status === 'done' && x.info.bestOption && !SeevaData.amINotGoing(x.event); })
-      .filter(function (x) { return new Date(x.info.bestOption.dateISO + 'T23:59:59') >= new Date(); })
-      .sort(function (a, b) { return a.info.bestOption.dateISO < b.info.bestOption.dateISO ? -1 : 1; })[0];
-    var reminderText = upcoming
-      ? '📅 ' + upcoming.event.name + ' ' + SeevaData.daysUntilLabel(upcoming.info.bestOption.dateISO)
+    // Nuova Home (2026-10-04): il prossimo evento della TUA agenda (ci sei,
+    // forse o organizzi tu), stessa regola della riga "Il prossimo".
+    var upcomingItem = SeevaData.classifyMyEvents ? SeevaData.classifyMyEvents(events).next : null;
+    var reminderText = upcomingItem
+      ? '📅 ' + upcomingItem.event.name + ' ' + SeevaData.daysUntilLabel(upcomingItem.dateISO)
       : null;
 
     // solo eventi davvero conclusi (confermati o passati), e solo quelli a cui

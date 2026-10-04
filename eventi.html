@@ -94,106 +94,193 @@
 
       await SeevaData.renderSessionWarningIfNeeded();
 
-      var events = await SeevaData.getEvents();
+      /* ---------- Nuova Home (Fil, 2026-10-04) ----------
+         Questa pagina ora mostra una delle tre liste "tue" aperte dai
+         riquadri della Home: Da rispondere / La tua agenda / Annullati (che
+         comprende anche quelli a cui non vai). Smistamento: una sola
+         funzione, SeevaData.classifyMyEvents, la stessa dei numeri in Home.
+         I vecchi link (?only=attesa, confermati, tutti — notifiche ed email
+         già spedite) portano alla lista nuova più vicina. */
+      var OLD_TO_NEW = { attesa: 'rispondere', confermati: 'agenda', tutti: 'agenda' };
+      var TITLES = { rispondere: 'Da rispondere', agenda: 'La tua agenda', annullati: 'Annullati e non ci vai' };
+      var only = new URLSearchParams(window.location.search).get('only') || 'agenda';
+      only = OLD_TO_NEW[only] || only;
+      if (!TITLES[only]) only = 'agenda';
 
-      // Gli eventi "passato" (confermati e già successi da un po') restano
-      // solo nell'archivio del Profilo: qui non compaiono in nessun filtro,
-      // nemmeno "Tutti".
-      events = events.filter(function (e) { return SeevaData.computeEventStatus(e).status !== 'passato'; });
+      document.getElementById('backBtn').style.display = '';
+      var pillRow = document.querySelector('.pill-row');
+      if (pillRow) pillRow.style.display = 'none';
+      document.getElementById('eventiTitle').textContent = TITLES[only];
 
       var listEl = document.getElementById('eventsList');
-      var pills = document.querySelectorAll('.pill');
-      var currentFilter = 'confermati';
-
-      // Arrivo da un riquadro della Home (Fil, 2026-08-22): eventi.html?only=...
-      // mostra SOLO quella categoria, senza modo di cambiarla da qui — se
-      // potessi comunque scorrere le altre da dentro, i riquadri in Home
-      // perderebbero senso (tanto valeva un'unica lista con i pill sempre
-      // visibili, la vecchia versione). Per vedere un'altra categoria si
-      // torna in Home e si tocca un altro riquadro.
-      var ONLY_LABELS = { attesa: 'In attesa', confermati: 'Confermati', annullati: 'Annullati', tutti: 'Tutti gli eventi' };
-      var onlyFilter = new URLSearchParams(window.location.search).get('only');
-      if (onlyFilter && ONLY_LABELS[onlyFilter]) {
-        currentFilter = onlyFilter;
-        document.getElementById('backBtn').style.display = '';
-        document.querySelector('.pill-row').style.display = 'none';
-        document.getElementById('eventiTitle').textContent = ONLY_LABELS[onlyFilter];
-      }
-      // Fil, 2026-07-23, trovato in review: confrontare con listEl.innerHTML
-      // (riletto dal browser) non funzionava mai davvero — il browser
-      // normalizza leggermente l'HTML quando lo riconsegna, quindi il
-      // confronto risultava "diverso" quasi sempre anche a parità di
-      // contenuto. Tenendo l'ultimo HTML generato qui (mai riletto dal DOM)
-      // il confronto è esatto.
+      var events = [];
+      var agendaFilter = 'tutti';   // tutti | yes | maybe | decidere
+      var showAll = false;          // agenda: oltre la fine dell'anno
+      var saving = false;
       var lastListHTML = null;
 
-      function matches(event, filter) {
-        var status = SeevaData.computeEventStatus(event).status;
-        if (filter === 'tutti') return true;
-        // "tie" (pareggio, in attesa che l'organizzatore scelga una data)
-        // conta come "in attesa" (Fil, 2026-08-22): prima restava visibile
-        // solo sotto "Tutti", ora invece deve comparire anche qui — il
-        // riquadro "Da confermare" in Home lo conta già tra le sue, il
-        // numero deve corrispondere a quello che si vede aprendolo.
-        if (filter === 'attesa') return status === 'waiting' || status === 'almost' || status === 'tie';
-        if (filter === 'confermati') return status === 'done' && !SeevaData.amINotGoing(event); // chi ha detto "non ci sono" non lo vede qui (Fil, 2026-10-04)
-        if (filter === 'annullati') return status === 'cancelled';
-        return true;
+      async function loadEvents() {
+        events = await SeevaData.getEvents();
       }
 
-      function render(filter) {
-        var filtered = events.filter(function (e) { return matches(e, filter); });
-        var newHTML = filtered.length
-          ? filtered.map(SeevaData.renderEventCardHTML).join('')
-          : '<div class="empty-hint">Nessun evento in questa categoria.</div>';
-        // Confermati a cui hai detto "non ci sono" (Fil, 2026-10-04): non
-        // contano tra i tuoi confermati, ma restano raggiungibili qui in
-        // fondo (chiusi), così puoi sempre aprirli e cambiare idea.
-        if (filter === 'confermati') {
-          var notGoing = events.filter(function (e) {
-            return SeevaData.computeEventStatus(e).status === 'done' && SeevaData.amINotGoing(e);
-          });
-          if (notGoing.length) {
-            newHTML += '<details class="not-going-group"><summary>Hai detto che non ci sei (' + notGoing.length + ')</summary>'
-              + notGoing.map(SeevaData.renderEventCardHTML).join('') + '</details>';
+      function monthTitle(iso) {
+        var d = new Date(iso + 'T00:00:00');
+        var m = d.toLocaleDateString('it-IT', { month: 'long' });
+        m = m.charAt(0).toUpperCase() + m.slice(1);
+        return d.getFullYear() === new Date().getFullYear() ? m : m + ' ' + d.getFullYear();
+      }
+
+      function cardsHTML(items, opts) {
+        return items.map(function (it) { return SeevaData.renderMyEventCardHTML(it, opts); }).join('');
+      }
+
+      function buildAgendaHTML(mine) {
+        var decided = mine.agenda;
+        var nYes = decided.filter(function (i) { return i.myKey === 'yes' || i.myKey === 'organizer'; }).length;
+        var nMaybe = decided.filter(function (i) { return i.myKey === 'maybe'; }).length;
+        var nDec = mine.undecided.length;
+        var chips = [
+          ['tutti', 'Tutti', decided.length + nDec],
+          ['yes', 'Ci sei', nYes],
+          ['maybe', 'Forse', nMaybe],
+          ['decidere', 'Da decidere', nDec]
+        ];
+        var html = '<div class="agenda-chips">' + chips.map(function (c) {
+          return '<button type="button" class="agenda-chip' + (agendaFilter === c[0] ? ' active' : '') + '" data-agenda-filter="' + c[0] + '">' + c[1] + ' <span>' + c[2] + '</span></button>';
+        }).join('') + '</div>';
+
+        if (agendaFilter === 'tutti' || agendaFilter === 'decidere') {
+          if (mine.undecided.length) {
+            html += '<div class="agenda-group-title">Data da decidere</div>' + cardsHTML(mine.undecided);
           }
         }
+        if (agendaFilter !== 'decidere') {
+          var list = decided.filter(function (i) {
+            if (agendaFilter === 'yes') return i.myKey === 'yes' || i.myKey === 'organizer';
+            if (agendaFilter === 'maybe') return i.myKey === 'maybe';
+            return true;
+          });
+          // Pagina mai infinita: fino a fine anno (almeno 8 eventi), il resto
+          // dietro "Mostra altri".
+          var endOfYear = new Date().getFullYear() + '-12-31';
+          var visible = showAll ? list : list.filter(function (i, idx) { return i.dateISO <= endOfYear || idx < 8; });
+          var lastMonth = null;
+          visible.forEach(function (i) {
+            var mt = monthTitle(i.dateISO);
+            if (mt !== lastMonth) { html += '<div class="agenda-group-title">' + SeevaData.escapeHTML(mt) + '</div>'; lastMonth = mt; }
+            html += SeevaData.renderMyEventCardHTML(i);
+          });
+          var hidden = list.length - visible.length;
+          if (hidden > 0) {
+            html += '<button type="button" class="agenda-more" id="agendaMoreBtn">Mostra altri · ' + hidden + (hidden === 1 ? ' evento' : ' eventi') + '</button>';
+          }
+          if (!list.length && !(agendaFilter === 'tutti' && mine.undecided.length)) {
+            html += '<div class="empty-hint">Niente qui per ora.</div>';
+          }
+        } else if (!mine.undecided.length) {
+          html += '<div class="empty-hint">Nessun evento con la data da decidere.</div>';
+        }
+        html += '<div class="agenda-foot">Gli eventi passati restano nel tuo Profilo.</div>';
+        return html;
+      }
 
-        // Fil, 2026-07-22: se il refresh automatico non ha trovato niente di
-        // nuovo (il caso più comune), non tocca il DOM — altrimenti ogni
-        // card, anche quelle identiche a prima, rifarebbe da capo la sua
-        // animazione di comparsa ogni 30s.
+      function render() {
+        var mine = SeevaData.classifyMyEvents(events);
+        var newHTML;
+        if (only === 'rispondere') {
+          newHTML = mine.toAnswer.length
+            ? '<div class="list-hint">I più urgenti prima.</div>' + cardsHTML(mine.toAnswer, { actions: true })
+            : '<div class="empty-hint">Hai risposto a tutto 🎉<br><a href="eventi.html?only=agenda">Vai alla tua agenda →</a></div>';
+        } else if (only === 'annullati') {
+          newHTML = mine.notGoing.length
+            ? cardsHTML(mine.notGoing)
+            : '<div class="empty-hint">Nessun evento annullato e nessun “non ci sono”.</div>';
+        } else {
+          newHTML = buildAgendaHTML(mine);
+        }
         if (newHTML === lastListHTML) return;
         lastListHTML = newHTML;
         listEl.innerHTML = newHTML;
-        // rianima/rende cliccabile il contenuto appena creato
         if (window.SeevaUI) window.SeevaUI.refresh();
       }
 
-      pills.forEach(function (pill) {
-        pill.addEventListener('click', function () {
-          pills.forEach(function (p) { p.classList.remove('active'); });
-          pill.classList.add('active');
-          currentFilter = pill.getAttribute('data-filter');
-          render(currentFilter);
-        });
+      // Filtri e "Mostra altri" dell'agenda (delegati: la lista si ridisegna).
+      listEl.addEventListener('click', function (e) {
+        var chip = e.target.closest && e.target.closest('[data-agenda-filter]');
+        if (chip) { agendaFilter = chip.getAttribute('data-agenda-filter'); render(); return; }
+        if (e.target.closest && e.target.closest('#agendaMoreBtn')) { showAll = true; render(); return; }
       });
 
-      render(currentFilter);
+      // Risposta rapida dalla lista "Da rispondere": Ci sono / Forse / Non ci sono.
+      var busyMap = null;
+      listEl.addEventListener('click', async function (e) {
+        var btn = e.target.closest && e.target.closest('[data-quick]');
+        if (!btn || saving) return;
+        var box = btn.closest('.my-card-actions');
+        var card = btn.closest('.my-card');
+        var eventId = box.getAttribute('data-event-id');
+        var optionId = box.getAttribute('data-option-id');
+        var dateISO = box.getAttribute('data-date-iso');
+        var key = btn.getAttribute('data-quick');
+        var ev = events.filter(function (x) { return x.id === eventId; })[0];
+        if (!ev) return;
 
-      // Fil, 2026-07-21: niente più refresh manuale della pagina per vedere
-      // un evento nuovo o una risposta arrivata mentre questa scheda era già
-      // aperta — vedi SeevaData.startAutoRefresh in data.js.
-      // Fil, 2026-07-22: catturato lo stop su window.__seevaUnmount, letto
-      // dal router SPA in script.js prima di cambiare tab — vedi lo stesso
-      // commento in index.html.
-      window.__seevaUnmount = SeevaData.startAutoRefresh(async function () {
-        var fresh;
+        // Date già impegnate (#15): stesso avviso della pagina evento.
+        if (key === 'yes' && dateISO) {
+          try {
+            if (!busyMap) busyMap = await SeevaData.getMyBusyDates(null);
+            var others = (busyMap[dateISO] || []).filter(function (b) { return b.eventId !== eventId; });
+            var b = SeevaData.classifyBusy(others, SeevaData.formatTimeLabel(ev.eventTime));
+            var unlockKey = 'seeva:busyUnlock:' + eventId + ':' + dateISO;
+            var unlocked = false;
+            try { unlocked = localStorage.getItem(unlockKey) === '1'; } catch (err) { /* ignora */ }
+            if (b.hard.length && !unlocked) {
+              var names = b.hard.map(SeevaData.busyLabel).join(', ');
+              if (!window.confirm('Quel giorno hai già ' + names + '.\n\nVuoi rispondere "Ci sono" lo stesso?')) return;
+              try { localStorage.setItem(unlockKey, '1'); } catch (err) { /* ignora */ }
+            }
+          } catch (err) { /* in dubbio non blocchiamo la risposta */ }
+        }
+
+        saving = true;
+        var buttons = box.querySelectorAll('button');
+        buttons.forEach(function (x) { x.disabled = true; });
+        var original = btn.textContent;
+        btn.textContent = 'Salvo...';
         try {
-          fresh = await SeevaData.getEvents();
-        } catch (err) { return; } // silenzioso: la lista resta quella di prima
-        events = fresh.filter(function (e) { return SeevaData.computeEventStatus(e).status !== 'passato'; });
-        render(currentFilter);
+          // L'evento aggiornato che torna indietro sostituisce subito quello
+          // in lista: la card sparisce anche se il ricaricamento completo
+          // qui sotto non dovesse riuscire.
+          var updated = await SeevaData.upsertParticipant(eventId, SeevaData.getGuestName(), key === 'yes' ? [optionId] : [], [], undefined, key === 'maybe');
+          if (updated && updated.id) events = events.map(function (x) { return x.id === updated.id ? updated : x; });
+        } catch (err) {
+          saving = false;
+          buttons.forEach(function (x) { x.disabled = false; });
+          btn.textContent = original;
+          window.alert('Non sono riuscito a salvare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+          return;
+        }
+        if (window.SeevaUI && window.SeevaUI.toast) {
+          window.SeevaUI.toast(key === 'yes' ? 'Ci sei ✓ — lo trovi nella tua agenda' : key === 'maybe' ? 'Forse 🤔 — lo trovi nella tua agenda' : 'Non ci sei — lo trovi negli annullati');
+        }
+        if (card) card.classList.add('is-leaving');
+        window.setTimeout(async function () {
+          try { await loadEvents(); } catch (err) { /* resta la lista di prima */ }
+          saving = false;
+          render();
+        }, 260);
+      });
+
+      await loadEvents();
+      render();
+
+      // Fil, 2026-07-21: niente più refresh manuale — vedi
+      // SeevaData.startAutoRefresh in data.js. Fil, 2026-07-22: stop
+      // catturato su window.__seevaUnmount per il router SPA (script.js).
+      window.__seevaUnmount = SeevaData.startAutoRefresh(async function () {
+        if (saving) return;
+        try { await loadEvents(); } catch (err) { return; } // silenzioso: la lista resta quella di prima
+        render();
       });
     })();
   </script>
