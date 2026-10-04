@@ -3821,3 +3821,7 @@ a.notif-item:active { background: var(--track-soft); }
 .date-typed input.date-typed-native::-webkit-calendar-picker-indicator {
   position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;
 }
+.busy-pop-item { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.14); }
+.busy-pop-name { font-weight: 700; font-size: 13.5px; }
+.busy-pop-meta { font-size: 12px; opacity: 0.85; margin-top: 2px; }
+.busy-pop-tag { font-weight: 600; font-size: 10.5px; background: rgba(255,255,255,0.16); border-radius: 6px; padding: 1px 6px; margin-left: 4px; }

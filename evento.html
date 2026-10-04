@@ -780,7 +780,17 @@
         var pop = document.createElement('div');
         pop.id = 'busyPop';
         pop.className = 'busy-pop' + (locked ? ' is-hard' : '');
-        pop.innerHTML = '<div class="busy-pop-text">' + (locked ? '🔒 ' : '⚠️ ') + SeevaData.escapeHTML(chip.getAttribute('data-busy-text') || '') + '</div>'
+        // Contenuto costruito qui dagli impegni veri (cosa / quando / dove),
+        // non letto da un attributo: un nome evento con le virgolette
+        // troncava il testo a "Quel giorno hai già" (Fil, 2026-10-04).
+        var b = busyFor(chip.getAttribute('data-date-iso'));
+        var items = b.hard.concat(b.soft).map(function (e) {
+          return '<div class="busy-pop-item">'
+            + '<div class="busy-pop-name">' + SeevaData.escapeHTML(e.name) + (e.firm ? '' : ' <span class="busy-pop-tag">da confermare</span>') + '</div>'
+            + '<div class="busy-pop-meta">' + (e.time ? '🕗 ' + SeevaData.escapeHTML(e.time) : '🕗 orario non indicato') + (e.place ? ' · 📍 ' + SeevaData.escapeHTML(e.place) : '') + '</div>'
+            + '</div>';
+        }).join('');
+        pop.innerHTML = '<div class="busy-pop-text">' + (locked ? '🔒 ' : '⚠️ ') + 'Quel giorno hai già:</div>' + items
           + (locked ? '<button type="button" class="busy-pop-btn">Sblocca</button>' : '');
         grid.appendChild(pop);
         // posizione: sotto il giorno, con la punta centrata sul giorno
@@ -945,7 +955,7 @@
           var anyBusy = b.hard.concat(b.soft);
           // Niente legenda sotto la griglia (Fil, 2026-10-04): l'avviso
           // compare in un fumetto che esce dal giorno quando lo tocchi.
-          return '<div class="chip day-card' + (selected ? ' selected' : '') + (locked ? ' is-busy' : (anyBusy.length ? ' is-busy-soft' : '')) + '" data-option-id="' + opt.id + '" data-date-iso="' + opt.dateISO + '"' + (locked ? ' data-busy="1"' : '') + (anyBusy.length ? ' data-busy-text="' + SeevaData.escapeHTML('Quel giorno hai già ' + busyNamesText(anyBusy)) + '"' : '') + '>'
+          return '<div class="chip day-card' + (selected ? ' selected' : '') + (locked ? ' is-busy' : (anyBusy.length ? ' is-busy-soft' : '')) + '" data-option-id="' + opt.id + '" data-date-iso="' + opt.dateISO + '"' + (locked ? ' data-busy="1"' : '') + (anyBusy.length ? ' data-busy-any="1"' : '') + '>'
             + (locked ? '<div class="day-busy-lock">🔒</div>' : (anyBusy.length ? '<div class="day-busy-lock">⚠️</div>' : ''))
             + '<div class="day-dow">' + SeevaData.escapeHTML(parts.dow) + '</div>'
             + '<div class="day-num">' + SeevaData.escapeHTML(parts.day) + '</div>'
@@ -2197,7 +2207,7 @@
               return;
             }
             chip.classList.toggle('selected');
-            if (chip.classList.contains('selected') && chip.getAttribute('data-busy-text')) showBusyPop(chip, false);
+            if (chip.classList.contains('selected') && chip.getAttribute('data-busy-any')) showBusyPop(chip, false);
             else hideBusyPop();
           });
         });

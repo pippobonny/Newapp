@@ -3003,7 +3003,9 @@
     var map = {};
     function add(iso, ev, firm) {
       if (!iso || new Date(iso + 'T00:00:00') < today) return;
-      (map[iso] = map[iso] || []).push({ eventId: ev.id, name: ev.name, time: formatTimeLabel(ev.eventTime) || null, firm: firm });
+      var loc = null;
+      try { loc = resolveEventLocation(ev).address || null; } catch (err) { /* ignora */ }
+      (map[iso] = map[iso] || []).push({ eventId: ev.id, name: ev.name, time: formatTimeLabel(ev.eventTime) || null, place: loc, firm: firm });
     }
     (events || []).forEach(function (ev) {
       if (!ev || ev.id === excludeEventId) return;
@@ -3046,7 +3048,7 @@
   }
 
   function busyLabel(e) {
-    return '"' + e.name + '"' + (e.time ? ' alle ' + e.time : '') + (e.firm ? '' : ' (non ancora confermato)');
+    return '"' + e.name + '"' + (e.time ? ' alle ' + e.time : '') + (e.place ? ' a ' + e.place : '') + (e.firm ? '' : ' (non ancora confermato)');
   }
 
   async function addEventExpense(eventId, input) {
