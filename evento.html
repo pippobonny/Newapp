@@ -1176,9 +1176,8 @@
           labelText = 'In testa ai voti';
           subText = votesForBest + (votesForBest === 1 ? ' disponibile' : ' disponibili') + ' · non ancora definitiva';
           // Scadenza del voto (Fil, 2026-10-03), vedi computeEventStatus.
-          if (info.voteDeadlineISO) {
-            var dlLabel = new Date(info.voteDeadlineISO + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'long' }).replace('.', '');
-            subText += '<br>Si vota fino a ' + SeevaData.escapeHTML(dlLabel) + ' alle 9';
+          if (info.voteDeadlineLabel) {
+            subText += '<br>Si vota fino a ' + SeevaData.escapeHTML(info.voteDeadlineLabel);
           }
         }
         var iconSVG = isSingleDate

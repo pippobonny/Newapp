@@ -1481,8 +1481,31 @@
         }
       })();
 
+      /* Date già passate (2026-10-05, caccia alle falle dopo "Cena
+         regibussa"): prima si poteva proporre anche ieri. Range e
+         ricorrenza le scartano da soli; nelle date singole si avvisa. In
+         modifica restano valide le date passate che l'evento aveva già. */
+      function todayISOLocal() {
+        var t = new Date();
+        return t.getFullYear() + '-' + pad2(t.getMonth() + 1) + '-' + pad2(t.getDate());
+      }
+      function dropPastDates(result) {
+        if (!result || !result.dates) return result;
+        var today = todayISOLocal();
+        var keepOld = (isEditMode && editingEvent) ? (editingEvent.dateOptions || []).map(function (o) { return o.dateISO; }) : [];
+        if (activeDateMode === 'singole') {
+          var past = result.dates.filter(function (d) { return d < today && keepOld.indexOf(d) === -1; });
+          if (past.length) return { error: 'Una delle date è già passata: scegline una da oggi in poi.' };
+          return result;
+        }
+        var future = result.dates.filter(function (d) { return d >= today || keepOld.indexOf(d) !== -1; });
+        if (!future.length) return { error: 'Le date scelte sono tutte già passate.' };
+        return { dates: future };
+      }
+
       /* Legge la modalità attiva e restituisce { dates: [...] } oppure { error: '...' } */
-      function collectDates() {
+      function collectDates() { return dropPastDates(collectDatesRaw()); }
+      function collectDatesRaw() {
         if (activeDateMode === 'range') {
           var startVal = document.getElementById('rangeStart').value;
           var endVal = document.getElementById('rangeEnd').value;

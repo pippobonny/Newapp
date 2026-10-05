@@ -1365,7 +1365,7 @@
     + 'photoUrl:photo_url, '
     + 'locationAddress:location_address, locationPlaceId:location_place_id, '
     + 'locationLat:location_lat, locationLng:location_lng, '
-    + 'createdBy:created_by, createdByAccountId:created_by_account_id, friendListId:friend_list_id, createdAt:created_at, '
+    + 'createdBy:created_by, createdByAccountId:created_by_account_id, friendListId:friend_list_id, createdAt:created_at, voteOpenedAt:vote_opened_at, '
     + 'cancelledAt:cancelled_at, shareToken:share_token, openInvite:open_invite, '
     + 'confirmedDateOptionId:confirmed_date_option_id, confirmedLocationOptionId:confirmed_location_option_id, '
     + 'manuallyCancelled:manually_cancelled, eventTime:event_time, itemsEnabled:items_enabled, '
@@ -2747,6 +2747,65 @@
      (available_date_option_ids vuoto, salvato con un click esplicito, non
      una non-risposta) resta un partecipante a tutti gli effetti ma non vota
      per nessuna data. */
+  /* ---------- Scadenza del voto (Fil, 2026-10-05) ----------
+     Bug "Cena regibussa": evento creato alle 9:40 con la prima data OGGI ->
+     la vecchia regola chiudeva il voto "alle 9 del giorno della prima data",
+     cioè 40 minuti PRIMA che l'evento esistesse: pareggio immediato.
+     Regola nuova (Fil):
+     - normale: alle 9 di 2 giorni prima della prima data proposta;
+     - evento proposto DOPO quel momento (a breve):
+       · prima data = il giorno stesso in cui è stato proposto -> fino a
+         mezzanotte di quel giorno;
+       · altrimenti -> fino a 2 ore prima della prima data (dell'orario
+         dell'evento se c'è, altrimenti della mezzanotte: le 22 del giorno
+         prima);
+     - in ogni caso mai meno di 2 ore dopo che è stato proposto.
+     "Proposto" = creazione, oppure l'ultima volta che sono cambiate le date
+     (events.vote_opened_at, lo aggiorna il database da solo): aggiungere una
+     data a un evento vecchio non deve chiudere il voto all'istante.
+     Identica lato server in send-event-reminders (fuso Europe/Rome). */
+  function localISO(d) {
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+  }
+  function computeVoteDeadline(event) {
+    var opts = (event.dateOptions || []).map(function (o) { return o.dateISO; }).sort();
+    if (opts.length < 2) return null;
+    var first = opts[0];
+    var tCreated = event.createdAt ? new Date(event.createdAt).getTime() : NaN;
+    var tOpened = event.voteOpenedAt ? new Date(event.voteOpenedAt).getTime() : NaN;
+    var refMs = isNaN(tOpened) ? tCreated : (isNaN(tCreated) ? tOpened : Math.max(tCreated, tOpened));
+    var refStr = isNaN(refMs) ? null : new Date(refMs).toISOString();
+    var normal = new Date(first + 'T09:00:00'); normal.setDate(normal.getDate() - 2);
+    if (!refStr) return normal;
+    var ref = new Date(refStr);
+    if (isNaN(ref.getTime()) || ref.getTime() < normal.getTime()) return normal;
+    var deadline;
+    if (localISO(ref) >= first) {
+      deadline = new Date(localISO(ref) + 'T00:00:00'); deadline.setDate(deadline.getDate() + 1); // mezzanotte
+    } else {
+      var t = event.eventTime ? String(event.eventTime).slice(0, 5) : '00:00';
+      deadline = new Date(first + 'T' + t + ':00');
+      deadline = new Date(deadline.getTime() - 2 * 60 * 60 * 1000);
+    }
+    var minimum = ref.getTime() + 2 * 60 * 60 * 1000;
+    if (deadline.getTime() < minimum) deadline = new Date(minimum);
+    return deadline;
+  }
+
+  // "fino a stasera a mezzanotte" / "fino a domani alle 19:00" / "fino a gio 8 alle 9:00"
+  function voteDeadlineLabel(d) {
+    if (!d) return '';
+    var hm = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    var day = new Date(d.getTime());
+    var isMidnight = hm === '00:00';
+    if (isMidnight) day.setDate(day.getDate() - 1); // mezzanotte = fine del giorno prima
+    var today = localISO(new Date());
+    var tm = new Date(); tm.setDate(tm.getDate() + 1);
+    var dayISO = localISO(day);
+    var dayTxt = dayISO === today ? (isMidnight ? 'stasera' : 'oggi') : dayISO === localISO(tm) ? 'domani' : day.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '');
+    return dayTxt + (isMidnight ? ' a mezzanotte' : ' alle ' + hm);
+  }
+
   function computeEventStatus(event) {
     var participants = event.participants || [];
     var neverAvailable = participants.filter(function (p) {
@@ -2786,14 +2845,28 @@
     // stesso con te come unico partecipante, se non lo escludessimo qui
     // (deciso con Fil, 2026-07-19: in quel caso l'evento si deve annullare,
     // non confermare).
+    // Date ancora possibili (Fil, 2026-10-05): su un evento a più date non
+    // ancora deciso, un giorno già passato non può più vincere il voto
+    // (es. voto aperto fino a mezzanotte su un evento che proponeva anche
+    // "oggi"). Se sono passate tutte, si tengono tutte: ci pensa la regola
+    // "tutte le date scadute" più sotto.
+    var todayISOForVote = localISO(new Date());
+    var candidateOptions = event.dateOptions || [];
+    if (!event.confirmedDateOptionId && candidateOptions.length > 1) {
+      var stillOpen = candidateOptions.filter(function (o) { return o.dateISO >= todayISOForVote; });
+      if (stillOpen.length) candidateOptions = stillOpen;
+    }
+    var candidateIds = candidateOptions.map(function (o) { return o.id; });
+
     var activeNonOrganizerCount = activeParticipants.filter(function (p) {
-      return (p.name || '').trim().toLowerCase() !== organizerLower;
+      if ((p.name || '').trim().toLowerCase() === organizerLower) return false;
+      return (p.availableDateOptionIds || []).some(function (id) { return candidateIds.indexOf(id) !== -1; });
     }).length;
 
     // conta quante persone sono disponibili per ciascuna data proposta
     var bestOption = null;
     var bestCount = -1;
-    (event.dateOptions || []).forEach(function (option) {
+    candidateOptions.forEach(function (option) {
       var votes = participants.filter(function (p) {
         return (p.availableDateOptionIds || []).indexOf(option.id) !== -1;
       }).length;
@@ -2807,8 +2880,8 @@
     // senso: più di una data proposta, e almeno una risposta). Serve sia per
     // capire se c'è un vero pareggio da segnalare all'organizzatore, sia per
     // proporgli solo QUELLE quando deve scegliere (Fil, 2026-07-10).
-    var tiedOptions = (bestCount > 0 && (event.dateOptions || []).length > 1)
-      ? (event.dateOptions || []).filter(function (option) {
+    var tiedOptions = (bestCount > 0 && candidateOptions.length > 1)
+      ? candidateOptions.filter(function (option) {
           var votes = participants.filter(function (p) {
             return (p.availableDateOptionIds || []).indexOf(option.id) !== -1;
           }).length;
@@ -2835,17 +2908,9 @@
     // (status 'tie'), mai annullato da solo. Stessa regola lato server in
     // send-event-reminders, che salva la conferma e avvisa tutti.
     var isMultiDate = (event.dateOptions || []).length > 1;
-    var voteDeadlineISO = null;
-    if (isMultiDate && !confirmedOption) {
-      var sortedISOs = event.dateOptions.map(function (o) { return o.dateISO; }).sort();
-      var firstD = new Date(sortedISOs[0] + 'T00:00:00');
-      var dl = new Date(firstD.getTime()); dl.setDate(dl.getDate() - 2);
-      var createdDay = event.createdAt ? new Date(event.createdAt) : null;
-      if (createdDay) createdDay.setHours(0, 0, 0, 0);
-      if (createdDay && createdDay.getTime() > dl.getTime()) dl = firstD;
-      voteDeadlineISO = dl.getFullYear() + '-' + ('0' + (dl.getMonth() + 1)).slice(-2) + '-' + ('0' + dl.getDate()).slice(-2);
-    }
-    var votePastDeadline = !!voteDeadlineISO && Date.now() >= new Date(voteDeadlineISO + 'T09:00:00').getTime();
+    var voteDeadline = (isMultiDate && !confirmedOption) ? computeVoteDeadline(event) : null;
+    var voteDeadlineISO = voteDeadline ? localISO(voteDeadline) : null;
+    var votePastDeadline = !!voteDeadline && Date.now() >= voteDeadline.getTime();
     var noVotes = false;
 
     var status = 'waiting';
@@ -2948,6 +3013,8 @@
       status: status,
       cancelledManually: cancelledManually,
       voteDeadlineISO: voteDeadlineISO,
+      voteDeadline: voteDeadline,
+      voteDeadlineLabel: voteDeadlineLabel(voteDeadline),
       noVotes: noVotes,
       count: count,
       // Quanti hanno risposto (disponibili o "non ci sono mai") su quanti
@@ -3164,8 +3231,7 @@
       statusLine = info.noVotes ? 'Nessuno ha votato: scegli tu la data' : 'Pareggio: scegli tu la data';
     } else if (undecided) {
       var n = (ev.dateOptions || []).length;
-      var dl = info.voteDeadlineISO ? dayParts(info.voteDeadlineISO) : null;
-      statusLine = 'Da decidere · ' + n + ' date' + (dl && info.status !== 'tie' ? ' · si vota fino a ' + dl.dow.toLowerCase() + ' ' + dl.day : '');
+      statusLine = 'Da decidere · ' + n + ' date' + (info.voteDeadlineLabel && info.status !== 'tie' ? ' · si vota fino a ' + info.voteDeadlineLabel : '');
     } else {
       statusLine = 'Si fa' + (t ? ' · ore ' + t : '') + (loc ? ' · ' + loc : '');
     }
@@ -3588,6 +3654,8 @@
     hasUnreadNotifications: hasUnreadNotifications,
     countUnreadNotifications: countUnreadNotifications,
     computeEventStatus: computeEventStatus,
+    computeVoteDeadline: computeVoteDeadline,
+    voteDeadlineLabel: voteDeadlineLabel,
     amINotGoing: amINotGoing,
     classifyMyEvents: classifyMyEvents,
     renderMyEventCardHTML: renderMyEventCardHTML,
