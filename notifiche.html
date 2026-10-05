@@ -6,6 +6,8 @@
 <title>seeva — Notifiche</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://kruphqdahghxuvutonae.supabase.co" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.json">
@@ -60,7 +62,7 @@
 
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
   <script src="data.js"></script>
   <script>
     (async function () {
@@ -212,6 +214,12 @@
         var events;
         try {
           events = await SeevaData.getEvents();
+          // anche gli annullati, per l'avviso "è stato annullato" (2026-10-05)
+          try {
+            var activeIds = events.map(function (e) { return e.id; });
+            var cancelledEv = await SeevaData.getCancelledEvents();
+            events = events.concat(cancelledEv.filter(function (e) { return activeIds.indexOf(e.id) === -1; }));
+          } catch (err) { /* ignora: solo quegli avvisi in meno */ }
         } catch (err) {
           notifBodyEl.innerHTML = '<div class="empty-hint">Non riesco a caricare le notifiche (' + SeevaData.escapeHTML(SeevaData.friendlyErrorMessage(err)) + ').</div>';
           return;

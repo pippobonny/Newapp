@@ -460,6 +460,7 @@
     // vedrebbe per qualche secondo ancora la lista eventi di chi c'era prima
     // (vedi la cache in getEvents, Fil 2026-07-22).
     clearEventsCache();
+    try { localStorage.removeItem(LAST_EVENTS_KEY); localStorage.removeItem(ARCHIVE_CACHE_KEY); } catch (err) { /* ignora */ }
   }
 
   /* Inserisce l'avviso "sessione scaduta" in cima a containerEl se serve
@@ -744,7 +745,7 @@
   async function uploadAvatar(file) {
     if (!file) return null;
     var original = file;
-    file = await compressImageForUpload(file, 1000, 0.85); // avatar: quadrato piccolo in UI, non serve più di 1000px
+    file = await compressImageForUpload(file, 600, 0.85); // avatar (2026-10-05: 600px bastano, mostrato al massimo ~100px): quadrato piccolo in UI, non serve più di 1000px
 
     var ext = 'jpg';
     var contentType = 'image/jpeg';
@@ -769,7 +770,7 @@
   async function uploadEventPhoto(file) {
     if (!file) return null;
     var original = file;
-    file = await compressImageForUpload(file, 1600, 0.82);
+    file = await compressImageForUpload(file, 1280, 0.8); // 2026-10-05: più leggera da scaricare, a schermo resta nitida
 
     var ext = 'jpg';
     var contentType = 'image/jpeg';
@@ -1594,6 +1595,29 @@
 
   function writeEventsCache(events) {
     try { sessionStorage.setItem(EVENTS_CACHE_KEY, JSON.stringify({ t: Date.now(), v: events })); } catch (err) { /* ignora: niente cache, si rifà la richiesta ogni volta */ }
+    // Copia "ultima vista" sul telefono (2026-10-05, velocità): riaprendo
+    // l'app la Home e le liste si disegnano SUBITO con questa, mentre in
+    // sottofondo arrivano i dati freschi (vedi getEventsInstant). Legata
+    // all'account: chi entra con un altro account non vede quella di prima.
+    try {
+      var acc = getAccount();
+      if (acc && acc.id) localStorage.setItem(LAST_EVENTS_KEY, JSON.stringify({ a: acc.id, t: Date.now(), v: events }));
+    } catch (err) { /* spazio pieno o storage bloccato: niente avvio istantaneo, tutto il resto funziona */ }
+  }
+
+  var LAST_EVENTS_KEY = 'seeva:lastEvents';
+  // Ultima lista eventi vista su questo telefono (anche vecchia di giorni),
+  // solo per il primo disegno: chi la usa deve SEMPRE poi chiamare
+  // getEvents() per i dati veri. Null se non c'è o è di un altro account.
+  function getEventsInstant() {
+    try {
+      var acc = getAccount();
+      var raw = localStorage.getItem(LAST_EVENTS_KEY);
+      if (!acc || !raw) return null;
+      var parsed = JSON.parse(raw);
+      if (!parsed || parsed.a !== acc.id || !Array.isArray(parsed.v)) return null;
+      return parsed.v;
+    } catch (err) { return null; }
   }
 
   function clearEventsCache() {
@@ -1612,6 +1636,71 @@
     return ev;
   }
 
+  /* ---------- Si scaricano solo gli eventi che servono (Fil, 2026-10-05) ----------
+     Prima getEvents() scaricava TUTTI gli eventi di sempre, anche quelli
+     passati da mesi: col tempo sarebbe diventato sempre più lento. Ora:
+     - getEvents(): solo quelli ancora "vivi" — ultima data proposta da 3
+       giorni fa in poi (events.last_date, la tiene aggiornata il database)
+       e non annullati a mano. È quello che serve a Home, Agenda, Da
+       rispondere, date occupate, notifiche.
+     - getCancelledEvents(): gli annullati, scaricati solo aprendo la loro
+       lista (e le notifiche). Per il numero sul riquadro in Home basta
+       getCancelledCount(), che scarica solo gli id.
+     - getArchivedEvents(): quelli vecchi, solo per l'archivio nel Profilo
+       e la frase "presente agli ultimi eventi"; tenuti sul telefono 6 ore. */
+  var ACTIVE_WINDOW_DAYS = 3;
+  function activeCutoffISO() {
+    var d = new Date(); d.setDate(d.getDate() - ACTIVE_WINDOW_DAYS);
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+  }
+
+  async function getCancelledEvents() {
+    var res = await supabase
+      .from('events')
+      .select(EVENT_SELECT)
+      .or('manually_cancelled.eq.true,cancelled_at.not.is.null')
+      .order('created_at', { ascending: false });
+    if (res.error) throwSupabaseError(res.error);
+    var events = (res.data || []).map(sortEventDates);
+    pruneCancelledEvents(events);
+    return filterVisibleEvents(events);
+  }
+
+  // Solo quanti sono (riquadro "Annullati" in Home), senza scaricarli.
+  // excludeIds: quelli già presenti nella lista attiva, per non contarli due volte.
+  async function getCancelledCount(excludeIds) {
+    var res = await supabase
+      .from('events')
+      .select('id, createdByAccountId:created_by_account_id, participants(accountId:account_id, hiddenFromHome:hidden_from_home), invitees:event_invitees(accountId:account_id)')
+      .or('manually_cancelled.eq.true,cancelled_at.not.is.null');
+    if (res.error) throwSupabaseError(res.error);
+    var ex = excludeIds || [];
+    return filterVisibleEvents(res.data || []).filter(function (e) { return ex.indexOf(e.id) === -1; }).length;
+  }
+
+  var ARCHIVE_CACHE_KEY = 'seeva:archiveEvents';
+  async function getArchivedEvents(forceFresh) {
+    var acc = getAccount();
+    if (!forceFresh) {
+      try {
+        var raw = localStorage.getItem(ARCHIVE_CACHE_KEY);
+        var parsed = raw ? JSON.parse(raw) : null;
+        if (parsed && acc && parsed.a === acc.id && (Date.now() - parsed.t) < 6 * 3600 * 1000) return parsed.v;
+      } catch (err) { /* ignora */ }
+    }
+    var res = await supabase
+      .from('events')
+      .select(EVENT_SELECT)
+      .lt('last_date', activeCutoffISO())
+      .eq('manually_cancelled', false)
+      .order('last_date', { ascending: false })
+      .limit(80);
+    if (res.error) throwSupabaseError(res.error);
+    var events = filterVisibleEvents((res.data || []).map(sortEventDates));
+    try { if (acc) localStorage.setItem(ARCHIVE_CACHE_KEY, JSON.stringify({ a: acc.id, t: Date.now(), v: events })); } catch (err) { /* ignora */ }
+    return events;
+  }
+
   async function getEvents() {
     var cached = readEventsCache();
     if (cached) return cached;
@@ -1619,6 +1708,8 @@
     var res = await supabase
       .from('events')
       .select(EVENT_SELECT)
+      .or('last_date.gte.' + activeCutoffISO() + ',last_date.is.null')
+      .eq('manually_cancelled', false)
       .order('created_at', { ascending: false });
     if (res.error) throwSupabaseError(res.error);
     var events = (res.data || []).map(sortEventDates);
@@ -3633,6 +3724,10 @@
     isStandaloneApp: isStandaloneApp,
     startAutoRefresh: startAutoRefresh,
     getEvents: getEvents,
+    getCancelledEvents: getCancelledEvents,
+    getCancelledCount: getCancelledCount,
+    getArchivedEvents: getArchivedEvents,
+    getEventsInstant: getEventsInstant,
     getEventById: getEventById,
     createEvent: createEvent,
     updateEvent: updateEvent,

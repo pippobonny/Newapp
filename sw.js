@@ -12,7 +12,65 @@ self.addEventListener('install', function () {
 });
 
 self.addEventListener('activate', function (event) {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(Promise.all([
+    self.clients.claim(),
+    // via le cache di versioni vecchie di questo file
+    caches.keys().then(function (keys) {
+      return Promise.all(keys.filter(function (k) { return k.indexOf('seeva-') === 0 && k !== STATIC_CACHE; }).map(function (k) { return caches.delete(k); }));
+    })
+  ]));
+});
+
+/* ---------- Cache per la velocità (2026-10-05) ----------
+   Solo file che NON cambiano mai una volta pubblicati: i font, la libreria
+   Supabase a versione fissa, le icone/immagini dell'app e le foto caricate
+   (ognuna ha un nome unico). Riaprendo l'app arrivano dal telefono, senza
+   rete. Le pagine, data.js, script.js e style.css NON passano da qui: si
+   scaricano sempre aggiornati, così dopo un push nessuno resta con un mix di
+   file vecchi e nuovi. */
+var STATIC_CACHE = 'seeva-static-v1';
+var MAX_CACHED = 250;
+
+function isCacheable(url) {
+  if (url.hostname === 'fonts.gstatic.com') return true;
+  if (url.hostname === 'cdn.jsdelivr.net' && /@\d+\.\d+\.\d+\//.test(url.pathname)) return true; // solo versioni fisse
+  if (/\.supabase\.co$/.test(url.hostname) && url.pathname.indexOf('/storage/v1/object/public/') === 0) return true;
+  if (url.origin === self.location.origin && /\.(png|jpe?g|webp|gif|ico|svg|woff2?)$/i.test(url.pathname)) return true;
+  return false;
+}
+
+function trimCache(cache) {
+  return cache.keys().then(function (keys) {
+    if (keys.length <= MAX_CACHED) return;
+    return Promise.all(keys.slice(0, keys.length - MAX_CACHED).map(function (k) { return cache.delete(k); }));
+  });
+}
+
+self.addEventListener('fetch', function (event) {
+  var req = event.request;
+  if (req.method !== 'GET') return;
+  var url;
+  try { url = new URL(req.url); } catch (err) { return; }
+  if (!isCacheable(url)) return; // tutto il resto: rete normale, come prima
+
+  event.respondWith(caches.open(STATIC_CACHE).then(function (cache) {
+    return cache.match(req).then(function (hit) {
+      // Immagini dell'app (icone, logo): possono cambiare con un push ->
+      // si mostra subito quella salvata e intanto si aggiorna in sottofondo.
+      if (hit && url.origin === self.location.origin) {
+        fetch(req).then(function (fresh) { if (fresh && fresh.ok) cache.put(req, fresh); }).catch(function () {});
+        return hit;
+      }
+      if (hit) return hit;
+      return fetch(req).then(function (res) {
+        // salva solo risposte buone (anche "opache" da altri domini: img/font)
+        if (res && (res.ok || res.type === 'opaque')) {
+          cache.put(req, res.clone()).then(function () { return trimCache(cache); }).catch(function () { /* spazio pieno: pazienza */ });
+        }
+        return res;
+      });
+    });
+  }).catch(function () { return fetch(req); }));
 });
 
 self.addEventListener('push', function (event) {

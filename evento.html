@@ -6,6 +6,8 @@
 <title>seeva — Evento</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://kruphqdahghxuvutonae.supabase.co" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.json">
@@ -167,7 +169,7 @@
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
   <script src="data.js"></script>
   <script>
     (async function () {
@@ -1494,7 +1496,7 @@
         // Tap per vederla a schermo intero (Fil, 2026-07-10): cursor:zoom-in
         // per far capire che è cliccabile, vedi openPhotoLightbox più sotto.
         var photoHTML = event.photoUrl
-          ? '<img id="eventPhotoImg" src="' + SeevaData.escapeHTML(event.photoUrl) + '" alt="" style="width:100%; height:160px; object-fit:cover; border-radius:18px; margin-bottom:16px; box-shadow:0 6px 18px rgba(58,50,90,0.14); cursor:zoom-in;">'
+          ? '<img id="eventPhotoImg" src="' + SeevaData.escapeHTML(event.photoUrl) + '" alt="" decoding="async" fetchpriority="high" style="width:100%; height:160px; object-fit:cover; border-radius:18px; margin-bottom:16px; box-shadow:0 6px 18px rgba(58,50,90,0.14); cursor:zoom-in;">'
           : '';
 
         // Con più location proposte, quella "vera" da mostrare qui non è più

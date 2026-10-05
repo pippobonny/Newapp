@@ -1,4 +1,7 @@
 {
+  "installCommand": "npm install --no-audit --no-fund",
+  "buildCommand": "node build.mjs",
+  "outputDirectory": "dist",
   "rewrites": [
     { "source": "/presentazione", "destination": "/presentazione.html" }
   ]

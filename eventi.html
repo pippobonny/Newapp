@@ -6,6 +6,8 @@
 <title>seeva — Eventi</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://kruphqdahghxuvutonae.supabase.co" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.json">
@@ -71,7 +73,7 @@
 
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
   <script src="data.js"></script>
   <script>
     (async function () {
@@ -119,8 +121,16 @@
       var saving = false;
       var lastListHTML = null;
 
+      // Gli annullati (a mano) si scaricano solo aprendo la loro lista
+      // (2026-10-05), e si uniscono a quelli attivi senza doppioni.
       async function loadEvents() {
-        events = await SeevaData.getEvents();
+        var list = await SeevaData.getEvents();
+        if (only === 'annullati' && SeevaData.getCancelledEvents) {
+          var ids = list.map(function (e) { return e.id; });
+          var cancelled = await SeevaData.getCancelledEvents();
+          list = list.concat(cancelled.filter(function (e) { return ids.indexOf(e.id) === -1; }));
+        }
+        events = list;
       }
 
       function monthTitle(iso) {
@@ -271,8 +281,17 @@
         }, 260);
       });
 
-      await loadEvents();
-      render();
+      // Avvio istantaneo (2026-10-05): ultima lista vista su questo telefono
+      // subito, poi quella fresca.
+      var instant = SeevaData.getEventsInstant ? SeevaData.getEventsInstant() : null;
+      if (instant) {
+        events = instant;
+        render();
+        loadEvents().then(render, function () { /* resta quella di prima */ });
+      } else {
+        await loadEvents();
+        render();
+      }
 
       // Fil, 2026-07-21: niente più refresh manuale — vedi
       // SeevaData.startAutoRefresh in data.js. Fil, 2026-07-22: stop

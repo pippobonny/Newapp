@@ -3888,3 +3888,17 @@ a.notif-item:active { background: var(--track-soft); }
 .busy-pop-name { font-weight: 700; font-size: 13.5px; }
 .busy-pop-meta { font-size: 12px; opacity: 0.85; margin-top: 2px; }
 .busy-pop-tag { font-weight: 600; font-size: 10.5px; background: rgba(255,255,255,0.16); border-radius: 6px; padding: 1px 6px; margin-left: 4px; }
+
+/* Movimento ridotto (2026-10-05): chi ha attivato "riduci animazioni" nel
+   telefono non vede scorrimenti, rimbalzi e coriandoli; e le "lastre di
+   vetro" sfocate (costose da disegnare sui telefoni meno potenti) diventano
+   tinte piene. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal { opacity: 1 !important; transform: none !important; }
+}

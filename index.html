@@ -6,6 +6,8 @@
 <title>seeva — Home</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://kruphqdahghxuvutonae.supabase.co" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.json">
@@ -129,7 +131,7 @@
 
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
   <script src="data.js"></script>
   <script>
     (async function () {
@@ -229,11 +231,16 @@
         homeNextSlot.innerHTML = html;
       }
 
-      async function refreshHome() {
+      var cancelledExtra = 0;
+      async function refreshHome(preloaded) {
         var events;
-        try {
-          events = await SeevaData.getEvents();
-        } catch (err) { return; } // silenzioso: resta quello che c'era già in pagina
+        if (preloaded) {
+          events = preloaded;
+        } else {
+          try {
+            events = await SeevaData.getEvents();
+          } catch (err) { return; } // silenzioso: resta quello che c'era già in pagina
+        }
 
         // Stessa suddivisione di sempre (vedi eventi.html per la versione
         // gemella usata lì): "waiting" = da confermare (include il pareggio,
@@ -246,8 +253,18 @@
         var mine = SeevaData.classifyMyEvents(events);
         var waitingCount = mine.toAnswer.length;
         var confirmedCount = mine.agenda.length + mine.undecided.length;
-        var cancelledCount = mine.notGoing.length;
+        // Gli annullati a mano non si scaricano più con la lista (2026-10-05):
+        // qui se ne chiede solo il numero, in sottofondo.
+        var cancelledCount = mine.notGoing.length + cancelledExtra;
         renderHomeNext(mine.next);
+        if (!preloaded && SeevaData.getCancelledCount) {
+          var activeIds = events.map(function (e) { return e.id; });
+          SeevaData.getCancelledCount(activeIds).then(function (n) {
+            if (n === cancelledExtra) return;
+            cancelledExtra = n;
+            setTileCount(tileCancelledNum, 'cancelled', mine.notGoing.length + n);
+          }, function () { /* ignora: resta il numero di prima */ });
+        }
 
         setTileCount(tileWaitingNum, 'waiting', waitingCount);
         setTileCount(tileConfirmedNum, 'confirmed', confirmedCount);
@@ -304,7 +321,15 @@
         } catch (err) { /* ignora: il pallino resta semplicemente com'era */ }
       }
 
-      await refreshHome();
+      // Avvio istantaneo (2026-10-05): prima disegno con l'ultima lista vista
+      // su questo telefono (zero attese), poi subito i dati freschi.
+      var instantEvents = SeevaData.getEventsInstant ? SeevaData.getEventsInstant() : null;
+      if (instantEvents) {
+        refreshHome(instantEvents);
+        refreshHome();
+      } else {
+        await refreshHome();
+      }
       // Fil, 2026-07-22: catturato lo stop (startAutoRefresh lo ritorna già
       // da prima) su window.__seevaUnmount, richiamato dal router SPA in
       // script.js prima di cambiare tab — altrimenti questo timer

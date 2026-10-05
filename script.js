@@ -919,6 +919,16 @@
     } catch (err) {
       return;
     }
+    // Per "presente agli ultimi eventi" servono anche quelli vecchi
+    // (2026-10-05: non più nella lista normale). Restano sul telefono 6 ore.
+    var recentForStats = events;
+    try {
+      if (SeevaData.getArchivedEvents) {
+        var ids = events.map(function (e) { return e.id; });
+        var archived = await SeevaData.getArchivedEvents();
+        recentForStats = events.concat(archived.filter(function (e) { return ids.indexOf(e.id) === -1; }));
+      }
+    } catch (err) { /* ignora: statistica solo sugli eventi recenti */ }
 
     // Prossimo evento confermato ancora da vivere (Fil, 2026-08-24): alternato
     // a rotazione con la frase presenza qui sotto (vedi startBadgeRotation),
@@ -933,7 +943,7 @@
     // solo eventi davvero conclusi (confermati o passati), e solo quelli a cui
     // hai risposto in qualche modo (anche "non ci sono mai": conta come assenza,
     // non va escluso, altrimenti la statistica premierebbe chi ignora l'invito)
-    var attended = events
+    var attended = recentForStats
       .map(function (e) { return { event: e, info: SeevaData.computeEventStatus(e) }; })
       .filter(function (x) { return x.info.status === 'done' || x.info.status === 'passato'; })
       .filter(function (x) {
