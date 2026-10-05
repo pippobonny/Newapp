@@ -3902,3 +3902,7 @@ a.notif-item:active { background: var(--track-soft); }
   }
   .reveal { opacity: 1 !important; transform: none !important; }
 }
+
+/* Pagina che ci sta tutta nello schermo: ferma (vedi initNoUselessScroll in
+   script.js, 2026-10-05). */
+.content.fits-screen { overflow-y: hidden; padding-bottom: 24px; }

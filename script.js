@@ -1563,6 +1563,58 @@
     }, { passive: false });
   }
 
+  /* ---------- Niente scorrimento a vuoto (Fil, 2026-10-05, S25 Ultra) ----------
+     "Ci sta tutto nello schermo ma mi fa comunque scorrere in basso": colpa
+     dello spazio vuoto in fondo a .content (100px, lasciato per la vecchia
+     barra in basso e per la coccinella "segnala problema"). Quando il
+     contenuto vero ci sta tutto, la pagina diventa ferma (classe
+     fits-screen: niente scorrimento, spazio in fondo ridotto); appena il
+     contenuto cresce (lista più lunga, foto caricata, tastiera aperta) torna
+     a scorrere da sola. */
+  function initNoUselessScroll() {
+    var pending = false;
+    var observed = null;
+    var ro = window.ResizeObserver ? new ResizeObserver(schedule) : null;
+
+    function check() {
+      pending = false;
+      var el = document.querySelector('.screen .content') || document.querySelector('.content');
+      if (!el) return;
+      if (ro && observed !== el) {
+        ro.disconnect();
+        ro.observe(el);
+        Array.prototype.forEach.call(el.children, function (c) { ro.observe(c); });
+        observed = el;
+      }
+      // altezza del contenuto vero: il fondo dell'ultimo elemento visibile
+      var natural = 0;
+      Array.prototype.forEach.call(el.children, function (c) {
+        if (c.offsetParent === null && window.getComputedStyle(c).position !== 'fixed') return; // nascosto
+        var cs = window.getComputedStyle(c);
+        var bottom = c.offsetTop + c.offsetHeight + (parseFloat(cs.marginBottom) || 0);
+        if (bottom > natural) natural = bottom;
+      });
+      var fits = natural + 24 <= el.clientHeight;
+      el.classList.toggle('fits-screen', fits);
+      if (fits) el.scrollTop = 0;
+    }
+    function schedule() {
+      if (pending) return;
+      pending = true;
+      window.requestAnimationFrame(check);
+    }
+
+    if (window.MutationObserver) {
+      new MutationObserver(function () {
+        observed = null; // nuovi elementi: ricollega l'osservatore delle misure
+        schedule();
+      }).observe(document.body, { childList: true, subtree: true });
+    }
+    window.addEventListener('resize', schedule);
+    document.addEventListener('load', schedule, true); // immagini che finiscono di caricare
+    schedule();
+  }
+
   /* ---------- 9.7 Navbar che sparisce quando si apre la tastiera ----------
      La navbar e' "position: absolute" ancorata al bordo di .phone: su iOS,
      quando si apre la tastiera, il browser scrolla per portare il campo
@@ -2318,6 +2370,7 @@
     try { initTypedDates(); } catch (err) { /* mai bloccare la pagina per questo */ }
     initStandalonePushOffer();
     initNotificationHousekeeping();
+    try { initNoUselessScroll(); } catch (err) { /* mai bloccare la pagina per questo */ }
   });
 
   /* ---------- Date scrivibili a mano (Big Fra, 2026-10-03: "se non
