@@ -3906,3 +3906,18 @@ a.notif-item:active { background: var(--track-soft); }
 /* Pagina che ci sta tutta nello schermo: ferma (vedi initNoUselessScroll in
    script.js, 2026-10-05). */
 .content.fits-screen { overflow-y: hidden; padding-bottom: 24px; }
+
+/* App installata: scorre solo .content, mai la pagina intera (Fil,
+   2026-10-05, S25 Ultra: "scorre e resta lì" anche con la Home che ci sta
+   tutta). Nell'app installata .phone è alto quanto lo schermo vero
+   (--app-height), ma il body aveva min-height 100lvh, che su alcuni
+   Android è un po' più alto: la differenza faceva scorrere l'intera
+   pagina. Senza barra degli indirizzi lo scorrimento della pagina non
+   serve mai, quindi qui si blocca. */
+@media (display-mode: standalone) {
+  html, body {
+    height: 100%;
+    overflow: hidden;
+  }
+  body { min-height: 0; }
+}
