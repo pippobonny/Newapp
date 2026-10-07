@@ -1,0 +1,74 @@
+ a mezzanotte ⇒  at midnight
+ alle {hm} ⇒  at {hm}
+🔥 Presente all'ultimo evento ⇒ 🔥 Made it to the last event
+🔥 Presente a tutti gli ultimi {n} eventi ⇒ 🔥 Made it to all of the last {n} events
+👻 Assente all'ultimo evento ⇒ 👻 Missed the last event
+👻 Assente agli ultimi {n} eventi ⇒ 👻 Missed the last {n} events
+🎉 Presente a {a} eventi su {b} ⇒ 🎉 Made it to {a} of {b} events
+<b>{name}</b> si fa: {when}! ⇒ <b>{name}</b> is happening: {when}!
+<b>{name}</b> si fa! ⇒ <b>{name}</b> is happening!
+Nuovo invito: <b>{name}</b>, {when}. Ci sei? ⇒ New invite: <b>{name}</b>, {when}. Are you in?
+Nuovo invito: <b>{name}</b>. Ci sei? ⇒ New invite: <b>{name}</b>. Are you in?
+<b>{name}</b>: la data scelta è {when} e quel giorno non c’eri. L’abbiamo messo tra gli annullati. ⇒ <b>{name}</b>: the chosen date is {when} and you weren't free that day. We've moved it to cancelled.
+<b>{name}</b> è quasi risolto: manca 1 risposta. ⇒ <b>{name}</b> is nearly sorted: 1 answer still missing.
+<b>{name}</b> è quasi risolto: mancano {n} risposte. ⇒ <b>{name}</b> is nearly sorted: {n} answers still missing.
+<b>{name}</b> è in pareggio tra più date: tocca a te scegliere quale confermare. ⇒ <b>{name}</b> is tied between several dates: it's up to you to choose which one to confirm.
+Nuova proposta: <b>{name}</b>. Segna la tua disponibilità. ⇒ New event: <b>{name}</b>. Let them know when you're free.
+<b>{who}</b> è entrato/a nel tuo evento "{name}". ⇒ <b>{who}</b> joined your event "{name}".
+Da decidere · 1 data ⇒ To be decided · 1 date
+Da decidere · {n} date ⇒ To be decided · {n} dates
+ · si vota fino a {when} ⇒  · voting until {when}
+ · da {who} ⇒  · from {who}
+Disponibile per {n} date ⇒ Available for {n} dates
+{a} di {b} disponibili · tocca per i dettagli ⇒ {a} of {b} available · tap for details
+Mostra altri · 1 evento ⇒ Show 1 more event
+Mostra altri · {n} eventi ⇒ Show {n} more events
+1 ci sarà ⇒ 1 will be there
+{n} ci saranno ⇒ {n} will be there
+1 disponibile · non ancora definitiva ⇒ 1 available · not final yet
+{n} disponibili · non ancora definitiva ⇒ {n} available · not final yet
+1 spesa · {tot} in totale ⇒ 1 expense · {tot} in total
+{n} spese · {tot} in totale ⇒ {n} expenses · {tot} in total
+1 voce ⇒ 1 item
+{n} voci ⇒ {n} items
+ · {n} da prendere ⇒  · {n} still needed
+1 commento · tocca per leggere ⇒ 1 comment · tap to read
+{n} commenti · tocca per leggere ⇒ {n} comments · tap to read
+1 nuovo ⇒ 1 new
+{n} nuovi ⇒ {n} new
+Avviso mandato a 1 persona. ⇒ Message sent to 1 person.
+Avviso mandato a {n} persone. ⇒ Message sent to {n} people.
+{names} non ha l'app: lo vedrà aprendo il link dell'evento. ⇒ {names} doesn't have the app: they'll see it when they open the event link.
+{names} non hanno l'app: lo vedranno aprendo il link dell'evento. ⇒ {names} don't have the app: they'll see it when they open the event link.
+Promemoria mandato a 1 persona: ⇒ Reminder sent to 1 person:
+Promemoria mandato a {n} persone: ⇒ Reminder sent to {n} people:
+<b>{names}</b> non ha l'app: mandagli tu il link. ⇒ <b>{names}</b> doesn't have the app: send them the link yourself.
+<b>{names}</b> non hanno l'app: mandagli tu il link. ⇒ <b>{names}</b> don't have the app: send them the link yourself.
+Hai già sollecitato da poco. Puoi rimandarlo tra 1 minuto. ⇒ You sent a reminder recently. You can send another in 1 minute.
+Hai già sollecitato da poco. Puoi rimandarlo tra {n} minuti. ⇒ You sent a reminder recently. You can send another in {n} minutes.
+1 persona ⇒ 1 person
+{n} persone ⇒ {n} people
+In tutto saranno invitate {n} persone: la lista «{list}» più {m} aggiunte qui. ⇒ {n} people will be invited in total: the "{list}" list plus {m} added here.
+1 invitato ⇒ 1 guest
+{n} invitati ⇒ {n} guests
+1 amico ⇒ 1 friend
+{n} amici ⇒ {n} friends
+1 minuto fa ⇒ 1 minute ago
+{n} minuti fa ⇒ {n} minutes ago
+1 ora fa ⇒ 1 hour ago
+{n} ore fa ⇒ {n} hours ago
+{n} giorni fa ⇒ {n} days ago
+1 settimana fa ⇒ 1 week ago
+{n} settimane fa ⇒ {n} weeks ago
+1 già letta ⇒ 1 already read
+{n} già lette ⇒ {n} already read
+{n} posti proposti ⇒ {n} places suggested
+dal ⇒ from
+Si fa ⇒ It's on
+ · ore {t} ⇒  · at {t}
+Oggi, {date} ⇒ Today, {date}
+Porta {name} ⇒ {name}'s bringing it
+ · tocca per liberarla ⇒  · tap to free it up
+Aggiungi {n} persone ⇒ Add {n} people
+Ciao {name}! Scegli un nome utente e la tua data di nascita per finire. ⇒ Hi {name}! Choose a username and enter your date of birth to finish.
+Dettagli su seeva: {url} ⇒ Details on seeva: {url}

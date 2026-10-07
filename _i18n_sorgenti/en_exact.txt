@@ -1,0 +1,552 @@
+"Aggiungi a schermata Home" ⇒ "Add to Home screen"
+"Aggiungi alla schermata Home" ⇒ "Add to Home Screen"
+"Installa app" ⇒ "Install app"
++ Aggiungi ⇒ + Add
++ Aggiungi un'altra data ⇒ + Add another date
++ Aggiungi una spesa ⇒ + Add an expense
++ Crea lista ⇒ + Create list
++ Crea una lista amici ⇒ + Create a friends list
++ Proponi un'altra location (gli invitati sceglieranno) ⇒ + Suggest another location (guests will choose)
+. Se chi organizza ti aveva invitato con un altro nome, scegli quale sei: così la tua risposta resta collegata a te. ⇒ . If the organiser invited you under a different name, pick which one is you: that way your answer stays linked to you.
+. Segna la tua disponibilità. ⇒ . Let them know when you're free.
+. Sei registrato come ⇒ . You're registered as
+. Vuoi accedere con un account già esistente o registrarne uno nuovo? ⇒ . Do you want to log in with an existing account or sign up for a new one?
+: verrai aggiunto alla lista con questo nome. ⇒ : you'll be added to the list with this name.
+Accedi ⇒ Log in
+Accedi al tuo profilo ⇒ Log in to your profile
+Accedi con l'email e la password che hai scelto quando hai creato il profilo (anche da un altro telefono). ⇒ Log in with the email and password you chose when you created your profile (works from another phone too).
+Accedi → ⇒ Log in →
+Adesso ⇒ Just now
+Aggiungi ⇒ Add
+Aggiungi almeno un invitato. ⇒ Add at least one guest.
+Aggiungi almeno una data possibile. ⇒ Add at least one possible date.
+Aggiungi amico... ⇒ Add friend...
+Aggiungi chi ha pagato cosa, seeva calcola le quote di ciascuno. Niente più calcoli a mano. ⇒ Add who paid for what and seeva works out everyone's share. No more doing the maths by hand.
+Aggiungi persone ⇒ Add people
+Aggiungi qualcun altro fuori dalla lista ⇒ Add someone else not on the list
+Aggiungi una nota per gli altri › ⇒ Add a note for the others ›
+Aggiungimi → ⇒ Add me →
+Aggiungine uno qui sotto. ⇒ Add one below.
+Aggiungo spese e voci... ⇒ Adding expenses and items...
+Almeno 8 caratteri ⇒ At least 8 characters
+Amici ⇒ Friends
+Amici e liste ⇒ Friends and lists
+Amicizia confermata ⇒ Friendship confirmed
+Ancora nessun commento: scrivi il primo tu. ⇒ No comments yet: be the first to write one.
+Ancora nessuno · tocca per scrivere il primo ⇒ None yet · tap to write the first one
+Annulla ⇒ Cancel
+Annulla evento ⇒ Cancel event
+Annullati ⇒ Cancelled
+Annullati e non ci vai ⇒ Cancelled and not going
+Annullato ⇒ Cancelled
+Annullato dall’organizzatore ⇒ Cancelled by the organiser
+Apri il link a tutti ⇒ Open the link to everyone
+Apri il menu ⋮ del browser (di solito in alto a destra) e tocca ⇒ Open the browser menu ⋮ (usually top right) and tap
+Arriva come notifica a tutti gli invitati (tranne chi ha detto che non c'è) e resta in cima alla pagina dell'evento. ⇒ It reaches all guests as a notification (except those who said they're not coming) and stays at the top of the event page.
+Attiva chi porta cosa ⇒ Turn on who brings what
+Attiva divisione spese ⇒ Turn on expense splitting
+Attiva le notifiche ⇒ Turn on notifications
+Attiva notifiche ⇒ Turn on notifications
+Attiva notifiche push ⇒ Turn on push notifications
+Attivalo solo se vuoi che chiunque abbia il link possa aggiungersi da solo, anche se non l'hai scritto qui sopra. Comodo per eventi aperti a un gruppo largo, ma il link diventa di fatto un accesso libero. ⇒ Only turn this on if you want anyone with the link to be able to join, even if you haven't added them above. Handy for events open to a big group, but the link effectively becomes open access.
+Avviso a tutti ⇒ Message to everyone
+Avviso non inviato ⇒ Message not sent
+Avviso salvato nella pagina dell'evento. ⇒ Message saved on the event page.
+Basta gruppi WhatsApp per capire ⇒ No more WhatsApp groups to figure out
+Benvenuto/a in seeva! ⇒ Welcome to seeva!
+Cancellare questa spesa? Non si può annullare. ⇒ Delete this expense? This can't be undone.
+Cancellare questo commento? ⇒ Delete this comment?
+Carica una foto ⇒ Upload a photo
+Carica una tua immagine ⇒ Upload your own image
+Carico il vocale... ⇒ Uploading voice note...
+Carico la foto... ⇒ Uploading photo...
+Cerca per nome utente o per nome e cognome: se la trovi e la scegli, resta collegata per sempre e riceverà notifiche vere invece di un invito generico. ⇒ Search by username or full name: if you find and pick them, they stay linked for good and get real notifications instead of a generic invite.
+Chi c'è per ogni giorno ⇒ Who's in on each day
+Chi ci sarà ⇒ Who's coming
+Chi ha pagato ⇒ Who paid
+Chi porta cosa ⇒ Who brings what
+Chi viene ⇒ Who's coming
+Chi viene si vede subito, non va dedotto dallo scroll ⇒ See who's coming at a glance, no scrolling to work it out
+Chiudi ⇒ Close
+Chiudi ✕ ⇒ Close ✕
+Ci sarai? ⇒ Will you be there?
+Ci sei ⇒ You're in
+Ci sei ✓ — lo trovi nella tua agenda ⇒ You're in ✓ — it's in your schedule
+Ci sei? Rispondi qui 👉 ⇒ Are you in? Answer here 👉
+Ci sono ⇒ I'm in
+Ciao! Scegli un nome utente e la tua data di nascita per finire. ⇒ Hi! Choose a username and enter your date of birth to finish.
+Ciao, Ospite ⇒ Hi, Guest
+Ciao, benvenuto 👋 ⇒ Hi, welcome 👋
+Cognome ⇒ Surname
+Collegato a un account ⇒ Linked to an account
+Come funziona ⇒ How it works
+Come ti chiami? ⇒ What's your name?
+Come vuoi farti chiamare nell'app ⇒ What you want to be called in the app
+Commenti ⇒ Comments
+Con un profilo ritrovi questo e i prossimi eventi in un posto solo, ci vuole un minuto. ⇒ With a profile you'll find this and future events all in one place. It takes a minute.
+Con un profilo ritrovi tutti i tuoi eventi in un posto solo. Senza, resti visibile solo per questo evento. ⇒ With a profile you'll find all your events in one place. Without one, you're only visible for this event.
+Condividi ⇒ Share
+Condividi il link ⇒ Share the link
+Condividi questo link con gli amici ⇒ Share this link with your friends
+Conferma ⇒ Confirm
+Conferma disponibilità ⇒ Confirm availability
+Conferma evento ⇒ Confirm event
+Conferma location ⇒ Confirm location
+Conferma toccando ⇒ Confirm by tapping
+Conferma → ⇒ Confirm →
+Confermati ⇒ Confirmed
+Confermato ⇒ Confirmed
+Conguagli suggeriti ⇒ Suggested settle-ups
+Conti già in pari. ⇒ All settled up.
+Continua con Google ⇒ Continue with Google
+Continua → ⇒ Continue →
+Cosa avete pagato ⇒ What you paid for
+Cosa puoi fare ⇒ What you can do
+Cosa significa ⇒ What this means
+Cosa, es. Carne ⇒ What, e.g. Meat
+Crea e genera link → ⇒ Create and get link →
+Crea il tuo profilo ⇒ Create your profile
+Crea il tuo profilo → ⇒ Create your profile →
+Crea liste di amici (es. "Stretti", "Conoscenti") per compilare più in fretta gli invitati quando proponi un evento. ⇒ Create friends lists (e.g. "Close friends", "Acquaintances") to fill in guests faster when you suggest an event.
+Crea profilo ⇒ Create profile
+Creane una qui sopra. ⇒ Create one above.
+Crei un evento e proponi una o più date possibili. Aggiungi chi vuoi invitare, o mandi un link a tutti. ⇒ Create an event and suggest one or more possible dates. Add who you want to invite, or send everyone a link.
+Creo il profilo... ⇒ Creating profile...
+Creo l'evento... ⇒ Creating event...
+Da confermare, confermati o annullati: lo stato di ogni evento a colpo d'occhio, sempre aggiornato. ⇒ To be confirmed, confirmed or cancelled: every event's status at a glance, always up to date.
+Da decidere ⇒ To be decided
+Da prendere ⇒ Still needed
+Da rispondere ⇒ To answer
+Dalla proposta alla serata organizzata, senza ripetere le stesse domande a ogni amico. ⇒ From the idea to the night out, without asking every friend the same questions.
+Dalla risposta ⇒ From the reply
+Data da confermare ⇒ Date to be confirmed
+Data da decidere ⇒ Date to be decided
+Data di nascita ⇒ Date of birth
+Date singole ⇒ Single dates
+Dati del profilo (nome, email...) ⇒ Profile details (name, email...)
+Descrizione (testo o vocale, opzionale) ⇒ Description (text or voice, optional)
+Devi creare un profilo per creare una lista amici. ⇒ You need a profile to create a friends list.
+Devi creare un profilo per gestire le liste amici. ⇒ You need a profile to manage friends lists.
+Disattiva chi porta cosa ⇒ Turn off who brings what
+Disattiva divisione spese ⇒ Turn off expense splitting
+Disponibile ⇒ Available
+Divisione spese ⇒ Expense splitting
+Domani ⇒ Tomorrow
+Dove ⇒ Where
+Dove sarà (opzionale) ⇒ Where it'll be (optional)
+Elimina ⇒ Delete
+Elimina account ⇒ Delete account
+Eliminare per sempre il tuo account? Non potrai più accedere con queste credenziali, e l'azione non si può annullare. Gli eventi e le spese già condivisi con altri restano visibili a loro. ⇒ Delete your account for good? You won't be able to log in with these details again, and this can't be undone. Events and expenses already shared with others stay visible to them.
+Eliminare questa lista di amici? ⇒ Delete this friends list?
+Eliminare questa voce? ⇒ Delete this item?
+Email o password non corretti ⇒ Wrong email or password
+Entra nell'app → ⇒ Go to the app →
+Errore ⇒ Error
+Errore sconosciuto ⇒ Unknown error
+Es. Amici stretti ⇒ E.g. Close friends
+Es. Cena, taxi, affitto... ⇒ E.g. Dinner, taxi, rent...
+Es. Ci troviamo al parcheggio alle 19:30, portate il costume! ⇒ E.g. Meet at the car park at 19:30, bring your swimsuit!
+Es. Weekend in montagna ⇒ E.g. Weekend in the mountains
+Es. ghiaccio, altoparlante, birra... ⇒ E.g. ice, speaker, beer...
+Es. ghiaccio, altoparlante... ⇒ E.g. ice, speaker...
+Es. ho premuto Conferma e non è successo niente... ⇒ E.g. I pressed Confirm and nothing happened...
+Esci ⇒ Log out
+Esci ora ⇒ Log out now
+Evento ⇒ Event
+Evento annullato ⇒ Event cancelled
+Evento confermato! ⇒ Event confirmed!
+Evento non trovato ⇒ Event not found
+Evento non trovato. ⇒ Event not found.
+Evento senza nome ⇒ Untitled event
+Fatto ⇒ Done
+Forse ⇒ Maybe
+Forse 🤔 ⇒ Maybe 🤔
+Forse 🤔 — lo trovi nella tua agenda ⇒ Maybe 🤔 — it's in your schedule
+Foto dell'evento (opzionale) ⇒ Event photo (optional)
+Genera automaticamente tutte le date che corrispondono, nel mese scelto. ⇒ Automatically creates all matching dates in the chosen month.
+Già prese ⇒ Already taken
+Gli amici rispondono ⇒ Friends reply
+Gli eventi passati restano nel tuo Profilo. ⇒ Past events stay in your Profile.
+Gratuita, ci mette due minuti — e non occupa spazio nel telefono: si apre dal browser come un sito, nessun download da store. Se hai già ricevuto un invito a un evento, aprilo pure dal link che ti hanno mandato. ⇒ Free, takes two minutes — and it takes up no space on your phone: it opens in the browser like a website, nothing to download from an app store. If you've already been invited to an event, just open it from the link you were sent.
+Grazie di cuore per esserti registrato/a! Da qui puoi iniziare a organizzare eventi e ritrovarti con i tuoi amici, senza più il caos dei gruppi WhatsApp. ⇒ Thanks so much for signing up! From here you can start organising events and getting together with your friends, without the chaos of WhatsApp groups.
+Ha già un account ⇒ Already has an account
+Hai già aggiunto un invitato con questo nome. ⇒ You've already added a guest with this name.
+Hai già un account? ⇒ Already have an account?
+Hai già un account? Accedi ⇒ Already have an account? Log in
+Hai risposto a tutto 🎉 ⇒ You've answered everything 🎉
+Hai scelto ⇒ You chose
+Hai seeva installata: aprila dalla schermata Home ⇒ You have seeva installed: open it from your Home screen
+Hai votato ⇒ You voted
+Hanno risposto tutti gli invitati ma nessuno era disponibile: l'evento si è annullato automaticamente. ⇒ All guests replied but nobody was available: the event was cancelled automatically.
+Ho già un account ⇒ I already have an account
+I giorni in cui ci sei ⇒ The days you're free
+I più urgenti prima. ⇒ Most urgent first.
+I tuoi eventi ⇒ Your events
+I tuoi eventi passati ⇒ Your past events
+Ieri ⇒ Yesterday
+Il conto ⇒ The bill
+Il link che ricevi dopo aver creato l'evento è unico: chi lo apre sceglie il proprio nome tra questi, poi entra come ospite o con un account. ⇒ The link you get after creating the event is unique: whoever opens it picks their name from these, then joins as a guest or with an account.
+Il mio nome non c'è ⇒ My name isn't here
+Il nome utente è pubblico: lo vedono tutti negli eventi ⇒ Your username is public: everyone sees it in events
+Il profilo salvato su questo telefono non esiste più lato server (probabile reset del database in fase di test). Vai su Profilo e accedi di nuovo con la tua email, poi riprova. ⇒ The profile saved on this phone no longer exists on the server. Go to Profile, log in again with your email, then try again.
+Il prossimo ⇒ Up next
+Il range è troppo lungo (massimo 60 giorni). ⇒ The range is too long (60 days max).
+Il tuo accesso su questo telefono non è più valido (è successo dopo un aggiornamento dell'app): esci e accedi di nuovo per rivedere i tuoi dati. ⇒ Your login on this phone is no longer valid (this happened after an app update): log out and log in again to see your data.
+Il tuo browser non supporta la registrazione vocale. ⇒ Your browser doesn't support voice recording.
+Il tuo cognome ⇒ Your surname
+Il tuo nome ⇒ Your first name
+Impossibile creare l'account ⇒ Couldn't create the account
+Impossibile eliminare l'account ⇒ Couldn't delete the account
+Imposta la nuova password per il tuo profilo. Il link scade dopo un'ora e funziona una sola volta. ⇒ Set the new password for your profile. The link expires after an hour and only works once.
+Imposta prima un nome dal tuo profilo per poter rispondere. ⇒ Set a name in your profile first so you can reply.
+Imposta prima un nome dal tuo profilo per poter scrivere. ⇒ Set a name in your profile first so you can write.
+Impostazioni ⇒ Settings
+In attesa ⇒ Pending
+In attesa che confermi lui/lei ⇒ Waiting for them to confirm
+In attesa che l'organizzatore scelga ⇒ Waiting for the organiser to choose
+In testa ai voti ⇒ Leading the vote
+In testa ai voti, non ancora definitiva ⇒ Leading the vote, not final yet
+In un gruppo la data si perde tra gli sticker, nessuno ricorda chi aveva detto sì e le spese restano segnate a mente da qualcuno. seeva tiene una fonte sola per data, partecipanti e spese — sempre lì, senza dover risalire la chat. ⇒ In a group chat the date gets lost among the stickers, nobody remembers who said yes, and someone keeps track of the expenses in their head. seeva keeps one place for the date, the guests and the expenses — always there, no scrolling back through the chat.
+Inserisci la tua data di nascita. ⇒ Enter your date of birth.
+Installa ora ⇒ Install now
+Installa seeva ⇒ Install seeva
+Invia segnalazione ⇒ Send report
+Invitati ⇒ Guests
+Invito ⇒ Invite
+L'organizzatore ha annullato l'evento. ⇒ The organiser cancelled the event.
+La data di fine deve essere dopo quella di inizio. ⇒ The end date must be after the start date.
+La password deve avere almeno 8 caratteri. ⇒ The password must be at least 8 characters long.
+La tua agenda ⇒ Your schedule
+La tua disponibilità ⇒ Your availability
+La tua password ⇒ Your password
+La tua risposta ⇒ Your answer
+Lascia vuoto per non cambiarla ⇒ Leave blank to keep it
+Le date scelte sono tutte già passate. ⇒ All the chosen dates are already in the past.
+Le due password non coincidono. ⇒ The two passwords don't match.
+Le funzioni pensate per il tipo di caos che si crea sempre quando si prova a mettere d'accordo un gruppo. ⇒ Features built for the kind of chaos that always happens when you try to get a group to agree.
+Le notifiche push non sono supportate su questo browser o dispositivo. ⇒ Push notifications aren't supported on this browser or device.
+Le spese restano scritte, non affidate alla memoria ⇒ Expenses stay written down, not left to memory
+Le tue liste ⇒ Your lists
+Link d'invito ⇒ Invite link
+Link non valido: manca il codice di invito. ⇒ Invalid link: the invite code is missing.
+Lista ⇒ List
+Lista amici (opzionale) ⇒ Friends list (optional)
+Lista senza nome ⇒ Untitled list
+Manda avviso ⇒ Send message
+Manda un avviso a tutti ⇒ Send a message to everyone
+Mandare un promemoria a chi non ha ancora risposto? ⇒ Send a reminder to those who haven't replied yet?
+Mandi un link, chi lo apre entra direttamente nell'evento — non serve nemmeno registrarsi per rispondere. ⇒ Send a link: whoever opens it goes straight to the event — they don't even need to sign up to reply.
+Messaggio copiato ✓ ⇒ Message copied ✓
+Modalità data non valida. ⇒ Invalid date mode.
+Modifica ⇒ Edit
+Modifica evento ⇒ Edit event
+Modifica profilo ⇒ Edit profile
+Modifica spesa ⇒ Edit expense
+Nessun account trovato con questo nome ⇒ No account found with this name
+Nessun amico ancora ⇒ No friends yet
+Nessun amico ancora. ⇒ No friends yet.
+Nessun evento annullato e nessun “non ci sono”. ⇒ No cancelled events and no "I'm out".
+Nessun evento con la data da decidere. ⇒ No events with a date still to be decided.
+Nessun evento passato ancora: qui trovi l'archivio di quelli tuoi già conclusi. ⇒ No past events yet: this is where you'll find an archive of the ones you've done.
+Nessun invitato ancora: puoi aggiungerne dopo. ⇒ No guests yet: you can add some later.
+Nessun invitato ha indicato una data. Scegline una tu, oppure annulla l'evento. ⇒ No guest picked a date. Choose one yourself, or cancel the event.
+Nessun profilo esistente su questo dispositivo. ⇒ No existing profile on this device.
+Nessuna data proposta ⇒ No dates suggested
+Nessuna data trovata per questa combinazione. ⇒ No dates found for this combination.
+Nessuna lista — scrivi i nomi qui sotto ⇒ No list — write the names below
+Nessuna notifica per ora. ⇒ No notifications yet.
+Nessuna notifica recente. ⇒ No recent notifications.
+Nessuna spesa ancora ⇒ No expenses yet
+Nessuna spesa ancora. ⇒ No expenses yet.
+Nessuna voce ancora ⇒ No items yet
+Nessuna voce ancora. ⇒ No items yet.
+Nessuno ancora ⇒ Nobody yet
+Nessuno da sollecitare con l'app. ⇒ Nobody to remind through the app.
+Nessuno ha votato: scegli tu ⇒ Nobody voted: you choose
+Nessuno ha votato: scegli tu la data ⇒ Nobody voted: you choose the date
+Nessuno segnato per questa data. ⇒ Nobody's marked down for this date.
+Niente qui per ora. ⇒ Nothing here for now.
+Nome ⇒ Name
+Nome e cognome restano privati, il nome utente è visibile a tutti. ⇒ Your first name and surname stay private; your username is visible to everyone.
+Nome evento ⇒ Event name
+Nome utente (visibile a tutti) ⇒ Username (visible to everyone)
+Non ci sei ⇒ You're out
+Non ci sei — lo trovi negli annullati ⇒ You're out — it's under cancelled
+Non ci sono ⇒ I'm out
+Non c’eri ⇒ You weren't free
+Non disponibile ⇒ Not available
+Non hai ancora nessuna lista. ⇒ You don't have any lists yet.
+Non hai un account? Registrati ⇒ Don't have an account? Sign up
+Non hanno ancora risposto: ⇒ Haven't replied yet:
+Non mostrare più ⇒ Don't show again
+Non occupa spazio sul telefono, e ricevi subito le notifiche quando qualcuno risponde ai tuoi eventi. ⇒ It takes up no space on your phone, and you get notified straight away when someone replies to your events.
+Non occupa spazio sul telefono. Su iPhone è anche l'unico modo per ricevere le notifiche quando qualcuno risponde ai tuoi eventi (Apple non le consegna se seeva resta solo nel browser). ⇒ It takes up no space on your phone. On iPhone it's also the only way to get notified when someone replies to your events (Apple doesn't deliver them if seeva only stays in the browser).
+Non ora ⇒ Not now
+Non riesco a verificare questo invito. Riprova tra poco, o controlla di aver aperto il link giusto. ⇒ I can't verify this invite. Try again shortly, or check you opened the right link.
+Non riesco ad accedere al microfono (permesso negato?). ⇒ I can't access the microphone (permission denied?).
+Non sono mai disponibile ⇒ I'm never free
+Non sono riuscito a caricare i suggerimenti di Google Maps: puoi comunque scrivere l'indirizzo a mano. ⇒ Couldn't load Google Maps suggestions: you can still type the address yourself.
+Non sono riuscito a eliminare l'evento ⇒ Couldn't delete the event
+Non sono riuscito a registrare il service worker. ⇒ Couldn't register the service worker.
+Non sono riuscito a rimuovere l'evento dalla tua home ⇒ Couldn't remove the event from your home
+Non sono riuscito a salvare la risposta: rispondi qui sotto. ⇒ Couldn't save your answer: reply below.
+Non è un'app da scaricare dallo store: si apre dal browser come un sito, non consuma memoria sul telefono. Se vuoi puoi comunque aggiungerla alla schermata home in un tocco, resta comunque leggerissima. ⇒ It's not an app you download from a store: it opens in the browser like a website and uses no storage on your phone. If you like, you can still add it to your home screen in one tap — it stays super light.
+Nota per gli altri, es. orario di arrivo (facoltativo) ⇒ Note for the others, e.g. arrival time (optional)
+Notifiche ⇒ Notifications
+Notifiche attivate! 🔔 ⇒ Notifications on! 🔔
+Notifiche attive ⇒ Notifications on
+Notifiche precedenti ⇒ Earlier notifications
+Notifiche push attive ⇒ Push notifications on
+Nuova lista amici ⇒ New friends list
+Nuova password ⇒ New password
+Nuova proposta ⇒ New event
+Nuova proposta: ⇒ New event:
+Nuova spesa ⇒ New expense
+Nuovo invito: ⇒ New invite:
+Oggi ⇒ Today
+Ogni data che aggiungi diventa un'opzione tra cui gli invitati scelgono quando possono esserci. ⇒ Each date you add becomes an option for guests to pick when they can make it.
+Ogni domenica ⇒ Every Sunday
+Ogni giorno nel range diventa un'opzione tra cui scegliere (max 60 giorni). ⇒ Each day in the range becomes an option to choose from (60 days max).
+Ogni giovedì ⇒ Every Thursday
+Ogni lunedì ⇒ Every Monday
+Ogni martedì ⇒ Every Tuesday
+Ogni mercoledì ⇒ Every Wednesday
+Ogni sabato ⇒ Every Saturday
+Ogni venerdì ⇒ Every Friday
+Ogni weekend (sab + dom) ⇒ Every weekend (Sat + Sun)
+Ognuno dice per quali date c'è. Niente più "io ci sono ma dipende", tutto tracciato in un posto solo. ⇒ Everyone says which dates they're free. No more "I'm in, but it depends" — everything tracked in one place.
+Orario (facoltativo) ⇒ Time (optional)
+Organizzi tu ⇒ You're organising
+Ospite ⇒ Guest
+Pagata da te, divisa tra tutti gli invitati — i dettagli si affinano dopo, dalla pagina dell'evento. ⇒ Paid by you, split among all guests — you can fine-tune the details later on the event page.
+Pareggio ⇒ Tie
+Pareggio: in attesa che l'organizzatore scelga ⇒ Tie: waiting for the organiser to choose
+Pareggio: quale location confermi? ⇒ Tie: which location do you confirm?
+Pareggio: scegli tu la data ⇒ Tie: you choose the date
+Passato ⇒ Past
+Password dimenticata? ⇒ Forgotten your password?
+Per creare liste amici devi prima creare un profilo. ⇒ To create friends lists you need a profile first.
+Per creare un evento devi prima creare un profilo. ⇒ To create an event you need a profile first.
+Per usare seeva devi prima creare un profilo: ti basta un nome utente, si fa in un minuto. ⇒ To use seeva you need a profile first: all it takes is a username and a minute.
+Per vedere i tuoi eventi devi prima creare un profilo. ⇒ To see your events you need a profile first.
+Per vedere le notifiche dei tuoi eventi e delle tue liste devi prima creare un profilo. ⇒ To see notifications about your events and lists you need a profile first.
+Per vedere questo evento devi prima creare un profilo, oppure aprirlo dal link di invito che hai ricevuto. ⇒ To see this event you need a profile first, or open it from the invite link you were sent.
+Perché non un gruppo WhatsApp ⇒ Why not a WhatsApp group
+Permesso per le notifiche non concesso. ⇒ Notification permission not granted.
+Più alta la barra, più persone ci sono — scorri per gli altri giorni, tocca per i nomi ⇒ The taller the bar, the more people are free — scroll for other days, tap for names
+Presente a tutti gli ultimi eventi ⇒ At all the latest events
+Profilo ⇒ Profile
+Profilo non trovato. ⇒ Profile not found.
+Pronto a provarla? ⇒ Ready to give it a go?
+Proponi ⇒ Suggest
+Proponi le date, i tuoi amici rispondono, seeva sceglie quella che va bene a più persone — e tiene il conto di chi viene e di chi deve cosa. Tutto in un posto solo, niente più scroll infinito. ⇒ Suggest the dates, your friends reply, seeva picks the one that suits the most people — and keeps track of who's coming and who owes what. All in one place, no more endless scrolling.
+Proponi più date, i tuoi amici votano quelle che vanno bene, vince quella con più disponibilità. ⇒ Suggest a few dates, your friends vote for the ones that work, and the one most people can make wins.
+Puoi fissare subito una data, anche prima che rispondano tutti. ⇒ You can set a date right away, even before everyone replies.
+Qualche dettaglio in più... ⇒ A few more details...
+Qualcun altro l'ha già presa un attimo fa. ⇒ Someone else just took it.
+Quale giorno confermi? ⇒ Which day do you confirm?
+Quale location ti va bene? ⇒ Which location works for you?
+Quando ⇒ When
+Quando può essere l'evento ⇒ When the event could be
+Quando sei disponibile? ⇒ When are you free?
+Quanto (€) ⇒ How much (€)
+Quasi pieno ⇒ Almost full
+Questa lista non è tua. ⇒ This list isn't yours.
+Queste date hanno lo stesso numero di persone disponibili — l'evento resta in sospeso finché non ne confermi una. ⇒ These dates have the same number of people available — the event stays on hold until you confirm one.
+Questo evento non esiste (o il link non è più valido). ⇒ This event doesn't exist (or the link is no longer valid).
+Questo link di invito non esiste (o non è più valido). ⇒ This invite link doesn't exist (or is no longer valid).
+Questo nome è già collegato a un account seeva. Non vuol dire che hai già risposto: se sei tu, accedi e troverai l'evento nella tua Home per rispondere. ⇒ This name is already linked to a seeva account. That doesn't mean you've already replied: if it's you, log in and you'll find the event on your Home to reply.
+Range di date ⇒ Date range
+Registrati ⇒ Sign up
+Registrati con email ⇒ Sign up with email
+Registrati gratis ⇒ Sign up for free
+Richieste di amicizia ⇒ Friend requests
+Ricorrenza ⇒ Recurring
+Rifai la registrazione ⇒ Record again
+Rimuovi dalla home ⇒ Remove from home
+Ripeti la nuova password ⇒ Repeat the new password
+Ripeti questo evento ⇒ Repeat this event
+Ripeti questo evento con nuove date ⇒ Repeat this event with new dates
+Ripetila uguale ⇒ Type it again
+Riproduci ⇒ Play
+Rispondi ⇒ Reply
+Risposta salvata: ci sei ✓ ⇒ Answer saved: you're in ✓
+Risposta salvata: non ci sei ⇒ Answer saved: you're out
+Sai sempre chi viene ⇒ Always know who's coming
+Sai subito quando qualcuno risponde o quando una data si sblocca, senza controllare a mano. ⇒ Know straight away when someone replies or a date is settled, without checking manually.
+Salva come lista ⇒ Save as list
+Salva i gruppi che inviti spesso — la squadra, i compagni di viaggio — e invitali con un tocco. ⇒ Save the groups you invite often — the team, your travel buddies — and invite them in one tap.
+Salva modifiche ⇒ Save changes
+Salva modifiche → ⇒ Save changes →
+Salva nome utente ⇒ Save username
+Salva nuova password ⇒ Save new password
+Salva spesa ⇒ Save expense
+Salvo la lista... ⇒ Saving list...
+Salvo le modifiche... ⇒ Saving changes...
+Sblocca ⇒ Unlock
+Scegli ⇒ Choose
+Scegli almeno una persona con cui dividere. ⇒ Choose at least one person to split with.
+Scegli chi sei tra questi nomi. ⇒ Pick which of these names is you.
+Scegli dal calendario ⇒ Pick from calendar
+Scegli la data ⇒ Choose the date
+Scegli un mese. ⇒ Choose a month.
+Scegli un nome utente. ⇒ Choose a username.
+Scegli una data di inizio e una di fine. ⇒ Choose a start date and an end date.
+Scegli una nuova password ⇒ Choose a new password
+Scegli una nuova password. ⇒ Choose a new password.
+Scegli una password ⇒ Choose a password
+Scegli una password. ⇒ Choose a password.
+Sceglie l’organizzatore ⇒ The organiser chooses
+Scopri l'evento → ⇒ See the event →
+Scorri e tocca ⇒ Scroll and tap
+Scrivi cosa avete pagato. ⇒ Write what you paid for.
+Scrivi cosa è successo: pagina, dispositivo e (se ci sono stati) gli ultimi errori vengono allegati da soli. ⇒ Describe what happened: the page, device and any recent errors are attached automatically.
+Scrivi email e password. ⇒ Enter your email and password.
+Scrivi i nomi degli invitati (uno alla volta) ⇒ Write the guests' names (one at a time)
+Scrivi il messaggio. ⇒ Write your message.
+Scrivi il tuo cognome. ⇒ Enter your surname.
+Scrivi il tuo nome. ⇒ Enter your first name.
+Scrivi la tua email. ⇒ Enter your email.
+Scrivi la tua password. ⇒ Enter your password.
+Scrivi prima la tua email qui sopra, poi premi di nuovo "Password dimenticata?". ⇒ Enter your email above first, then tap "Forgotten your password?" again.
+Scrivi qualcosa prima di inviare. ⇒ Write something before sending.
+Scrivi un altro indirizzo o luogo ⇒ Enter another address or place
+Scrivi un commento... ⇒ Write a comment...
+Scrivi un importo maggiore di zero. ⇒ Enter an amount greater than zero.
+Scrivi un indirizzo o un luogo ⇒ Enter an address or place
+Scrivi un nome per la lista. ⇒ Enter a name for the list.
+Scrivi un nome. ⇒ Enter a name.
+Se lo lasci vuoto, l'evento sul calendario risulterà "tutto il giorno". ⇒ If you leave it blank, the event will show as "all day" in the calendar.
+Se non vedi subito il pulsante ⇒ If you don't see the button straight away
+Se quell'indirizzo esiste, ti abbiamo mandato un'email col link per scegliere una nuova password. ⇒ If that address exists, we've sent you an email with a link to choose a new password.
+Segna già cosa portare (facoltativo) ⇒ Note down what to bring (optional)
+Segna già una spesa (facoltativo) ⇒ Note down an expense (optional)
+Segnala un problema ⇒ Report a problem
+Segnalazione inviata, grazie! 🙏 ⇒ Report sent, thanks! 🙏
+Sei entrato nella lista ⇒ You've joined the list
+Sei registrato come ⇒ You're registered as
+Sei stato aggiunto come ⇒ You've been added as
+Sei tu uno di questi? ⇒ Are you one of these?
+Sei tu? → ⇒ Is this you? →
+Senza login ⇒ Without logging in
+Serve almeno un nome per l'evento. ⇒ The event needs a name.
+Serve un account per attivare le notifiche push. ⇒ You need an account to turn on push notifications.
+Serve un profilo ⇒ Profile needed
+Si terrà ⇒ Happening on
+Si è tenuto ⇒ Took place on
+Sollecita chi non ha risposto ⇒ Remind those who haven't replied
+Sollecito ⇒ Reminder
+Sollecito inviato ⇒ Reminder sent
+Sollecito non inviato ⇒ Reminder not sent
+Sono io → ⇒ That's me →
+Spese condivise ⇒ Shared expenses
+Stai creando un evento ⇒ You're creating an event
+Suggerimenti automatici non ancora attivi: per ora scrivi l'indirizzo a mano. ⇒ Automatic suggestions aren't on yet: type the address yourself for now.
+Suggerimenti di Google Maps non disponibili al momento: scrivi pure l'indirizzo a mano. ⇒ Google Maps suggestions aren't available right now: just type the address yourself.
+Testo ⇒ Text
+Ti avvisiamo quando qualcuno ti invita, conferma o cambia un evento — senza dover controllare l'app di continuo. ⇒ We'll let you know when someone invites you, confirms or changes an event — no need to keep checking the app.
+Ti bastano due minuti per registrarti. Il prossimo evento lo proponi tu. ⇒ It only takes two minutes to sign up. You suggest the next event.
+Ti ha invitato ⇒ Invited by
+Ti sei aggiunto come ospite ⇒ You joined as a guest
+Tocca per cambiare la tua risposta ⇒ Tap to change your answer
+Tocca per dire che la porti tu ⇒ Tap to say you'll bring it
+Tocca per fermare ⇒ Tap to stop
+Tocca per registrare ⇒ Tap to record
+Tocca una voce per dire che la porti tu (o per liberarla, se l'avevi presa tu); scorri una voce verso sinistra per eliminarla. ⇒ Tap an item to say you'll bring it (or to free it up if you'd taken it); swipe an item left to delete it.
+Togli avviso ⇒ Remove message
+Togli foto ⇒ Remove photo
+Togliere questo avviso dalla pagina dell'evento? (Chi l'ha già ricevuto come notifica lo ha comunque letto.) ⇒ Remove this message from the event page? (Anyone who got it as a notification has already seen it.)
+Torna alla Home → ⇒ Back to Home →
+Tra chi si divide ⇒ Split between
+Tre passaggi, non venti messaggi ⇒ Three steps, not twenty messages
+Trova la data giusta ⇒ Find the right date
+Tu ⇒ You
+Tutti ⇒ All
+Tutti i nomi di questo invito sono già collegati a un account: se sei uno di loro, accedi. ⇒ All the names on this invite are already linked to an account: if you're one of them, log in.
+Tutto quello che serve per organizzarsi ⇒ Everything you need to get organised
+Ultimo passo ⇒ Last step
+Un utente ⇒ A user
+Una delle date è già passata: scegline una da oggi in poi. ⇒ One of the dates has already passed: pick one from today onwards.
+Una lista amici è solo un elenco di nomi pronti da riusare: non invita nessuno adesso, serve solo per compilare più in fretta i prossimi eventi. ⇒ A friends list is just a set of names ready to reuse: it doesn't invite anyone now, it just helps you fill in future events faster.
+Una sola risposta per persona, non venti messaggi ⇒ One answer per person, not twenty messages
+Uscire da questo profilo su questo telefono? Il profilo resta salvato online: per riusare l'app da qui dovrai accedere di nuovo con email e password (o Google). ⇒ Log out of this profile on this phone? Your profile stays saved online: to use the app here again you'll need to log in with your email and password (or Google).
+Vai al profilo → ⇒ Go to profile →
+Vai alla Home → ⇒ Go to Home →
+Vai alla tua Home → ⇒ Go to your Home →
+Vai alla tua agenda → ⇒ Go to your schedule →
+Vi organizzate ⇒ You get organised
+Vocale ⇒ Voice
+Vota le tue date ⇒ Vote for your dates
+Vota qui 👉 ⇒ Vote here 👉
+Vuoi confermare tu, senza aspettare? ⇒ Want to confirm it yourself, without waiting?
+Zero spazio occupato ⇒ Zero storage used
+alla lista ⇒ to the list
+anche a chi non hai scritto sopra ⇒ even to people you haven't added above
+cambia ⇒ change
+ci sarà ⇒ will be there
+da confermare ⇒ to be confirmed
+dividete i conti dell'evento ⇒ split the event's costs
+già letta ⇒ already read
+già lette ⇒ already read
+il link non è valido ⇒ the link isn't valid
+in alto a destra. ⇒ at the top right.
+la tua sessione è scaduta, esci e accedi di nuovo ⇒ your session has expired, log out and log in again
+per riusarla dopo ⇒ to reuse it later
+quando uscite ⇒ when you go out
+si dividono cosa portare ⇒ share out what to bring
+seeva calcola la data con più disponibilità. Da lì, chi viene è confermato e si possono dividere le spese. ⇒ seeva works out the date most people can make. From there, who's coming is confirmed and you can split the costs.
+seeva propone le date, raccoglie le disponibilità, sceglie quella giusta e tiene il conto di chi viene e di chi deve cosa. Registrati gratis. ⇒ seeva suggests the dates, collects everyone's availability, picks the right one and keeps track of who's coming and who owes what. Sign up for free.
+seeva è una nuova app per organizzare eventi con gli amici senza i mille messaggi nel gruppo: rispondi con due tap quando puoi, gratis, senza pubblicità. ⇒ seeva is a new app for organising events with friends without the endless group messages: reply in two taps when you're free. Free, no ads.
+seeva — Amici ⇒ seeva — Friends
+seeva — Crea evento ⇒ seeva — Create event
+seeva — Eventi ⇒ seeva — Events
+seeva — Evento ⇒ seeva — Event
+seeva — Invito ⇒ seeva — Invite
+seeva — Notifiche ⇒ seeva — Notifications
+seeva — Organizza uscite con gli amici, senza il caos dei gruppi ⇒ seeva — Plan nights out with friends, without the group chat chaos
+seeva — Profilo ⇒ seeva — Profile
+seeva — Sei nella lista ⇒ seeva — You're on the list
+· tocca per liberarla ⇒ · tap to free it up
+È stata scelta una data in cui non c’eri ⇒ A date you weren't free was chosen
+è in pareggio tra più date: tocca a te scegliere quale confermare. ⇒ is tied between several dates: it's up to you to choose which one to confirm.
+è stato annullato dall'organizzatore. ⇒ has been cancelled by the organiser.
+è stato annullato: hanno risposto tutti ma nessuno era disponibile. ⇒ has been cancelled: everyone replied but nobody was available.
+← Il tuo profilo ⇒ ← Your profile
+← Indietro ⇒ ← Back
+← Scegli un altro nome ⇒ ← Choose another name
+← Torna a creare l'evento ⇒ ← Back to creating the event
+← Torna alla lista ⇒ ← Back to the list
+✅ Ci sono ⇒ ✅ I'm in
+✓ Ci sono ⇒ ✓ I'm in
+✕ Non ci sono ⇒ ✕ I'm out
+✨ Ancora nessun evento concluso da valutare ⇒ ✨ No finished events to rate yet
+❌ Non ci sono ⇒ ❌ I'm out
+＋ Aggiungi al calendario ⇒ ＋ Add to calendar
+🌟 L'anima della compagnia ⇒ 🌟 The life and soul of the party
+🍕 Ospite di passaggio: registrati e diventa leggenda ⇒ 🍕 Just passing through: sign up and become a legend
+🎭 Stai partecipando in incognito ⇒ 🎭 You're taking part incognito
+👻 Account fantasma: 0 eventi, 0 gloria ⇒ 👻 Ghost account: 0 events, 0 glory
+📅 Aggiungi al calendario ⇒ 📅 Add to calendar
+📉 Presenze in calo ultimamente... ⇒ 📉 Showing up less lately...
+📲 Installa l'app: non occupa spazio sul telefono ⇒ 📲 Install the app: it takes up no space on your phone
+📸 Aggiungi una foto profilo, fatti riconoscere dagli amici ⇒ 📸 Add a profile photo so your friends recognise you
+🔮 La tua fama è ancora tutta da scrivere ⇒ 🔮 Your fame is yet to be written
+🕗 orario non indicato ⇒ 🕗 no time given
+🕵️ Ospite misterioso: nessuno sa se ci sei mai stato ⇒ 🕵️ Mystery guest: nobody knows if you've ever been
+🤔 Forse ⇒ 🤔 Maybe
+🤔 Forse: ⇒ 🤔 Maybe:
+Gennaio ⇒ January
+Febbraio ⇒ February
+Marzo ⇒ March
+Aprile ⇒ April
+Maggio ⇒ May
+Giugno ⇒ June
+Luglio ⇒ July
+Agosto ⇒ August
+Settembre ⇒ September
+Ottobre ⇒ October
+Novembre ⇒ November
+Dicembre ⇒ December
+stasera ⇒ tonight
+oggi ⇒ today
+domani ⇒ tomorrow

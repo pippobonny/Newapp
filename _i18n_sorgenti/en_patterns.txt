@@ -1,0 +1,7 @@
+^Ciao, (.+)$ ⇒ Hi, $1
+^Ciao (.+)!$ ⇒ Hi $1!
+^seeva — (.+)$ ⇒ seeva — $1
+^(.+) ha risposto: ci sarà per «(.+)»\.$ ⇒ $1 is in for "$2".
+^(.+) ha risposto: non ci sarà per «(.+)»\.$ ⇒ $1 is out for "$2".
+^(.+) ha risposto: forse per «(.+)»\.$ ⇒ $1 said maybe for "$2".
+^(.+) ha segnalato che non potrà esserci per «(.+)»\.$ ⇒ $1 said they can't make it to "$2".

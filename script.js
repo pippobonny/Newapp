@@ -876,8 +876,8 @@
     if (!el) return;
 
     try {
-      var formatted = new Date().toLocaleDateString('it-IT', { day: 'numeric', month: 'long' });
-      el.textContent = 'Oggi, ' + formatted;
+      var formatted = new Date().toLocaleDateString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { day: 'numeric', month: 'long' });
+      el.textContent = t('Oggi, {date}', { date: formatted });
     } catch (err) {
       el.textContent = 'Oggi';
     }
@@ -975,13 +975,13 @@
     var ratio = presentCount / total;
     var phrase;
     if (ratio === 1) {
-      phrase = '🔥 Presente a tutti gli ultimi ' + total + (total === 1 ? ' evento' : ' eventi');
+      phrase = total === 1 ? t('🔥 Presente all\'ultimo evento') : t('🔥 Presente a tutti gli ultimi {n} eventi', { n: total });
     } else if (ratio === 0) {
-      phrase = '👻 Assente agli ultimi ' + total + (total === 1 ? ' evento' : ' eventi');
+      phrase = total === 1 ? t('👻 Assente all\'ultimo evento') : t('👻 Assente agli ultimi {n} eventi', { n: total });
     } else if (ratio >= 0.7) {
       phrase = '🌟 L\'anima della compagnia';
     } else if (ratio >= 0.4) {
-      phrase = '🎉 Presente a ' + presentCount + ' eventi su ' + total;
+      phrase = t('🎉 Presente a {a} eventi su {b}', { a: presentCount, b: total });
     } else {
       phrase = '📉 Presenze in calo ultimamente...';
     }
@@ -1594,7 +1594,13 @@
         var bottom = c.offsetTop + c.offsetHeight + (parseFloat(cs.marginBottom) || 0);
         if (bottom > natural) natural = bottom;
       });
-      var fits = natural + 24 <= el.clientHeight;
+      // Fil, 2026-10-07 (S25 Ultra, app installata): "posso scorrere su e
+      // giù anche se si vede tutto". Prima serviva un margine di 24px: se il
+      // contenuto ci stava giusto giusto (es. Home con la card del prossimo
+      // evento) la pagina tornava scorrevole con tutti i 100px vuoti in
+      // fondo. Ora basta che il contenuto vero ci stia (1px di tolleranza
+      // per gli arrotondamenti).
+      var fits = natural <= el.clientHeight + 1;
       el.classList.toggle('fits-screen', fits);
       if (fits) el.scrollTop = 0;
     }
@@ -2369,6 +2375,7 @@
     initOpenInAppBanner();
     try { initTypedDates(); } catch (err) { /* mai bloccare la pagina per questo */ }
     initStandalonePushOffer();
+    try { if (window.SeevaData && SeevaData.syncMyLang) SeevaData.syncMyLang().catch(function () {}); } catch (err) { /* mai bloccare la pagina */ }
     initNotificationHousekeeping();
     try { initNoUselessScroll(); } catch (err) { /* mai bloccare la pagina per questo */ }
   });

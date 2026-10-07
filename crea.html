@@ -2,6 +2,8 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
+<script src="i18n.js"></script>
+<script src="i18n-en.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>seeva — Crea evento</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1109,7 +1111,7 @@
         if (list) {
           selectedListPreview.style.display = '';
           selectedListPreviewName.textContent = list.name;
-          selectedListPreviewCount.textContent = list.friends.length + (list.friends.length === 1 ? ' persona' : ' persone');
+          selectedListPreviewCount.textContent = list.friends.length === 1 ? t('1 persona') : t('{n} persone', { n: list.friends.length });
           var previewNames = list.friends.slice(0, 3).map(function (f) { return f.name; });
           var extra = list.friends.length - previewNames.length;
           selectedListPreviewNames.textContent = previewNames.join(', ') + (extra > 0 ? ' +' + extra + ' altri' : '');
@@ -1126,7 +1128,7 @@
 
         var total = totalInviteesCount();
         if (list && manualNames.length) {
-          totalInviteesHint.textContent = 'In tutto saranno invitate ' + total + (total === 1 ? ' persona' : ' persone') + ': la lista «' + list.name + '» più ' + manualNames.length + (manualNames.length === 1 ? ' persona aggiunta qui.' : ' persone aggiunte qui.');
+          totalInviteesHint.textContent = t('In tutto saranno invitate {n} persone: la lista «{list}» più {m} aggiunte qui.', { n: total, list: list.name, m: manualNames.length });
         } else {
           totalInviteesHint.textContent = 'Il link che ricevi dopo aver creato l\'evento è unico: chi lo apre sceglie il proprio nome tra questi, poi entra come ospite o con un account.';
         }
@@ -1478,7 +1480,7 @@
           var d = new Date(now.getFullYear(), now.getMonth() + i, 1);
           var opt = document.createElement('option');
           opt.value = d.getFullYear() + '-' + pad2(d.getMonth() + 1);
-          opt.textContent = MONTH_NAMES[d.getMonth()] + ' ' + d.getFullYear();
+          opt.textContent = (window.t ? t(MONTH_NAMES[d.getMonth()]) : MONTH_NAMES[d.getMonth()]) + ' ' + d.getFullYear();
           patternMonthSelect.appendChild(opt);
         }
       })();
@@ -1827,7 +1829,7 @@
           + '<div class="signup-modal-title">' + SeevaData.escapeHTML(event.name) + '</div>'
           + '<div class="signup-modal-text" style="margin-bottom:6px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><rect x="3" y="5" width="18" height="16" rx="3"></rect><line x1="16" y1="3" x2="16" y2="7"></line><line x1="8" y1="3" x2="8" y2="7"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>' + SeevaData.escapeHTML(dateText) + '</div>'
           + (inviteesCount
-              ? '<div class="signup-modal-text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><circle cx="9" cy="8.5" r="3"></circle><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"></path><circle cx="17" cy="9" r="2.4"></circle><path d="M15.5 13.3c2.6 0.3 4.5 2.2 4.5 5.7"></path></svg>' + inviteesCount + (inviteesCount === 1 ? ' invitato' : ' invitati') + '</div>'
+              ? '<div class="signup-modal-text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><circle cx="9" cy="8.5" r="3"></circle><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"></path><circle cx="17" cy="9" r="2.4"></circle><path d="M15.5 13.3c2.6 0.3 4.5 2.2 4.5 5.7"></path></svg>' + (inviteesCount === 1 ? t('1 invitato') : t('{n} invitati', { n: inviteesCount })) + '</div>'
               : '<div class="signup-modal-text">Nessun invitato ancora: puoi aggiungerne dopo.</div>')
           + '</div>';
 
@@ -2025,7 +2027,7 @@
       }
       function crDayLabel(iso) {
         var d = new Date(iso + 'T00:00:00');
-        return d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
+        return d.toLocaleDateString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
       }
       function updateBusyHints() {
         document.querySelectorAll('.date-busy-hint').forEach(function (el) { el.remove(); });

@@ -3921,3 +3921,29 @@ a.notif-item:active { background: var(--track-soft); }
   }
   body { min-height: 0; }
 }
+
+/* Pagina evento: "Ti ha invitato X" (Michi, 2026-10-06) e avvisi
+   dell'organizzatore (Fil, 2026-10-07). -soft ridefiniti scuri in dark mode
+   più su, quindi niente colori fissi qui. */
+.invited-by-line { font-size: 13px; color: var(--ink-soft); margin: 0 2px 12px; }
+.invited-by-line b { color: var(--ink); font-weight: 600; }
+.announce-card {
+  background: var(--peach-soft);
+  border-left: 4px solid var(--peach);
+  border-radius: 14px;
+  padding: 10px 14px 12px;
+  margin-bottom: 14px;
+  color: var(--ink);
+}
+.announce-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-soft); margin-bottom: 4px; }
+.announce-head b { color: var(--ink); font-weight: 600; }
+.announce-del { cursor: pointer; padding: 2px 6px; font-size: 13px; color: var(--ink-soft); }
+.announce-text { font-size: 14.5px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+
+/* Scelta lingua nel Profilo (Fil, 2026-10-07) */
+.lang-opt {
+  width: 100%; text-align: left; padding: 13px 14px; border-radius: 14px;
+  border: 1.5px solid var(--track-soft); background: var(--card); color: var(--ink);
+  font: 500 14.5px 'Inter', sans-serif; cursor: pointer;
+}
+.lang-opt.is-on { border-color: var(--peach); background: var(--peach-soft); font-weight: 600; }

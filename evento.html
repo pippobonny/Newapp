@@ -2,6 +2,8 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
+<script src="i18n.js"></script>
+<script src="i18n-en.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>seeva — Evento</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -60,6 +62,10 @@
                un invitato in attesa. Visibilità aggiornata in render(), il
                limite dei 15 minuti lo fa il server (notify-event-nudge). -->
           <div class="menu-dropdown-item" id="menuNudgeBtn" style="display:none;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg> Sollecita chi non ha risposto</div>
+          <!-- Avviso a tutti gli invitati (Fil, 2026-10-07): messaggio che
+               arriva come notifica e resta fisso in cima alla pagina evento.
+               Solo chi organizza, evento non annullato. -->
+          <div class="menu-dropdown-item" id="menuAnnounceBtn" style="display:none;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"></path><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M18.5 5.5a9 9 0 0 1 0 13"></path></svg> Manda un avviso a tutti</div>
           <!-- Spenta di default su ogni evento nuovo, visibile solo a chi
                organizza (Fil, 2026-07-21: "rimane nascosta appena crei
                l'evento e poi da lì se vuoi la metti"). Etichetta e stato
@@ -287,6 +293,7 @@
       }
 
       document.title = 'seeva — ' + event.name;
+      titleEl.setAttribute('data-no-i18n', '');
       titleEl.textContent = event.name;
 
       var guestName = SeevaData.getGuestName() || '';
@@ -416,9 +423,9 @@
           var d = new Date(opt.dateISO + 'T00:00:00');
           var weekday, dayMonth;
           try {
-            weekday = d.toLocaleDateString('it-IT', { weekday: 'short' }).replace('.', '');
+            weekday = d.toLocaleDateString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { weekday: 'short' }).replace('.', '');
             weekday = weekday.charAt(0).toUpperCase() + weekday.slice(1);
-            dayMonth = d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }).replace('.', '');
+            dayMonth = d.toLocaleDateString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { day: 'numeric', month: 'short' }).replace('.', '');
           } catch (err) {
             weekday = '';
             dayMonth = opt.dateISO;
@@ -788,7 +795,7 @@
         var b = busyFor(chip.getAttribute('data-date-iso'));
         var items = b.hard.concat(b.soft).map(function (e) {
           return '<div class="busy-pop-item">'
-            + '<div class="busy-pop-name">' + SeevaData.escapeHTML(e.name) + (e.firm ? '' : ' <span class="busy-pop-tag">da confermare</span>') + '</div>'
+            + '<div class="busy-pop-name" data-no-i18n>' + SeevaData.escapeHTML(e.name) + (e.firm ? '' : ' <span class="busy-pop-tag">da confermare</span>') + '</div>'
             + '<div class="busy-pop-meta">' + (e.time ? '🕗 ' + SeevaData.escapeHTML(e.time) : '🕗 orario non indicato') + (e.place ? ' · 📍 ' + SeevaData.escapeHTML(e.place) : '') + '</div>'
             + '</div>';
         }).join('');
@@ -891,7 +898,7 @@
             var onlyOpt = event.dateOptions.filter(function (o) { return o.id === ids[0]; })[0];
             statusText = onlyOpt ? SeevaData.formatDateLabel(onlyOpt.dateISO) : 'Disponibile';
           } else {
-            statusText = 'Disponibile per ' + ids.length + ' date';
+            statusText = t('Disponibile per {n} date', { n: ids.length });
           }
           var statusIconSVG = isAvailable
             ? '<path d="M8 12.5l2.5 2.5L16 9.5"></path>'
@@ -1006,8 +1013,8 @@
          per il resto dell'app dove lo spazio non è così stretto. */
       function shortDateParts(dateISO) {
         var d = new Date(dateISO + 'T00:00:00');
-        var dow = d.toLocaleDateString('it-IT', { weekday: 'short' }).replace('.', '');
-        var month = d.toLocaleDateString('it-IT', { month: 'short' }).replace('.', '');
+        var dow = d.toLocaleDateString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { weekday: 'short' }).replace('.', '');
+        var month = d.toLocaleDateString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { month: 'short' }).replace('.', '');
         dow = dow.charAt(0).toUpperCase() + dow.slice(1);
         month = month.charAt(0).toUpperCase() + month.slice(1);
         return { dow: dow, day: String(d.getDate()), month: month };
@@ -1060,7 +1067,7 @@
               return ''
                 + '<div class="attendee-bubble"' + (guestName && !isOrganizer && name.toLowerCase() === guestName.toLowerCase() ? ' data-me-chip="1" style="cursor:pointer;"' : '') + '>'
                 + '<div class="attendee-bubble-circle">' + circleInner + '</div>'
-                + '<div class="attendee-bubble-name">' + SeevaData.escapeHTML(name) + '</div>'
+                + '<div class="attendee-bubble-name" data-no-i18n>' + SeevaData.escapeHTML(name) + '</div>'
                 + '</div>';
             }).join('') + '</div>'
           : '<div class="empty-hint" style="padding:10px 0;">Nessuno segnato per questa data.</div>';
@@ -1173,10 +1180,10 @@
         if (isSingleDate) {
           var rel = SeevaData.daysUntilLabel ? SeevaData.daysUntilLabel(info.bestOption.dateISO) : '';
           labelText = rel === 'oggi' ? 'Oggi' : rel === 'domani' ? 'Domani' : 'Quando';
-          subText = votesForBest ? (votesForBest + (votesForBest === 1 ? ' ci sarà' : ' ci saranno')) : '';
+          subText = votesForBest ? (votesForBest === 1 ? t('1 ci sarà') : t('{n} ci saranno', { n: votesForBest })) : '';
         } else {
           labelText = 'In testa ai voti';
-          subText = votesForBest + (votesForBest === 1 ? ' disponibile' : ' disponibili') + ' · non ancora definitiva';
+          subText = votesForBest === 1 ? t('1 disponibile · non ancora definitiva') : t('{n} disponibili · non ancora definitiva', { n: votesForBest });
           // Scadenza del voto (Fil, 2026-10-03), vedi computeEventStatus.
           if (info.voteDeadlineLabel) {
             subText += '<br>Si vota fino a ' + SeevaData.escapeHTML(info.voteDeadlineLabel);
@@ -1230,7 +1237,7 @@
                 + '<div class="expense-row-left">'
                 + emojiHTML
                 + '<div>'
-                + '<div class="expense-desc">' + SeevaData.escapeHTML(ex.description) + '</div>'
+                + '<div class="expense-desc" data-no-i18n>' + SeevaData.escapeHTML(ex.description) + '</div>'
                 + '<div class="expense-meta">Pagato da ' + SeevaData.escapeHTML(ex.paidByName) + ' · diviso tra ' + (ex.shareNames || []).length + '</div>'
                 + '</div>'
                 + '</div>'
@@ -1268,7 +1275,7 @@
             return ''
               + '<div class="balance-pill-row">'
               + '<div class="balance-pill-avatar">' + avatarChipHTML(b.name) + '</div>'
-              + '<div class="balance-pill-name">' + SeevaData.escapeHTML(b.name) + '</div>'
+              + '<div class="balance-pill-name" data-no-i18n>' + SeevaData.escapeHTML(b.name) + '</div>'
               + '<div class="balance-pill-amount ' + cls + '">' + amountLabel + '</div>'
               + '</div>';
           }).join('');
@@ -1292,7 +1299,7 @@
 
         var totalAmount = expenses.reduce(function (sum, ex) { return sum + Number(ex.amount || 0); }, 0);
         var subtitleText = expenses.length
-          ? expenses.length + (expenses.length === 1 ? ' spesa' : ' spese') + ' · ' + SeevaData.formatEuro(totalAmount) + ' in totale'
+          ? (expenses.length === 1 ? t('1 spesa · {tot} in totale', { tot: SeevaData.formatEuro(totalAmount) }) : t('{n} spese · {tot} in totale', { n: expenses.length, tot: SeevaData.formatEuro(totalAmount) }))
           : 'Nessuna spesa ancora';
 
         // Niente icona nell'intestazione (Fil non voleva la bustina di soldi):
@@ -1363,7 +1370,7 @@
 
           var metaText;
           if (isTaken) {
-            metaText = 'Porta ' + SeevaData.escapeHTML(it.takenByName) + (action === 'release' ? ' · tocca per liberarla' : '');
+            metaText = t('Porta {name}', { name: SeevaData.escapeHTML(it.takenByName) }) + (action === 'release' ? t(' · tocca per liberarla') : '');
           } else {
             metaText = action === 'claim' ? 'Tocca per dire che la porti tu' : 'Nessuno ancora';
           }
@@ -1382,7 +1389,7 @@
             + '<div class="item-row-card' + (action === 'none' ? ' not-tappable' : '') + '" data-item-id="' + it.id + '" data-item-action="' + action + '">'
             + '<div class="item-row-check' + (isTaken ? ' taken' : '') + (justPopped ? ' pop-in' : '') + '">' + checkHTML + '</div>'
             + '<div class="item-row-text">'
-            + '<div class="item-row-title">' + SeevaData.escapeHTML(it.text) + '</div>'
+            + '<div class="item-row-title" data-no-i18n>' + SeevaData.escapeHTML(it.text) + '</div>'
             + '<div class="item-row-meta">' + metaText + '</div>'
             + '</div>'
             + '</div>'
@@ -1413,7 +1420,7 @@
           : '';
 
         var subtitleText = items.length
-          ? items.length + (items.length === 1 ? ' voce' : ' voci') + (items.filter(function (it) { return !it.takenByAccountId; }).length ? ' · ' + items.filter(function (it) { return !it.takenByAccountId; }).length + ' da prendere' : '')
+          ? (items.length === 1 ? t('1 voce') : t('{n} voci', { n: items.length })) + (items.filter(function (it) { return !it.takenByAccountId; }).length ? t(' · {n} da prendere', { n: items.filter(function (it) { return !it.takenByAccountId; }).length }) : '')
           : 'Nessuna voce ancora';
 
         return ''
@@ -1607,7 +1614,7 @@
             + '<div class="who-coming-avatars">' + avatarsHTML + '</div>'
             + '<div class="who-coming-body">'
             + '<div class="who-coming-title">Chi viene</div>'
-            + '<div class="who-coming-sub">' + availableRows.length + ' di ' + roster.rows.length + ' disponibili · tocca per i dettagli</div>'
+            + '<div class="who-coming-sub">' + t('{a} di {b} disponibili · tocca per i dettagli', { a: availableRows.length, b: roster.rows.length }) + '</div>'
             + '</div>'
             + '<div class="who-coming-chevron">›</div>'
             + '</div>';
@@ -1645,13 +1652,13 @@
         }
 
         var commentsTileSubHTML = allComments.length
-          ? allComments.length + (allComments.length === 1 ? ' commento' : ' commenti') + ' · tocca per leggere'
+          ? (allComments.length === 1 ? t('1 commento · tocca per leggere') : t('{n} commenti · tocca per leggere', { n: allComments.length }))
           : 'Ancora nessuno · tocca per scrivere il primo';
         var commentsTileHTML = ''
           + '<div class="who-coming-tile" id="commentsTile">'
           + '<div class="comments-tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M21 11.5a8.4 8.4 0 0 1-8.4 8.4 8.3 8.3 0 0 1-3.8-.9L3 21l1.9-5.8a8.3 8.3 0 0 1-.9-3.8A8.4 8.4 0 0 1 12.6 3a8.4 8.4 0 0 1 8.4 8.4z"></path></svg></div>'
           + '<div class="who-coming-body">'
-          + '<div class="who-coming-title">Commenti' + (commentsUnseenCount ? ' <span class="badge new">' + commentsUnseenCount + ' nuov' + (commentsUnseenCount === 1 ? 'o' : 'i') + '</span>' : '') + '</div>'
+          + '<div class="who-coming-title">Commenti' + (commentsUnseenCount ? ' <span class="badge new">' + (commentsUnseenCount === 1 ? t('1 nuovo') : t('{n} nuovi', { n: commentsUnseenCount })) + '</span>' : '') + '</div>'
           + '<div class="who-coming-sub">' + commentsTileSubHTML + '</div>'
           + '</div>'
           + '<div class="who-coming-chevron">›</div>'
@@ -1662,13 +1669,13 @@
               var canDelete = isOrganizer || (guestName && c.authorName && c.authorName.trim().toLowerCase() === guestName.trim().toLowerCase());
               var initial = (c.authorName || '?').trim().charAt(0).toUpperCase() || '?';
               var when;
-              try { when = new Date(c.createdAt).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).replace('.', ''); } catch (err) { when = ''; }
+              try { when = new Date(c.createdAt).toLocaleString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).replace('.', ''); } catch (err) { when = ''; }
               return ''
                 + '<div class="comment-row" data-comment-id="' + c.id + '">'
                 + '<div class="comment-avatar" style="background:' + commentAvatarColor(c.authorName) + ';">' + SeevaData.escapeHTML(initial) + '</div>'
                 + '<div class="comment-body">'
                 + '<div class="comment-head"><span class="comment-name">' + SeevaData.escapeHTML(c.authorName || '?') + '</span><span class="comment-time">' + SeevaData.escapeHTML(when) + '</span></div>'
-                + '<div class="comment-text">' + SeevaData.escapeHTML(c.message) + '</div>'
+                + '<div class="comment-text" data-no-i18n>' + SeevaData.escapeHTML(c.message) + '</div>'
                 + (c.isFromResponse ? '<span class="comment-tag">Dalla risposta</span>' : '')
                 + (canDelete ? '<div class="comment-delete" data-delete-comment-id="' + c.id + '">Cancella</div>' : '')
                 + '</div>'
@@ -1766,6 +1773,8 @@
           var pendingCount = (roster.rows || []).filter(function (r) { return r.statusKey === 'pending'; }).length;
           menuNudgeBtnEl.style.display = (isOrganizer && info.status !== 'cancelled' && info.status !== 'passato' && pendingCount > 0) ? '' : 'none';
         }
+        var menuAnnounceBtnEl = document.getElementById('menuAnnounceBtn');
+        if (menuAnnounceBtnEl) menuAnnounceBtnEl.style.display = (isOrganizer && info.status !== 'cancelled') ? '' : 'none';
         var expensesSectionHTML = buildExpensesSectionHTML();
         var itemsSectionHTML = buildItemsSectionHTML(info);
 
@@ -1793,15 +1802,37 @@
         // tessera sola (whoComingTileHTML qui sopra) che apre un popup — il
         // popup vero (whoComingModalHTML) non è più qui dentro, vedi sotto —
         // al posto della lista intera sempre in vista di prima.
+        // "Ti ha invitato X" (Michi, 2026-10-06: "non si vede il nome di chi
+        // ti ha invitato all'evento"). Gli inviti partono sempre da chi
+        // organizza (createdBy); a chi organizza non serve.
+        var invitedByHTML = (!isOrganizer && event.createdBy)
+          ? '<div class="invited-by-line">Ti ha invitato <b>' + SeevaData.escapeHTML(event.createdBy) + '</b></div>'
+          : '';
+
+        // Avvisi dell'organizzatore (Fil, 2026-10-07): fissi in cima, il più
+        // recente per primo. Chi organizza può toglierli (✕).
+        var announcementsHTML = (event.announcements || []).map(function (a) {
+          var when = '';
+          try { when = new Date(a.createdAt).toLocaleString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).replace('.', ''); } catch (err) { when = ''; }
+          return '<div class="announce-card">'
+            + '<div class="announce-head"><span>📣 Avviso' + (a.authorName ? ' da <b>' + SeevaData.escapeHTML(a.authorName) + '</b>' : '') + (when ? ' · ' + SeevaData.escapeHTML(when) : '') + '</span>'
+            + (isOrganizer ? '<span class="announce-del" data-delete-announcement-id="' + SeevaData.escapeHTML(a.id) + '" role="button" aria-label="Togli avviso">✕</span>' : '')
+            + '</div>'
+            + '<div class="announce-text" data-no-i18n>' + SeevaData.escapeHTML(a.message) + '</div>'
+            + '</div>';
+        }).join('');
+
         contentEl.innerHTML = ''
           + guestExitLinkHTML
           + guestNudgeHTML
           + photoHTML
+          + invitedByHTML
+          + announcementsHTML
           + cancelledMessageHTML
           + repeatBoxHTML
           + (event.descriptionAudioUrl
               ? '<audio controls src="' + SeevaData.escapeHTML(event.descriptionAudioUrl) + '" style="width:100%; margin:2px 2px 16px;"></audio>'
-              : (event.description ? '<div class="card-date" style="margin:2px 2px 16px;">' + SeevaData.escapeHTML(event.description) + '</div>' : ''))
+              : (event.description ? '<div class="card-date" data-no-i18n style="margin:2px 2px 16px;">' + SeevaData.escapeHTML(event.description) + '</div>' : ''))
           + confirmedSummaryHTML
           + locationAndAvailabilityHTML
           + manualConfirmTopHTML
@@ -1824,6 +1855,19 @@
         if (window.SeevaUI) window.SeevaUI.refresh();
 
         bindEvents();
+        Array.prototype.forEach.call(contentEl.querySelectorAll('[data-delete-announcement-id]'), function (btn) {
+          btn.addEventListener('click', async function () {
+            if (!window.confirm('Togliere questo avviso dalla pagina dell\'evento? (Chi l\'ha già ricevuto come notifica lo ha comunque letto.)')) return;
+            try {
+              await SeevaData.deleteEventAnnouncement(btn.getAttribute('data-delete-announcement-id'));
+            } catch (err) {
+              window.alert('Non sono riuscito a toglierlo (' + SeevaData.friendlyErrorMessage(err) + ').');
+              return;
+            }
+            event = await SeevaData.getEventById(event.id);
+            render();
+          });
+        });
         bindDayBars();
         bindDayBarsScroll();
       }
@@ -2870,7 +2914,7 @@
               + '</div>';
           }).join('');
           saveBtn.disabled = !pending.length;
-          saveBtn.textContent = pending.length > 1 ? 'Aggiungi ' + pending.length + ' persone' : 'Aggiungi';
+          saveBtn.textContent = pending.length > 1 ? t('Aggiungi {n} persone', { n: pending.length }) : t('Aggiungi');
         }
 
         function addName() {
@@ -2960,6 +3004,57 @@
          chi non ha l'app (invitato solo col nome, nessun account collegato:
          nessuna notifica possibile) con il tasto per mandargli il link a
          mano — stessa condivisione della bolla #shareFab. */
+      /* Popup "Manda un avviso a tutti" (Fil, 2026-10-07). */
+      function openAnnouncePopup() {
+        var phone = document.querySelector('.phone');
+        if (!phone) return;
+        var overlay = document.createElement('div');
+        overlay.className = 'signup-overlay';
+        overlay.innerHTML = ''
+          + '<div class="signup-modal" style="text-align:left;">'
+          + '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">'
+          + '<div class="signup-modal-title" style="margin:0;">Avviso a tutti</div>'
+          + '<div class="list-delete" id="announceCloseBtn">Chiudi ✕</div></div>'
+          + '<div class="signup-modal-text" style="text-align:left; margin-bottom:10px;">Arriva come notifica a tutti gli invitati (tranne chi ha detto che non c\'è) e resta in cima alla pagina dell\'evento.</div>'
+          + '<textarea class="report-problem-textarea" id="announceText" maxlength="1000" placeholder="Es. Ci troviamo al parcheggio alle 19:30, portate il costume!"></textarea>'
+          + '<div class="field-hint" id="announceError" style="color:var(--cancel-ink); min-height:16px; margin-top:6px;"></div>'
+          + '<button type="button" class="primary-btn" id="announceSendBtn" style="margin-top:10px; margin-bottom:0;">Manda avviso</button>'
+          + '</div>';
+        function close() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+        phone.appendChild(overlay);
+        var textEl = overlay.querySelector('#announceText');
+        var errorEl = overlay.querySelector('#announceError');
+        var sendBtn = overlay.querySelector('#announceSendBtn');
+        overlay.querySelector('#announceCloseBtn').addEventListener('click', close);
+        setTimeout(function () { try { textEl.focus(); } catch (err) { /* ok */ } }, 50);
+        sendBtn.addEventListener('click', async function () {
+          var msg = (textEl.value || '').trim();
+          if (!msg) { errorEl.textContent = 'Scrivi il messaggio.'; return; }
+          if (sendBtn.disabled) return;
+          sendBtn.disabled = true;
+          sendBtn.textContent = 'Invio...';
+          errorEl.textContent = '';
+          var result;
+          try {
+            result = await SeevaData.sendEventAnnouncement(event.id, msg);
+          } catch (err) {
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Manda avviso';
+            errorEl.textContent = SeevaData.friendlyErrorMessage(err);
+            return;
+          }
+          close();
+          event = await SeevaData.getEventById(event.id);
+          render();
+          var unreachable = result.unreachableNames || [];
+          var n = result.notified || 0;
+          var txt = n ? (n === 1 ? t('Avviso mandato a 1 persona.') : t('Avviso mandato a {n} persone.', { n: n })) : t('Avviso salvato nella pagina dell\'evento.');
+          if (unreachable.length) txt += '\n\n' + (unreachable.length === 1 ? t('{names} non ha l\'app: lo vedrà aprendo il link dell\'evento.', { names: unreachable.join(', ') }) : t('{names} non hanno l\'app: lo vedranno aprendo il link dell\'evento.', { names: unreachable.join(', ') }));
+          window.alert(txt);
+        });
+      }
+
       function showNudgeResultPopup(result) {
         var phone = document.querySelector('.phone');
         if (!phone) return;
@@ -2968,10 +3063,10 @@
         var esc = SeevaData.escapeHTML;
 
         var mainText = notifiedNames.length
-          ? 'Promemoria mandato a ' + notifiedNames.length + (notifiedNames.length === 1 ? ' persona' : ' persone') + ':<br><b>' + notifiedNames.map(esc).join(', ') + '</b>'
+          ? (notifiedNames.length === 1 ? t('Promemoria mandato a 1 persona:') : t('Promemoria mandato a {n} persone:', { n: notifiedNames.length })) + '<br><b>' + notifiedNames.map(esc).join(', ') + '</b>'
           : 'Nessuno da sollecitare con l\'app.';
         var unreachableHTML = unreachable.length
-          ? '<div class="signup-modal-text" style="margin-top:12px;"><b>' + unreachable.map(esc).join(', ') + '</b> ' + (unreachable.length === 1 ? 'non ha' : 'non hanno') + ' l\'app: mandagli tu il link.</div>'
+          ? '<div class="signup-modal-text" style="margin-top:12px;">' + (unreachable.length === 1 ? t('<b>{names}</b> non ha l\'app: mandagli tu il link.', { names: unreachable.map(esc).join(', ') }) : t('<b>{names}</b> non hanno l\'app: mandagli tu il link.', { names: unreachable.map(esc).join(', ') })) + '</div>'
             + '<button type="button" class="primary-btn" id="nudgeShareBtn" style="margin-top:12px; margin-bottom:0;">Condividi il link</button>'
           : '';
 
@@ -3083,10 +3178,18 @@
             }
             if (result.cooldown) {
               var mins = Math.max(1, Math.ceil((result.retryAfterSeconds || 60) / 60));
-              window.alert('Hai già sollecitato da poco. Puoi rimandarlo tra ' + mins + (mins === 1 ? ' minuto.' : ' minuti.'));
+              window.alert(mins === 1 ? t('Hai già sollecitato da poco. Puoi rimandarlo tra 1 minuto.') : t('Hai già sollecitato da poco. Puoi rimandarlo tra {n} minuti.', { n: mins }));
               return;
             }
             showNudgeResultPopup(result);
+          });
+        }
+
+        var announceBtn = document.getElementById('menuAnnounceBtn');
+        if (announceBtn) {
+          announceBtn.addEventListener('click', function () {
+            dropdown.classList.remove('open');
+            openAnnouncePopup();
           });
         }
 

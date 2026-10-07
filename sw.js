@@ -114,8 +114,9 @@ self.addEventListener('push', function (event) {
   // la notifica funziona come prima.
   if (data.rsvp) {
     options.actions = [
-      { action: 'rsvp-yes', title: '✅ Ci sono' },
-      { action: 'rsvp-no', title: '❌ Non ci sono' }
+      // data.lang (Fil, 2026-10-07): il server manda la lingua del destinatario
+      { action: 'rsvp-yes', title: data.lang === 'en' ? "✅ I'm in" : '✅ Ci sono' },
+      { action: 'rsvp-no', title: data.lang === 'en' ? "❌ I'm out" : '❌ Non ci sono' }
     ];
   }
 

@@ -2,6 +2,8 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
+<script src="i18n.js"></script>
+<script src="i18n-en.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>seeva — Notifiche</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -131,15 +133,15 @@
         var diffMs = Date.now() - new Date(dateStr).getTime();
         var diffMin = Math.floor(diffMs / 60000);
         if (diffMin < 1) return 'Adesso';
-        if (diffMin < 60) return diffMin + (diffMin === 1 ? ' minuto fa' : ' minuti fa');
+        if (diffMin < 60) return diffMin === 1 ? t('1 minuto fa') : t('{n} minuti fa', { n: diffMin });
         var diffH = Math.floor(diffMin / 60);
-        if (diffH < 24) return diffH + (diffH === 1 ? ' ora fa' : ' ore fa');
+        if (diffH < 24) return diffH === 1 ? t('1 ora fa') : t('{n} ore fa', { n: diffH });
         var diffD = Math.floor(diffH / 24);
         if (diffD === 1) return 'Ieri';
-        if (diffD < 7) return diffD + ' giorni fa';
+        if (diffD < 7) return t('{n} giorni fa', { n: diffD });
         var diffW = Math.floor(diffD / 7);
-        if (diffW < 5) return diffW + (diffW === 1 ? ' settimana fa' : ' settimane fa');
-        return new Date(dateStr).toLocaleDateString('it-IT', { day: 'numeric', month: 'long' });
+        if (diffW < 5) return diffW === 1 ? t('1 settimana fa') : t('{n} settimane fa', { n: diffW });
+        return new Date(dateStr).toLocaleDateString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { day: 'numeric', month: 'long' });
       }
 
       /* Richieste di amicizia vera in attesa (Fil, 2026-07-12): a differenza
@@ -305,7 +307,7 @@
               + '<div class="expense-accordion-header" id="olderNotifHeader">'
               + '<div class="expense-accordion-titles">'
               + '<div class="expense-accordion-title">Notifiche precedenti</div>'
-              + '<div class="expense-accordion-subtitle">' + olderReadNotifs.length + (olderReadNotifs.length === 1 ? ' già letta' : ' già lette') + '</div>'
+              + '<div class="expense-accordion-subtitle">' + (olderReadNotifs.length === 1 ? t('1 già letta') : t('{n} già lette', { n: olderReadNotifs.length })) + '</div>'
               + '</div>'
               + '<div class="expense-accordion-chevron" id="olderNotifChevron">&#9662;</div>'
               + '</div>'

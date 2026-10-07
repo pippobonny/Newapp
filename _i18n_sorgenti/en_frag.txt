@@ -1,0 +1,118 @@
+" dalla tua home risulterai non disponibile per tutti gli invitati. L'azione non si può annullare: continuare? ⇒ " from your home you'll show as not available to all guests. This can't be undone: continue?
+" dalla tua home? Non potrai più vederlo qui, l'azione non si può annullare. ⇒ " from your home? You won't see it here any more, and this can't be undone.
+" è stata tolta una data a cui avevi detto di esserci: ⇒ " a date you'd said you were in for has been removed:
+" è stato eliminato dall'organizzatore. ⇒ " has been deleted by the organiser.
+" è stato modificato dall'organizzatore. ⇒ " has been changed by the organiser.
+" è tornato in attesa: l'organizzatore ha aggiunto nuove opzioni, la tua risposta di prima non basta più — vota di nuovo. ⇒ " is pending again: the organiser added new options, so your earlier answer isn't enough any more — vote again.
+": aprilo dai tuoi Download/File per aggiungerlo al calendario 📅 ⇒ ": open it from your Downloads/Files to add it to your calendar 📅
+"? Chi aveva già risposto disponibile riceverà un avviso. Non si può annullare. ⇒ "? Anyone who said they were available will be notified. This can't be undone.
+"? Chi aveva già risposto disponibile riceverà un avviso. Potrai sempre ripeterlo con nuove date in seguito. ⇒ "? Anyone who said they were available will be notified. You can always repeat it with new dates later.
+"? L'organizzatore riceverà una notifica. ⇒ "? The organiser will be notified.
+"? Questa data diventa subito quella definitiva dell'evento, anche se non tutti hanno ancora risposto. Non si può annullare da qui. ⇒ "? This date immediately becomes the event's final date, even if not everyone has replied yet. This can't be undone from here.
+). Riprova. ⇒ ). Please try again.
+: la data scelta è ⇒ : the chosen date is
+Annullare " ⇒ Cancel "
+Avviso mandato a ⇒ Message sent to
+Confermare " ⇒ Confirm "
+Da decidere · ⇒ To be decided ·
+Dettagli su seeva: ⇒ Details on seeva:
+Disponibile per ⇒ Available for
+Eliminare " ⇒ Delete "
+Hai già aggiunto ⇒ You've already added
+Hai già sollecitato da poco. Puoi rimandarlo tra ⇒ You sent a reminder recently. You can send another in
+In tutto saranno invitate ⇒ In total, invited:
+Mostra altri · ⇒ Show more ·
+Nessuno di questi, continua come ⇒ None of these, continue as
+Non riesco a caricare i tuoi eventi ( ⇒ I can't load your events (
+Non riesco a caricare le liste ( ⇒ I can't load the lists (
+Non riesco a caricare le notifiche ( ⇒ I can't load notifications (
+Non riesco a caricare questo evento ( ⇒ I can't load this event (
+Non sono riuscito a cambiare la divisione spese ( ⇒ Couldn't change expense splitting (
+Non sono riuscito a cambiare la lista "chi porta cosa" ( ⇒ Couldn't change the "who brings what" list (
+Non sono riuscito a cancellare il commento ( ⇒ Couldn't delete the comment (
+Non sono riuscito a cancellare la spesa ( ⇒ Couldn't delete the expense (
+Non sono riuscito a caricare il profilo ( ⇒ Couldn't load the profile (
+Non sono riuscito a collegarti ( ⇒ Couldn't link you (
+Non sono riuscito a confermare ( ⇒ Couldn't confirm (
+Non sono riuscito a creare la lista ( ⇒ Couldn't create the list (
+Non sono riuscito a eliminare l'account ( ⇒ Couldn't delete the account (
+Non sono riuscito a eliminare l'evento ( ⇒ Couldn't delete the event (
+Non sono riuscito a eliminare la lista ( ⇒ Couldn't delete the list (
+Non sono riuscito a eliminarla ( ⇒ Couldn't delete it (
+Non sono riuscito a inviare il commento ( ⇒ Couldn't send the comment (
+Non sono riuscito a inviare la richiesta ( ⇒ Couldn't send the request (
+Non sono riuscito a inviarla ( ⇒ Couldn't send it (
+Non sono riuscito a liberarla ( ⇒ Couldn't free it up (
+Non sono riuscito a mandare il sollecito ( ⇒ Couldn't send the reminder (
+Non sono riuscito a prenotarla ( ⇒ Couldn't claim it (
+Non sono riuscito a rimuovere l'amico ( ⇒ Couldn't remove the friend (
+Non sono riuscito a rimuovere l'evento dalla tua home ( ⇒ Couldn't remove the event from your home (
+Non sono riuscito a rispondere ( ⇒ Couldn't reply (
+Non sono riuscito a salvare il nome utente: ⇒ Couldn't save the username:
+Non sono riuscito a salvare l'evento ( ⇒ Couldn't save the event (
+Non sono riuscito a salvare la tua disponibilità ( ⇒ Couldn't save your availability (
+Non sono riuscito a salvare la tua risposta ( ⇒ Couldn't save your answer (
+Non sono riuscito a segnalarlo ( ⇒ Couldn't report it (
+Non sono riuscito a toglierlo ( ⇒ Couldn't remove it (
+Non sono riuscito ad aggiornare la tua risposta ( ⇒ Couldn't update your answer (
+Non sono riuscito ad aggiungere l'amico ( ⇒ Couldn't add the friend (
+Non sono riuscito ad aggiungere la voce ( ⇒ Couldn't add the item (
+Non sono riuscito ad aggiungerli ( ⇒ Couldn't add them (
+Non sono riuscito ad annullare ( ⇒ Couldn't cancel (
+Non sono riuscito ad aprire l'accesso Google ( ⇒ Couldn't open Google sign-in (
+Non sono riuscito a ⇒ Couldn't
+Non sono riuscito: ⇒ Couldn't do it:
+Nuova proposta di ⇒ New event by
+Pagato da ⇒ Paid by
+Promemoria mandato a ⇒ Reminder sent to
+Quel giorno hai già: ⇒ That day you already have:
+Quel giorno hai già ⇒ That day you already have
+Resta visibile qui per una settimana, poi viene eliminato. ⇒ It stays visible here for a week, then it's deleted.
+Rimuovendo " ⇒ By removing "
+Rimuovere " ⇒ Remove "
+Scaricato " ⇒ Downloaded "
+Segnalare che non potrai esserci per " ⇒ Let them know you can't make it to "
+Sei entrato come ⇒ You joined as
+Si vota fino a ⇒ Voting open until
+Stai aggiungendo ⇒ You're adding
+a un evento già confermato: tornerà "in attesa", e tutti i partecipanti (anche chi aveva già risposto) riceveranno un avviso per votare di nuovo. Continuare? ⇒ to an event that's already confirmed: it will go back to "pending", and all guests (including those who already replied) will be asked to vote again. Continue?
+aggiunto ✓ ⇒ added ✓
+deve dare ⇒ owes
+disponibili · tocca per i dettagli ⇒ available · tap for details
+e quel giorno non c’eri. L’abbiamo messo tra gli annullati. ⇒ and you weren't free that day. We've moved it to cancelled.
+hanno risposto ⇒ replied
+l'app: lo vedranno aprendo il link dell'evento. ⇒ the app: they'll see it when they open the event link.
+l'app: mandagli tu il link. ⇒ the app: send them the link yourself.
+non hanno ⇒ don't have
+non ha ⇒ doesn't have
+nella barra di Safari. ⇒ in the Safari toolbar.
+persone aggiunte ✓ ⇒ people added ✓
+ti ha invitato all'evento " ⇒ invited you to the event "
+ti ha invitato a ⇒ invited you to
+vuole aggiungerti come amico vero nella sua lista " ⇒ wants to add you as a real friend on their list "
+· diviso tra ⇒ · split between
+· e altri ⇒ · and others
+· non ancora definitiva ⇒ · not final yet
+· si vota fino a ⇒ · voting until
+· tocca per leggere ⇒ · tap to read
+· ore ⇒ · at
+è entrato/a nel tuo evento " ⇒ joined your event "
+è già tra gli invitati. ⇒ is already a guest.
+è quasi risolto: manca ⇒ is nearly sorted: still missing
+— organizza ⇒ — organised by
+— vota la tua ⇒ — vote for your
+⚠️ Giorni già impegnati — ⇒ ⚠️ Days already taken —
+⚠️ Quel giorno hai anche ⇒ ⚠️ That day you also have
+⚠️ Quel giorno hai già ⇒ ⚠️ That day you already have
+🔒 Quel giorno hai già ⇒ 🔒 That day you already have
+📣 Avviso da ⇒ 📣 Message from
+📣 Avviso ⇒ 📣 Message
+Ti ha invitato ⇒ Invited by
+ persone. ⇒  people.
+ persona. ⇒  person.
+ persone: ⇒  people:
+ persona: ⇒  person:
+ minuti. ⇒  minutes.
+ minuto. ⇒  minute.
+! Scegli un nome utente e la tua data di nascita per finire. ⇒ ! Choose a username and enter your date of birth to finish.
+Per " ⇒ For "

@@ -2,6 +2,8 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
+<script src="i18n.js"></script>
+<script src="i18n-en.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>seeva — Profilo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -220,6 +222,13 @@
           <div class="left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg> Dati del profilo (nome, email...)</div>
           <div>›</div>
         </div>
+        <!-- Lingua (Fil, 2026-10-07): di base quella del telefono, qui si
+             può forzare. Etichetta in entrambe le lingue apposta: chi si
+             ritrova l'app nella lingua sbagliata deve trovarla lo stesso. -->
+        <div class="settings-row" id="langRow">
+          <div class="left" style="display:flex; align-items:center; gap:8px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18"></path><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18z"></path></svg><span data-no-i18n>Lingua / Language</span></div>
+          <div style="display:flex; align-items:center; gap:6px;"><span id="langRowValue" data-no-i18n style="font-size:13px; color:var(--ink-soft);"></span>›</div>
+        </div>
         <!-- Visibile solo a chi ha un account (serve per collegare l'iscrizione
              a una riga di push_subscriptions) e solo se il browser/dispositivo
              supporta le notifiche push: su iPhone, ad esempio, solo se l'app è
@@ -265,6 +274,45 @@
       var profileSaveRow = document.getElementById('profileSaveRow');
       var myEventsList = document.getElementById('myEventsList');
       var pushNotifRow = document.getElementById('pushNotifRow');
+
+      /* ---------- Lingua (Fil, 2026-10-07) ---------- */
+      (function initLangRow() {
+        var row = document.getElementById('langRow');
+        var valueEl = document.getElementById('langRowValue');
+        if (!row || !window.SeevaI18n) return;
+        var I = window.SeevaI18n;
+        var saved = I.savedLang();
+        valueEl.textContent = (I.lang === 'en' ? 'English' : 'Italiano') + (saved ? '' : (I.lang === 'en' ? ' (phone)' : ' (telefono)'));
+        row.addEventListener('click', function () {
+          var phone = document.querySelector('.phone');
+          if (!phone) return;
+          var current = I.savedLang() || 'auto';
+          function opt(val, label) {
+            return '<button type="button" class="lang-opt' + (current === val ? ' is-on' : '') + '" data-lang="' + val + '">' + label + (current === val ? ' ✓' : '') + '</button>';
+          }
+          var overlay = document.createElement('div');
+          overlay.className = 'signup-overlay';
+          overlay.innerHTML = '<div class="signup-modal" data-no-i18n>'
+            + '<div class="signup-modal-title">Lingua / Language</div>'
+            + '<div style="display:flex; flex-direction:column; gap:8px; margin-top:12px;">'
+            + opt('auto', (I.phoneLang() === 'en' ? 'Automatic (phone language: English)' : 'Automatica (lingua del telefono: italiano)'))
+            + opt('it', '🇮🇹 Italiano')
+            + opt('en', '🇬🇧 English')
+            + '</div>'
+            + '<div style="text-align:center; margin-top:12px;"><span class="signup-skip-link" id="langCloseBtn">' + (I.lang === 'en' ? 'Close' : 'Chiudi') + '</span></div>'
+            + '</div>';
+          function close() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+          overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+          overlay.querySelector('#langCloseBtn').addEventListener('click', close);
+          Array.prototype.forEach.call(overlay.querySelectorAll('[data-lang]'), function (b) {
+            b.addEventListener('click', function () {
+              var v = b.getAttribute('data-lang');
+              I.setLang(v === 'auto' ? null : v); // ricarica la pagina; la lingua dell'account si aggiorna al prossimo avvio (syncMyLang)
+            });
+          });
+          phone.appendChild(overlay);
+        });
+      })();
       var pushNotifLabel = document.getElementById('pushNotifLabel');
       var pushNotifLabelText = document.getElementById('pushNotifLabelText');
       var createAvatarEl = document.getElementById('createProfileAvatar');
@@ -836,7 +884,7 @@
 
         pendingGoogleSuggestion = suggested || {};
         googleProfileGreeting.textContent = pendingGoogleSuggestion.firstName
-          ? 'Ciao ' + pendingGoogleSuggestion.firstName + '! Scegli un nome utente e la tua data di nascita per finire.'
+          ? t('Ciao {name}! Scegli un nome utente e la tua data di nascita per finire.', { name: pendingGoogleSuggestion.firstName })
           : 'Ciao! Scegli un nome utente e la tua data di nascita per finire.';
         if (pendingGoogleSuggestion.avatarUrl) {
           showAvatarImage(googleProfileAvatar, pendingGoogleSuggestion.avatarUrl);

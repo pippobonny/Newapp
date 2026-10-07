@@ -13,6 +13,7 @@
 
 (function (global) {
 
+  var T = function (it, vars) { return window.t ? window.t(it, vars) : String(it).replace(/\{(\w+)\}/g, function (m, k) { return vars && k in vars ? vars[k] : m; }); };
   var SUPABASE_URL = 'https://kruphqdahghxuvutonae.supabase.co';
   var SUPABASE_KEY = 'sb_publishable_WU-op4b5mEoqOZpzOYFSaA_P5ElM1y_';
   var supabase = global.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -145,7 +146,7 @@
   function formatDateLabel(dateISO) {
     try {
       var d = new Date(dateISO + 'T00:00:00');
-      var withDay = d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'long' });
+      var withDay = d.toLocaleDateString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { weekday: 'short', day: 'numeric', month: 'long' });
       return withDay.charAt(0).toUpperCase() + withDay.slice(1);
     } catch (err) {
       return dateISO;
@@ -155,7 +156,7 @@
   function shortDateLabel(dateISO) {
     try {
       var d = new Date(dateISO + 'T00:00:00');
-      return d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long' });
+      return d.toLocaleDateString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { day: 'numeric', month: 'long' });
     } catch (err) {
       return dateISO;
     }
@@ -252,7 +253,7 @@
 
     var descriptionParts = [];
     if (event.description) descriptionParts.push(event.description);
-    descriptionParts.push('Dettagli su seeva: ' + SITE_URL + '/evento.html?id=' + event.id);
+    descriptionParts.push(T('Dettagli su seeva: {url}', { url: SITE_URL + '/evento.html?id=' + event.id }));
 
     var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//seeva//IT', 'BEGIN:VEVENT']
       .concat(['UID:' + event.id + '@seeva.it', 'DTSTAMP:' + icsDateStamp()])
@@ -271,7 +272,7 @@
      su iPhone è l'unico modo affidabile per far comparire "Aggiungi a
      Calendario" — il file creato al volo nel browser lì non si apre. */
   function eventIcsUrl(event, dateISO) {
-    return SUPABASE_URL + '/functions/v1/event-ics?id=' + encodeURIComponent(event.id)
+    return SUPABASE_URL + '/functions/v1/event-ics?id=' + encodeURIComponent(event.id) + (window.SeevaI18n && SeevaI18n.lang === 'en' ? '&lang=en' : '')
       + (dateISO ? '&date=' + encodeURIComponent(dateISO) : '');
   }
 
@@ -598,7 +599,7 @@
      dell'account se l'invio va storto (Resend non configurato, rete assente,
      ecc.) — per questo non si fa await e si ignora ogni errore. */
   function notifyAccountCreated(accountId) {
-    supabase.functions.invoke('notify-account-created', { body: { accountId: accountId } })
+    supabase.functions.invoke('notify-account-created', { body: { accountId: accountId, lang: window.SeevaI18n ? SeevaI18n.lang : 'it' } })
       .catch(function (err) { /* non blocca: l'account è comunque creato */ });
   }
 
@@ -1210,7 +1211,7 @@
      registrate. Se l'email esiste davvero, arriva un link per sceglierne una
      nuova (vedi resetPassword). */
   async function requestPasswordReset(email) {
-    var res = await supabase.functions.invoke('request-password-reset', { body: { email: (email || '').trim() } });
+    var res = await supabase.functions.invoke('request-password-reset', { body: { email: (email || '').trim(), lang: window.SeevaI18n ? SeevaI18n.lang : 'it' } });
     if (res.error) throwSupabaseError(res.error);
     return true;
   }
@@ -1525,8 +1526,8 @@
       isVote = true;
       var a = new Date(opts[0].dateISO + 'T00:00:00');
       var b = new Date(opts[opts.length - 1].dateISO + 'T00:00:00');
-      var monthA = a.toLocaleDateString('it-IT', { month: 'long' });
-      var monthB = b.toLocaleDateString('it-IT', { month: 'long' });
+      var monthA = a.toLocaleDateString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { month: 'long' });
+      var monthB = b.toLocaleDateString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { month: 'long' });
       var range = monthA === monthB
         ? 'dal ' + a.getDate() + ' al ' + b.getDate() + ' ' + monthB
         : 'dal ' + a.getDate() + ' ' + monthA + ' al ' + b.getDate() + ' ' + monthB;
@@ -1950,24 +1951,24 @@
         if (iAmOrganizer || (meN && (meN.maybe || (info.bestOption && (meN.availableDateOptionIds || []).indexOf(info.bestOption.id) !== -1)))) {
           notifications.push({
             icon: 'confirmed', emoji: '✅', time: latestEventActivityTime(event), eventId: event.id,
-            text: '<b>' + escapeHTML(event.name) + '</b> si fa' + (whenN ? ': ' + escapeHTML(whenN) : '') + '!'
+            text: whenN ? T('<b>{name}</b> si fa: {when}!', { name: escapeHTML(event.name), when: escapeHTML(whenN) }) : T('<b>{name}</b> si fa!', { name: escapeHTML(event.name) })
           });
         } else if (!meN) {
           notifications.push({
             icon: 'new', emoji: '📅', time: ts, eventId: event.id,
-            text: 'Nuovo invito: <b>' + escapeHTML(event.name) + '</b>' + (whenN ? ', ' + escapeHTML(whenN) : '') + '. Ci sei?'
+            text: whenN ? T('Nuovo invito: <b>{name}</b>, {when}. Ci sei?', { name: escapeHTML(event.name), when: escapeHTML(whenN) }) : T('Nuovo invito: <b>{name}</b>. Ci sei?', { name: escapeHTML(event.name) })
           });
         } else if ((meN.availableDateOptionIds || []).length) {
           notifications.push({
             icon: 'cancelled', emoji: '📅', time: latestEventActivityTime(event), eventId: event.id,
-            text: '<b>' + escapeHTML(event.name) + '</b>: la data scelta è ' + escapeHTML(whenN) + ' e quel giorno non c\u2019eri. L\u2019abbiamo messo tra gli annullati.'
+            text: T('<b>{name}</b>: la data scelta è {when} e quel giorno non c’eri. L’abbiamo messo tra gli annullati.', { name: escapeHTML(event.name), when: escapeHTML(whenN) })
           });
         }
       } else if (info.status === 'almost') {
         var missing = info.totalInvited - info.totalResponded;
         notifications.push({
           icon: 'almost', emoji: '🎉', time: latestEventActivityTime(event), eventId: event.id,
-          text: '<b>' + escapeHTML(event.name) + '</b> è quasi risolto: manca' + (missing === 1 ? '' : 'no') + ' ' + missing + (missing === 1 ? ' risposta' : ' risposte') + '.'
+          text: missing === 1 ? T('<b>{name}</b> è quasi risolto: manca 1 risposta.', { name: escapeHTML(event.name) }) : T('<b>{name}</b> è quasi risolto: mancano {n} risposte.', { name: escapeHTML(event.name), n: missing })
         });
       } else if (info.status === 'tie') {
         // Mancava del tutto (Fil, 2026-07-19): hanno risposto tutti ma più
@@ -1979,13 +1980,13 @@
         if (iAmOrganizer) {
           notifications.push({
             icon: 'tie', emoji: '⚖️', time: latestEventActivityTime(event), eventId: event.id,
-            text: '<b>' + escapeHTML(event.name) + '</b> è in pareggio tra più date: tocca a te scegliere quale confermare.'
+            text: T('<b>{name}</b> è in pareggio tra più date: tocca a te scegliere quale confermare.', { name: escapeHTML(event.name) })
           });
         }
       } else if (!iAmOrganizer) {
         notifications.push({
           icon: 'new', emoji: '📅', time: ts, eventId: event.id,
-          text: 'Nuova proposta: <b>' + escapeHTML(event.name) + '</b>. Segna la tua disponibilità.'
+          text: T('Nuova proposta: <b>{name}</b>. Segna la tua disponibilità.', { name: escapeHTML(event.name) })
         });
       }
 
@@ -1994,7 +1995,7 @@
           if (f.claimedAt) {
             notifications.push({
               icon: 'friend', emoji: '👋', time: f.claimedAt, eventId: event.id,
-              text: '<b>' + escapeHTML(f.name) + '</b> è entrato/a nel tuo evento "' + escapeHTML(event.name) + '".'
+              text: T('<b>{who}</b> è entrato/a nel tuo evento "{name}".', { who: escapeHTML(f.name), name: escapeHTML(event.name) })
             });
           }
         });
@@ -2243,7 +2244,8 @@
         var lostIds = (p.availableDateOptionIds || []).filter(function (id) { return removedOptionIds.indexOf(id) !== -1; });
         if (!lostIds.length) return;
         var lostLabels = removedOptions.filter(function (o) { return lostIds.indexOf(o.id) !== -1; }).map(function (o) { return shortDateLabel(o.dateISO); });
-        affectedByDateRemoval.push({ name: p.name, dateLabels: lostLabels });
+        // dateISOs (2026-10-07): il server riscrive le date nella lingua di chi riceve
+        affectedByDateRemoval.push({ name: p.name, dateLabels: lostLabels, dateISOs: removedOptions.filter(function (o) { return lostIds.indexOf(o.id) !== -1; }).map(function (o) { return o.dateISO; }) });
       });
     }
 
@@ -2739,6 +2741,45 @@
     return res.data || { notified: 0, notifiedNames: [], unreachableNames: [] };
   }
 
+  /* Lingua dell'account per push/email (Fil, 2026-10-07): le notifiche
+     partono dal server, che deve sapere in che lingua scrivere a ciascuno.
+     Si manda a Supabase solo quando cambia (ricordato in localStorage). */
+  async function syncMyLang() {
+    if (!window.SeevaI18n || !hasAccount()) return;
+    var lang = window.SeevaI18n.lang;
+    var acc = getAccount();
+    var key = 'seeva:langSynced';
+    var mark = (acc && acc.id ? acc.id : '') + ':' + lang;
+    try { if (localStorage.getItem(key) === mark) return; } catch (err) { /* ok */ }
+    var res = await supabase.rpc('set_my_lang', { p_lang: lang });
+    if (!res.error) { try { localStorage.setItem(key, mark); } catch (err) { /* ok */ } }
+  }
+
+  /* Avviso a tutti gli invitati (Edge Function "notify-event-announcement",
+     Fil 2026-10-07): solo l'organizzatore, dal menu ⋮ della pagina evento.
+     Il server salva l'avviso (event_announcements, torna in
+     event.announcements via get_event_public) e manda push / email.
+     Torna { id, notified, unreachableNames, sentPush, sentEmails }. */
+  async function sendEventAnnouncement(eventId, message) {
+    var res = await supabase.functions.invoke('notify-event-announcement', { body: { eventId: eventId, message: message, lang: window.SeevaI18n ? SeevaI18n.lang : 'it' } });
+    if (res.error) {
+      var body = null;
+      try {
+        if (res.error.context && typeof res.error.context.json === 'function') body = await res.error.context.json();
+      } catch (err) { /* ignora */ }
+      throw new Error((body && body.error) || res.error.message || 'Avviso non inviato');
+    }
+    clearEventsCache();
+    return res.data || { notified: 0, unreachableNames: [] };
+  }
+
+  // Solo l'organizzatore (RLS event_announcements_delete_organizer).
+  async function deleteEventAnnouncement(announcementId) {
+    var res = await supabase.from('event_announcements').delete().eq('id', announcementId);
+    if (res.error) throwSupabaseError(res.error);
+    clearEventsCache();
+  }
+
   /* Notifica push "qualcuno ha risposto al tuo evento" (Edge Function
      "notify-event-response") per il solo organizzatore. Fire and forget
      come le altre: non deve mai bloccare il salvataggio della risposta. */
@@ -2893,8 +2934,9 @@
     var today = localISO(new Date());
     var tm = new Date(); tm.setDate(tm.getDate() + 1);
     var dayISO = localISO(day);
-    var dayTxt = dayISO === today ? (isMidnight ? 'stasera' : 'oggi') : dayISO === localISO(tm) ? 'domani' : day.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '');
-    return dayTxt + (isMidnight ? ' a mezzanotte' : ' alle ' + hm);
+    var tt = window.t || function (x) { return x; };
+    var dayTxt = dayISO === today ? (isMidnight ? tt('stasera') : tt('oggi')) : dayISO === localISO(tm) ? tt('domani') : day.toLocaleDateString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '');
+    return dayTxt + (isMidnight ? tt(' a mezzanotte') : tt(' alle {hm}', { hm: hm }));
   }
 
   function computeEventStatus(event) {
@@ -3265,17 +3307,17 @@
   // Etichette brevi per la data, usate dalle card nuove.
   function dayParts(iso) {
     var d = new Date(iso + 'T00:00:00');
-    var dow = d.toLocaleDateString('it-IT', { weekday: 'short' }).replace('.', '');
-    var mon = d.toLocaleDateString('it-IT', { month: 'short' }).replace('.', '');
+    var dow = d.toLocaleDateString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { weekday: 'short' }).replace('.', '');
+    var mon = d.toLocaleDateString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { month: 'short' }).replace('.', '');
     return { dow: dow.charAt(0).toUpperCase() + dow.slice(1), day: d.getDate(), mon: mon, year: d.getFullYear() };
   }
 
   function relativeDayWord(iso) {
     var t = localTodayISO();
-    if (iso === t) return 'Oggi';
+    if (iso === t) return T('Oggi');
     var tm = new Date(t + 'T00:00:00'); tm.setDate(tm.getDate() + 1);
     var tmISO = tm.getFullYear() + '-' + ('0' + (tm.getMonth() + 1)).slice(-2) + '-' + ('0' + tm.getDate()).slice(-2);
-    if (iso === tmISO) return 'Domani';
+    if (iso === tmISO) return T('Domani');
     return null;
   }
 
@@ -3299,7 +3341,7 @@
     var t = formatTimeLabel(ev.eventTime);
     var loc = '';
     if ((ev.locationOptions || []).length > 1 && !ev.confirmedLocationOptionId) {
-      loc = ev.locationOptions.length + ' posti proposti';
+      loc = T('{n} posti proposti', { n: ev.locationOptions.length });
     } else {
       try { loc = resolveEventLocation(ev).address || ''; } catch (err) { /* ignora */ }
     }
@@ -3310,7 +3352,7 @@
     if (item.dateISO) {
       var dp = dayParts(item.dateISO);
       var rel = notDecidedYet ? null : relativeDayWord(item.dateISO);
-      dateHTML = '<div class="my-card-date' + (rel ? ' is-soon' : '') + '"><span class="my-card-dow">' + escapeHTML(notDecidedYet ? 'dal' : (rel || dp.dow)) + '</span><span class="my-card-day">' + dp.day + '</span><span class="my-card-mon">' + escapeHTML(dp.mon) + (dp.year !== new Date().getFullYear() ? ' ' + String(dp.year).slice(2) : '') + '</span></div>';
+      dateHTML = '<div class="my-card-date' + (rel ? ' is-soon' : '') + '"><span class="my-card-dow">' + escapeHTML(notDecidedYet ? T('dal') : (rel || dp.dow)) + '</span><span class="my-card-day">' + dp.day + '</span><span class="my-card-mon">' + escapeHTML(dp.mon) + (dp.year !== new Date().getFullYear() ? ' ' + String(dp.year).slice(2) : '') + '</span></div>';
     }
     var undecided = (info.status !== 'done' && (ev.dateOptions || []).length > 1);
     var statusLine;
@@ -3322,11 +3364,11 @@
       statusLine = info.noVotes ? 'Nessuno ha votato: scegli tu la data' : 'Pareggio: scegli tu la data';
     } else if (undecided) {
       var n = (ev.dateOptions || []).length;
-      statusLine = 'Da decidere · ' + n + ' date' + (info.voteDeadlineLabel && info.status !== 'tie' ? ' · si vota fino a ' + info.voteDeadlineLabel : '');
+      statusLine = (n === 1 ? T('Da decidere · 1 data') : T('Da decidere · {n} date', { n: n })) + (info.voteDeadlineLabel && info.status !== 'tie' ? T(' · si vota fino a {when}', { when: info.voteDeadlineLabel }) : '');
     } else {
-      statusLine = 'Si fa' + (t ? ' · ore ' + t : '') + (loc ? ' · ' + loc : '');
+      statusLine = T('Si fa') + (t ? T(' · ore {t}', { t: t }) : '') + (loc ? ' · ' + loc : '');
     }
-    if (ev.createdBy && item.myKey !== 'organizer' && (item.kind || item.reason)) statusLine += ' · da ' + ev.createdBy;
+    if (ev.createdBy && item.myKey !== 'organizer' && (item.kind || item.reason)) statusLine += T(' · da {who}', { who: ev.createdBy });
 
     var pill = '';
     if (item.kind === 'pickDate') pill = '<span class="my-pill pill-todo">Scegli</span>';
@@ -3341,7 +3383,7 @@
     var cls = 'my-card' + (undecided && item.reason !== 'cancelled' ? ' is-undecided' : '') + (item.reason ? ' is-muted' : '');
     var top = '<a class="my-card-main" href="' + href + '">'
       + dateHTML
-      + '<div class="my-card-text"><div class="my-card-title">' + escapeHTML(ev.name) + '</div><div class="my-card-sub">' + escapeHTML(statusLine) + '</div></div>'
+      + '<div class="my-card-text"><div class="my-card-title" data-no-i18n>' + escapeHTML(ev.name) + '</div><div class="my-card-sub">' + escapeHTML(statusLine) + '</div></div>'
       + pill
       + '</a>';
     var actions = '';
@@ -3655,7 +3697,7 @@
       + '<div class="card-top-left" style="display:flex; align-items:center; gap:10px;">'
       + thumbHTML
       + '<div style="min-width:0;">'
-      + '<div class="card-title">' + escapeHTML(event.name) + '</div>'
+      + '<div class="card-title" data-no-i18n>' + escapeHTML(event.name) + '</div>'
       + '<div class="card-date">' + escapeHTML(info.dateLabel) + '</div>'
       + '</div>'
       + '</div>'
@@ -3780,6 +3822,9 @@
     deleteEventExpense: deleteEventExpense,
     setEventItemsEnabled: setEventItemsEnabled,
     nudgePendingInvitees: nudgePendingInvitees,
+    syncMyLang: syncMyLang,
+    sendEventAnnouncement: sendEventAnnouncement,
+    deleteEventAnnouncement: deleteEventAnnouncement,
     addEventInvitees: addEventInvitees,
     setEventExpensesEnabled: setEventExpensesEnabled,
     addEventItem: addEventItem,

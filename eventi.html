@@ -2,6 +2,8 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
+<script src="i18n.js"></script>
+<script src="i18n-en.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>seeva — Eventi</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -135,7 +137,7 @@
 
       function monthTitle(iso) {
         var d = new Date(iso + 'T00:00:00');
-        var m = d.toLocaleDateString('it-IT', { month: 'long' });
+        var m = d.toLocaleDateString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { month: 'long' });
         m = m.charAt(0).toUpperCase() + m.slice(1);
         return d.getFullYear() === new Date().getFullYear() ? m : m + ' ' + d.getFullYear();
       }
@@ -182,7 +184,7 @@
           });
           var hidden = list.length - visible.length;
           if (hidden > 0) {
-            html += '<button type="button" class="agenda-more" id="agendaMoreBtn">Mostra altri · ' + hidden + (hidden === 1 ? ' evento' : ' eventi') + '</button>';
+            html += '<button type="button" class="agenda-more" id="agendaMoreBtn">' + (hidden === 1 ? t('Mostra altri · 1 evento') : t('Mostra altri · {n} eventi', { n: hidden })) + '</button>';
           }
           if (!list.length && !(agendaFilter === 'tutti' && mine.undecided.length)) {
             html += '<div class="empty-hint">Niente qui per ora.</div>';

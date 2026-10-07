@@ -2,6 +2,8 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
+<script src="i18n.js"></script>
+<script src="i18n-en.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>seeva — Amici</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -207,7 +209,7 @@
 
       function friendsSummary(friends) {
         if (!friends.length) return 'Nessun amico ancora';
-        return friends.length + (friends.length === 1 ? ' amico' : ' amici');
+        return friends.length === 1 ? t('1 amico') : t('{n} amici', { n: friends.length });
       }
 
       // Stessa palette di evento.html/attendee-bubble, qui ruotata per
