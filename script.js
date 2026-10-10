@@ -5,6 +5,16 @@
 
 (function () {
 
+  /* t() di sicurezza (Fil, 2026-10-10, errore "t is not defined" segnalato
+     da Franceschina): se il telefono tiene in memoria una pagina vecchia
+     (senza i18n.js) ma scarica il script.js nuovo, window.t non esiste.
+     Qui si usa quella vera se c'è, altrimenti si rimette solo il testo
+     italiano con i {segnaposto} riempiti. */
+  var t = function (s, vars) {
+    if (typeof window.t === 'function') return window.t(s, vars);
+    return String(s).replace(/\{(\w+)\}/g, function (m, k) { return vars && vars[k] != null ? vars[k] : m; });
+  };
+
   /* ---------- cattura automatica errori (per "Segnala problema") ----------
      Fil, 2026-07-20: attaccati SUBITO, prima di ogni altra cosa in questo
      file, per intercettare quanti più errori possibile durante la sessione.
@@ -1742,7 +1752,7 @@
       badge.innerHTML = '📸 Aggiungi una foto profilo, fatti riconoscere dagli amici';
       badge.classList.add('attendance-badge--photo');
 
-      function goToProfile() { window.location.href = 'profilo.html'; }
+      function goToProfile() { window.location.href = 'profilo.html?foto=1'; } // dritto sulla scelta foto (Fil, 2026-10-10)
       badge.addEventListener('click', goToProfile);
 
       window.setTimeout(function () {

@@ -2,12 +2,13 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { L, langsOf, buildEmailHtml, sendPushToAccounts, accountIdsWithPush, sendEmail } from "./i18n.ts";
 
-/* Email + notifica push "qualcuno vuole aggiungerti come amico vero" (Fil,
+/* Email + notifica push "qualcuno vuole aggiungerti alla sua lista amici" (Fil,
    2026-07-19). Parte quando una riga 'friends' passa in link_status='pending'.
    La funzione rilegge destinatario e mittente dall'id della riga.
    body atteso: { friendId: string }. Fire and forget.
    Chi ha la push non riceve anche l'email.
-   2026-10-07: testi nella lingua di chi riceve (accounts.lang). */
+   2026-10-07: testi nella lingua di chi riceve (accounts.lang).
+   2026-10-10: "amico vero" non si capiva (segnalazione Franceschina). */
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -45,18 +46,18 @@ Deno.serve(async (req: Request) => {
       const html = buildEmailHtml({
         lang, accent: "#6B3F73", emoji: "\u{1F44B}",
         title: L(lang, "Richiesta di amicizia", "Friend request"),
-        preheader: ownerName + L(lang, " vuole aggiungerti come amico vero", " wants to add you as a real friend"),
+        preheader: ownerName + L(lang, " vuole aggiungerti alla sua lista amici", " wants to add you to their friends list"),
         bodyHtml: L(lang,
-          '<p><b>' + ownerName + '</b> vuole aggiungerti come amico vero nella sua lista <b>"' + listName + '"</b>.</p><p>Puoi accettare o rifiutare dalla sezione Notifiche dell\'app.</p>',
-          '<p><b>' + ownerName + '</b> wants to add you as a real friend on their list <b>"' + listName + '"</b>.</p><p>You can accept or decline from the Notifications section of the app.</p>'),
+          '<p><b>' + ownerName + '</b> vuole aggiungerti alla sua lista amici <b>"' + listName + '"</b>.</p><p>Puoi accettare o rifiutare dalla sezione Notifiche dell\'app.</p>',
+          '<p><b>' + ownerName + '</b> wants to add you to their friends list <b>"' + listName + '"</b>.</p><p>You can accept or decline from the Notifications section of the app.</p>'),
         ctaText: L(lang, "Apri le notifiche", "Open notifications"),
         ctaUrl: siteUrl + "/notifiche.html"
       });
-      sentEmail = await sendEmail(recipientAccount.email, ownerName + L(lang, " vuole aggiungerti come amico", " wants to add you as a friend"), html);
+      sentEmail = await sendEmail(recipientAccount.email, ownerName + L(lang, " vuole aggiungerti alla sua lista amici", " wants to add you to their friends list"), html);
     }
     const sentPush = await sendPushToAccounts(admin, [friend.account_id], {
       title: L(lang, "Richiesta di amicizia 👋", "Friend request 👋"),
-      body: ownerName + L(lang, ' vuole aggiungerti come amico nella sua lista "', ' wants to add you as a friend on their list "') + listName + '"',
+      body: ownerName + L(lang, ' vuole aggiungerti alla sua lista amici "', ' wants to add you to their friends list "') + listName + '"',
       url: siteUrl + "/notifiche.html",
       lang
     });

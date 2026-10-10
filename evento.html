@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="it" translate="no">
 <head>
 <meta charset="UTF-8">
+<!-- Niente traduzione automatica di Chrome (Fil, 2026-10-10): l'app ha già italiano/inglese suoi; con l'app in inglese su un telefono italiano Chrome traduceva sopra, mischiando le lingue. -->
+<meta name="google" content="notranslate">
 <script src="i18n.js"></script>
 <script src="i18n-en.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -666,9 +668,17 @@
         // così le informazioni più utili ("chi viene") si leggono subito,
         // senza dover scorrere tutta la lista.
         var STATUS_ORDER = { available: 0, maybe: 1, pending: 2, absent: 3 };
+        // Evento confermato (Fil, 2026-10-10: "l'invitato dopo la conferma
+        // non vede chi erano tutti gli invitati"): lo stato si guarda sulla
+        // data fissata, non su una data qualsiasi — chi aveva votato solo
+        // altri giorni risulta "non c'è".
+        var rosterInfo = SeevaData.computeEventStatus(event);
+        var confirmedOptionId = (rosterInfo.status === 'done' && rosterInfo.bestOption) ? rosterInfo.bestOption.id : null;
         var rows = names.map(function (name) {
           var participant = participantByName[name.trim().toLowerCase()];
-          var statusKey = !participant ? 'pending' : ((participant.availableDateOptionIds || []).length > 0 ? 'available' : (participant.maybe ? 'maybe' : 'absent'));
+          var ids = participant ? (participant.availableDateOptionIds || []) : [];
+          var isIn = confirmedOptionId ? ids.indexOf(confirmedOptionId) !== -1 : ids.length > 0;
+          var statusKey = !participant ? 'pending' : (isIn ? 'available' : (participant.maybe ? 'maybe' : 'absent'));
           var statusIconSVG = statusKey === 'available'
             ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><circle cx="12" cy="12" r="9"></circle><path d="M8 12.5l2.5 2.5L16 9.5"></path></svg>'
             : statusKey === 'absent'
@@ -1583,11 +1593,11 @@
         // (avatar + "N di M disponibili") che apre un popup con entrambi
         // dentro, stesso popup già usato per gestire le liste amici
         // (.signup-overlay/.signup-modal, vedi amici.html).
-        // Su un evento confermato (non passato) il roster serve comunque per
-        // sapere chi non ha ancora risposto (Sollecita), anche se l'elenco
-        // "Invitati" non si mostra (Fil, 2026-10-03).
+        // Su un evento confermato (non passato) l'elenco "Invitati" era
+        // nascosto (Fil, 2026-10-03); rimesso il 2026-10-10 (Fil: "lista
+        // completa"): stessa tessera "Chi viene", stati sulla data fissata.
         var roster = info.status === 'passato' ? { html: '', rows: [] } : buildInviteesRosterHTML();
-        var inviteesRosterHTML = isConfirmedSimple ? '' : roster.html;
+        var inviteesRosterHTML = roster.html;
 
         // Niente grafico "Chi c'è per ogni giorno" quando c'è una sola data
         // proposta (Fil, 2026-09-11, bug segnalato dall'app: "quando è un
@@ -1601,7 +1611,7 @@
 
         var whoComingTileHTML = '';
         var whoComingModalHTML = '';
-        if (!isConfirmedSimple && roster.rows.length) {
+        if (roster.rows.length) {
           var availableRows = roster.rows.filter(function (r) { return r.statusKey === 'available'; });
           var avatarSource = availableRows.length ? availableRows : roster.rows;
           var AVATAR_TILE_COLORS = ['#FF7A29', '#6B3F73', '#9C6BA3', '#4F8B5C'];
@@ -1613,8 +1623,10 @@
             + '<div class="who-coming-tile" id="whoComingTile">'
             + '<div class="who-coming-avatars">' + avatarsHTML + '</div>'
             + '<div class="who-coming-body">'
-            + '<div class="who-coming-title">Chi viene</div>'
-            + '<div class="who-coming-sub">' + t('{a} di {b} disponibili · tocca per i dettagli', { a: availableRows.length, b: roster.rows.length }) + '</div>'
+            + '<div class="who-coming-title">' + (isConfirmedSimple ? 'Invitati' : 'Chi viene') + '</div>'
+            + '<div class="who-coming-sub">' + (isConfirmedSimple
+              ? t('{a} di {b} ci sono · tocca per i dettagli', { a: availableRows.length, b: roster.rows.length })
+              : t('{a} di {b} disponibili · tocca per i dettagli', { a: availableRows.length, b: roster.rows.length })) + '</div>'
             + '</div>'
             + '<div class="who-coming-chevron">›</div>'
             + '</div>';

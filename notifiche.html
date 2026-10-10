@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="it" translate="no">
 <head>
 <meta charset="UTF-8">
+<!-- Niente traduzione automatica di Chrome (Fil, 2026-10-10): l'app ha già italiano/inglese suoi; con l'app in inglese su un telefono italiano Chrome traduceva sopra, mischiando le lingue. -->
+<meta name="google" content="notranslate">
 <script src="i18n.js"></script>
 <script src="i18n-en.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -161,7 +163,7 @@
               + '<div class="notif-item reveal" style="align-items:center;">'
               + '<div class="notif-icon friend">' + NOTIF_EMOJI_SVG['👋'] + '</div>'
               + '<div style="flex:1;">'
-              + '<div class="notif-text"><b>' + SeevaData.escapeHTML(r.ownerUsername) + '</b> vuole aggiungerti come amico vero nella sua lista "' + SeevaData.escapeHTML(r.friendListName) + '".</div>'
+              + '<div class="notif-text"><b>' + SeevaData.escapeHTML(r.ownerUsername) + '</b> vuole aggiungerti alla sua lista amici "' + SeevaData.escapeHTML(r.friendListName) + '".</div>'
               + '<div class="notif-time">' + timeAgo(r.requestedAt) + '</div>'
               + '<div style="display:flex; gap:8px; margin-top:8px;">'
               + '<button type="button" class="primary-btn" style="margin:0; padding:8px 14px; font-size:14px;" data-accept-friend="' + r.friendId + '">Accetta</button>'

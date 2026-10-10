@@ -32,7 +32,7 @@
   }
 
   var lang = detect();
-  try { document.documentElement.lang = lang; } catch (err) { /* ok */ }
+  try { document.documentElement.lang = lang; document.documentElement.setAttribute('translate', 'no'); } catch (err) { /* ok: niente traduttore di Chrome sopra il nostro */ }
 
   var dict = window.SEEVA_EN = window.SEEVA_EN || {};
   var patterns = window.SEEVA_EN_PATTERNS = window.SEEVA_EN_PATTERNS || [];

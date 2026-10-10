@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="it" translate="no">
 <head>
 <meta charset="UTF-8">
+<!-- Niente traduzione automatica di Chrome (Fil, 2026-10-10): l'app ha già italiano/inglese suoi; con l'app in inglese su un telefono italiano Chrome traduceva sopra, mischiando le lingue. -->
+<meta name="google" content="notranslate">
 <script src="i18n.js"></script>
 <script src="i18n-en.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -69,9 +71,15 @@
     <div class="content">
       <div id="createProfileView">
         <div class="profile-header" style="margin-bottom: 14px;" id="createAvatarBlock">
-          <div class="avatar large" id="createProfileAvatar">?</div>
-          <label class="field-hint" id="createAvatarLabel" for="createAvatarFile" style="cursor:pointer; color: var(--lavender-ink); font-weight:600; display:inline-block; margin-top:8px;">Carica una foto</label>
+          <!-- Foto profilo (Fil, 2026-10-10, segnalazioni Franceschina + Fil):
+               su Android recente il selettore di sistema mostra solo la
+               galleria, senza fotocamera. Un tocco su avatar o "Carica una
+               foto" apre una scelta nostra: Scatta (input con capture) o
+               Galleria (input normale). -->
+          <div class="avatar large" id="createProfileAvatar" style="cursor:pointer;">?</div>
+          <span class="field-hint" id="createAvatarLabel" style="cursor:pointer; color: var(--lavender-ink); font-weight:600; display:inline-block; margin-top:8px;">Carica una foto</span>
           <input type="file" id="createAvatarFile" accept="image/*" style="display:none;">
+          <input type="file" id="createAvatarCamera" accept="image/*" capture="user" style="display:none;">
         </div>
 
         <div class="section-title first" id="createViewTitle">Crea il tuo profilo</div>
@@ -511,8 +519,9 @@
       usernameInput.addEventListener('input', updateCreateAvatarPreview);
       firstNameInput.addEventListener('input', updateCreateAvatarPreview);
 
-      avatarFileInput.addEventListener('change', function () {
-        var file = avatarFileInput.files && avatarFileInput.files[0];
+      var avatarCameraInput = document.getElementById('createAvatarCamera');
+      function onAvatarPicked(input) {
+        var file = input.files && input.files[0];
         if (!file) return;
         pendingAvatarFile = file;
 
@@ -521,7 +530,40 @@
           showAvatarImage(createAvatarEl, e.target.result);
         };
         reader.readAsDataURL(file);
-      });
+        input.value = ''; // così si può riscegliere lo stesso file
+        // In modifica la foto si salva con "Salva modifiche": lo si fa
+        // vedere subito, se no ci si dimentica (Fil, 2026-10-10).
+        if (isEditMode && createBtn) {
+          createBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+      avatarFileInput.addEventListener('change', function () { onAvatarPicked(avatarFileInput); });
+      avatarCameraInput.addEventListener('change', function () { onAvatarPicked(avatarCameraInput); });
+
+      /* Scelta Fotocamera / Galleria (Fil, 2026-10-10). Stesso popup
+         .signup-overlay del selettore lingua. I click sui pulsanti sono un
+         vero tocco dell'utente, quindi il browser lascia aprire il file. */
+      function openAvatarSourceChooser() {
+        var phone = document.querySelector('.phone') || document.body;
+        var overlay = document.createElement('div');
+        overlay.className = 'signup-overlay';
+        overlay.innerHTML = '<div class="signup-modal">'
+          + '<div class="signup-modal-title">Foto profilo</div>'
+          + '<div style="display:flex; flex-direction:column; gap:8px; margin-top:12px;">'
+          + '<button type="button" class="lang-opt" id="avatarSrcCamera">📷 Scatta una foto</button>'
+          + '<button type="button" class="lang-opt" id="avatarSrcGallery">🖼️ Scegli dalla galleria</button>'
+          + '</div>'
+          + '<div style="text-align:center; margin-top:12px;"><span class="signup-skip-link" id="avatarSrcClose">Annulla</span></div>'
+          + '</div>';
+        function close() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+        overlay.querySelector('#avatarSrcClose').addEventListener('click', close);
+        overlay.querySelector('#avatarSrcCamera').addEventListener('click', function () { close(); avatarCameraInput.click(); });
+        overlay.querySelector('#avatarSrcGallery').addEventListener('click', function () { close(); avatarFileInput.click(); });
+        phone.appendChild(overlay);
+      }
+      document.getElementById('createAvatarLabel').addEventListener('click', openAvatarSourceChooser);
+      createAvatarEl.addEventListener('click', openAvatarSourceChooser);
 
       async function fillCreateFormFromAccount() {
         var acc;
@@ -1005,6 +1047,12 @@
         // Arrivo dal link nell'email di reset: mostra solo il form nuova
         // password, non toccare login/registrazione/vista normale.
         showResetPasswordView();
+      } else if (SeevaData.hasAccount() && initParams.get('foto') === '1') {
+        // Dal banner "Aggiungi una foto profilo" in Home (Fil, 2026-10-10):
+        // dritto su Modifica profilo con la scelta Fotocamera/Galleria aperta.
+        showCreateView(true);
+        await fillCreateFormFromAccount();
+        openAvatarSourceChooser();
       } else if (SeevaData.hasAccount()) {
         await showNormalView();
       } else {

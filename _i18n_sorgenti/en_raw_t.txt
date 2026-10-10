@@ -72,3 +72,4 @@ Porta {name} ⇒ {name}'s bringing it
 Aggiungi {n} persone ⇒ Add {n} people
 Ciao {name}! Scegli un nome utente e la tua data di nascita per finire. ⇒ Hi {name}! Choose a username and enter your date of birth to finish.
 Dettagli su seeva: {url} ⇒ Details on seeva: {url}
+{a} di {b} ci sono · tocca per i dettagli ⇒ {a} of {b} going · tap for details

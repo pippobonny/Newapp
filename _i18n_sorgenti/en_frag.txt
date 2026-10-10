@@ -89,7 +89,7 @@ nella barra di Safari. ⇒ in the Safari toolbar.
 persone aggiunte ✓ ⇒ people added ✓
 ti ha invitato all'evento " ⇒ invited you to the event "
 ti ha invitato a ⇒ invited you to
-vuole aggiungerti come amico vero nella sua lista " ⇒ wants to add you as a real friend on their list "
+vuole aggiungerti alla sua lista amici " ⇒ wants to add you to their friends list "
 · diviso tra ⇒ · split between
 · e altri ⇒ · and others
 · non ancora definitiva ⇒ · not final yet
