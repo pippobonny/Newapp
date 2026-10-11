@@ -110,7 +110,7 @@
      HTTP consentiti dalla Google Cloud Console, non tenendole segrete.
      Finché resta vuota, il campo posizione si disattiva da solo (vedi
      crea.html) invece di rompersi. */
-  var GOOGLE_MAPS_API_KEY = 'AIzaSyDxpmS5OTFUdC5SnQio15gaWvXBELrw45Q';
+  var GOOGLE_MAPS_API_KEY = 'AIzaSyA-Dqpaibe7YoqOQaS9nefzQ7OESoHLTbo';
 
   /* Chiave pubblica VAPID per le notifiche push: come per Maps sopra, è
      normale che stia qui — è la chiave PUBBLICA (il browser la usa per
