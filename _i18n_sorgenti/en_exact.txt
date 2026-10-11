@@ -553,3 +553,12 @@ domani ⇒ tomorrow
 Foto profilo ⇒ Profile photo
 📷 Scatta una foto ⇒ 📷 Take a photo
 🖼️ Scegli dalla galleria ⇒ 🖼️ Choose from gallery
+Tocca ⇒ Tap
+"Aggiungi" ⇒ "Add"
+"Installa" ⇒ "Install"
+Non vedi Condividi? Tocca prima ⇒ Can't see Share? First tap
+nella barra di Safari. Se non trovi "Aggiungi alla schermata Home", scorri il menu verso il basso. ⇒ in the Safari toolbar. If you can't find "Add to Home Screen", scroll down the menu.
+Tocca il menu ⇒ Tap the
+del browser ⇒ browser menu
+Conferma con ⇒ Confirm with
+Il menu ⋮ di solito è in alto a destra. Se non vedi "Installa app", cerca "Aggiungi a schermata Home". ⇒ The ⋮ menu is usually at the top right. If you can't see "Install app", look for "Add to Home screen".

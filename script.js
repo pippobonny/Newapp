@@ -1826,17 +1826,21 @@
 
     var isIos = /iphone|ipad|ipod/i.test(navigator.userAgent || '');
 
+    // Alberto, 2026-10-11: "prima un elenco puntato con istruzioni semplici
+    // e corte, poi qualsiasi testo che chiarisce". Quindi: 3 passi brevi in
+    // alto, sotto in piccolo il caso particolare (Safari compatto / menu
+    // da scorrere) e solo in fondo il perche' conviene installarla.
     var reasonHTML = isIos
-      ? '<div class="signup-modal-text" style="text-align:left; margin-bottom:10px;">Non occupa spazio sul telefono. Su iPhone è anche l\'unico modo per ricevere le notifiche quando qualcuno risponde ai tuoi eventi (Apple non le consegna se seeva resta solo nel browser).</div>'
-      : '<div class="signup-modal-text" style="text-align:left; margin-bottom:10px;">Non occupa spazio sul telefono, e ricevi subito le notifiche quando qualcuno risponde ai tuoi eventi.</div>';
+      ? '<div class="field-hint" style="text-align:left; margin-top:12px;">Non occupa spazio sul telefono. Su iPhone è anche l\'unico modo per ricevere le notifiche quando qualcuno risponde ai tuoi eventi (Apple non le consegna se seeva resta solo nel browser).</div>'
+      : '<div class="field-hint" style="text-align:left; margin-top:12px;">Non occupa spazio sul telefono, e ricevi subito le notifiche quando qualcuno risponde ai tuoi eventi.</div>';
 
     // Chrome/Android con l'evento nativo già disponibile: un vero bottone
     // dentro al popup (il tap su QUESTO bottone è il gesto dell'utente che
     // il browser richiede per accettare .prompt(), anche se il popup si è
     // aperto da solo — vedi maybeAutoShowInstallPrompt).
     if (deferredInstallPrompt) {
-      body.innerHTML = reasonHTML
-        + '<button type="button" class="primary-btn" id="installPromptNativeBtn" style="margin-top:4px;">Installa ora</button>';
+      body.innerHTML = '<button type="button" class="primary-btn" id="installPromptNativeBtn" style="margin-top:4px;">Installa ora</button>'
+        + reasonHTML;
       body.querySelector('#installPromptNativeBtn').addEventListener('click', function () {
         if (!deferredInstallPrompt) return;
         var promptEvent = deferredInstallPrompt;
@@ -1854,20 +1858,20 @@
     var shareIconSvg = '<svg width="15" height="18" viewBox="0 0 17 21" fill="none" style="vertical-align:-3px; margin:0 1px;"><path d="M8.5 1v11.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4.5 5L8.5 1L12.5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M1.5 9.5V18.5C1.5 19.6 2.4 20.5 3.5 20.5H13.5C14.6 20.5 15.5 19.6 15.5 18.5V9.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>';
     var moreIconSvg = '<svg width="17" height="17" viewBox="0 0 20 20" fill="none" style="vertical-align:-3px; margin:0 1px;"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="1.6"/><circle cx="6" cy="10" r="1.3" fill="currentColor"/><circle cx="10" cy="10" r="1.3" fill="currentColor"/><circle cx="14" cy="10" r="1.3" fill="currentColor"/></svg>';
 
-    // Procedura riscritta (Fil, 2026-09-07: quella vecchia "non si capiva
-    // bene"). Due correzioni rispetto a prima: 1) con iOS 26 il layout
-    // "compatto" di Safari (ora di default) nasconde il pulsante Condividi
-    // dalla barra finche' non tocchi prima il pulsante "..."; 2) mancava il passo finale
-    // di conferma "Aggiungi" senza il quale l'icona non viene creata
-    // davvero. Passaggi numerati invece di un'unica frase, piu' facili da
-    // seguire uno alla volta mentre si guarda il telefono.
+    function stepRow(n, html) {
+      return '<div class="card-date" style="margin:' + (n === 1 ? '0' : '8px 0 0') + '; font-size:15px;"><b>' + n + '.</b> ' + html + '</div>';
+    }
     var stepsHTML = isIos
-      ? '<div class="card-date" style="margin:0;"><b>1.</b> Se non vedi subito il pulsante <b>Condividi</b> ' + shareIconSvg + ', tocca prima ' + moreIconSvg + ' nella barra di Safari.</div>'
-        + '<div class="card-date" style="margin:8px 0 0;"><b>2.</b> Scorri e tocca <b>"Aggiungi alla schermata Home"</b>.</div>'
-        + '<div class="card-date" style="margin:8px 0 0;"><b>3.</b> Conferma toccando <b>"Aggiungi"</b> in alto a destra.</div>'
-      : '<div class="card-date" style="margin:0;">Apri il menu ⋮ del browser (di solito in alto a destra) e tocca <b>"Installa app"</b> o <b>"Aggiungi a schermata Home"</b>.</div>';
+      ? stepRow(1, 'Tocca <b>Condividi</b> ' + shareIconSvg)
+        + stepRow(2, 'Tocca <b>"Aggiungi alla schermata Home"</b>')
+        + stepRow(3, 'Tocca <b>"Aggiungi"</b>')
+        + '<div class="field-hint" style="text-align:left; margin-top:12px;">Non vedi Condividi? Tocca prima ' + moreIconSvg + ' nella barra di Safari. Se non trovi "Aggiungi alla schermata Home", scorri il menu verso il basso.</div>'
+      : stepRow(1, 'Tocca il menu <b>⋮</b> del browser')
+        + stepRow(2, 'Tocca <b>"Installa app"</b>')
+        + stepRow(3, 'Conferma con <b>"Installa"</b>')
+        + '<div class="field-hint" style="text-align:left; margin-top:12px;">Il menu ⋮ di solito è in alto a destra. Se non vedi "Installa app", cerca "Aggiungi a schermata Home".</div>';
 
-    body.innerHTML = reasonHTML + stepsHTML;
+    body.innerHTML = stepsHTML + reasonHTML;
   }
 
   function openInstallInstructionsPopup() {

@@ -3947,3 +3947,13 @@ a.notif-item:active { background: var(--track-soft); }
   font: 500 14.5px 'Inter', sans-serif; cursor: pointer;
 }
 .lang-opt.is-on { border-color: var(--peach); background: var(--peach-soft); font-weight: 600; }
+
+/* MODALITÀ SCURA — più contrasto sui tasti scuri (Fil, 2026-10-11:
+   "i tasti crea nuovo evento sono simili allo sfondo"). Il viola
+   --surface-dark (#3D2244) era quasi uguale allo sfondo scuro: in dark
+   diventa più chiaro ovunque (tasti Home, chip selezionati, fumetti), e i
+   due tasti d'azione in Home hanno anche un bordino chiaro (opzione B). */
+@media (prefers-color-scheme: dark) {
+  :root { --surface-dark: #5E3D6B; }
+  .home-tile.is-action { box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.18); }
+}

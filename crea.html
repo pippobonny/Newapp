@@ -265,12 +265,12 @@
         <div class="field">
           <label>Quando può essere l'evento</label>
           <div class="pill-row" id="dateModeTabs">
-            <div class="pill active" data-mode="range">Range di date</div>
-            <div class="pill" data-mode="singole">Date singole</div>
+            <div class="pill active" data-mode="singole">Date singole</div>
+            <div class="pill" data-mode="range">Range di date</div>
             <div class="pill" data-mode="pattern">Ricorrenza</div>
           </div>
 
-          <div class="date-mode-panel" data-panel="range">
+          <div class="date-mode-panel" data-panel="range" style="display:none;">
             <div class="date-row">
               <input type="date" id="rangeStart">
               <span style="flex:0 0 auto;color:var(--ink-soft);font-size:13px;">→</span>
@@ -279,12 +279,10 @@
             <div class="field-hint">Ogni giorno nel range diventa un'opzione tra cui scegliere (max 60 giorni).</div>
           </div>
 
-          <div class="date-mode-panel" data-panel="singole" style="display:none;">
+          <div class="date-mode-panel" data-panel="singole">
+            <!-- Fil, 2026-10-11: si parte da "Date singole" con UNA casella
+                 sola (prima: Range di default e 2 caselle già aperte). -->
             <div class="date-row-list" id="dateRowList">
-              <div class="date-row">
-                <input type="date">
-                <div class="remove-date">✕</div>
-              </div>
               <div class="date-row">
                 <input type="date">
                 <div class="remove-date">✕</div>
@@ -1439,7 +1437,7 @@
         dateRowList.appendChild(makeDateRow());
       });
 
-      // le due righe già presenti nell'HTML devono poter essere rimosse allo stesso modo
+      // la riga già presente nell'HTML deve poter essere rimossa allo stesso modo
       dateRowList.querySelectorAll('.remove-date').forEach(function (btn) {
         btn.addEventListener('click', function () {
           if (dateRowList.querySelectorAll('.date-row').length > 1) {
@@ -1455,7 +1453,7 @@
          così evento.html/data.js non devono sapere in che modo sono state scelte. */
       var dateModeTabs = document.getElementById('dateModeTabs');
       var datePanels = document.querySelectorAll('.date-mode-panel');
-      var activeDateMode = 'range';
+      var activeDateMode = 'singole'; // default (Fil, 2026-10-11)
 
       dateModeTabs.querySelectorAll('.pill').forEach(function (pill) {
         pill.addEventListener('click', function () {
@@ -1960,7 +1958,7 @@
           });
         }
 
-        if (draft.activeDateMode && draft.activeDateMode !== 'range') {
+        if (draft.activeDateMode && draft.activeDateMode !== activeDateMode) {
           var targetPill = dateModeTabs.querySelector('[data-mode="' + draft.activeDateMode + '"]');
           if (targetPill) targetPill.click();
         }
