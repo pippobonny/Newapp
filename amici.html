@@ -430,7 +430,7 @@
         var deleteEl = e.target.closest('[data-delete-list]');
         if (deleteEl) {
           var deleteListId = deleteEl.getAttribute('data-delete-list');
-          if (window.confirm('Eliminare questa lista di amici?')) {
+          if (await SeevaUI.ask('Eliminare questa lista di amici?')) {
             try {
               await SeevaData.deleteFriendList(deleteListId);
             } catch (err) {

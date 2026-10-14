@@ -1699,6 +1699,8 @@ label.event-photo-preview {
    card "in testa ai voti" qui sotto — un fatto neutro, non uno stato. */
 .info-tile-icon.is-location { background: var(--lavender-soft); }
 .info-tile-icon.is-location svg { stroke: var(--lavender); }
+/* Modalità scura (2026-10-14): viola su viola si vedeva poco. */
+@media (prefers-color-scheme: dark) { .info-tile-icon.is-location svg { stroke: var(--lavender-ink); } }
 .info-tile-body { flex: 1; min-width: 0; }
 .info-tile-label {
   font-size: 10.5px;
@@ -1747,6 +1749,8 @@ label.event-photo-preview {
   border: 2px solid var(--card); margin-left: -9px; flex-shrink: 0;
 }
 .who-coming-avatars span:first-child { margin-left: 0; }
+.who-coming-avatars span { overflow: hidden; }
+.who-coming-avatars span img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .who-coming-body { flex: 1; min-width: 0; }
 .who-coming-title { font-family: 'Fraunces', serif; font-weight: 600; font-size: 14.5px; }
 .who-coming-sub { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
@@ -2450,11 +2454,17 @@ a.notif-item:active { background: var(--track-soft); }
    .phone (che è position:relative) per restare ancorato al mockup anche
    su desktop, appena sopra la navbar. */
 .report-problem-btn {
+  /* 2026-10-14 (giro UX): prima stava a 96px dal fondo, a metà altezza del
+     contenuto, e copriva il lato destro dei pulsanti (es. "Continua" in
+     Crea evento). Ora sta sulla stessa riga della bolla viola "indietro",
+     a destra, più piccola; sulle pagine evento si sposta a sinistra della
+     bolla "Condividi". Lo spazio in fondo a .content (vedi
+     initNoUselessScroll in script.js) tiene libera questa riga. */
   position: absolute;
-  right: 16px;
-  bottom: 96px;
-  width: 46px;
-  height: 46px;
+  right: 18px;
+  bottom: calc(27px + env(safe-area-inset-bottom, 0px));
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: var(--card);
   box-shadow: 0 6px 18px rgba(58,50,90,0.25);
@@ -2466,6 +2476,7 @@ a.notif-item:active { background: var(--track-soft); }
   cursor: pointer;
 }
 .report-problem-btn:active { transform: scale(0.92); }
+.phone:has(#shareFab:not([style*="none"])) .report-problem-btn { right: 82px; }
 
 .report-problem-textarea {
   width: 100%;
@@ -3412,6 +3423,8 @@ a.notif-item:active { background: var(--track-soft); }
   text-decoration: none;
 }
 
+/* 2026-10-14: con il testo su due righe l'icona si rimpiccioliva (flex) -> icone di grandezze diverse. */
+.menu-dropdown-item svg { flex-shrink: 0; }
 .menu-dropdown-item + .menu-dropdown-item { border-top: 1px solid rgba(58,50,90,0.06); }
 
 .menu-dropdown-item.danger { color: var(--cancel-ink); }
@@ -3766,7 +3779,8 @@ a.notif-item:active { background: var(--track-soft); }
 .my-card-mon { font-size: 11px; color: var(--ink-soft); }
 .my-card-text { flex: 1; min-width: 0; }
 .my-card-title { font-weight: 700; font-size: 14.5px; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
-.my-card-sub { font-size: 12.5px; line-height: 1.35; color: var(--ink-soft); margin-top: 2px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+/* 3 righe (2026-10-14): con 2 la scadenza del voto ("si vota fino a domani alle…") veniva tagliata proprio sull'ora. */
+.my-card-sub { font-size: 12.5px; line-height: 1.35; color: var(--ink-soft); margin-top: 2px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 .my-pill { flex-shrink: 0; font-size: 11.5px; font-weight: 700; padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
 .my-pill.pill-yes { background: var(--confirmed-soft); color: #2E5C38; }
 .my-pill.pill-maybe { background: var(--butter-soft); color: #8A4210; }
@@ -3905,7 +3919,7 @@ a.notif-item:active { background: var(--track-soft); }
 
 /* Pagina che ci sta tutta nello schermo: ferma (vedi initNoUselessScroll in
    script.js, 2026-10-05). */
-.content.fits-screen { overflow-y: hidden; padding-bottom: 24px; }
+.content.fits-screen { overflow-y: hidden; padding-bottom: 90px; }
 
 /* App installata: scorre solo .content, mai la pagina intera (Fil,
    2026-10-05, S25 Ultra: "scorre e resta lì" anche con la Home che ci sta
@@ -3957,3 +3971,10 @@ a.notif-item:active { background: var(--track-soft); }
   :root { --surface-dark: #5E3D6B; }
   .home-tile.is-action { box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.18); }
 }
+
+/* Crea evento, "Date singole" con una data sola (2026-10-14): niente ✕ per
+   togliere l'unica data e spiegazione adatta al caso. */
+#dateRowList .date-row:only-child .remove-date { display: none; }
+.date-mode-panel .date-hint-single { display: none; }
+.date-mode-panel:has(#dateRowList .date-row:only-child) .date-hint-single { display: block; }
+.date-mode-panel:has(#dateRowList .date-row:only-child) .date-hint-multi { display: none; }

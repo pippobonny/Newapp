@@ -384,7 +384,7 @@
           if (window.SeevaUI && SeevaUI.toast) {
             SeevaUI.toast('Non sono riuscito a collegarti (' + SeevaData.friendlyErrorMessage(err) + ').');
           } else {
-            window.alert('Non sono riuscito a collegarti (' + SeevaData.friendlyErrorMessage(err) + ').');
+            SeevaUI.alert('Non sono riuscito a collegarti (' + SeevaData.friendlyErrorMessage(err) + ').');
           }
           return;
         }
@@ -654,6 +654,14 @@
 
         var names = (event.invitees || []).map(function (f) { return f.name; });
         var namesLower = names.map(function (n) { return n.trim().toLowerCase(); });
+        // 2026-10-14 (giro UX): l'organizzatore non era nell'elenco, quindi
+        // "5 ci saranno" (che lo conta) e "4 di 13 disponibili" (che no)
+        // non tornavano. Ora c'è anche lui, in testa.
+        var organizerName = (event.createdBy || '').trim();
+        if (organizerName && namesLower.indexOf(organizerLower) === -1) {
+          names.unshift(organizerName);
+          namesLower.unshift(organizerLower);
+        }
         participants.forEach(function (p) {
           var lower = (p.name || '').trim().toLowerCase();
           if (!lower || lower === organizerLower) return;
@@ -678,7 +686,8 @@
           var participant = participantByName[name.trim().toLowerCase()];
           var ids = participant ? (participant.availableDateOptionIds || []) : [];
           var isIn = confirmedOptionId ? ids.indexOf(confirmedOptionId) !== -1 : ids.length > 0;
-          var statusKey = !participant ? 'pending' : (isIn ? 'available' : (participant.maybe ? 'maybe' : 'absent'));
+          var isOrgRow = name.trim().toLowerCase() === organizerLower;
+          var statusKey = !participant ? (isOrgRow ? 'available' : 'pending') : (isIn ? 'available' : (participant.maybe ? 'maybe' : 'absent'));
           var statusIconSVG = statusKey === 'available'
             ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><circle cx="12" cy="12" r="9"></circle><path d="M8 12.5l2.5 2.5L16 9.5"></path></svg>'
             : statusKey === 'absent'
@@ -686,7 +695,7 @@
               : statusKey === 'maybe'
                 ? '<span style="margin-right:3px;">🤔</span>'
                 : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg>';
-          return { name: name, statusKey: statusKey, statusIconSVG: statusIconSVG, note: participant ? participant.note : null };
+          return { name: name, statusKey: statusKey, statusIconSVG: statusIconSVG, note: participant ? participant.note : null, isOrganizerRow: name.trim().toLowerCase() === organizerLower };
         }).sort(function (a, b) { return STATUS_ORDER[a.statusKey] - STATUS_ORDER[b.statusKey]; });
 
         // Righe piene una per persona -> bolle affiancate, colore = stato
@@ -697,8 +706,8 @@
         var rowsHTML = rows.map(function (row) {
           var statusClass = row.statusKey === 'available' ? 'is-available' : row.statusKey === 'absent' ? 'is-absent' : '';
           // La tua bolla si tocca per cambiare risposta (Big Fra, 2026-10-03).
-          var isMe = guestName && row.name.trim().toLowerCase() === guestName.trim().toLowerCase();
-          return '<span class="invitee-chip ' + statusClass + (isMe ? ' is-me' : '') + '"' + (isMe ? ' data-me-chip="1" title="Tocca per cambiare la tua risposta"' : '') + '>' + row.statusIconSVG + SeevaData.escapeHTML(row.name) + (isMe ? ' <span class="invitee-chip-edit">cambia</span>' : '') + '</span>';
+          var isMe = !row.isOrganizerRow && guestName && row.name.trim().toLowerCase() === guestName.trim().toLowerCase();
+          return '<span class="invitee-chip ' + statusClass + (isMe ? ' is-me' : '') + '"' + (isMe ? ' data-me-chip="1" title="Tocca per cambiare la tua risposta"' : '') + '>' + row.statusIconSVG + SeevaData.escapeHTML(row.name) + (row.isOrganizerRow ? ' <span class="invitee-chip-edit">organizza</span>' : '') + (isMe ? ' <span class="invitee-chip-edit">cambia</span>' : '') + '</span>';
         }).join('');
 
         // Restituisce anche "rows" grezzo (Fil, 2026-08-23), non solo
@@ -766,10 +775,10 @@
         return '';
       }
       // Chiede conferma prima di un "Ci sono" su un giorno bloccato.
-      function confirmBusyYes(iso) {
+      async function confirmBusyYes(iso) {
         var b = busyFor(iso);
         if (!b.hard.length || isBusyUnlocked(iso)) return true;
-        var ok = window.confirm('Quel giorno hai già ' + busyNamesText(b.hard) + '.\n\nVuoi rispondere "Ci sono" lo stesso?');
+        var ok = await SeevaUI.ask('Quel giorno hai già ' + busyNamesText(b.hard) + '.\n\nVuoi rispondere "Ci sono" lo stesso?');
         if (ok) unlockBusy(iso);
         return ok;
       }
@@ -1617,6 +1626,9 @@
           var AVATAR_TILE_COLORS = ['#FF7A29', '#6B3F73', '#9C6BA3', '#4F8B5C'];
           var avatarsHTML = avatarSource.slice(0, 3).map(function (r, i) {
             var initial = (r.name || '?').trim().charAt(0).toUpperCase() || '?';
+            // Foto vera se c'è (2026-10-14), altrimenti l'iniziale colorata.
+            var photo = attendeeAvatars[(r.name || '').trim().toLowerCase()];
+            if (photo) return '<span style="background:var(--card);"><img src="' + SeevaData.escapeHTML(photo) + '" alt="" loading="lazy"></span>';
             return '<span style="background:' + AVATAR_TILE_COLORS[i % AVATAR_TILE_COLORS.length] + ';">' + SeevaData.escapeHTML(initial) + '</span>';
           }).join('');
           whoComingTileHTML = ''
@@ -1869,11 +1881,11 @@
         bindEvents();
         Array.prototype.forEach.call(contentEl.querySelectorAll('[data-delete-announcement-id]'), function (btn) {
           btn.addEventListener('click', async function () {
-            if (!window.confirm('Togliere questo avviso dalla pagina dell\'evento? (Chi l\'ha già ricevuto come notifica lo ha comunque letto.)')) return;
+            if (!await SeevaUI.ask('Togliere questo avviso dalla pagina dell\'evento? (Chi l\'ha già ricevuto come notifica lo ha comunque letto.)')) return;
             try {
               await SeevaData.deleteEventAnnouncement(btn.getAttribute('data-delete-announcement-id'));
             } catch (err) {
-              window.alert('Non sono riuscito a toglierlo (' + SeevaData.friendlyErrorMessage(err) + ').');
+              SeevaUI.alert('Non sono riuscito a toglierlo (' + SeevaData.friendlyErrorMessage(err) + ').');
               return;
             }
             event = await SeevaData.getEventById(event.id);
@@ -1905,7 +1917,7 @@
         var label = SeevaData.formatDateLabel(
           (event.dateOptions.filter(function (o) { return o.id === optionId; })[0] || {}).dateISO || ''
         );
-        var sure = window.confirm('Confermare "' + label + '"? Questa data diventa subito quella definitiva dell\'evento, anche se non tutti hanno ancora risposto. Non si può annullare da qui.');
+        var sure = await SeevaUI.ask('Confermare "' + label + '"? Questa data diventa subito quella definitiva dell\'evento, anche se non tutti hanno ancora risposto. Non si può annullare da qui.');
         if (!sure) return;
 
         // Se ci sono più location proposte, va risolta insieme alla data
@@ -1936,7 +1948,7 @@
         } catch (err) {
           btnEl.textContent = originalText;
           btnEl.disabled = false;
-          window.alert('Non sono riuscito a confermare (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+          SeevaUI.alert('Non sono riuscito a confermare (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
           return;
         }
         if (onDone) onDone();
@@ -2144,7 +2156,7 @@
         var cancelEventManuallyLink = document.getElementById('cancelEventManuallyLink');
         if (cancelEventManuallyLink) {
           cancelEventManuallyLink.addEventListener('click', async function () {
-            var sure = window.confirm('Annullare "' + event.name + '"? Chi aveva già risposto disponibile riceverà un avviso. Potrai sempre ripeterlo con nuove date in seguito.');
+            var sure = await SeevaUI.ask('Annullare "' + event.name + '"? Chi aveva già risposto disponibile riceverà un avviso. Potrai sempre ripeterlo con nuove date in seguito.');
             if (!sure) return;
 
             var originalText = cancelEventManuallyLink.textContent;
@@ -2153,7 +2165,7 @@
               event = await SeevaData.cancelEventManually(event.id);
             } catch (err) {
               cancelEventManuallyLink.textContent = originalText;
-              window.alert('Non sono riuscito ad annullare (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+              SeevaUI.alert('Non sono riuscito ad annullare (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
               return;
             }
             render();
@@ -2169,7 +2181,7 @@
         var withdrawLink = document.getElementById('withdrawFromEventLink');
         if (withdrawLink) {
           withdrawLink.addEventListener('click', async function () {
-            var sure = window.confirm('Segnalare che non potrai esserci per "' + event.name + '"? L\'organizzatore riceverà una notifica.');
+            var sure = await SeevaUI.ask('Segnalare che non potrai esserci per "' + event.name + '"? L\'organizzatore riceverà una notifica.');
             if (!sure) return;
 
             var originalText = withdrawLink.textContent;
@@ -2178,7 +2190,7 @@
               event = await SeevaData.withdrawFromEvent(event.id, guestName);
             } catch (err) {
               withdrawLink.textContent = originalText;
-              window.alert('Non sono riuscito a segnalarlo (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+              SeevaUI.alert('Non sono riuscito a segnalarlo (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
               return;
             }
             render();
@@ -2206,7 +2218,7 @@
               event = await SeevaData.upsertParticipant(event.id, guestName, [info.bestOption.id], existingLocIds, noteVal);
             } catch (err) {
               rejoinLink.textContent = originalText;
-              window.alert('Non sono riuscito ad aggiornare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+              SeevaUI.alert('Non sono riuscito ad aggiornare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
               return;
             }
             render();
@@ -2224,7 +2236,7 @@
               event = await SeevaData.upsertParticipant(event.id, guestName, [], existingLocIds, noteEl ? noteEl.value.trim() : undefined, true);
             } catch (err) {
               maybeLink.textContent = originalText;
-              window.alert('Non sono riuscito a salvare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+              SeevaUI.alert('Non sono riuscito a salvare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
               return;
             }
             render();
@@ -2240,7 +2252,7 @@
               event = await SeevaData.upsertParticipant(event.id, guestName, [], []);
             } catch (err) {
               declineLink.textContent = originalText;
-              window.alert('Non sono riuscito a salvare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+              SeevaUI.alert('Non sono riuscito a salvare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
               return;
             }
             render();
@@ -2308,8 +2320,8 @@
 
         var singleDateYesBtn = document.getElementById('singleDateYesBtn');
         if (singleDateYesBtn) {
-          singleDateYesBtn.addEventListener('click', function () {
-            if (!confirmBusyYes(event.dateOptions[0].dateISO)) return;
+          singleDateYesBtn.addEventListener('click', async function () {
+            if (!(await confirmBusyYes(event.dateOptions[0].dateISO))) return;
             var noteEl = document.getElementById('singleDateNoteInput');
             saveAvailability([singleDateYesBtn.getAttribute('data-option-id')], selectedLocationIds(), singleDateYesBtn, noteEl ? noteEl.value.trim() : '');
           });
@@ -2466,10 +2478,10 @@
         // controllo vero è comunque lato server, in delete_event_comment).
         var commentListEl = document.getElementById('commentList');
         if (commentListEl) {
-          commentListEl.addEventListener('click', function (e) {
+          commentListEl.addEventListener('click', async function (e) {
             var delEl = e.target.closest && e.target.closest('[data-delete-comment-id]');
             if (!delEl) return;
-            if (!window.confirm('Cancellare questo commento?')) return;
+            if (!await SeevaUI.ask('Cancellare questo commento?')) return;
             var commentId = delEl.getAttribute('data-delete-comment-id');
             SeevaData.deleteEventComment(event.id, commentId, guestName).then(function (updated) {
               event = updated;
@@ -2478,7 +2490,7 @@
               var reopened = document.getElementById('commentsModal');
               if (reopened) reopened.style.display = '';
             }).catch(function (err) {
-              window.alert('Non sono riuscito a cancellare il commento (' + SeevaData.friendlyErrorMessage(err) + ').');
+              SeevaUI.alert('Non sono riuscito a cancellare il commento (' + SeevaData.friendlyErrorMessage(err) + ').');
             });
           });
         }
@@ -2553,12 +2565,12 @@
         document.querySelectorAll('[data-remove-expense]').forEach(function (el) {
           el.addEventListener('click', async function () {
             var id = el.getAttribute('data-remove-expense');
-            var sure = window.confirm('Cancellare questa spesa? Non si può annullare.');
+            var sure = await SeevaUI.ask('Cancellare questa spesa? Non si può annullare.');
             if (!sure) return;
             try {
               await SeevaData.deleteEventExpense(id);
             } catch (err) {
-              window.alert('Non sono riuscito a cancellare la spesa (' + SeevaData.friendlyErrorMessage(err) + ').');
+              SeevaUI.alert('Non sono riuscito a cancellare la spesa (' + SeevaData.friendlyErrorMessage(err) + ').');
               return;
             }
             event = await SeevaData.getEventById(event.id);
@@ -2604,7 +2616,7 @@
             try {
               await SeevaData.addEventItem(event.id, text);
             } catch (err) {
-              window.alert('Non sono riuscito ad aggiungere la voce (' + SeevaData.friendlyErrorMessage(err) + ').');
+              SeevaUI.alert('Non sono riuscito ad aggiungere la voce (' + SeevaData.friendlyErrorMessage(err) + ').');
               addItemBtn.textContent = '+ Aggiungi';
               return;
             }
@@ -2628,15 +2640,15 @@
               try {
                 got = await SeevaData.claimEventItem(id);
               } catch (err) {
-                window.alert('Non sono riuscito a prenotarla (' + SeevaData.friendlyErrorMessage(err) + ').');
+                SeevaUI.alert('Non sono riuscito a prenotarla (' + SeevaData.friendlyErrorMessage(err) + ').');
                 return;
               }
-              if (!got) window.alert('Qualcun altro l\'ha già presa un attimo fa.');
+              if (!got) SeevaUI.alert('Qualcun altro l\'ha già presa un attimo fa.');
             } else {
               try {
                 await SeevaData.releaseEventItem(id);
               } catch (err) {
-                window.alert('Non sono riuscito a liberarla (' + SeevaData.friendlyErrorMessage(err) + ').');
+                SeevaUI.alert('Non sono riuscito a liberarla (' + SeevaData.friendlyErrorMessage(err) + ').');
                 return;
               }
             }
@@ -2652,12 +2664,12 @@
         document.querySelectorAll('.item-swipe-trash[data-remove-item]').forEach(function (el) {
           el.addEventListener('click', async function () {
             var id = el.getAttribute('data-remove-item');
-            var sure = window.confirm('Eliminare questa voce?');
+            var sure = await SeevaUI.ask('Eliminare questa voce?');
             if (!sure) return;
             try {
               await SeevaData.deleteEventItem(id);
             } catch (err) {
-              window.alert('Non sono riuscito a eliminarla (' + SeevaData.friendlyErrorMessage(err) + ').');
+              SeevaUI.alert('Non sono riuscito a eliminarla (' + SeevaData.friendlyErrorMessage(err) + ').');
               return;
             }
             // Collassa la riga prima di ridisegnare la sezione (Fil: stessa
@@ -2772,16 +2784,16 @@
         var locIds = (existing && existing.availableLocationOptionIds) || [];
         if (ctx === 'single') {
           var optId = event.dateOptions[0].id;
-          if (key === 'yes') { if (!confirmBusyYes(event.dateOptions[0].dateISO)) return; return saveAvailability([optId], locIds, btnEl); }
+          if (key === 'yes') { if (!(await confirmBusyYes(event.dateOptions[0].dateISO))) return; return saveAvailability([optId], locIds, btnEl); }
           if (key === 'maybe') return saveAvailability([], locIds, btnEl, undefined, true);
           return saveAvailability([], [], btnEl, '');
         }
         var info = SeevaData.computeEventStatus(event);
         if (!info.bestOption) return;
         var currentlyYes = !!(existing && (existing.availableDateOptionIds || []).indexOf(info.bestOption.id) !== -1);
-        if (key === 'yes' && !confirmBusyYes(info.bestOption.dateISO)) return;
+        if (key === 'yes' && !(await confirmBusyYes(info.bestOption.dateISO))) return;
         if (key === 'no' && currentlyYes) {
-          var sure = window.confirm('Segnalare che non potrai esserci per "' + event.name + '"? L\'organizzatore riceverà una notifica.');
+          var sure = await SeevaUI.ask('Segnalare che non potrai esserci per "' + event.name + '"? L\'organizzatore riceverà una notifica.');
           if (!sure) return;
         }
         var noteEl = document.getElementById('confirmedNoteInput');
@@ -2797,7 +2809,7 @@
         } catch (err) {
           btnEl.textContent = originalText;
           if (seg) seg.classList.remove('is-saving');
-          window.alert('Non sono riuscito a salvare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+          SeevaUI.alert('Non sono riuscito a salvare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
           return;
         }
         render();
@@ -3063,7 +3075,7 @@
           var n = result.notified || 0;
           var txt = n ? (n === 1 ? t('Avviso mandato a 1 persona.') : t('Avviso mandato a {n} persone.', { n: n })) : t('Avviso salvato nella pagina dell\'evento.');
           if (unreachable.length) txt += '\n\n' + (unreachable.length === 1 ? t('{names} non ha l\'app: lo vedrà aprendo il link dell\'evento.', { names: unreachable.join(', ') }) : t('{names} non hanno l\'app: lo vedranno aprendo il link dell\'evento.', { names: unreachable.join(', ') }));
-          window.alert(txt);
+          SeevaUI.alert(txt);
         });
       }
 
@@ -3176,21 +3188,21 @@
           nudgeBtn.addEventListener('click', async function () {
             dropdown.classList.remove('open');
             if (nudgeBtn.getAttribute('data-busy') === '1') return;
-            var sure = window.confirm('Mandare un promemoria a chi non ha ancora risposto?');
+            var sure = await SeevaUI.ask('Mandare un promemoria a chi non ha ancora risposto?');
             if (!sure) return;
             nudgeBtn.setAttribute('data-busy', '1');
             var result;
             try {
               result = await SeevaData.nudgePendingInvitees(event.id);
             } catch (err) {
-              window.alert('Non sono riuscito a mandare il sollecito (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+              SeevaUI.alert('Non sono riuscito a mandare il sollecito (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
               return;
             } finally {
               nudgeBtn.removeAttribute('data-busy');
             }
             if (result.cooldown) {
               var mins = Math.max(1, Math.ceil((result.retryAfterSeconds || 60) / 60));
-              window.alert(mins === 1 ? t('Hai già sollecitato da poco. Puoi rimandarlo tra 1 minuto.') : t('Hai già sollecitato da poco. Puoi rimandarlo tra {n} minuti.', { n: mins }));
+              SeevaUI.alert(mins === 1 ? t('Hai già sollecitato da poco. Puoi rimandarlo tra 1 minuto.') : t('Hai già sollecitato da poco. Puoi rimandarlo tra {n} minuti.', { n: mins }));
               return;
             }
             showNudgeResultPopup(result);
@@ -3216,7 +3228,7 @@
               await SeevaData.setEventItemsEnabled(event.id, nextEnabled);
             } catch (err) {
               toggleItemsBtn.textContent = originalText;
-              window.alert('Non sono riuscito a cambiare la lista "chi porta cosa" (' + SeevaData.friendlyErrorMessage(err) + ').');
+              SeevaUI.alert('Non sono riuscito a cambiare la lista "chi porta cosa" (' + SeevaData.friendlyErrorMessage(err) + ').');
               return;
             }
             event = await SeevaData.getEventById(event.id);
@@ -3235,7 +3247,7 @@
               await SeevaData.setEventExpensesEnabled(event.id, nextEnabled);
             } catch (err) {
               toggleExpensesBtn.textContent = originalText;
-              window.alert('Non sono riuscito a cambiare la divisione spese (' + SeevaData.friendlyErrorMessage(err) + ').');
+              SeevaUI.alert('Non sono riuscito a cambiare la divisione spese (' + SeevaData.friendlyErrorMessage(err) + ').');
               return;
             }
             event = await SeevaData.getEventById(event.id);
@@ -3253,7 +3265,7 @@
             // disponibile" e stia solo pulendo la sua home (Fil, 2026-07-20).
             var existingParticipant = findExistingParticipant();
             var wasAvailable = !!(existingParticipant && (existingParticipant.availableDateOptionIds || []).length > 0);
-            var sure = window.confirm(SeevaData.buildRemoveFromHomeConfirmMessage(event.name, wasAvailable));
+            var sure = await SeevaUI.ask(SeevaData.buildRemoveFromHomeConfirmMessage(event.name, wasAvailable));
             if (!sure) return;
 
             var originalText = removeFromHomeBtn.textContent;
@@ -3262,7 +3274,7 @@
               await SeevaData.removeEventFromHome(event.id);
             } catch (err) {
               removeFromHomeBtn.textContent = originalText;
-              window.alert('Non sono riuscito a rimuovere l\'evento dalla tua home (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+              SeevaUI.alert('Non sono riuscito a rimuovere l\'evento dalla tua home (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
               return;
             }
             // eventi.html da sola (senza ?only=) non è più un posto dove si
@@ -3279,7 +3291,7 @@
             // 2026-07-07). Chi aveva risposto disponibile riceve email +
             // notifica in-app da SeevaData.deleteEvent() stesso.
             dropdown.classList.remove('open');
-            var sure = window.confirm('Eliminare "' + event.name + '"? Chi aveva già risposto disponibile riceverà un avviso. Non si può annullare.');
+            var sure = await SeevaUI.ask('Eliminare "' + event.name + '"? Chi aveva già risposto disponibile riceverà un avviso. Non si può annullare.');
             if (!sure) return;
 
             var originalText = deleteBtn.textContent;
@@ -3288,7 +3300,7 @@
               await SeevaData.deleteEvent(event.id);
             } catch (err) {
               deleteBtn.textContent = originalText;
-              window.alert('Non sono riuscito a eliminare l\'evento (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+              SeevaUI.alert('Non sono riuscito a eliminare l\'evento (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
               return;
             }
             // eventi.html da sola (senza ?only=) non è più un posto dove si
@@ -3514,6 +3526,22 @@
       await loadAttendeeAvatarsIfNeeded();
 
       render();
+
+      // 2026-10-14: foto anche nella tessera "Chi viene" degli eventi non
+      // ancora confermati -- caricate dopo il primo disegno, poi si ridisegna.
+      (function () {
+        var names = (event.participants || []).map(function (p) { return p.name; })
+          .concat((event.invitees || []).map(function (f) { return f.name; }))
+          .filter(function (n) { return n && !attendeeAvatars[n.trim().toLowerCase()]; });
+        if (!names.length || !SeevaData.getAvatarsForNames) return;
+        SeevaData.getAvatarsForNames(names).then(function (rows) {
+          var added = false;
+          (rows || []).forEach(function (r) {
+            if (r.avatarUrl && r.username && !attendeeAvatars[r.username.toLowerCase()]) { attendeeAvatars[r.username.toLowerCase()] = r.avatarUrl; added = true; }
+          });
+          if (added) render();
+        }, function () { /* ignora: restano le iniziali */ });
+      })();
 
       // Date già impegnate (#15): caricate dopo il primo disegno, per non
       // rallentare l'apertura; se ce n'è almeno una si ridisegna.

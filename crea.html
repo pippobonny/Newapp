@@ -289,7 +289,9 @@
               </div>
             </div>
             <div class="add-date-btn" id="addDateBtn">+ Aggiungi un'altra data</div>
-            <div class="field-hint">Ogni data che aggiungi diventa un'opzione tra cui gli invitati scelgono quando possono esserci.</div>
+            <!-- 2026-10-14 (giro UX): con una data sola niente ✕ e testo diverso (vedi style.css, .date-hint-*). -->
+            <div class="field-hint date-hint-single">Con una sola data l'evento è confermato subito: gli invitati rispondono solo "ci sono" o "non ci sono". Aggiungi altre date se vuoi farli votare.</div>
+            <div class="field-hint date-hint-multi">Ogni data che aggiungi diventa un'opzione tra cui gli invitati scelgono quando possono esserci.</div>
           </div>
 
           <div class="date-mode-panel" data-panel="pattern" style="display:none;">
@@ -1071,7 +1073,31 @@
         return total;
       }
 
+      /* 2026-10-14 (giro UX): i messaggi rossi ("Aggiungi almeno un
+         invitato", "Aggiungi almeno una data"...) restavano lì anche dopo
+         aver sistemato. Ora spariscono appena tocchi qualcosa nel modulo o
+         la lista invitati cambia. */
+      function clearWizardErrors() {
+        if (step1Error) step1Error.textContent = '';
+        if (step2Error) step2Error.textContent = '';
+        if (formError) formError.textContent = '';
+      }
+      (function () {
+        var pc = document.getElementById('pageContent');
+        if (!pc) return;
+        pc.addEventListener('input', clearWizardErrors);
+        pc.addEventListener('change', clearWizardErrors);
+      })();
+
+      // Senza invitati scritti va bene lo stesso se il link è aperto a tutti
+      // (2026-10-14): chi lo riceve si aggiunge da solo.
+      function inviteesMissing() {
+        return totalInviteesCount() === 0 && !openInviteCheckbox.checked;
+      }
+      var INVITEES_MISSING_MSG = 'Aggiungi almeno un invitato, oppure attiva "Apri il link a tutti".';
+
       function renderManualNamesList() {
+        clearWizardErrors();
         if (!manualNames.length) {
           manualNamesListEl.innerHTML = '';
           return;
@@ -1229,7 +1255,7 @@
 
       document.getElementById('step2NextBtn').addEventListener('click', function () {
         step2Error.textContent = '';
-        if (totalInviteesCount() === 0) { step2Error.textContent = 'Aggiungi almeno un invitato.'; return; }
+        if (inviteesMissing()) { step2Error.textContent = INVITEES_MISSING_MSG; return; }
         showStep(3);
         pushWizardHistoryStep(3);
       });
@@ -1588,8 +1614,8 @@
         }
 
         var selectedListForSubmit = getSelectedList();
-        if (totalInviteesCount() === 0) {
-          formError.textContent = 'Aggiungi almeno un invitato.';
+        if (inviteesMissing()) {
+          formError.textContent = INVITEES_MISSING_MSG;
           return;
         }
 
@@ -1691,7 +1717,7 @@
               var whatAddedText = addingNewDateForWarning && addingNewLocationForWarning
                 ? 'una nuova data e una nuova location'
                 : addingNewDateForWarning ? 'una nuova data' : 'una nuova location';
-              var sureReopen = window.confirm(
+              var sureReopen = await SeevaUI.ask(
                 'Stai aggiungendo ' + whatAddedText + ' a un evento già confermato: tornerà "in attesa", e tutti i partecipanti (anche chi aveva già risposto) riceveranno un avviso per votare di nuovo. Continuare?'
               );
               if (!sureReopen) {
@@ -1807,8 +1833,8 @@
 
       /* Popup di conferma dopo la creazione: sfondo sfocato (riusa lo stesso
          stile di .signup-overlay/.signup-modal, coerente col resto dell'app),
-         un riepilogo essenziale, poi via a evento.html — da solo dopo 10s o
-         al primo tocco, quello che arriva prima. */
+         un riepilogo essenziale + "Condividi il link" / "Vai all'evento"
+         (2026-10-14: niente più attesa automatica di 10s). */
       function showEventCreatedPopup(event, href) {
         var phone = document.querySelector('.phone');
         if (!phone) { window.location.replace(href); return; }
@@ -1833,6 +1859,18 @@
               : '<div class="signup-modal-text">Nessun invitato ancora: puoi aggiungerne dopo.</div>')
           + '</div>';
 
+        // 2026-10-14 (giro UX): il pulsante si chiama "Crea e genera link",
+        // ma il link poi non si vedeva e il popup restava fermo 10 secondi.
+        // Ora qui c'è subito "Condividi il link" (WhatsApp ecc.) e "Vai
+        // all'evento"; toccando fuori si va all'evento. Niente attesa fissa.
+        var shareUrl = SeevaData.SITE_URL + '/' + href;
+        var actions = document.createElement('div');
+        actions.style.cssText = 'display:flex; flex-direction:column; gap:8px; margin-top:16px;';
+        actions.innerHTML = ''
+          + '<button type="button" class="primary-btn" data-act="share" style="margin:0;">' + t('Condividi il link') + '</button>'
+          + '<div class="add-date-btn" data-act="go" style="margin:0; cursor:pointer;">' + t('Vai all\'evento →') + '</div>';
+        overlay.querySelector('.signup-modal').appendChild(actions);
+
         var dismissed = false;
         function goToEvent() {
           if (dismissed) return;
@@ -1843,8 +1881,27 @@
           // restare sull'evento appena creato (Fil, 2026-07-17).
           window.location.replace(href);
         }
-        overlay.addEventListener('click', goToEvent);
-        window.setTimeout(goToEvent, 10000);
+        function shareLink() {
+          var shareText = SeevaData.buildEventShareText ? SeevaData.buildEventShareText(event, shareUrl) : shareUrl;
+          if (navigator.share) {
+            navigator.share({ text: shareText }).then(goToEvent, function () { /* annullato: resta qui */ });
+            return;
+          }
+          var done = function () {
+            if (window.SeevaUI && SeevaUI.toast) SeevaUI.toast(t('Messaggio copiato ✓'));
+            window.setTimeout(goToEvent, 900);
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(shareText).then(done, goToEvent);
+          } else {
+            goToEvent();
+          }
+        }
+        overlay.addEventListener('click', function (e) {
+          var btn = e.target.closest && e.target.closest('[data-act]');
+          if (btn && btn.getAttribute('data-act') === 'share') { shareLink(); return; }
+          if (btn || e.target === overlay) goToEvent();
+        });
 
         phone.appendChild(overlay);
       }

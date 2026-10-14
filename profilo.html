@@ -995,7 +995,7 @@
           try {
             await SeevaData.updateAccount({ username: newName });
           } catch (err) {
-            window.alert('Non sono riuscito a salvare il nome utente: ' + SeevaData.friendlyErrorMessage(err));
+            SeevaUI.alert('Non sono riuscito a salvare il nome utente: ' + SeevaData.friendlyErrorMessage(err));
             return;
           }
         } else {
@@ -1015,7 +1015,7 @@
       // locale: altrimenti il token restava valido sul telefono anche
       // dopo aver premuto "esci".
       document.getElementById('forgetMeRow').addEventListener('click', async function () {
-        var sure = window.confirm('Uscire da questo profilo su questo telefono? Il profilo resta salvato online: per riusare l\'app da qui dovrai accedere di nuovo con email e password (o Google).');
+        var sure = await SeevaUI.ask('Uscire da questo profilo su questo telefono? Il profilo resta salvato online: per riusare l\'app da qui dovrai accedere di nuovo con email e password (o Google).');
         if (!sure) return;
         await SeevaData.logOut();
         window.location.href = 'profilo.html';
@@ -1028,14 +1028,14 @@
       var deleteAccountRow = document.getElementById('deleteAccountRow');
       if (deleteAccountRow) {
         deleteAccountRow.addEventListener('click', async function () {
-          var sure = window.confirm('Eliminare per sempre il tuo account? Non potrai più accedere con queste credenziali, e l\'azione non si può annullare. Gli eventi e le spese già condivisi con altri restano visibili a loro.');
+          var sure = await SeevaUI.ask('Eliminare per sempre il tuo account? Non potrai più accedere con queste credenziali, e l\'azione non si può annullare. Gli eventi e le spese già condivisi con altri restano visibili a loro.');
           if (!sure) return;
           deleteAccountRow.style.pointerEvents = 'none';
           try {
             await SeevaData.deleteOwnAccount();
           } catch (err) {
             deleteAccountRow.style.pointerEvents = '';
-            window.alert('Non sono riuscito a eliminare l\'account (' + SeevaData.friendlyErrorMessage(err) + ').');
+            SeevaUI.alert('Non sono riuscito a eliminare l\'account (' + SeevaData.friendlyErrorMessage(err) + ').');
             return;
           }
           window.location.href = 'profilo.html';

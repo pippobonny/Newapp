@@ -1801,36 +1801,14 @@
         .filter(function (d) { return !!d; })
         .map(function (d) { return { event_id: eventId, date_iso: d }; });
 
-      var createdOptionIds = [];
-      if (dateRows.length) {
-        var dateRes = await supabase.from('date_options').insert(dateRows).select('id');
-        if (dateRes.error) throw new Error(dateRes.error.message);
-        createdOptionIds = (dateRes.data || []).map(function (r) { return r.id; });
-      }
-
-      // Data fissa = confermato da subito (Fil, 2026-10-03): "aperitivo
-      // venerdì, chi c'è c'è" non deve aspettare che rispondano tutti, né
-      // annullarsi da solo se qualcuno non risponde. Le risposte servono solo
-      // a sapere chi viene. Così parte anche il promemoria del giorno prima
-      // (send-event-reminders guarda solo gli eventi confermati).
-      if (createdOptionIds.length === 1) {
-        var confRes = await supabase.from('events').update({ confirmed_date_option_id: createdOptionIds[0] }).eq('id', eventId);
-        if (confRes.error) throw new Error(confRes.error.message);
-      }
-
       // Più location tra cui votare (Fil, 2026-07-21): solo se ne sono state
       // proposte 2 o più in crea.html — con 0 o 1 sola, location_address/ecc.
-      // sull'evento (già scritti sopra) restano l'unica fonte, esattamente
-      // come prima, e qui non si crea nessuna riga.
+      // sull'evento (già scritti sopra) restano l'unica fonte.
       var locationRows = (input.locations || [])
         .filter(function (l) { return l && l.address; })
         .map(function (l) {
           return { event_id: eventId, address: l.address, place_id: l.placeId || null, lat: l.lat, lng: l.lng };
         });
-      if (locationRows.length) {
-        var locationRes = await supabase.from('location_options').insert(locationRows);
-        if (locationRes.error) throw new Error(locationRes.error.message);
-      }
 
       var inviteeRows = (input.inviteeNames || [])
         .map(normalizeInviteeEntry)
@@ -1840,25 +1818,41 @@
           if (e.accountId) { row.account_id = e.accountId; row.claimed_at = new Date().toISOString(); }
           return row;
         });
-      if (inviteeRows.length) {
-        var inviteesRes = await supabase.from('event_invitees').insert(inviteeRows);
-        if (inviteesRes.error) throw new Error(inviteesRes.error.message);
-      }
 
-      // Chi organizza è per forza "presente": proponendo lui stesso l'evento non
-      // avrebbe senso chiedergli poi di rispondere "quando sei disponibile" come
-      // fosse un invitato qualsiasi. Lo si conta subito su tutte le date proposte,
-      // così l'organizzatore non passa mai dai chip di disponibilità (vedi evento.html).
+      // 2026-10-14 (giro UX, "creare un evento è lento"): date, location e
+      // invitati non dipendono l'uno dall'altro -> salvati in parallelo
+      // invece che uno dopo l'altro (prima erano 5 giri di rete in fila).
+      var NONE = Promise.resolve({ data: [], error: null });
+      var step1 = await Promise.all([
+        dateRows.length ? supabase.from('date_options').insert(dateRows).select('id') : NONE,
+        locationRows.length ? supabase.from('location_options').insert(locationRows) : NONE,
+        inviteeRows.length ? supabase.from('event_invitees').insert(inviteeRows) : NONE
+      ]);
+      step1.forEach(function (r) { if (r && r.error) throw new Error(r.error.message); });
+      var createdOptionIds = (step1[0].data || []).map(function (r) { return r.id; });
+
+      // Data fissa = confermato da subito (Fil, 2026-10-03): "aperitivo
+      // venerdì, chi c'è c'è" non deve aspettare che rispondano tutti, né
+      // annullarsi da solo se qualcuno non risponde. Così parte anche il
+      // promemoria del giorno prima (send-event-reminders guarda solo gli
+      // eventi confermati).
+      // Chi organizza è per forza "presente": lo si conta subito su tutte le
+      // date proposte (vedi evento.html). Anche questi due in parallelo.
       var organizerName = (input.createdBy || '').trim();
-      if (organizerName && createdOptionIds.length) {
-        var partRes = await supabase.from('participants').insert({
-          event_id: eventId,
-          name: organizerName,
-          account_id: creatorAcc && creatorAcc.id ? creatorAcc.id : null,
-          available_date_option_ids: createdOptionIds
-        });
-        if (partRes.error) throw new Error(partRes.error.message);
-      }
+      var step2 = await Promise.all([
+        createdOptionIds.length === 1
+          ? supabase.from('events').update({ confirmed_date_option_id: createdOptionIds[0] }).eq('id', eventId)
+          : NONE,
+        (organizerName && createdOptionIds.length)
+          ? supabase.from('participants').insert({
+              event_id: eventId,
+              name: organizerName,
+              account_id: creatorAcc && creatorAcc.id ? creatorAcc.id : null,
+              available_date_option_ids: createdOptionIds
+            })
+          : NONE
+      ]);
+      step2.forEach(function (r) { if (r && r.error) throw new Error(r.error.message); });
 
     } catch (createErr) {
       try { await supabase.from('events').delete().eq('id', eventId); } catch (e) { /* ignora */ }

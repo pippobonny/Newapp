@@ -1491,7 +1491,7 @@
         // dalla home" non ha senso per l'organizzatore, quindi lì lo swipe
         // elimina l'evento vero (stessa azione del menu ⋮ di evento.html).
         var isOrganizerCard = trash.getAttribute('data-is-organizer') === '1';
-        var sure = window.confirm(isOrganizerCard
+        var sure = await askDialog(isOrganizerCard
           ? SeevaData.buildDeleteEventConfirmMessage(eventName)
           : SeevaData.buildRemoveFromHomeConfirmMessage(eventName, wasAvailable));
         if (!sure) {
@@ -1512,7 +1512,7 @@
           trash.setAttribute('data-busy', '0');
           trash.textContent = originalText;
           var failMessage = isOrganizerCard ? 'Non sono riuscito a eliminare l\'evento' : 'Non sono riuscito a rimuovere l\'evento dalla tua home';
-          window.alert(failMessage + ' (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+          alertDialog(failMessage + ' (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
           closeSwipeCard(card);
           return;
         }
@@ -1610,7 +1610,13 @@
       // evento) la pagina tornava scorrevole con tutti i 100px vuoti in
       // fondo. Ora basta che il contenuto vero ci stia (1px di tolleranza
       // per gli arrotondamenti).
-      var fits = natural <= el.clientHeight + 1;
+      // 2026-10-14 (giro UX): in fondo resta sempre la riga delle bolle
+      // (indietro / coccinella / condividi, ~90px): se il contenuto ci sta
+      // solo "giusto giusto", l'ultimo pulsante (es. "Continua" in Crea
+      // evento) finiva sotto le bolle. Ora la pagina è "ferma" solo se
+      // ci sta anche quella riga; altrimenti scorre quel tanto che basta.
+      var FAB_ROW = 90;
+      var fits = natural + FAB_ROW <= el.clientHeight + 1;
       el.classList.toggle('fits-screen', fits);
       if (fits) el.scrollTop = 0;
     }
@@ -1897,14 +1903,24 @@
     if (isAppInstalled()) return;
     if (!window.SeevaData || typeof SeevaData.hasAccount !== 'function' || !SeevaData.hasAccount()) return;
 
+    // 2026-10-14 (giro UX): si apriva a ogni apertura dal browser, appena
+    // entrati, con sotto anche il banner "Installa l'app" che dice la stessa
+    // cosa. Ora: mai sul computer (lì non serve, resta il banner), e sul
+    // telefono al massimo una volta ogni 3 giorni. Il banner resta sempre.
+    var INSTALL_LAST_SHOWN_KEY = 'seeva:installPromptLastShownAt';
+    var isTouchPhone = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    if (!isTouchPhone) return;
     try {
       if (localStorage.getItem(INSTALL_DISMISS_FOREVER_KEY) === '1') return;
       if (sessionStorage.getItem('seeva:installPromptShownThisSession') === '1') return;
+      var last = parseInt(localStorage.getItem(INSTALL_LAST_SHOWN_KEY) || '0', 10);
+      if (last && Date.now() - last < 3 * 24 * 3600 * 1000) return;
     } catch (err) { /* ignora, meglio mostrarlo che no */ }
 
     window.setTimeout(function () {
       if (isAppInstalled()) return; // potrebbe essere cambiato nel frattempo
       try { sessionStorage.setItem('seeva:installPromptShownThisSession', '1'); } catch (err) { /* ignora */ }
+      try { localStorage.setItem(INSTALL_LAST_SHOWN_KEY, String(Date.now())); } catch (err) { /* ignora */ }
       openInstallInstructionsPopup();
     }, 1200);
   }
@@ -2350,8 +2366,79 @@
     });
   }
 
+  /* ---------- Popup di conferma/avviso in stile seeva (2026-10-14) ----------
+     Prima si usavano window.confirm/window.alert: finestrelle grigie del
+     browser, diverse su ogni telefono, mai tradotte, fuori stile. ask()
+     restituisce una Promise<boolean> (si usa con await al posto di
+     window.confirm), alert() mostra solo un messaggio con "OK". Riusano lo
+     stile dei popup già esistenti (.signup-overlay/.signup-modal). Il testo
+     va nel DOM, quindi lo traduce anche i18n.js come il resto dell'app. */
+  var DANGER_RE = /^(eliminare|cancellare|annullare|uscire|segnalare che non)/i;
+  function showDialog(message, withCancel, opts) {
+    opts = opts || {};
+    return new Promise(function (resolve) {
+      var host = document.querySelector('.phone') || document.body;
+      var overlay = document.createElement('div');
+      overlay.className = 'signup-overlay seeva-dialog';
+      var modal = document.createElement('div');
+      modal.className = 'signup-modal';
+      modal.setAttribute('role', 'dialog');
+      modal.setAttribute('aria-modal', 'true');
+      var text = document.createElement('div');
+      text.className = 'signup-modal-text';
+      text.style.cssText = 'color:var(--ink); font-size:14.5px; white-space:pre-line; margin-bottom:18px;';
+      text.textContent = String(message == null ? '' : message);
+      modal.appendChild(text);
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex; gap:10px;';
+      var okBtn = document.createElement('button');
+      okBtn.type = 'button';
+      okBtn.className = 'primary-btn';
+      okBtn.style.cssText = 'margin:0; flex:1;';
+      var danger = opts.danger != null ? opts.danger : (withCancel && DANGER_RE.test(String(message || '').trim()));
+      if (danger) okBtn.style.background = 'var(--cancel)';
+      okBtn.textContent = opts.okText || (withCancel ? 'Sì' : 'OK');
+      if (withCancel) {
+        var cancelBtn = document.createElement('div');
+        cancelBtn.className = 'add-date-btn';
+        cancelBtn.setAttribute('role', 'button');
+        cancelBtn.style.cssText = 'margin:0; flex:1; cursor:pointer; display:flex; align-items:center; justify-content:center;';
+        cancelBtn.textContent = opts.cancelText || 'Annulla';
+        cancelBtn.addEventListener('click', function () { close(false); });
+        row.appendChild(cancelBtn);
+      }
+      row.appendChild(okBtn);
+      modal.appendChild(row);
+      overlay.appendChild(modal);
+      var screen = document.querySelector('.screen');
+      if (screen) screen.classList.add('has-open-modal');
+      var done = false;
+      function close(value) {
+        if (done) return;
+        done = true;
+        document.removeEventListener('keydown', onKey);
+        overlay.remove();
+        if (screen && !document.querySelector('.screen .signup-overlay:not([style*="none"])')) screen.classList.remove('has-open-modal');
+        resolve(value);
+      }
+      function onKey(e) {
+        if (e.key === 'Escape') close(false);
+        else if (e.key === 'Enter') close(true);
+      }
+      okBtn.addEventListener('click', function () { close(true); });
+      overlay.addEventListener('click', function (e) { if (e.target === overlay) close(false); });
+      document.addEventListener('keydown', onKey);
+      host.appendChild(overlay);
+      try { okBtn.focus({ preventScroll: true }); } catch (err) { /* ignora */ }
+    });
+  }
+  function askDialog(message, opts) { return showDialog(message, true, opts); }
+  function alertDialog(message, opts) { return showDialog(message, false, opts); }
+
   window.SeevaUI = {
     refresh: refreshDynamicContent,
+    ask: askDialog,
+    alert: alertDialog,
     toast: showToast,
     attachAccountSearch: attachAccountSearch,
     showOnceHint: showOnceHint,

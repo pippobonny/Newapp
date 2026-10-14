@@ -250,7 +250,7 @@
             try { unlocked = localStorage.getItem(unlockKey) === '1'; } catch (err) { /* ignora */ }
             if (b.hard.length && !unlocked) {
               var names = b.hard.map(SeevaData.busyLabel).join(', ');
-              if (!window.confirm('Quel giorno hai già ' + names + '.\n\nVuoi rispondere "Ci sono" lo stesso?')) return;
+              if (!await SeevaUI.ask('Quel giorno hai già ' + names + '.\n\nVuoi rispondere "Ci sono" lo stesso?')) return;
               try { localStorage.setItem(unlockKey, '1'); } catch (err) { /* ignora */ }
             }
           } catch (err) { /* in dubbio non blocchiamo la risposta */ }
@@ -271,7 +271,7 @@
           saving = false;
           buttons.forEach(function (x) { x.disabled = false; });
           btn.textContent = original;
-          window.alert('Non sono riuscito a salvare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+          SeevaUI.alert('Non sono riuscito a salvare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
           return;
         }
         if (window.SeevaUI && window.SeevaUI.toast) {
