@@ -1790,67 +1790,79 @@
 
     var eventId = insertRes.data.id;
 
-    var dateRows = (input.dates || [])
-      .filter(function (d) { return !!d; })
-      .map(function (d) { return { event_id: eventId, date_iso: d }; });
+    /* 2026-10-14 (revisione): i passi qui sotto sono salvataggi separati.
+       Se uno fallisce a metà (rete che cade), prima restava un evento "a
+       pezzi" (es. senza date) e toccando Riprova se ne creava un secondo.
+       Ora in caso di errore si cancella l'evento appena creato (le righe
+       collegate spariscono da sole, ON DELETE CASCADE) e si mostra l'errore:
+       Riprova riparte da zero, senza doppioni. */
+    try {
+      var dateRows = (input.dates || [])
+        .filter(function (d) { return !!d; })
+        .map(function (d) { return { event_id: eventId, date_iso: d }; });
 
-    var createdOptionIds = [];
-    if (dateRows.length) {
-      var dateRes = await supabase.from('date_options').insert(dateRows).select('id');
-      if (dateRes.error) throw new Error(dateRes.error.message);
-      createdOptionIds = (dateRes.data || []).map(function (r) { return r.id; });
-    }
+      var createdOptionIds = [];
+      if (dateRows.length) {
+        var dateRes = await supabase.from('date_options').insert(dateRows).select('id');
+        if (dateRes.error) throw new Error(dateRes.error.message);
+        createdOptionIds = (dateRes.data || []).map(function (r) { return r.id; });
+      }
 
-    // Data fissa = confermato da subito (Fil, 2026-10-03): "aperitivo
-    // venerdì, chi c'è c'è" non deve aspettare che rispondano tutti, né
-    // annullarsi da solo se qualcuno non risponde. Le risposte servono solo
-    // a sapere chi viene. Così parte anche il promemoria del giorno prima
-    // (send-event-reminders guarda solo gli eventi confermati).
-    if (createdOptionIds.length === 1) {
-      var confRes = await supabase.from('events').update({ confirmed_date_option_id: createdOptionIds[0] }).eq('id', eventId);
-      if (confRes.error) throw new Error(confRes.error.message);
-    }
+      // Data fissa = confermato da subito (Fil, 2026-10-03): "aperitivo
+      // venerdì, chi c'è c'è" non deve aspettare che rispondano tutti, né
+      // annullarsi da solo se qualcuno non risponde. Le risposte servono solo
+      // a sapere chi viene. Così parte anche il promemoria del giorno prima
+      // (send-event-reminders guarda solo gli eventi confermati).
+      if (createdOptionIds.length === 1) {
+        var confRes = await supabase.from('events').update({ confirmed_date_option_id: createdOptionIds[0] }).eq('id', eventId);
+        if (confRes.error) throw new Error(confRes.error.message);
+      }
 
-    // Più location tra cui votare (Fil, 2026-07-21): solo se ne sono state
-    // proposte 2 o più in crea.html — con 0 o 1 sola, location_address/ecc.
-    // sull'evento (già scritti sopra) restano l'unica fonte, esattamente
-    // come prima, e qui non si crea nessuna riga.
-    var locationRows = (input.locations || [])
-      .filter(function (l) { return l && l.address; })
-      .map(function (l) {
-        return { event_id: eventId, address: l.address, place_id: l.placeId || null, lat: l.lat, lng: l.lng };
-      });
-    if (locationRows.length) {
-      var locationRes = await supabase.from('location_options').insert(locationRows);
-      if (locationRes.error) throw new Error(locationRes.error.message);
-    }
+      // Più location tra cui votare (Fil, 2026-07-21): solo se ne sono state
+      // proposte 2 o più in crea.html — con 0 o 1 sola, location_address/ecc.
+      // sull'evento (già scritti sopra) restano l'unica fonte, esattamente
+      // come prima, e qui non si crea nessuna riga.
+      var locationRows = (input.locations || [])
+        .filter(function (l) { return l && l.address; })
+        .map(function (l) {
+          return { event_id: eventId, address: l.address, place_id: l.placeId || null, lat: l.lat, lng: l.lng };
+        });
+      if (locationRows.length) {
+        var locationRes = await supabase.from('location_options').insert(locationRows);
+        if (locationRes.error) throw new Error(locationRes.error.message);
+      }
 
-    var inviteeRows = (input.inviteeNames || [])
-      .map(normalizeInviteeEntry)
-      .filter(function (e) { return !!e.name; })
-      .map(function (e) {
-        var row = { event_id: eventId, name: e.name };
-        if (e.accountId) { row.account_id = e.accountId; row.claimed_at = new Date().toISOString(); }
-        return row;
-      });
-    if (inviteeRows.length) {
-      var inviteesRes = await supabase.from('event_invitees').insert(inviteeRows);
-      if (inviteesRes.error) throw new Error(inviteesRes.error.message);
-    }
+      var inviteeRows = (input.inviteeNames || [])
+        .map(normalizeInviteeEntry)
+        .filter(function (e) { return !!e.name; })
+        .map(function (e) {
+          var row = { event_id: eventId, name: e.name };
+          if (e.accountId) { row.account_id = e.accountId; row.claimed_at = new Date().toISOString(); }
+          return row;
+        });
+      if (inviteeRows.length) {
+        var inviteesRes = await supabase.from('event_invitees').insert(inviteeRows);
+        if (inviteesRes.error) throw new Error(inviteesRes.error.message);
+      }
 
-    // Chi organizza è per forza "presente": proponendo lui stesso l'evento non
-    // avrebbe senso chiedergli poi di rispondere "quando sei disponibile" come
-    // fosse un invitato qualsiasi. Lo si conta subito su tutte le date proposte,
-    // così l'organizzatore non passa mai dai chip di disponibilità (vedi evento.html).
-    var organizerName = (input.createdBy || '').trim();
-    if (organizerName && createdOptionIds.length) {
-      var partRes = await supabase.from('participants').insert({
-        event_id: eventId,
-        name: organizerName,
-        account_id: creatorAcc && creatorAcc.id ? creatorAcc.id : null,
-        available_date_option_ids: createdOptionIds
-      });
-      if (partRes.error) throw new Error(partRes.error.message);
+      // Chi organizza è per forza "presente": proponendo lui stesso l'evento non
+      // avrebbe senso chiedergli poi di rispondere "quando sei disponibile" come
+      // fosse un invitato qualsiasi. Lo si conta subito su tutte le date proposte,
+      // così l'organizzatore non passa mai dai chip di disponibilità (vedi evento.html).
+      var organizerName = (input.createdBy || '').trim();
+      if (organizerName && createdOptionIds.length) {
+        var partRes = await supabase.from('participants').insert({
+          event_id: eventId,
+          name: organizerName,
+          account_id: creatorAcc && creatorAcc.id ? creatorAcc.id : null,
+          available_date_option_ids: createdOptionIds
+        });
+        if (partRes.error) throw new Error(partRes.error.message);
+      }
+
+    } catch (createErr) {
+      try { await supabase.from('events').delete().eq('id', eventId); } catch (e) { /* ignora */ }
+      throw createErr;
     }
 
     notifyEventInvite(eventId);
@@ -2088,15 +2100,6 @@
       .catch(function (err) { /* non blocca il salvataggio */ });
   }
 
-  /* Email "l'evento è stato eliminato" (Edge Function "notify-event-deleted"
-     + Resend), stesso motivo per cui i dati viaggiano nel corpo: l'evento
-     sta per sparire dal DB (o è già sparito quando la funzione gira
-     davvero), quindi non ha senso che la Edge Function provi a rileggerlo. */
-  function notifyEventDeleted(eventName, recipientNames) {
-    if (!recipientNames || !recipientNames.length) return;
-    supabase.functions.invoke('notify-event-deleted', { body: { eventName: eventName, recipientNames: recipientNames } })
-      .catch(function (err) { /* non blocca la cancellazione */ });
-  }
 
   function idsEqualAsSet(a, b) {
     var sa = (a || []).slice().sort();
@@ -2361,6 +2364,7 @@
       var dateNoticeRows = affectedByDateRemoval.map(function (a) {
         return {
           recipient_name: a.name,
+          event_id: eventId,
           event_name: input.name || current.name,
           message: 'Per "' + (input.name || current.name) + '" è stata tolta una data a cui avevi detto di esserci: ' + a.dateLabels.join(', ') + '.',
           emoji: '🗓️'
@@ -2407,6 +2411,7 @@
       var genericRows = genericRecipients.map(function (n) {
         return {
           recipient_name: n,
+          event_id: eventId,
           event_name: input.name || current.name,
           message: genericMessage,
           emoji: (mustReopen && !reconfirmedFixed) ? '🗳️' : '✏️'
@@ -2436,32 +2441,20 @@
      stesso tipo di doppione per cui createEvent/addEventExpense/ecc. sono
      state escluse di proposito dal retry (bug trovato in review,
      2026-07-21). */
+  /* 2026-10-14 (revisione sicurezza): cancellazione + avvisi (in-app,
+     push, email) li fa tutti la Edge Function "notify-event-deleted", che
+     controlla che tu sia l'organizzatore e legge nome e destinatari dal DB.
+     Prima la funzione era aperta a tutti e si fidava di quello che le
+     mandava il client. Un secondo tentativo (retry) trova l'evento già
+     cancellato e non rimanda nessun avviso doppio. */
   async function deleteEvent(eventId) {
-    var event = await getEventById(eventId);
-    if (!event) return;
-
-    var organizerLower = (event.createdBy || '').trim().toLowerCase();
-    var recipients = (event.participants || [])
-      .filter(function (p) { return (p.availableDateOptionIds || []).length > 0; })
-      .filter(function (p) { return p.name.toLowerCase() !== organizerLower; })
-      .map(function (p) { return p.name; });
-
-    var delRes = await supabase.from('events').delete().eq('id', eventId);
-    if (delRes.error) throw new Error(delRes.error.message);
-    clearEventsCache();
-
-    if (recipients.length) {
-      var noticeRows = recipients.map(function (name) {
-        return {
-          recipient_name: name,
-          event_name: event.name,
-          message: '"' + event.name + '" è stato eliminato dall\'organizzatore.',
-          emoji: '🗑️'
-        };
-      });
-      await pushEventNotices(noticeRows);
-      notifyEventDeleted(event.name, recipients);
+    var res = await supabase.functions.invoke('notify-event-deleted', { body: { eventId: eventId } });
+    if (res.error) {
+      var msg = res.error.message || 'Non sono riuscito a eliminare l\'evento';
+      try { var b = await res.error.context.json(); if (b && b.error) msg = b.error; } catch (e) { /* ignora */ }
+      throw new Error(msg);
     }
+    clearEventsCache();
   }
 
   /* Conferma manualmente una data, scavalcando il calcolo automatico

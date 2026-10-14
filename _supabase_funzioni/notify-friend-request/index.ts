@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { L, langsOf, buildEmailHtml, sendPushToAccounts, accountIdsWithPush, sendEmail } from "./i18n.ts";
+import { L, langsOf, buildEmailHtml, sendPushToAccounts, accountIdsWithPush, sendEmail, escHtml } from "./i18n.ts";
 
 /* Email + notifica push "qualcuno vuole aggiungerti alla sua lista amici" (Fil,
    2026-07-19). Parte quando una riga 'friends' passa in link_status='pending'.
@@ -31,6 +31,11 @@ Deno.serve(async (req: Request) => {
 
     const { data: recipientAccount } = await admin.from("accounts").select("email, username").eq("id", friend.account_id).maybeSingle();
     const { data: list } = await admin.from("friend_lists").select("name, owner_account_id, owner_name").eq("id", friend.friend_list_id).maybeSingle();
+    // 2026-10-14 (revisione sicurezza): solo il proprietario della lista può
+    // far partire l'avviso (prima chiunque poteva ripeterlo all'infinito).
+    const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
+    const { data: userRes } = await admin.auth.getUser(token);
+    if (!userRes || !userRes.user || !list || list.owner_account_id !== userRes.user.id) return json({ error: "Non autorizzato" }, 403);
     const lang = (await langsOf(admin, [friend.account_id])).get(friend.account_id) || "it";
 
     let ownerName = (list && list.owner_name) || L(lang, "Un amico", "A friend");
@@ -46,10 +51,10 @@ Deno.serve(async (req: Request) => {
       const html = buildEmailHtml({
         lang, accent: "#6B3F73", emoji: "\u{1F44B}",
         title: L(lang, "Richiesta di amicizia", "Friend request"),
-        preheader: ownerName + L(lang, " vuole aggiungerti alla sua lista amici", " wants to add you to their friends list"),
+        preheader: escHtml(ownerName) + L(lang, " vuole aggiungerti alla sua lista amici", " wants to add you to their friends list"),
         bodyHtml: L(lang,
-          '<p><b>' + ownerName + '</b> vuole aggiungerti alla sua lista amici <b>"' + listName + '"</b>.</p><p>Puoi accettare o rifiutare dalla sezione Notifiche dell\'app.</p>',
-          '<p><b>' + ownerName + '</b> wants to add you to their friends list <b>"' + listName + '"</b>.</p><p>You can accept or decline from the Notifications section of the app.</p>'),
+          '<p><b>' + escHtml(ownerName) + '</b> vuole aggiungerti alla sua lista amici <b>"' + escHtml(listName) + '"</b>.</p><p>Puoi accettare o rifiutare dalla sezione Notifiche dell\'app.</p>',
+          '<p><b>' + escHtml(ownerName) + '</b> wants to add you to their friends list <b>"' + escHtml(listName) + '"</b>.</p><p>You can accept or decline from the Notifications section of the app.</p>'),
         ctaText: L(lang, "Apri le notifiche", "Open notifications"),
         ctaUrl: siteUrl + "/notifiche.html"
       });

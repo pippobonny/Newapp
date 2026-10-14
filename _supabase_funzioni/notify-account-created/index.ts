@@ -26,16 +26,24 @@ Deno.serve(async (req: Request) => {
     if (!resendKey) return json({ skipped: true, reason: "RESEND_API_KEY non configurata" });
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const { data: account, error } = await admin.from("accounts").select("username, email, lang").eq("id", accountId).maybeSingle();
+    // 2026-10-14 (revisione sicurezza): solo il nuovo utente stesso, appena
+    // registrato (entro 15 minuti), può far partire il benvenuto. Prima
+    // chiunque poteva rimandarlo a qualsiasi account all'infinito.
+    const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
+    const { data: userRes } = await admin.auth.getUser(token);
+    if (!userRes || !userRes.user || userRes.user.id !== accountId) return json({ error: "Non autorizzato" }, 403);
+    const { data: account, error } = await admin.from("accounts").select("username, email, lang, created_at").eq("id", accountId).maybeSingle();
     if (error || !account || !account.email) return json({ skipped: true, reason: "account senza email" });
+    if (Date.now() - new Date(account.created_at).getTime() > 15 * 60 * 1000) return json({ skipped: true, reason: "account non nuovo" });
+    const uname = String(account.username || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
     const en = body.lang === "en" || (body.lang !== "it" && account.lang === "en");
     const html = '<div style="font-family:sans-serif; max-width:480px; margin:0 auto; color:#3D2244;">'
       + '<div style="text-align:center; margin-bottom:18px;"><img src="https://seeva.it/icon-192.png" width="44" height="44" alt="seeva" style="border-radius:13px; display:inline-block;"></div>'
       + (en
-        ? '<h2>Welcome to seeva, ' + account.username + '! \u{1F389}</h2>'
+        ? '<h2>Welcome to seeva, ' + uname + '! \u{1F389}</h2>'
           + '<p>Your profile is ready. From here you can create events, manage your friends lists and reply to the invites you get.</p>'
-        : '<h2>Benvenuto su seeva, ' + account.username + '! \u{1F389}</h2>'
+        : '<h2>Benvenuto su seeva, ' + uname + '! \u{1F389}</h2>'
           + '<p>Il tuo profilo &egrave; pronto. Da qui puoi creare eventi, gestire le tue liste amici e rispondere agli inviti che ricevi.</p>')
       + '<p><a href="' + siteUrl + '/index.html" style="display:inline-block; background:#FF7A29; color:#fff; padding:12px 20px; border-radius:10px; text-decoration:none; font-weight:600;">' + (en ? 'Open seeva' : 'Apri seeva') + ' &rarr;</a></p>'
       + '</div>';

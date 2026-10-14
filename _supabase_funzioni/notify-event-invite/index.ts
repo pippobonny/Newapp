@@ -6,10 +6,14 @@ import { L, Lang, langsOf, groupByLang, buildWhenText, isVoteText, shortDescript
    invitati copiati su QUESTO evento (event_invitees).
    Fil, 2026-07-12: SOLO chi ha un account_id confermato sull'invitato
    riceve l'email/push. Chiamata "fire and forget" da data.js.
-   verify_jwt = false (come notify-account-created).
+   (verify_jwt: vedi nota 2026-10-14 qui sotto)
    2026-07-20: chi ha la push non riceve anche l'email.
    2026-10-03: push ricca + rsvp:true sugli eventi a data fissa.
-   2026-10-07: in italiano o inglese secondo accounts.lang di chi riceve. */
+   2026-10-07: in italiano o inglese secondo accounts.lang di chi riceve.
+   2026-10-14 (revisione sicurezza): verify_jwt = true e solo
+   l'organizzatore dell'evento può chiamarla (prima chiunque poteva far
+   ripartire gli inviti di qualsiasi evento all'infinito); nome evento e
+   organizzatore "ripuliti" (escHtml) dentro l'HTML dell'email. */
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -27,10 +31,15 @@ Deno.serve(async (req: Request) => {
     const siteUrl = Deno.env.get("SITE_URL") || "https://seeva.it";
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
+    const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
+    const { data: userRes, error: userErr } = await admin.auth.getUser(token);
+    if (userErr || !userRes || !userRes.user) return json({ error: "Sessione non valida" }, 401);
+
     const { data: event, error: eventErr } = await admin.from("events")
-      .select("id, name, created_by, event_time, confirmed_date_option_id, confirmed_location_option_id, location_address, description")
+      .select("id, name, created_by, created_by_account_id, event_time, confirmed_date_option_id, confirmed_location_option_id, location_address, description")
       .eq("id", eventId).maybeSingle();
     if (eventErr || !event) return json({ skipped: true, reason: "evento non trovato" });
+    if (event.created_by_account_id !== userRes.user.id) return json({ error: "Solo chi organizza" }, 403);
 
     const { data: invitees, error: inviteesErr } = await admin.from("event_invitees").select("name, account_id").eq("event_id", eventId);
     if (inviteesErr || !invitees || !invitees.length) return json({ skipped: true, reason: "nessun invitato per questo evento" });
@@ -77,8 +86,8 @@ Deno.serve(async (req: Request) => {
         const html = buildEmailHtml({
           lang, accent: "#FF7A29", emoji: "\u{1F389}",
           title: L(lang, "Sei stato invitato!", "You're invited!"),
-          preheader: organizer + L(lang, ' ti ha invitato a "', ' invited you to "') + event.name + '"' + whenSuffix,
-          bodyHtml: '<p><b>' + organizer + '</b>' + L(lang, ' ti ha invitato a', ' invited you to') + '<br><b>"' + event.name + '"</b>' + (whenText ? '<br><span style="display:inline-block; margin-top:8px; font-size:17px; font-weight:600; color:#FF7A29;">' + whenText + '</span>' : '.') + '</p>'
+          preheader: escHtml(organizer) + L(lang, ' ti ha invitato a "', ' invited you to "') + escHtml(event.name) + '"' + escHtml(whenSuffix),
+          bodyHtml: '<p><b>' + escHtml(organizer) + '</b>' + L(lang, ' ti ha invitato a', ' invited you to') + '<br><b>"' + escHtml(event.name) + '"</b>' + (whenText ? '<br><span style="display:inline-block; margin-top:8px; font-size:17px; font-weight:600; color:#FF7A29;">' + whenText + '</span>' : '.') + '</p>'
             + (extraHtml ? '<p style="margin-top:4px;">' + extraHtml.replace(/^<br>/, '') + '</p>' : ''),
           ctaText: isVote ? L(lang, "Vota la tua data", "Vote for your date") : L(lang, "Rispondi", "Reply"),
           ctaUrl: eventUrl

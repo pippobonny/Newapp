@@ -12,9 +12,12 @@ import path from 'path';
 
 const SRC = process.cwd();
 const OUT = path.join(SRC, 'dist');
-const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', '.claude', '.vercel', 'Claude outputs', 'idee grafiche', 'screenshot bug']);
-const SKIP_FILES = new Set(['build.mjs', 'package.json', 'package-lock.json', 'vercel.json', '.gitignore', '.gitattributes']);
-const SKIP_EXT = new Set(['.zip', '.bat', '.ps1', '.md']);
+// 2026-10-14: fuori dal sito anche branding/ (un SVG da 2,5 MB mai usato
+// dalle pagine) e restyling-preview.html (prova grafica, non linkata).
+const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', '.claude', '.vercel', 'Claude outputs', 'idee grafiche', 'screenshot bug', 'branding']);
+const SKIP_FILES = new Set(['build.mjs', 'package.json', 'package-lock.json', 'vercel.json', '.gitignore', '.gitattributes', 'restyling-preview.html']);
+// 2026-10-14: niente PDF sul sito (ci-siamo-*.pdf non servono più, Fil)
+const SKIP_EXT = new Set(['.zip', '.bat', '.ps1', '.md', '.pdf']);
 
 async function minifyJS(code, name) {
   const r = await transform(code, { loader: 'js', minify: true, legalComments: 'none', charset: 'utf8', sourcefile: name });
