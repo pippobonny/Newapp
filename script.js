@@ -2450,6 +2450,113 @@
     flashAttendanceBadge: flashAttendanceBadge
   };
 
+  /* ---------- Auguri a Virginia (Fil, 2026-10-23) ----------
+     Sorpresa per il compleanno della co-founder: schermata a tutto schermo
+     con coriandoli, SOLO per il suo account, fino a sabato 24/10 sera.
+     Compare una volta sola per device (o ogni volta con ?auguri=1, il link
+     della notifica). Da togliere quando si vuole: nessun effetto su altri. */
+  function initBirthdaySurprise() {
+    var VIRGINIA_ID = '714ca1ca-5c24-419c-8dca-79862f2e269b';
+    var UNTIL = new Date('2026-10-25T00:00:00+02:00').getTime();
+    var SEEN_KEY = 'seeva:auguri-virginia-2026';
+    try {
+      if (Date.now() >= UNTIL) return;
+      var acc = window.SeevaData && SeevaData.getAccount && SeevaData.getAccount();
+      if (!acc || acc.id !== VIRGINIA_ID) return;
+      var forced = /[?&]auguri=1/.test(window.location.search);
+      var seen = false;
+      try { seen = localStorage.getItem(SEEN_KEY) === '1'; } catch (e) { /* ok */ }
+    } catch (err) { return; }
+
+    addBirthdayPill();
+    if (!seen || forced) openBirthdayOverlay();
+
+    // Pillola in Home sotto il saluto (Fil, 2026-10-23): riapre gli auguri
+    // anche dopo averli chiusi, fino a sabato sera.
+    function addBirthdayPill() {
+      var header = document.querySelector('.home-header');
+      if (!header || document.getElementById('bdayPill')) return;
+      var st = document.createElement('style');
+      st.textContent =
+        '#bdayPill{display:flex;align-items:center;gap:10px;margin:4px 16px 10px;padding:12px 16px;border:0;border-radius:18px;width:calc(100% - 32px);' +
+        'background:linear-gradient(120deg,#FF7A29,#6B3F73);color:#fff;font:600 15px Inter,sans-serif;text-align:left;cursor:pointer;' +
+        'box-shadow:0 8px 20px rgba(107,63,115,.25);animation:bdayPillIn .5s ease both}' +
+        '#bdayPill .bp-emoji{font-size:24px;animation:bdayBounce 1.6s ease-in-out infinite}' +
+        '#bdayPill .bp-txt{flex:1}#bdayPill .bp-sub{display:block;font-weight:400;font-size:13px;opacity:.9}' +
+        '@keyframes bdayPillIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}' +
+        '@keyframes bdayBounce{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-4px) rotate(4deg)}}';
+      document.head.appendChild(st);
+      var pill = document.createElement('button');
+      pill.type = 'button';
+      pill.id = 'bdayPill';
+      pill.setAttribute('translate', 'no');
+      pill.innerHTML = '<span class="bp-emoji">🎂</span><span class="bp-txt">Tanti auguri, Virginia!<span class="bp-sub">Tocca qui: c\'è una sorpresa per te 🎁</span></span><span>›</span>';
+      pill.addEventListener('click', openBirthdayOverlay);
+      header.parentNode.insertBefore(pill, header.nextSibling);
+    }
+
+    function openBirthdayOverlay() {
+    if (document.getElementById('bdayOverlay')) return;
+
+    var css = document.createElement('style');
+    css.textContent =
+      '#bdayOverlay{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;' +
+      'background:radial-gradient(circle at 30% 20%,#FF9A4D 0%,#FF7A29 35%,#6B3F73 100%);overflow:hidden;opacity:0;transition:opacity .4s ease}' +
+      '#bdayOverlay.show{opacity:1}' +
+      '#bdayOverlay .bday-card{position:relative;z-index:1;max-width:360px;width:100%;text-align:center;color:#fff;' +
+      'padding:30px 22px;border-radius:28px;background:rgba(61,34,68,.38);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 20px 50px rgba(0,0,0,.18);' +
+      'transform:scale(.85);transition:transform .6s cubic-bezier(.2,1.4,.4,1)}' +
+      '#bdayOverlay.show .bday-card{transform:scale(1)}' +
+      '#bdayOverlay .bday-cake{font-size:84px;line-height:1;margin-bottom:12px;animation:bdayBounce 1.6s ease-in-out infinite}' +
+      '#bdayOverlay h1{font-family:Fraunces,serif;font-size:36px;line-height:1.1;margin:0 0 14px;color:#fff}' +
+      '#bdayOverlay p{font-family:Inter,sans-serif;font-size:17px;line-height:1.5;margin:0 0 10px;color:#fff;opacity:.95}' +
+      '#bdayOverlay .bday-sign{font-style:italic;opacity:.85;margin-top:18px}' +
+      '#bdayOverlay button{margin-top:20px;border:0;border-radius:999px;padding:14px 34px;font:600 17px Inter,sans-serif;' +
+      'background:#fff;color:#6B3F73;box-shadow:0 8px 24px rgba(0,0,0,.2);cursor:pointer}' +
+      '#bdayOverlay .bday-rain{position:absolute;inset:0;z-index:0;pointer-events:none}' +
+      '#bdayOverlay .bday-c{position:absolute;top:-20px;width:10px;height:16px;border-radius:2px;animation:bdayFall linear infinite}' +
+      '@keyframes bdayFall{to{transform:translateY(110vh) rotate(720deg)}}' +
+      '@keyframes bdayBounce{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-10px) rotate(4deg)}}';
+    document.head.appendChild(css);
+
+    var ov = document.createElement('div');
+    ov.id = 'bdayOverlay';
+    ov.setAttribute('translate', 'no');
+    ov.innerHTML =
+      '<div class="bday-card">' +
+        '<div class="bday-cake">🎂</div>' +
+        '<h1>Tanti auguri, Virginia!</h1>' +
+        '<p>Oggi seeva è in festa: compie gli anni la sua co-founder 🧡</p>' +
+        '<p>Che sia un anno pieno di eventi confermati, amici che rispondono subito e zero spese da dividere 🥂</p>' +
+        '<p class="bday-sign">— Tutto il team di seeva</p>' +
+        '<button type="button">Grazie! 🥳</button>' +
+      '</div>';
+    var rain = document.createElement('div');
+    rain.className = 'bday-rain';
+    ov.insertBefore(rain, ov.firstChild);
+    var colors = ['#FFFFFF', '#FFE3C7', '#FFB35C', '#EFE3F0', '#9C6BA3', '#FFD23F'];
+    for (var i = 0; i < 60; i++) {
+      var c = document.createElement('span');
+      c.className = 'bday-c';
+      c.style.left = (Math.random() * 100) + '%';
+      c.style.background = colors[i % colors.length];
+      c.style.animationDuration = (3 + Math.random() * 4) + 's';
+      c.style.animationDelay = (-Math.random() * 6) + 's';
+      c.style.transform = 'rotate(' + Math.floor(Math.random() * 360) + 'deg)';
+      rain.appendChild(c);
+    }
+    document.body.appendChild(ov);
+    requestAnimationFrame(function () { requestAnimationFrame(function () { ov.classList.add('show'); }); });
+    try { if (navigator.vibrate) navigator.vibrate([80, 60, 80]); } catch (e) { /* ok */ }
+
+    ov.querySelector('button').addEventListener('click', function () {
+      try { localStorage.setItem(SEEN_KEY, '1'); } catch (e) { /* ok */ }
+      ov.classList.remove('show');
+      setTimeout(function () { ov.remove(); css.remove(); }, 450);
+    });
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     initNavIndicator();
     initPageTransitions();
@@ -2478,6 +2585,7 @@
     initStandalonePushOffer();
     try { if (window.SeevaData && SeevaData.syncMyLang) SeevaData.syncMyLang().catch(function () {}); } catch (err) { /* mai bloccare la pagina */ }
     initNotificationHousekeeping();
+    try { initBirthdaySurprise(); } catch (err) { /* mai bloccare la pagina per questo */ }
     try { initNoUselessScroll(); } catch (err) { /* mai bloccare la pagina per questo */ }
   });
 
