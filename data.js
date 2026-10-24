@@ -392,6 +392,18 @@
     return readJSON(GUEST_LOCK_KEY, null);
   }
 
+  /* Ospite senza account che entra in un evento (amico.html): il lock passa
+     a quell'evento ma si tiene l'elenco di tutti gli eventi in cui è già
+     entrato, così i link vecchi continuano a funzionare. */
+  function addGuestEventLock(eventId) {
+    var prev = getGuestLock();
+    var ids = [];
+    if (prev && Array.isArray(prev.eventIds)) ids = prev.eventIds.slice();
+    else if (prev && prev.type === 'event' && prev.id) ids = [prev.id];
+    if (ids.indexOf(eventId) === -1) ids.push(eventId);
+    setGuestLock({ type: 'event', id: eventId, eventIds: ids });
+  }
+
   function clearGuestLock() {
     try { window.localStorage.removeItem(GUEST_LOCK_KEY); } catch (err) { /* ignora */ }
   }
@@ -418,11 +430,27 @@
     if (context && context.type === lock.type && context.id === lock.id) {
       return { action: 'allowLocked' };
     }
-
-    if (lock.type === 'event') {
-      return { action: 'redirect', url: 'evento.html?id=' + encodeURIComponent(lock.id) };
+    // Ospite già entrato in più eventi (vedi addGuestEventLock): può tornare
+    // in uno qualsiasi di quelli senza ripassare dalla scelta del nome.
+    if (context && context.type === 'event' && Array.isArray(lock.eventIds) && lock.eventIds.indexOf(context.id) !== -1) {
+      return { action: 'allowLocked' };
     }
-    return { action: 'redirect', url: 'lista-invito.html' };
+
+    var lockUrl = lock.type === 'event'
+      ? 'evento.html?id=' + encodeURIComponent(lock.id)
+      : 'lista-invito.html';
+
+    /* Fil, 2026-10-24: una ragazza senza account era entrata tempo fa
+       nell'evento "sagre"; aprendo da WhatsApp il link NUOVO di "cena
+       etnica" veniva rimandata a sagre, perché il lock (permanente) puntava
+       lì. Se l'ospite apre il link di un ALTRO evento lo trattiamo come un
+       arrivo nuovo ('block'): evento.html lo manda a scegliere il suo nome
+       per quell'evento (amico.html?token=...), e solo se l'evento non ha un
+       link d'invito si ricade sul vecchio posto (fallbackUrl). */
+    if (context && context.type === 'event') {
+      return { action: 'block', fallbackUrl: lockUrl };
+    }
+    return { action: 'redirect', url: lockUrl };
   }
 
   /* Dal login vero con Supabase Auth (2026-07-12) in poi, "sei loggato" non
@@ -3732,6 +3760,7 @@
     setGuestLock: setGuestLock,
     getGuestLock: getGuestLock,
     clearGuestLock: clearGuestLock,
+    addGuestEventLock: addGuestEventLock,
     checkAccessGate: checkAccessGate,
     checkSessionHealth: checkSessionHealth,
     logOut: logOut,

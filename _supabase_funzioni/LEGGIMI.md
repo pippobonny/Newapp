@@ -20,3 +20,16 @@ Novità: push ed email in italiano o inglese secondo `accounts.lang`
   c'è la copia qui. create-account: `_` e `%` non fanno più da jolly.
 - notify-test-push: disattivata (si può cancellare dal pannello Supabase).
 - Dettagli SQL in `2026-10-14_revisione_sicurezza.sql`.
+
+## 2026-10-24 — auguri di compleanno automatici (già pubblicato su Supabase da Claude)
+
+- Nuova funzione `send-birthday-greetings`: alle 9 (ora di Roma) manda una push
+  di auguri a chi compie gli anni (accounts.data_nascita), in italiano o
+  inglese. Toccandola si apre `index.html?auguri=AAAA-MM-GG` → schermata con i
+  coriandoli (initBirthdayGreeting in script.js).
+- Cron `send-birthday-greetings-9am` = `0 7,8 * * *` UTC; la funzione parte solo
+  se a Roma sono le 9 o più (ora legale/solare gestita da sola).
+- Tabella `birthday_greetings_sent` (account_id, year): niente doppioni.
+- 29 febbraio: auguri il 28 negli anni non bisestili.
+- Da cancellare a mano dal pannello Supabase (Edge Functions): `birthday-virginia`
+  (usa-e-getta, scaduta il 25/10).

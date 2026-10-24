@@ -1867,7 +1867,25 @@
     function stepRow(n, html) {
       return '<div class="card-date" style="margin:' + (n === 1 ? '0' : '8px 0 0') + '; font-size:15px;"><b>' + n + '.</b> ' + html + '</div>';
     }
-    var stepsHTML = isIos
+    // Fil, 2026-10-17: su iPhone con Chrome le istruzioni parlavano della
+    // barra di Safari. Chrome per iOS (CriOS nello user agent) ha il tasto
+    // Condividi nella barra dell'indirizzo e, in alternativa, nel menu ⋯.
+    // Gli altri browser iPhone (Firefox, Edge, app con browser interno)
+    // sono troppo diversi tra loro: suggeriamo di aprire il link con Safari.
+    var ua = navigator.userAgent || '';
+    var isIosChrome = isIos && /CriOS/i.test(ua);
+    var isIosOther = isIos && !isIosChrome && /FxiOS|EdgiOS|OPiOS|GSA|Instagram|FBAN|FBAV/i.test(ua);
+    var stepsHTML = isIosChrome
+      ? stepRow(1, 'Tocca <b>Condividi</b> ' + shareIconSvg + ' accanto all\'indirizzo del sito')
+        + stepRow(2, 'Tocca <b>"Aggiungi alla schermata Home"</b>')
+        + stepRow(3, 'Tocca <b>"Aggiungi"</b>')
+        + '<div class="field-hint" style="text-align:left; margin-top:12px;">Non vedi Condividi? Tocca ' + moreIconSvg + ' in Chrome e poi <b>Condividi</b>. Se non trovi "Aggiungi alla schermata Home", scorri il menu verso il basso. Se proprio non compare, apri seeva.it con Safari.</div>'
+      : isIosOther
+      ? stepRow(1, 'Apri <b>seeva.it</b> con <b>Safari</b>')
+        + stepRow(2, 'Tocca <b>Condividi</b> ' + shareIconSvg)
+        + stepRow(3, 'Tocca <b>"Aggiungi alla schermata Home"</b> e poi <b>"Aggiungi"</b>')
+        + '<div class="field-hint" style="text-align:left; margin-top:12px;">Da questo browser l\'installazione su iPhone spesso non è possibile: con Safari funziona sempre.</div>'
+      : isIos
       ? stepRow(1, 'Tocca <b>Condividi</b> ' + shareIconSvg)
         + stepRow(2, 'Tocca <b>"Aggiungi alla schermata Home"</b>')
         + stepRow(3, 'Tocca <b>"Aggiungi"</b>')
@@ -2450,53 +2468,35 @@
     flashAttendanceBadge: flashAttendanceBadge
   };
 
-  /* ---------- Auguri a Virginia (Fil, 2026-10-23) ----------
-     Sorpresa per il compleanno della co-founder: schermata a tutto schermo
-     con coriandoli, SOLO per il suo account, fino a sabato 24/10 sera.
-     Compare una volta sola per device (o ogni volta con ?auguri=1, il link
-     della notifica). Da togliere quando si vuole: nessun effetto su altri. */
-  function initBirthdaySurprise() {
-    var VIRGINIA_ID = '714ca1ca-5c24-419c-8dca-79862f2e269b';
-    var UNTIL = new Date('2026-10-25T00:00:00+02:00').getTime();
-    var SEEN_KEY = 'seeva:auguri-virginia-2026';
-    try {
-      if (Date.now() >= UNTIL) return;
-      var acc = window.SeevaData && SeevaData.getAccount && SeevaData.getAccount();
-      if (!acc || acc.id !== VIRGINIA_ID) return;
-      var forced = /[?&]auguri=1/.test(window.location.search);
-      var seen = false;
-      try { seen = localStorage.getItem(SEEN_KEY) === '1'; } catch (e) { /* ok */ }
-    } catch (err) { return; }
-
-    addBirthdayPill();
-    if (!seen || forced) openBirthdayOverlay();
-
-    // Pillola in Home sotto il saluto (Fil, 2026-10-23): riapre gli auguri
-    // anche dopo averli chiusi, fino a sabato sera.
-    function addBirthdayPill() {
-      var header = document.querySelector('.home-header');
-      if (!header || document.getElementById('bdayPill')) return;
-      var st = document.createElement('style');
-      st.textContent =
-        '#bdayPill{display:flex;align-items:center;gap:10px;margin:4px 16px 10px;padding:12px 16px;border:0;border-radius:18px;width:calc(100% - 32px);' +
-        'background:linear-gradient(120deg,#FF7A29,#6B3F73);color:#fff;font:600 15px Inter,sans-serif;text-align:left;cursor:pointer;' +
-        'box-shadow:0 8px 20px rgba(107,63,115,.25);animation:bdayPillIn .5s ease both}' +
-        '#bdayPill .bp-emoji{font-size:24px;animation:bdayBounce 1.6s ease-in-out infinite}' +
-        '#bdayPill .bp-txt{flex:1}#bdayPill .bp-sub{display:block;font-weight:400;font-size:13px;opacity:.9}' +
-        '@keyframes bdayPillIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}' +
-        '@keyframes bdayBounce{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-4px) rotate(4deg)}}';
-      document.head.appendChild(st);
-      var pill = document.createElement('button');
-      pill.type = 'button';
-      pill.id = 'bdayPill';
-      pill.setAttribute('translate', 'no');
-      pill.innerHTML = '<span class="bp-emoji">🎂</span><span class="bp-txt">Tanti auguri, Virginia!<span class="bp-sub">Tocca qui: c\'è una sorpresa per te 🎁</span></span><span>›</span>';
-      pill.addEventListener('click', openBirthdayOverlay);
-      header.parentNode.insertBefore(pill, header.nextSibling);
+  /* ---------- Auguri di compleanno (Fil, 2026-10-24) ----------
+     Alle 9 del giorno del compleanno la Edge Function send-birthday-greetings
+     manda una push; toccandola si apre index.html?auguri=AAAA-MM-GG e qui
+     compare la schermata a tutto schermo con i coriandoli (stessa grafica
+     della sorpresa fatta a Virginia il 23/10). Nient'altro: niente pillola
+     in Home. Vale il giorno del compleanno e quello dopo (per chi tocca la
+     notifica in ritardo); con una data vecchia nel link non succede niente. */
+  function initBirthdayGreeting() {
+    var m = /[?&]auguri=(\d{4}-\d{2}-\d{2})/.exec(window.location.search);
+    if (!m) return;
+    var acc = window.SeevaData && SeevaData.getAccount && SeevaData.getAccount();
+    if (!acc || !acc.id) return;
+    function romeISO(d) {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
     }
-
-    function openBirthdayOverlay() {
+    var today = romeISO(new Date());
+    var yesterday = romeISO(new Date(Date.now() - 24 * 3600 * 1000));
+    if (m[1] !== today && m[1] !== yesterday) return;
     if (document.getElementById('bdayOverlay')) return;
+
+    var en = !!(window.SeevaI18n && SeevaI18n.isEnglish);
+    var name = String(acc.username || '').trim();
+    var esc = (window.SeevaData && SeevaData.escapeHTML) ? SeevaData.escapeHTML : function (x) { return x; };
+    var title = en ? 'Happy birthday' + (name ? ', ' + esc(name) : '') + '!' : 'Tanti auguri' + (name ? ', ' + esc(name) : '') + '!';
+    var p1 = en ? 'Today seeva is celebrating with you 🧡' : 'Oggi seeva festeggia con te 🧡';
+    var p2 = en ? 'May this be a year full of confirmed events, friends who reply straight away and zero expenses to split 🥂'
+                : 'Che sia un anno pieno di eventi confermati, amici che rispondono subito e zero spese da dividere 🥂';
+    var sign = en ? '— The whole seeva team' : '— Tutto il team di seeva';
+    var btn = en ? 'Thank you! 🥳' : 'Grazie! 🥳';
 
     var css = document.createElement('style');
     css.textContent =
@@ -2522,14 +2522,15 @@
     var ov = document.createElement('div');
     ov.id = 'bdayOverlay';
     ov.setAttribute('translate', 'no');
+    ov.setAttribute('data-no-i18n', '');
     ov.innerHTML =
       '<div class="bday-card">' +
         '<div class="bday-cake">🎂</div>' +
-        '<h1>Tanti auguri, Virginia!</h1>' +
-        '<p>Oggi seeva è in festa: compie gli anni la sua co-founder 🧡</p>' +
-        '<p>Che sia un anno pieno di eventi confermati, amici che rispondono subito e zero spese da dividere 🥂</p>' +
-        '<p class="bday-sign">— Tutto il team di seeva</p>' +
-        '<button type="button">Grazie! 🥳</button>' +
+        '<h1>' + title + '</h1>' +
+        '<p>' + p1 + '</p>' +
+        '<p>' + p2 + '</p>' +
+        '<p class="bday-sign">' + sign + '</p>' +
+        '<button type="button">' + btn + '</button>' +
       '</div>';
     var rain = document.createElement('div');
     rain.className = 'bday-rain';
@@ -2550,11 +2551,11 @@
     try { if (navigator.vibrate) navigator.vibrate([80, 60, 80]); } catch (e) { /* ok */ }
 
     ov.querySelector('button').addEventListener('click', function () {
-      try { localStorage.setItem(SEEN_KEY, '1'); } catch (e) { /* ok */ }
       ov.classList.remove('show');
       setTimeout(function () { ov.remove(); css.remove(); }, 450);
+      // toglie ?auguri=... dall'indirizzo: ricaricando la Home non riappare
+      try { history.replaceState(history.state, '', window.location.pathname); } catch (e) { /* ok */ }
     });
-    }
   }
 
   document.addEventListener('DOMContentLoaded', function () {
@@ -2585,7 +2586,7 @@
     initStandalonePushOffer();
     try { if (window.SeevaData && SeevaData.syncMyLang) SeevaData.syncMyLang().catch(function () {}); } catch (err) { /* mai bloccare la pagina */ }
     initNotificationHousekeeping();
-    try { initBirthdaySurprise(); } catch (err) { /* mai bloccare la pagina per questo */ }
+    try { initBirthdayGreeting(); } catch (err) { /* mai bloccare la pagina per questo */ }
     try { initNoUselessScroll(); } catch (err) { /* mai bloccare la pagina per questo */ }
   });
 

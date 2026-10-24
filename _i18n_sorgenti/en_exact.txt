@@ -562,3 +562,11 @@ Tocca il menu ⇒ Tap the
 del browser ⇒ browser menu
 Conferma con ⇒ Confirm with
 Il menu ⋮ di solito è in alto a destra. Se non vedi "Installa app", cerca "Aggiungi a schermata Home". ⇒ The ⋮ menu is usually at the top right. If you can't see "Install app", look for "Add to Home screen".
+accanto all'indirizzo del sito ⇒ next to the site address
+Non vedi Condividi? Tocca ⇒ Can't see Share? Tap
+in Chrome e poi ⇒ in Chrome, then
+. Se non trovi "Aggiungi alla schermata Home", scorri il menu verso il basso. Se proprio non compare, apri seeva.it con Safari. ⇒ . If you can't find "Add to Home Screen", scroll down the menu. If it still doesn't appear, open seeva.it in Safari.
+Apri ⇒ Open
+con ⇒ in
+e poi ⇒ and then
+Da questo browser l'installazione su iPhone spesso non è possibile: con Safari funziona sempre. ⇒ From this browser, installing on iPhone often isn't possible: it always works with Safari.

@@ -575,7 +575,7 @@
           // confinato solo a questo evento finché non si registra o accede —
           // vedi checkAccessGate in data.js, controllato da tutte le altre
           // pagine dell'app.
-          SeevaData.setGuestLock({ type: 'event', id: eventId });
+          SeevaData.addGuestEventLock(eventId);
         }
 
         // invece di restare qui, si rimbalza subito sull'evento: il messaggio

@@ -280,6 +280,12 @@
           window.location.href = 'amico.html?token=' + encodeURIComponent(event.shareToken);
           return;
         }
+        // ospite già entrato in un altro evento, ma questo non ha un link
+        // d'invito aperto: torna al suo evento come prima
+        if (gate.fallbackUrl) {
+          window.location.href = gate.fallbackUrl;
+          return;
+        }
         titleEl.textContent = 'Evento';
         contentEl.innerHTML = SeevaData.accountRequiredBlockHTML(
           'Per vedere questo evento devi prima creare un profilo, oppure aprirlo dal link di invito che hai ricevuto.'
