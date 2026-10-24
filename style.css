@@ -2621,15 +2621,17 @@ a.notif-item:active { background: var(--track-soft); }
   opacity: 1;
 }
 
-/* Uscita: la schermata corrente scorre via prima di navigare (vedi script.js) */
+/* Uscita: la schermata corrente scorre via prima di navigare (vedi script.js)
+   2026-10-24 (Fil, "microsecondo di pagina bianca"): uscita 0.16s -> 0.1s,
+   tempo combinato con lo setTimeout di spaRenderView in script.js. */
 .screen.slide-out-left {
-  transition: transform 0.16s cubic-bezier(0.4, 0, 1, 1), opacity 0.16s ease;
+  transition: transform 0.1s cubic-bezier(0.4, 0, 1, 1), opacity 0.1s ease;
   transform: translateX(-35%);
   opacity: 0;
 }
 
 .screen.slide-out-right {
-  transition: transform 0.16s cubic-bezier(0.4, 0, 1, 1), opacity 0.16s ease;
+  transition: transform 0.1s cubic-bezier(0.4, 0, 1, 1), opacity 0.1s ease;
   transform: translateX(35%);
   opacity: 0;
 }
@@ -2649,7 +2651,7 @@ a.notif-item:active { background: var(--track-soft); }
 
 /* Poi si attiva questa classe un istante dopo, e la transizione la riporta al centro */
 .screen.slide-in-active {
-  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease;
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.12s ease;
   transform: translateX(0);
   opacity: 1;
 }
@@ -2657,8 +2659,9 @@ a.notif-item:active { background: var(--track-soft); }
 /* Entrata a cascata per card e notifiche: parte "spenta", script.js accende .in-view */
 .reveal {
   opacity: 0;
-  transform: translateY(18px);
-  transition: opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1), transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translateY(10px);
+  /* 2026-10-24: 0.55s -> 0.3s, le card compaiono prima (Fil) */
+  transition: opacity 0.3s cubic-bezier(0.22, 1, 0.36, 1), transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .reveal.in-view {
@@ -3983,3 +3986,17 @@ a.notif-item:active { background: var(--track-soft); }
    dentro l'app non funziona (Google blocca le WebView). Nascosto finché
    non c'è il login nativo (fase 2). Email/password resta. */
 html.seeva-native #googleSignInWrap { display: none !important; }
+
+/* App Android, prime prove APK (Fil, 2026-10-24):
+   - "tutto troppo in alto": nell'app la pagina va sotto la barra di stato
+     (orario, notifiche). Il contenuto parte sotto, il colore di sfondo
+     resta quello dell'app anche dietro la barra;
+   - come nell'app installata dal browser, scorre solo il contenuto e non
+     tutta la pagina. */
+html.seeva-native .phone { padding-top: env(safe-area-inset-top, 0px); }
+html.seeva-native, html.seeva-native body { height: 100%; overflow: hidden; }
+html.seeva-native body { min-height: 0; }
+
+/* Niente rettangolo blu/grigio quando si tocca un pulsante (si vedeva sul
+   tasto indietro tondo). Vale anche per il sito su Android. */
+* { -webkit-tap-highlight-color: transparent; }

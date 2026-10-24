@@ -3,14 +3,19 @@
   "private": true,
   "description": "App Android di seeva (Capacitor). Usa i file di ../dist creati da build.mjs.",
   "scripts": {
-    "sync": "cd .. && node build.mjs && cd _app_android && npx cap sync android"
+    "sync": "cd .. && node build.mjs && cd _app_android && node prepara-web.mjs && npx cap sync android"
   },
   "dependencies": {
     "@capacitor/android": "8.5.3",
-    "@capacitor/core": "8.5.3"
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/share": "^8.0.3",
+    "@fontsource/fraunces": "^5.3.0",
+    "@fontsource/inter": "^5.3.0",
+    "@supabase/supabase-js": "2.117.2"
   },
   "devDependencies": {
-    "@capacitor/cli": "8.5.3",
-    "@capacitor/assets": "^3.0.5"
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "8.5.3"
   }
 }

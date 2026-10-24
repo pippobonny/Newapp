@@ -667,49 +667,75 @@
           avatarEl.textContent = guestName ? guestName.trim().charAt(0).toUpperCase() : '?';
         }
 
-        myEventsList.innerHTML = '<div class="empty-hint">Caricamento...</div>';
+        // Disegna l'archivio "eventi passati" da una lista di eventi.
+        function drawMine(events) {
+          // Qui restano solo gli eventi "passato" (confermati e già successi da
+          // un po'): quelli ancora aperti/in attesa/annullati si vedono in Home
+          // e in Eventi, non anche qui — il Profilo è l'archivio di quello che
+          // è già successo, non un doppione delle altre due pagine.
+          // 2026-07-20 (Fil): prima si vedevano qui SOLO gli eventi organizzati
+          // da te — ora anche quelli a cui hai partecipato davvero (disponibile
+          // per la data poi confermata, vedi getConfirmedParticipantNames), non
+          // solo chi li ha creati. Chi aveva detto "non ci sono" non li vede.
+          var myNameLower = (guestName || '').trim().toLowerCase();
+          var mine = events.filter(function (e) {
+            if (!guestName || SeevaData.computeEventStatus(e).status !== 'passato') return false;
+            var isOrganizer = !!(e.createdBy && e.createdBy.trim().toLowerCase() === myNameLower);
+            var wasThere = SeevaData.getConfirmedParticipantNames(e).some(function (n) {
+              return (n || '').trim().toLowerCase() === myNameLower;
+            });
+            return isOrganizer || wasThere;
+          });
+
+          var html;
+          if (mine.length) {
+            // swipeToRemove:true (Fil, 2026-08-24, bug segnalato dall'app):
+            // la Home non mostra più una lista di card evento (solo tessere
+            // aggregate), quindi questa è rimasta l'unica pagina con una vera
+            // lista scorrevole di card — stesso gesto/cestino rosso che
+            // c'era prima in Home.
+            html = mine.map(function (e) { return SeevaData.renderEventCardHTML(e, { swipeToRemove: true }); }).join('');
+          } else {
+            html = '<div class="empty-hint">Nessun evento passato ancora: qui trovi l\'archivio di quelli tuoi già conclusi.</div>';
+          }
+          // uguale a quello già disegnato (dati salvati = dati veri): non si
+          // ridisegna, così le card non rifanno l'animazione di entrata.
+          if (myEventsList.__seevaHtml === html) return;
+          myEventsList.__seevaHtml = html;
+          myEventsList.innerHTML = html;
+          if (window.SeevaUI) window.SeevaUI.refresh();
+        }
+
+        // 2026-10-24 (velocità, "lampo bianco" cambiando scheda): se il
+        // telefono ha già eventi e archivio dell'ultima volta, l'archivio
+        // compare subito; poi si ridisegna coi dati veri qui sotto.
+        var instantRecent = SeevaData.getEventsInstant ? SeevaData.getEventsInstant() : null;
+        var instantArchived = SeevaData.getArchivedEventsInstant ? SeevaData.getArchivedEventsInstant() : null;
+        if (instantRecent || instantArchived) {
+          var instIds = (instantRecent || []).map(function (e) { return e.id; });
+          drawMine((instantRecent || []).concat((instantArchived || []).filter(function (e) { return instIds.indexOf(e.id) === -1; })));
+        } else {
+          myEventsList.innerHTML = '<div class="empty-hint">Caricamento...</div>';
+        }
 
         var events;
         try {
           // Archivio (2026-10-05): eventi recenti + quelli vecchi, che si
           // scaricano solo qui (e restano sul telefono qualche ora).
-          events = await SeevaData.getEvents();
+          // 2026-10-24: le due richieste partono insieme, non una dopo l'altra.
+          var both = await Promise.all([SeevaData.getEvents(), SeevaData.getArchivedEvents()]);
+          events = both[0];
           var recentIds = events.map(function (e) { return e.id; });
-          var archived = await SeevaData.getArchivedEvents();
+          var archived = both[1];
           events = events.concat(archived.filter(function (e) { return recentIds.indexOf(e.id) === -1; }));
         } catch (err) {
-          myEventsList.innerHTML = '<div class="empty-hint">Non riesco a caricare i tuoi eventi (' + SeevaData.escapeHTML(SeevaData.friendlyErrorMessage(err)) + ').</div>';
+          if (!(instantRecent || instantArchived)) {
+            myEventsList.innerHTML = '<div class="empty-hint">Non riesco a caricare i tuoi eventi (' + SeevaData.escapeHTML(SeevaData.friendlyErrorMessage(err)) + ').</div>';
+          }
           return;
         }
 
-        // Qui restano solo gli eventi "passato" (confermati e già successi da
-        // un po'): quelli ancora aperti/in attesa/annullati si vedono in Home
-        // e in Eventi, non anche qui — il Profilo è l'archivio di quello che
-        // è già successo, non un doppione delle altre due pagine.
-        // 2026-07-20 (Fil): prima si vedevano qui SOLO gli eventi organizzati
-        // da te — ora anche quelli a cui hai partecipato davvero (disponibile
-        // per la data poi confermata, vedi getConfirmedParticipantNames), non
-        // solo chi li ha creati. Chi aveva detto "non ci sono" non li vede.
-        var myNameLower = (guestName || '').trim().toLowerCase();
-        var mine = events.filter(function (e) {
-          if (!guestName || SeevaData.computeEventStatus(e).status !== 'passato') return false;
-          var isOrganizer = !!(e.createdBy && e.createdBy.trim().toLowerCase() === myNameLower);
-          var wasThere = SeevaData.getConfirmedParticipantNames(e).some(function (n) {
-            return (n || '').trim().toLowerCase() === myNameLower;
-          });
-          return isOrganizer || wasThere;
-        });
-
-        if (mine.length) {
-          // swipeToRemove:true (Fil, 2026-08-24, bug segnalato dall'app):
-          // la Home non mostra più una lista di card evento (solo tessere
-          // aggregate), quindi questa è rimasta l'unica pagina con una vera
-          // lista scorrevole di card — stesso gesto/cestino rosso che
-          // c'era prima in Home.
-          myEventsList.innerHTML = mine.map(function (e) { return SeevaData.renderEventCardHTML(e, { swipeToRemove: true }); }).join('');
-        } else {
-          myEventsList.innerHTML = '<div class="empty-hint">Nessun evento passato ancora: qui trovi l\'archivio di quelli tuoi già conclusi.</div>';
-        }
+        drawMine(events);
 
         // rianima/rende cliccabile il contenuto appena creato
         if (window.SeevaUI) window.SeevaUI.refresh();

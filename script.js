@@ -494,8 +494,25 @@
       initBackBtnModalGuard(screen);
 
       spaBusy = false;
-    }, 160);
+    }, 100); // 2026-10-24: era 160, vedi .slide-out-* in style.css
   }
+
+  /* 2026-10-24 (velocità): le altre tab principali si preparano in
+     sottofondo appena la pagina è ferma, così il primo passaggio a una
+     tab non aspetta di scaricarne l'HTML. Solo HTML, nessun dato. */
+  (function prefetchTabViews() {
+    // solo dalle tab principali: da una pagina di dettaglio si torna alle
+    // tab con una navigazione vera, la cache andrebbe persa comunque
+    if (TAB_ORDER.indexOf(currentFile()) === -1) return;
+    var run = function () {
+      TAB_ORDER.forEach(function (f, i) {
+        if (f === currentFile() || f === 'crea.html') return;
+        window.setTimeout(function () { spaFetchView(f).catch(function () { /* ignora */ }); }, i * 150);
+      });
+    };
+    if (window.requestIdleCallback) window.requestIdleCallback(run, { timeout: 2500 });
+    else window.setTimeout(run, 1200);
+  })();
 
   function spaNavigate(historyUrl, targetFile, direction) {
     if (targetFile === spaTrackedFile) return;
@@ -759,7 +776,7 @@
 
     items.forEach(function (el, i) {
       el.setAttribute('data-reveal-init', '1');
-      el.setAttribute('data-delay', Math.min(i, 5) * 70);
+      el.setAttribute('data-delay', Math.min(i, 5) * 40); // 2026-10-24: era 70
       observer.observe(el);
     });
   }

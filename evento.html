@@ -250,9 +250,18 @@
         return;
       }
 
+      /* Apertura istantanea (Fil, 2026-10-24): se il telefono ha già una
+         copia di questo evento (aperto prima, o presente nella Home) la
+         pagina si disegna subito con quella; i dati veri si chiedono subito
+         in parallelo e, appena arrivano, la pagina si ridisegna (vedi in
+         fondo, dopo il primo render). Senza copia si aspetta come prima. */
+      var instantEvent = (eventId && SeevaData.getEventInstant) ? SeevaData.getEventInstant(eventId) : null;
+      var freshEventPromise = eventId ? SeevaData.getEventById(eventId) : Promise.resolve(null);
+      if (instantEvent) freshEventPromise.catch(function () { /* gestito più sotto */ });
+
       var event;
       try {
-        event = eventId ? await SeevaData.getEventById(eventId) : null;
+        event = instantEvent || await freshEventPromise;
       } catch (err) {
         titleEl.textContent = 'Errore';
         contentEl.innerHTML = '<div class="empty-hint">Non riesco a caricare questo evento (' + SeevaData.escapeHTML(SeevaData.friendlyErrorMessage(err)) + ').<br><a href="index.html">Torna alla Home →</a></div>';
@@ -3517,21 +3526,44 @@
       var attendeeAvatars = {};
       async function loadAttendeeAvatarsIfNeeded() {
         var info = SeevaData.computeEventStatus(event);
-        if ((info.status !== 'done' && info.status !== 'passato') || !info.bestOption) return;
+        if ((info.status !== 'done' && info.status !== 'passato') || !info.bestOption) return false;
         var names = (event.participants || [])
           .filter(function (p) { return (p.availableDateOptionIds || []).indexOf(info.bestOption.id) !== -1; })
           .map(function (p) { return p.name; });
-        if (!names.length) return;
+        if (!names.length) return false;
+        var added = false;
         try {
           var rows = await SeevaData.getAvatarsForNames(names);
           rows.forEach(function (r) {
-            if (r.avatarUrl && r.username) attendeeAvatars[r.username.toLowerCase()] = r.avatarUrl;
+            if (r.avatarUrl && r.username) { attendeeAvatars[r.username.toLowerCase()] = r.avatarUrl; added = true; }
           });
         } catch (err) { /* ignora: le bolle restano con l'iniziale */ }
+        return added;
       }
-      await loadAttendeeAvatarsIfNeeded();
 
+      // 2026-10-24 (velocità): prima si aspettavano le foto PRIMA del primo
+      // disegno (una richiesta in più ad ogni apertura di un evento
+      // confermato). Ora si disegna subito e le foto arrivano dopo.
       render();
+      loadAttendeeAvatarsIfNeeded().then(function (added) { if (added) render(); });
+
+      // Dati veri arrivati dopo il disegno istantaneo: si ridisegna.
+      if (instantEvent) {
+        freshEventPromise.then(function (fresh) {
+          if (!fresh) {
+            titleEl.textContent = 'Evento non trovato';
+            contentEl.innerHTML = '<div class="empty-hint">Questo evento non esiste più (o il link non è più valido).<br><a href="index.html">Torna alla Home →</a></div>';
+            return;
+          }
+          // identico alla copia già mostrata: niente ridisegno
+          if (!instantEvent._partial && JSON.stringify(fresh) === JSON.stringify(instantEvent)) return;
+          event = fresh;
+          titleEl.textContent = event.name;
+          document.title = 'seeva — ' + event.name;
+          render();
+          loadAttendeeAvatarsIfNeeded().then(function (added) { if (added) render(); });
+        }, function () { /* resta la copia: al prossimo aggiornamento si riprova */ });
+      }
 
       // 2026-10-14: foto anche nella tessera "Chi viene" degli eventi non
       // ancora confermati -- caricate dopo il primo disegno, poi si ridisegna.

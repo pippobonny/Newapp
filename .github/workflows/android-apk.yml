@@ -41,6 +41,7 @@ jobs:
         working-directory: _app_android
         run: |
           npm install --no-audit --no-fund
+          node prepara-web.mjs
           npx cap sync android
 
       - name: Compila l'APK

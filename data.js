@@ -489,7 +489,7 @@
     // vedrebbe per qualche secondo ancora la lista eventi di chi c'era prima
     // (vedi la cache in getEvents, Fil 2026-07-22).
     clearEventsCache();
-    try { localStorage.removeItem(LAST_EVENTS_KEY); localStorage.removeItem(ARCHIVE_CACHE_KEY); } catch (err) { /* ignora */ }
+    try { localStorage.removeItem(LAST_EVENTS_KEY); localStorage.removeItem(ARCHIVE_CACHE_KEY); localStorage.removeItem(EVENT_CACHE_KEY); localStorage.removeItem(LAST_FRIEND_LISTS_KEY); localStorage.removeItem(AVATAR_CACHE_KEY); } catch (err) { /* ignora */ }
   }
 
   /* Inserisce l'avviso "sessione scaduta" in cima a containerEl se serve
@@ -864,6 +864,66 @@
   if (isNativeApp() && global.document && global.document.documentElement) {
     global.document.documentElement.classList.add('seeva-native');
   }
+  /* App Android, Fil 2026-10-24 (prime prove APK):
+     - tasto indietro di Android: torna alla pagina precedente come nel
+       browser; solo se non c'è niente dietro chiude l'app (prima la
+       chiudeva sempre);
+     - "Condividi": nella WebView navigator.share non esiste (si finiva su
+       "copia link"), quindi lo si collega al foglio di condivisione nativo
+       di Android (plugin Share) e le pagine non cambiano. */
+  /* Chiude il popup in primo piano (tutti i popup dell'app sono
+     .signup-overlay). Ritorna true se ce n'era uno. Prova come farebbe una
+     persona: tocco fuori dal riquadro, poi il pulsante "Chiudi/Annulla",
+     e solo se nessuno dei due funziona lo nasconde direttamente. */
+  function isShown(el) {
+    return !!el && el.isConnected && global.getComputedStyle(el).display !== 'none';
+  }
+  function closeTopPopup() {
+    var doc = global.document;
+    var all = Array.prototype.slice.call(doc.querySelectorAll('.signup-overlay')).filter(isShown);
+    if (!all.length) return false;
+    var top = all[all.length - 1];
+    top.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    if (isShown(top)) {
+      // Solo pulsanti che chiudono e basta: id che finiscono in CloseBtn/
+      // CancelBtn, oppure testo ESATTAMENTE "Chiudi", "Annulla", "✕"...
+      // (mai "Chiudi votazione", "Annulla evento" e simili).
+      var btns = top.querySelectorAll('[id], .list-delete, button, .secondary-btn');
+      for (var i = 0; i < btns.length; i++) {
+        var id = btns[i].id || '';
+        var t = (btns[i].textContent || '').replace('✕', '').trim().toLowerCase();
+        if (/(Close|Cancel)Btn$|SrcClose$/.test(id) || /^(chiudi|annulla|close|cancel|non ora|not now)?$/.test(t) && (btns[i].textContent || '').trim() !== '') {
+          btns[i].click();
+          break;
+        }
+      }
+    }
+    if (isShown(top)) top.style.display = 'none';
+    var screen = doc.querySelector('.screen.has-open-modal');
+    if (screen && !Array.prototype.some.call(doc.querySelectorAll('.signup-overlay'), isShown)) {
+      screen.classList.remove('has-open-modal');
+    }
+    return true;
+  }
+
+  if (isNativeApp()) {
+    var capPlugins = global.Capacitor.Plugins || {};
+    if (capPlugins.App && typeof capPlugins.App.addListener === 'function') {
+      capPlugins.App.addListener('backButton', function (ev) {
+        // Prima chiude il popup aperto (Fil: "chiude solo il pop up e poi
+        // nuovamente chiude la pagina"), poi al tocco dopo torna indietro.
+        if (closeTopPopup()) return;
+        if (ev && ev.canGoBack) global.history.back();
+        else capPlugins.App.exitApp();
+      });
+    }
+    if (capPlugins.Share && global.navigator && !global.navigator.share) {
+      global.navigator.share = function (data) {
+        data = data || {};
+        return capPlugins.Share.share({ title: data.title, text: data.text, url: data.url });
+      };
+    }
+  }
 
   function isPushSupported() {
     if (isNativeApp()) return false;
@@ -1043,7 +1103,22 @@
       .eq('owner_account_id', acc.id)
       .order('created_at', { ascending: false });
     if (res.error) throwSupabaseError(res.error);
-    return (res.data || []).map(mapFriendList);
+    var lists = (res.data || []).map(mapFriendList);
+    try { localStorage.setItem(LAST_FRIEND_LISTS_KEY, JSON.stringify({ a: acc.id, t: Date.now(), v: lists })); } catch (err) { /* ignora */ }
+    return lists;
+  }
+
+  // Ultime liste amici viste (Fil, 2026-10-24, "lampo bianco" cambiando
+  // scheda): Amici si disegna subito con queste, poi si aggiorna.
+  var LAST_FRIEND_LISTS_KEY = 'seeva:lastFriendLists';
+  function getFriendListsInstant() {
+    try {
+      var acc = getAccount();
+      var raw = localStorage.getItem(LAST_FRIEND_LISTS_KEY);
+      if (!acc || !raw) return null;
+      var parsed = JSON.parse(raw);
+      return (parsed && parsed.a === acc.id && Array.isArray(parsed.v)) ? parsed.v : null;
+    } catch (err) { return null; }
   }
 
   async function getFriendListById(id) {
@@ -1745,6 +1820,14 @@
     return events;
   }
 
+  function getArchivedEventsInstant() {
+    try {
+      var acc = getAccount();
+      var parsed = JSON.parse(localStorage.getItem(ARCHIVE_CACHE_KEY) || 'null');
+      return (parsed && acc && parsed.a === acc.id && Array.isArray(parsed.v)) ? parsed.v : null;
+    } catch (err) { return null; }
+  }
+
   async function getEvents() {
     var cached = readEventsCache();
     if (cached) return cached;
@@ -1773,7 +1856,71 @@
     var res = await supabase.rpc('get_event_public', { p_id: id });
     if (res.error) throwSupabaseError(res.error);
     if (res.data) { sortEventDates(res.data); pruneCancelledEvents([res.data]); }
+    if (res.data) writeEventCache(res.data); else dropEventCache(id);
     return res.data || null;
+  }
+
+  /* ---------- Apertura evento istantanea (Fil, 2026-10-24) ----------
+     "Aprire un evento ci mette 1 secondo": ogni evento aperto resta salvato
+     sul telefono (ultimi 30, legati a chi è entrato). Riaprendolo la pagina
+     si disegna SUBITO con questa copia e poi si aggiorna coi dati veri
+     (getEventById). Per un evento mai aperto si parte dalla lista della Home
+     (getEventsInstant): lì mancano spese/cose da portare/commenti/avvisi,
+     che compaiono appena arrivano i dati veri. Va bene così (Fil): per un
+     attimo si può vedere qualcosa di vecchio di pochi secondi. */
+  var EVENT_CACHE_KEY = 'seeva:evCache';
+  var EVENT_CACHE_MAX = 30;
+  function eventCacheOwner() {
+    var acc = getAccount();
+    if (acc && acc.id) return acc.id;
+    var g = getGuestName();
+    return g ? 'guest:' + g.toLowerCase() : null;
+  }
+  function readEventCacheStore() {
+    try {
+      var raw = localStorage.getItem(EVENT_CACHE_KEY);
+      var parsed = raw ? JSON.parse(raw) : null;
+      if (parsed && parsed.a === eventCacheOwner() && parsed.v) return parsed;
+    } catch (err) { /* ignora */ }
+    return { a: eventCacheOwner(), v: {} };
+  }
+  function writeEventCache(ev) {
+    var owner = eventCacheOwner();
+    if (!ev || !ev.id || !owner) return;
+    try {
+      var store = readEventCacheStore();
+      store.a = owner;
+      store.v[ev.id] = { t: Date.now(), e: ev };
+      var ids = Object.keys(store.v);
+      if (ids.length > EVENT_CACHE_MAX) {
+        ids.sort(function (x, y) { return store.v[y].t - store.v[x].t; });
+        ids.slice(EVENT_CACHE_MAX).forEach(function (k) { delete store.v[k]; });
+      }
+      localStorage.setItem(EVENT_CACHE_KEY, JSON.stringify(store));
+    } catch (err) { /* spazio pieno: niente apertura istantanea, il resto funziona */ }
+  }
+  function dropEventCache(id) {
+    try {
+      var store = readEventCacheStore();
+      if (store.v[id]) { delete store.v[id]; localStorage.setItem(EVENT_CACHE_KEY, JSON.stringify(store)); }
+    } catch (err) { /* ignora */ }
+  }
+  // Solo per il primo disegno: chi la usa deve SEMPRE poi chiamare
+  // getEventById() per i dati veri. Null se non c'è niente di utilizzabile.
+  function getEventInstant(id) {
+    if (!id) return null;
+    var store = readEventCacheStore();
+    if (store.v[id] && store.v[id].e) return store.v[id].e;
+    var list = getEventsInstant() || [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i] && list[i].id === id) {
+        var copy = JSON.parse(JSON.stringify(list[i]));
+        ['expenses', 'items', 'comments', 'announcements'].forEach(function (k) { if (!Array.isArray(copy[k])) copy[k] = []; });
+        copy._partial = true;
+        return copy;
+      }
+    }
+    return null;
   }
 
   /* input.inviteeNames: array di invitati copiati su QUESTO evento — che
@@ -2150,6 +2297,9 @@
      di createEvent(); input.dates è la lista COMPLETA e finale delle date
      (non solo quelle nuove), stesso discorso per input.inviteeNames. */
   async function updateEvent(eventId, input) {
+    try { return await updateEventImpl(eventId, input); } finally { dropEventCache(eventId); }
+  }
+  async function updateEventImpl(eventId, input) {
     var current = await getEventById(eventId);
     if (!current) throw new Error('Evento non trovato.');
 
@@ -2485,6 +2635,9 @@
      mandava il client. Un secondo tentativo (retry) trova l'evento già
      cancellato e non rimanda nessun avviso doppio. */
   async function deleteEvent(eventId) {
+    try { return await deleteEventImpl(eventId); } finally { dropEventCache(eventId); }
+  }
+  async function deleteEventImpl(eventId) {
     var res = await supabase.functions.invoke('notify-event-deleted', { body: { eventId: eventId } });
     if (res.error) {
       var msg = res.error.message || 'Non sono riuscito a eliminare l\'evento';
@@ -2632,8 +2785,25 @@
     (res.data || []).forEach(function (row) {
       map[row.id] = { username: row.username, avatarUrl: row.avatar_url };
     });
+    try {
+      var store = getAvatarsInstantStore();
+      list.forEach(function (id) { store[id] = (map[id] && map[id].avatarUrl) || null; });
+      localStorage.setItem(AVATAR_CACHE_KEY, JSON.stringify({ t: Date.now(), v: store }));
+    } catch (err) { /* ignora */ }
     return map;
   }
+
+  // Foto profilo già viste (id account -> url o null), per disegnare subito
+  // le bolle degli amici senza aspettare. Scadono dopo un giorno.
+  var AVATAR_CACHE_KEY = 'seeva:avatarCache';
+  function getAvatarsInstantStore() {
+    try {
+      var parsed = JSON.parse(localStorage.getItem(AVATAR_CACHE_KEY) || 'null');
+      if (parsed && parsed.v && (Date.now() - parsed.t) < 24 * 3600 * 1000) return parsed.v;
+    } catch (err) { /* ignora */ }
+    return {};
+  }
+  function getAvatarsInstant() { return getAvatarsInstantStore(); }
 
   /* Salva/aggiorna la disponibilità di un ospite per un evento.
      Se l'ospite (per nome, senza distinguere maiuscole/minuscole) aveva già
@@ -3802,6 +3972,10 @@
     getCancelledCount: getCancelledCount,
     getArchivedEvents: getArchivedEvents,
     getEventsInstant: getEventsInstant,
+    getEventInstant: getEventInstant,
+    getArchivedEventsInstant: getArchivedEventsInstant,
+    getFriendListsInstant: getFriendListsInstant,
+    getAvatarsInstant: getAvatarsInstant,
     getEventById: getEventById,
     createEvent: createEvent,
     updateEvent: updateEvent,

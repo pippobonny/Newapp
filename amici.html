@@ -207,6 +207,7 @@
       }
 
       var currentLists = [];
+      var listsLoadedOnce = false; // 2026-10-24: vedi renderLists
       var openListId = null;
 
       function friendsSummary(friends) {
@@ -261,22 +262,41 @@
 
       async function renderLists() {
         formError.textContent = '';
-        listsContainer.innerHTML = '<div class="empty-hint">Caricamento...</div>';
+        // 2026-10-24 (velocità): niente "Caricamento..." se il telefono ha
+        // già le liste dell'ultima volta: si disegnano subito, poi si
+        // aggiornano qui sotto coi dati veri. Solo se la pagina è ancora
+        // vuota (dopo un'aggiunta/rimozione si lascia quello che c'è).
+        var instantLists = (!listsLoadedOnce && SeevaData.getFriendListsInstant) ? SeevaData.getFriendListsInstant() : null;
+        if (instantLists && instantLists.length) {
+          listsContainer.innerHTML = listsContainer.__seevaHtml = instantLists.map(friendListCardHTML).join('');
+          if (window.SeevaUI) window.SeevaUI.refresh();
+        } else if (!listsLoadedOnce) {
+          listsContainer.__seevaHtml = null;
+          listsContainer.innerHTML = '<div class="empty-hint">Caricamento...</div>';
+        }
 
         var lists;
         try {
           lists = await SeevaData.getFriendLists();
         } catch (err) {
+          listsContainer.__seevaHtml = null;
           listsContainer.innerHTML = '<div class="empty-hint">Non riesco a caricare le liste (' + SeevaData.escapeHTML(SeevaData.friendlyErrorMessage(err)) + ').</div>';
           return;
         }
 
         currentLists = lists;
+        listsLoadedOnce = true;
 
         if (!lists.length) {
+          listsContainer.__seevaHtml = null;
           listsContainer.innerHTML = '<div class="empty-hint">Non hai ancora nessuna lista.<br>Creane una qui sopra.</div>';
         } else {
-          listsContainer.innerHTML = lists.map(friendListCardHTML).join('');
+          // 2026-10-24: se è identico a quanto già disegnato coi dati
+          // salvati, non si ridisegna (niente animazione rifatta).
+          var freshHtml = lists.map(friendListCardHTML).join('');
+          if (listsContainer.__seevaHtml !== freshHtml) {
+            listsContainer.innerHTML = listsContainer.__seevaHtml = freshHtml;
+          }
 
           // Foto degli amici collegati per le card appena disegnate: stesso
           // friendAvatarCache usato dal popup "Gestisci amici", così se il
@@ -297,7 +317,7 @@
               neededIds.forEach(function (id) {
                 friendAvatarCache[id] = (avatarMap[id] && avatarMap[id].avatarUrl) || null;
               });
-              listsContainer.innerHTML = lists.map(friendListCardHTML).join('');
+              listsContainer.innerHTML = listsContainer.__seevaHtml = lists.map(friendListCardHTML).join('');
               if (window.SeevaUI) window.SeevaUI.refresh();
             }).catch(function () { /* niente foto, restano le iniziali: non blocca nulla */ });
           }
@@ -320,7 +340,9 @@
       // Cache locale { accountId: avatarUrl|null }, così non richiediamo di
       // nuovo la stessa foto ogni volta che la lista si ridisegna (succede
       // spesso: dopo ogni aggiunta/rimozione amico si passa da loadLists()).
-      var friendAvatarCache = {};
+      // 2026-10-24: si parte dalle foto già viste sul telefono (un giorno),
+      // così le bolle compaiono subito con la foto e non con l'iniziale.
+      var friendAvatarCache = (SeevaData.getAvatarsInstant && SeevaData.getAvatarsInstant()) || {};
 
       function renderModalContent(list) {
         friendModalTitle.textContent = list.name;

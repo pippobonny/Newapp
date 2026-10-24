@@ -1,8 +1,18 @@
 {
   "appId": "it.seeva.app",
   "appName": "seeva",
-  "webDir": "../dist",
+  "webDir": "www",
+  "server": {
+    "hostname": "app.seeva.it",
+    "androidScheme": "https"
+  },
   "android": {
     "backgroundColor": "#FFFFFF"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css",
+      "initialViewportFitValueHint": "cover"
+    }
   }
 }
