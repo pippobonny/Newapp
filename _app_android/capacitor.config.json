@@ -1,0 +1,8 @@
+{
+  "appId": "it.seeva.app",
+  "appName": "seeva",
+  "webDir": "../dist",
+  "android": {
+    "backgroundColor": "#FFFFFF"
+  }
+}

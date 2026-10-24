@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">seeva</string>
+    <string name="title_activity_main">seeva</string>
+    <string name="package_name">it.seeva.app</string>
+    <string name="custom_url_scheme">it.seeva.app</string>
+</resources>

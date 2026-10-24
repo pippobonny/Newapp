@@ -1,0 +1,63 @@
+# APK di prova di seeva (Fil, 2026-10-24).
+# A ogni push su main GitHub compila l'app Android con i file aggiornati e
+# la pubblica nella pagina "Releases" del repo come "seeva-test.apk":
+# dal telefono si apre il link e si installa. Si può anche lanciare a mano
+# da Actions > "APK Android" > Run workflow.
+name: APK Android
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Build del sito (dist/)
+        run: |
+          npm install --no-audit --no-fund
+          node build.mjs
+
+      - name: Copia i file nell'app Android
+        working-directory: _app_android
+        run: |
+          npm install --no-audit --no-fund
+          npx cap sync android
+
+      - name: Compila l'APK
+        working-directory: _app_android/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/seeva-test.apk"
+
+      - name: Pubblica su Releases (sempre lo stesso link)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-test
+          name: "seeva APK di prova"
+          prerelease: true
+          make_latest: false
+          body: |
+            APK di prova n. ${{ github.run_number }} — commit ${{ github.sha }}
+            Da installare sul telefono Android (consenti "origini sconosciute").
+          files: seeva-test.apk

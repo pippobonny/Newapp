@@ -3978,3 +3978,8 @@ a.notif-item:active { background: var(--track-soft); }
 .date-mode-panel .date-hint-single { display: none; }
 .date-mode-panel:has(#dateRowList .date-row:only-child) .date-hint-single { display: block; }
 .date-mode-panel:has(#dateRowList .date-row:only-child) .date-hint-multi { display: none; }
+
+/* App Android (Capacitor, 2026-10-24): il login Google della pagina web
+   dentro l'app non funziona (Google blocca le WebView). Nascosto finché
+   non c'è il login nativo (fase 2). Email/password resta. */
+html.seeva-native #googleSignInWrap { display: none !important; }

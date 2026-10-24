@@ -65,6 +65,9 @@
   });
 
   function isAppInstalled() {
+    // Dentro l'app Android (Capacitor) siamo già nell'app: niente popup
+    // "installa" né banner "apri nell'app" (Fil, 2026-10-24).
+    if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) return true;
     return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   }
 

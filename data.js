@@ -851,7 +851,22 @@
      pensano le Edge Function, quando succede qualcosa (invito, evento
      modificato/confermato/cancellato...). */
 
+  /* App Android (Capacitor, Fil 2026-10-24): dentro l'app installata
+     dall'APK window.Capacitor esiste ed è "native". Lì le notifiche web
+     (service worker + PushManager) non funzionano: arriveranno con Firebase
+     nella fase 2. Finché non c'è, niente service worker né richiesta push.
+     La classe seeva-native su <html> serve al CSS (es. nasconde "Continua
+     con Google", che dentro l'app verrà rifatto col login nativo). */
+  function isNativeApp() {
+    var C = global.Capacitor;
+    return !!(C && typeof C.isNativePlatform === 'function' && C.isNativePlatform());
+  }
+  if (isNativeApp() && global.document && global.document.documentElement) {
+    global.document.documentElement.classList.add('seeva-native');
+  }
+
   function isPushSupported() {
+    if (isNativeApp()) return false;
     return !!(global.navigator && 'serviceWorker' in global.navigator && global.PushManager);
   }
 
@@ -3780,6 +3795,7 @@
     unsubscribeFromPush: unsubscribeFromPush,
     shouldOfferPushPrompt: shouldOfferPushPrompt,
     isStandaloneApp: isStandaloneApp,
+    isNativeApp: isNativeApp,
     startAutoRefresh: startAutoRefresh,
     getEvents: getEvents,
     getCancelledEvents: getCancelledEvents,
