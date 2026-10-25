@@ -2823,9 +2823,17 @@
   function initTypedDates() {
     var proto = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
     function pad(n) { return (n < 10 ? '0' : '') + n; }
+    /* Fil, 2026-10-25: "quando premi per selezionare una data ti apre il
+       calendario di sistema, scriverla a mano sono in pochi". Il campo di
+       testo ora è solo un'etichetta (sola lettura, data scritta per bene:
+       "sab 31 ott 2026") e il calendario vero del telefono copre tutto il
+       campo: un tocco ovunque lo apre. */
     function isoToText(iso) {
       var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
-      return m ? m[3] + '/' + m[2] + '/' + m[1] : '';
+      if (!m) return '';
+      try {
+        return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).replace(/\./g, '');
+      } catch (err) { return m[3] + '/' + m[2] + '/' + m[1]; }
     }
     function textToISO(txt) {
       var m = /^\s*(\d{1,2})[\/\.\-\s](\d{1,2})[\/\.\-\s](\d{2}|\d{4})\s*$/.exec(txt || '');
@@ -2844,15 +2852,21 @@
       var text = document.createElement('input');
       text.type = 'text';
       text.className = 'date-typed-text';
-      text.setAttribute('inputmode', 'numeric');
+      text.setAttribute('inputmode', 'none');
       text.setAttribute('autocomplete', 'off');
-      text.placeholder = 'gg/mm/aaaa';
+      text.readOnly = true;
+      text.tabIndex = -1;
+      text.placeholder = 'Scegli il giorno';
       dateInput.parentNode.insertBefore(wrap, dateInput);
       wrap.appendChild(text);
       wrap.appendChild(dateInput);
       dateInput.classList.add('date-typed-native');
-      dateInput.setAttribute('tabindex', '-1');
       dateInput.setAttribute('aria-label', 'Scegli dal calendario');
+      // In più dei browser che aprono il calendario da soli al tocco:
+      // showPicker() dove c'è (Chrome/Android, Safari recente).
+      dateInput.addEventListener('click', function () {
+        try { if (dateInput.showPicker) dateInput.showPicker(); } catch (err) { /* il browser lo apre da solo */ }
+      });
 
       // Se il codice imposta .value da sé (bozza ripristinata, modifica
       // evento), il testo si aggiorna comunque.

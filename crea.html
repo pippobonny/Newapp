@@ -187,7 +187,7 @@
         </div>
 
         <div class="field" id="manualNamesField">
-          <style>#manualNamesField > label, #manualNamesField > .inline-add-row, #totalInviteesHint { display: none; }</style>
+          <style>#manualNamesField > label, #manualNamesField > .inline-add-row, #totalInviteesHint, #manualNamesList { display: none; }</style>
           <label id="manualNamesLabel">Aggiungi qualcun altro</label>
           <div class="inline-add-row">
             <input type="text" id="manualNameInput" placeholder="Nome">
@@ -204,10 +204,24 @@
         </div>
       </div>
 
-      <details class="cr-more" id="crMoreOptions">
-        <summary><span class="cr-more-title">Altre opzioni</span><span class="cr-more-hint">descrizione, foto, link aperto, spese, chi porta cosa</span></summary>
-        <div class="cr-more-body">
-        <div class="field">
+      <!-- Fil, 2026-10-25: "Altre opzioni in basso sembra brutto e
+           superfluo, ma non in mezzo alle altre; mi piace lo stile più
+           pulito". Ora una riga di pulsantini: Descrizione e Foto aprono il
+           loro campo qui sotto, Spese / Chi porta cosa / Link aperto /
+           Salva come lista si accendono e spengono (sono le stesse caselle
+           di prima, nascoste: vedi crSyncExtras). -->
+      <div class="cr-extras">
+        <div class="cr-sub">Aggiungi se vuoi</div>
+        <div class="cr-chips" id="crExtraChips">
+          <button type="button" class="cr-x" data-x="desc">✏️ Descrizione</button>
+          <button type="button" class="cr-x" data-x="photo">📷 Foto</button>
+          <button type="button" class="cr-x" data-x="exp">💶 Dividere le spese</button>
+          <button type="button" class="cr-x" data-x="items">🎒 Chi porta cosa</button>
+          <button type="button" class="cr-x" data-x="link">🔗 Link aperto a tutti</button>
+          <button type="button" class="cr-x" data-x="list">💾 Salva come lista</button>
+        </div>
+        <div id="crMoreOptions">
+        <div class="field" id="crDescField">
           <label>Descrizione</label>
           <div class="pill-row" id="descriptionModeTabs">
             <div class="pill pill-icon active" data-desc-mode="text" title="Testo" aria-label="Testo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></div>
@@ -256,7 +270,7 @@
           </div>
         </div>
 
-        <div class="field">
+        <div class="field" id="crPhotoField">
           <label>Foto</label>
           <label class="event-photo-preview" id="eventPhotoPreview" for="eventPhotoFile">
             <span id="eventPhotoEmoji"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><rect x="3" y="4" width="18" height="16" rx="2.5"></rect><circle cx="8.5" cy="10" r="1.6"></circle><path d="M21 16l-5.5-5.5a2 2 0 0 0-2.8 0L4 19"></path></svg></span>
@@ -334,7 +348,7 @@
         </div>
 
         </div>
-      </details>
+      </div>
 
       <div class="form-error" id="formError"></div>
       <button type="button" class="primary-btn cr-create-btn" id="createEventBtn">Crea l'evento</button>
@@ -1251,29 +1265,34 @@
             + '<span data-no-i18n>' + esc(l.name) + '</span><span class="cr-chip-count">' + l.friends.length + '</span></button>';
         }).join('') : '';
 
-        var peopleChips = crPeople.map(function (p, idx) {
-          var lower = p.name.toLowerCase();
-          var viaList = !!inList[lower];
-          var on = viaList || crIsPicked(p);
-          var url = p.accountId ? crAvatarStore[p.accountId] : null;
-          var av = url ? '<img src="' + esc(url) + '" alt="" loading="lazy">' : esc((p.name.charAt(0) || '?').toUpperCase());
-          return '<button type="button" class="cr-chip' + (on ? ' is-on' : '') + (viaList ? ' is-via-list' : '') + '" data-cr-person="' + idx + '">'
-            + '<span class="cr-chip-av">' + av + '</span><span data-no-i18n>' + esc(p.name) + '</span><span class="cr-chip-tick" aria-hidden="true">✓</span></button>';
+        // Fil, 2026-10-25: le bolle "Tocca chi vuoi invitare" erano un
+        // doppione della ricerca: ora si sceglie solo da "Cerca e aggiungi"
+        // e qui sotto restano le persone scelte, con la ✕ per toglierle.
+        var pickedPills = manualNames.map(function (m, idx) {
+          var url = m.avatarUrl || (m.accountId ? crAvatarStore[m.accountId] : null);
+          var av = url ? '<img src="' + esc(url) + '" alt="" loading="lazy">' : esc((m.name.charAt(0) || '?').toUpperCase());
+          return '<button type="button" class="pp-pill cr-picked" data-cr-unpick="' + idx + '"><span class="pp-pill-av">' + av + '</span><span data-no-i18n>' + esc(m.name) + '</span><span class="pp-pill-x">✕</span></button>';
         }).join('');
 
         crPeoplePicker.innerHTML = ''
           + '<button type="button" class="cr-search-btn" id="crSearchBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="18" height="18"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>Cerca e aggiungi persone</button>'
-          + (listChips ? '<div class="cr-sub">Le tue liste</div><div class="cr-chips">' + listChips + '</div>' : '')
-          + (peopleChips
-              ? '<div class="cr-sub">Tocca chi vuoi invitare</div><div class="cr-chips">' + peopleChips + '</div>'
-              : '')
-          + '<div class="field-hint" style="margin:-6px 2px 12px;">Non è obbligatorio scegliere qualcuno: dopo averlo creato mandi il link nel gruppo e chi lo apre si aggiunge da solo. Chi tocchi qui riceve anche una notifica.</div>';
+          + (pickedPills ? '<div class="cr-sub">Hai scelto</div><div class="cr-chips">' + pickedPills + '</div>' : '')
+          + (listChips ? '<div class="cr-sub">Oppure invita una lista</div><div class="cr-chips">' + listChips + '</div>' : '')
+          + '<div class="field-hint" style="margin:-6px 2px 12px;">Facoltativo: dopo averlo creato mandi il link nel gruppo e chi lo apre si aggiunge da solo. Chi scegli qui riceve anche una notifica.</div>';
         if (window.SeevaUI && SeevaUI.refresh) SeevaUI.refresh();
       }
 
       if (crPeoplePicker) {
         crPeoplePicker.addEventListener('click', function (e) {
           if (e.target.closest('#crSearchBtn')) { crOpenSearch(); return; }
+          var un = e.target.closest('[data-cr-unpick]');
+          if (un) {
+            manualNames.splice(parseInt(un.getAttribute('data-cr-unpick'), 10), 1);
+            clearWizardErrors();
+            renderManualNamesList();
+            updateInviteUIState();
+            return;
+          }
           var b = e.target.closest('[data-cr-list],[data-cr-person]');
           if (!b) return;
           clearWizardErrors();
@@ -1353,7 +1372,63 @@
 
       /* Altre opzioni: aperte da sole se dentro c'è già qualcosa (bozza,
          "Ripeti questo evento", modifica), così niente resta nascosto. */
+      var crOpened = { desc: false, photo: false };
+      function crSyncExtras() {
+        var hasDesc = !!document.getElementById('eventDescription').value.trim() || !!carriedAudioUrl;
+        var hasPhoto = !!carriedPhotoUrl || (eventPhotoPreview && !!eventPhotoPreview.querySelector('img'));
+        var on = {
+          desc: crOpened.desc || hasDesc,
+          photo: crOpened.photo || hasPhoto,
+          exp: expensesEnabledCheckbox.checked,
+          items: itemsEnabledCheckbox.checked,
+          link: openInviteCheckbox.checked,
+          list: saveAsListCheckbox.checked
+        };
+        document.getElementById('crDescField').style.display = on.desc ? '' : 'none';
+        document.getElementById('crPhotoField').style.display = on.photo ? '' : 'none';
+        var listChip = document.querySelector('#crExtraChips [data-x="list"]');
+        if (listChip) listChip.style.display = (isEditMode || getSelectedList()) ? 'none' : '';
+        ['exp', 'items'].forEach(function (k) {
+          var c = document.querySelector('#crExtraChips [data-x="' + k + '"]');
+          if (c && isEditMode) c.style.display = 'none';
+        });
+        Object.keys(on).forEach(function (k) {
+          var c = document.querySelector('#crExtraChips [data-x="' + k + '"]');
+          if (c) c.classList.toggle('is-on', !!on[k]);
+        });
+      }
+      document.getElementById('crExtraChips').addEventListener('click', function (e) {
+        var c = e.target.closest('[data-x]');
+        if (!c) return;
+        var k = c.getAttribute('data-x');
+        if (k === 'desc' || k === 'photo') {
+          crOpened[k] = !crOpened[k] || false;
+          crSyncExtras();
+          if (crOpened[k]) {
+            var f = document.getElementById(k === 'desc' ? 'crDescField' : 'crPhotoField');
+            if (f) f.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            if (k === 'desc') { try { document.getElementById('eventDescription').focus({ preventScroll: true }); } catch (err) { /* ignora */ } }
+          }
+          return;
+        }
+        var box = { exp: expensesEnabledCheckbox, items: itemsEnabledCheckbox, link: openInviteCheckbox, list: saveAsListCheckbox }[k];
+        if (!box) return;
+        box.checked = !box.checked;
+        box.dispatchEvent(new Event('change', { bubbles: true }));
+        crSyncExtras();
+        if (window.SeevaUI && SeevaUI.toast) {
+          var msgs = {
+            link: box.checked ? 'Link aperto: chi lo riceve si aggiunge da solo' : 'Link chiuso: possono entrare solo le persone scelte',
+            exp: box.checked ? 'Divisione spese attiva' : 'Divisione spese tolta',
+            items: box.checked ? '"Chi porta cosa" attivo' : '"Chi porta cosa" tolto',
+            list: box.checked ? 'Le persone scelte diventeranno una lista' : 'Niente lista'
+          };
+          SeevaUI.toast(msgs[k]);
+        }
+      });
+
       function crOpenMoreIfUsed() {
+        crSyncExtras();
         var more = document.getElementById('crMoreOptions');
         if (!more) return;
         var used = !!document.getElementById('eventDescription').value.trim()

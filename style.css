@@ -4189,3 +4189,52 @@ html.seeva-native body { min-height: 0; }
 .am-row { display: flex; align-items: center; gap: 12px; padding: 9px 8px; }
 .am-row + .am-row { border-top: 1px solid var(--track-soft); }
 .am-invite { flex-shrink: 0; text-decoration: none; background: var(--peach); color: #fff; font: 600 13px 'Inter', sans-serif; padding: 8px 14px; border-radius: 999px; }
+
+/* Date: tutto il campo apre il calendario del telefono (2026-10-25) */
+.date-typed input.date-typed-native,
+.field .date-typed input.date-typed-native,
+.date-row .date-typed input.date-typed-native { left: 0; width: 100% !important; z-index: 2; }
+.date-typed input.date-typed-text { pointer-events: none; caret-color: transparent; }
+.date-typed input.date-typed-text::placeholder { color: var(--ink-soft); }
+
+/* Crea: riga "Aggiungi se vuoi" al posto di Altre opzioni (2026-10-25) */
+.cr-extras { margin: 4px 0 18px; padding-top: 20px; border-top: 1px solid var(--track-soft); }
+.cr-x {
+  border: 1.5px dashed rgba(58, 50, 90, 0.18); background: transparent; color: var(--ink);
+  font: 500 13.5px 'Inter', sans-serif; padding: 8px 12px; border-radius: 999px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; transition: background .15s ease, border-color .15s ease;
+}
+.cr-x:active { transform: scale(0.96); }
+.cr-x.is-on { border-style: solid; border-color: var(--peach); background: var(--peach-soft); }
+#crMoreOptions .option-tile-grid { display: none !important; }
+#crMoreOptions > .field { margin-top: 6px; }
+.cr-picked { cursor: pointer; }
+.am-invite.is-soft { border: 0; background: var(--peach-soft); color: var(--peach); cursor: pointer; }
+
+/* ---------- Agenda a calendario (2026-10-25) ---------- */
+.cal { background: var(--card); border-radius: 22px; padding: 12px 10px 10px; box-shadow: 0 2px 12px rgba(58, 50, 90, 0.07); margin: 4px 0 8px; }
+.cal-head { display: flex; align-items: center; justify-content: space-between; padding: 0 2px 8px; }
+.cal-title { font-family: 'Fraunces', serif; font-weight: 700; font-size: 18px; color: var(--ink); }
+.cal-nav { width: 36px; height: 36px; border-radius: 50%; border: 0; background: var(--bg); color: var(--ink); font-size: 22px; line-height: 1; cursor: pointer; }
+.cal-nav:active { transform: scale(0.92); }
+.cal-dow, .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+.cal-dow span { text-align: center; font-size: 11px; font-weight: 600; color: var(--ink-soft); padding: 4px 0 6px; }
+.cal-day {
+  border: 0; background: transparent; cursor: pointer; padding: 4px 0 3px; margin: 1px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; border-radius: 12px;
+  -webkit-tap-highlight-color: transparent;
+}
+.cal-num { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font: 500 14.5px 'Inter', sans-serif; color: var(--ink); }
+.cal-day.has-ev .cal-num { font-weight: 700; }
+.cal-day.is-out .cal-num { color: var(--ink-soft); opacity: .45; }
+.cal-day.is-today .cal-num { box-shadow: inset 0 0 0 1.5px var(--peach); color: var(--peach); font-weight: 700; }
+.cal-day.is-sel .cal-num { background: var(--peach); color: #fff; box-shadow: none; }
+.cal-dots { display: flex; gap: 3px; height: 6px; }
+.cal-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; }
+.cal-dot.is-yes { background: var(--confirmed); }
+.cal-dot.is-maybe { background: var(--butter); }
+.cal-dot.is-dec { box-shadow: inset 0 0 0 1.5px var(--lavender); }
+.cal-dot.is-ans { box-shadow: inset 0 0 0 1.5px var(--peach); }
+.cal-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; padding: 8px 4px 2px; border-top: 1px solid var(--track-soft); margin-top: 6px; }
+.cal-legend span { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--ink-soft); }
+.cal-list { margin-top: 6px; }

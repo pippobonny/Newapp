@@ -108,7 +108,7 @@
          I vecchi link (?only=attesa, confermati, tutti — notifiche ed email
          già spedite) portano alla lista nuova più vicina. */
       var OLD_TO_NEW = { attesa: 'rispondere', confermati: 'agenda', tutti: 'agenda' };
-      var TITLES = { rispondere: 'Da rispondere', agenda: 'La tua agenda', annullati: 'Annullati e non ci vai' };
+      var TITLES = { rispondere: 'Da rispondere', agenda: 'Agenda', annullati: 'Annullati e non ci vai' };
       var only = new URLSearchParams(window.location.search).get('only') || 'agenda';
       only = OLD_TO_NEW[only] || only;
       if (!TITLES[only]) only = 'agenda';
@@ -148,55 +148,110 @@
         return items.map(function (it) { return SeevaData.renderMyEventCardHTML(it, opts); }).join('');
       }
 
-      function buildAgendaHTML(mine) {
-        var decided = mine.agenda;
-        var nYes = decided.filter(function (i) { return i.myKey === 'yes' || i.myKey === 'organizer'; }).length;
-        var nMaybe = decided.filter(function (i) { return i.myKey === 'maybe'; }).length;
-        var nDec = mine.undecided.length;
-        var chips = [
-          ['tutti', 'Tutti', decided.length + nDec],
-          ['yes', 'Ci sei', nYes],
-          ['maybe', 'Forse', nMaybe],
-          ['decidere', 'Da decidere', nDec]
-        ];
-        var html = '<div class="agenda-chips">' + chips.map(function (c) {
-          return '<button type="button" class="agenda-chip' + (agendaFilter === c[0] ? ' active' : '') + '" data-agenda-filter="' + c[0] + '">' + c[1] + ' <span>' + c[2] + '</span></button>';
-        }).join('') + '</div>';
+      /* ---------- Agenda a calendario (Fil, 2026-10-25) ----------
+         "Se mi dici agenda mi immagino un calendario, anche per capire
+         meglio le date". In alto il mese (frecce per cambiarlo), con un
+         pallino sotto ogni giorno in cui hai qualcosa: pieno verde = ci
+         sei / organizzi, giallo = forse, vuoto viola = data da decidere
+         (su ogni giorno proposto), vuoto arancione = da rispondere. Sotto,
+         l'elenco scritto: gli eventi del mese (+ quelli con la data da
+         decidere); toccando un giorno, solo quelli di quel giorno. */
+      var calMonth = (function () { var d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); })();
+      var calSel = null;
+      function isoOf(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+      function futureDatesOf(ev) {
+        var today = isoOf(new Date());
+        return (ev.dateOptions || []).map(function (o) { return o.dateISO; }).filter(function (d) { return d >= today; });
+      }
 
-        if (agendaFilter === 'tutti' || agendaFilter === 'decidere') {
+      function buildAgendaHTML(mine) {
+        var loc = window.SeevaI18n ? SeevaI18n.locale() : 'it-IT';
+        var marks = {};   // iso -> [kind,...]
+        function mark(iso, kind) { if (!iso) return; (marks[iso] = marks[iso] || []).push(kind); }
+        mine.agenda.forEach(function (i) { mark(i.dateISO, (i.myKey === 'maybe') ? 'maybe' : 'yes'); });
+        mine.undecided.forEach(function (i) { futureDatesOf(i.event).forEach(function (d) { mark(d, 'dec'); }); });
+        mine.toAnswer.forEach(function (i) {
+          var ds = (i.kind === 'vote') ? futureDatesOf(i.event) : [i.dateISO];
+          ds.forEach(function (d) { mark(d, 'ans'); });
+        });
+
+        var y = calMonth.getFullYear(), m = calMonth.getMonth();
+        var title = calMonth.toLocaleDateString(loc, { month: 'long', year: 'numeric' });
+        title = title.charAt(0).toUpperCase() + title.slice(1);
+        var first = new Date(y, m, 1);
+        var start = new Date(y, m, 1 - ((first.getDay() + 6) % 7)); // lunedì
+        var todayISO = isoOf(new Date());
+        var cells = '';
+        for (var k = 0; k < 42; k++) {
+          var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + k);
+          if (k === 35 && d.getMonth() !== m) break; // 5 righe bastano
+          var iso = isoOf(d);
+          var ks = marks[iso] || [];
+          var order = ['yes', 'maybe', 'ans', 'dec'];
+          var dots = order.filter(function (x) { return ks.indexOf(x) !== -1; }).slice(0, 3).map(function (x) { return '<i class="cal-dot is-' + x + '"></i>'; }).join('');
+          cells += '<button type="button" class="cal-day' + (d.getMonth() !== m ? ' is-out' : '') + (iso === todayISO ? ' is-today' : '') + (iso === calSel ? ' is-sel' : '') + (ks.length ? ' has-ev' : '') + '" data-cal-day="' + iso + '">'
+            + '<span class="cal-num">' + d.getDate() + '</span><span class="cal-dots">' + dots + '</span></button>';
+        }
+        var dowNames = [];
+        for (var w = 0; w < 7; w++) {
+          var dd = new Date(2024, 0, 1 + w); // 1 gen 2024 = lunedì
+          dowNames.push(dd.toLocaleDateString(loc, { weekday: 'narrow' }).toUpperCase());
+        }
+        var html = '<div class="cal">'
+          + '<div class="cal-head"><button type="button" class="cal-nav" data-cal-nav="-1" aria-label="Mese prima">‹</button>'
+          + '<div class="cal-title">' + SeevaData.escapeHTML(title) + '</div>'
+          + '<button type="button" class="cal-nav" data-cal-nav="1" aria-label="Mese dopo">›</button></div>'
+          + '<div class="cal-dow">' + dowNames.map(function (n) { return '<span>' + n + '</span>'; }).join('') + '</div>'
+          + '<div class="cal-grid">' + cells + '</div>'
+          + '<div class="cal-legend"><span><i class="cal-dot is-yes"></i>Ci sei</span><span><i class="cal-dot is-maybe"></i>Forse</span><span><i class="cal-dot is-dec"></i>Da decidere</span><span><i class="cal-dot is-ans"></i>Da rispondere</span></div>'
+          + '</div>';
+
+        var listHTML = '';
+        if (calSel) {
+          var dayTitle = new Date(calSel + 'T00:00:00').toLocaleDateString(loc, { weekday: 'long', day: 'numeric', month: 'long' });
+          dayTitle = dayTitle.charAt(0).toUpperCase() + dayTitle.slice(1);
+          var dayItems = mine.agenda.filter(function (i) { return i.dateISO === calSel; }).map(function (i) { return SeevaData.renderMyEventCardHTML(i); });
+          mine.toAnswer.forEach(function (i) {
+            var ds = (i.kind === 'vote') ? futureDatesOf(i.event) : [i.dateISO];
+            if (ds.indexOf(calSel) !== -1) dayItems.push(SeevaData.renderMyEventCardHTML(i, { actions: true }));
+          });
+          mine.undecided.forEach(function (i) { if (futureDatesOf(i.event).indexOf(calSel) !== -1) dayItems.push(SeevaData.renderMyEventCardHTML(i)); });
+          listHTML += '<div class="agenda-group-title">' + SeevaData.escapeHTML(dayTitle) + '</div>'
+            + (dayItems.length ? dayItems.join('') : '<div class="empty-hint" style="padding:14px 0;">Niente in programma questo giorno.<br><a href="crea.html">Crea un evento →</a></div>');
+        } else {
+          var mm = ('0' + (m + 1)).slice(-2);
+          var prefix = y + '-' + mm;
+          var monthItems = mine.agenda.filter(function (i) { return (i.dateISO || '').slice(0, 7) === prefix; });
+          var monthName = calMonth.toLocaleDateString(loc, { month: 'long' });
+          monthName = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+          listHTML += '<div class="agenda-group-title">' + SeevaData.escapeHTML(monthName) + '</div>'
+            + (monthItems.length ? monthItems.map(function (i) { return SeevaData.renderMyEventCardHTML(i); }).join('') : '<div class="empty-hint" style="padding:10px 0 4px;">Niente di confermato questo mese.</div>');
           if (mine.undecided.length) {
-            html += '<div class="agenda-group-title">Data da decidere</div>' + cardsHTML(mine.undecided);
+            listHTML += '<div class="agenda-group-title">Data da decidere</div>' + mine.undecided.map(function (i) { return SeevaData.renderMyEventCardHTML(i); }).join('');
           }
         }
-        if (agendaFilter !== 'decidere') {
-          var list = decided.filter(function (i) {
-            if (agendaFilter === 'yes') return i.myKey === 'yes' || i.myKey === 'organizer';
-            if (agendaFilter === 'maybe') return i.myKey === 'maybe';
-            return true;
-          });
-          // Pagina mai infinita: fino a fine anno (almeno 8 eventi), il resto
-          // dietro "Mostra altri".
-          var endOfYear = new Date().getFullYear() + '-12-31';
-          var visible = showAll ? list : list.filter(function (i, idx) { return i.dateISO <= endOfYear || idx < 8; });
-          var lastMonth = null;
-          visible.forEach(function (i) {
-            var mt = monthTitle(i.dateISO);
-            if (mt !== lastMonth) { html += '<div class="agenda-group-title">' + SeevaData.escapeHTML(mt) + '</div>'; lastMonth = mt; }
-            html += SeevaData.renderMyEventCardHTML(i);
-          });
-          var hidden = list.length - visible.length;
-          if (hidden > 0) {
-            html += '<button type="button" class="agenda-more" id="agendaMoreBtn">' + (hidden === 1 ? t('Mostra altri · 1 evento') : t('Mostra altri · {n} eventi', { n: hidden })) + '</button>';
-          }
-          if (!list.length && !(agendaFilter === 'tutti' && mine.undecided.length)) {
-            html += '<div class="empty-hint">Niente qui per ora.</div>';
-          }
-        } else if (!mine.undecided.length) {
-          html += '<div class="empty-hint">Nessun evento con la data da decidere.</div>';
-        }
+        html += '<div class="cal-list">' + listHTML + '</div>';
         html += '<div class="agenda-foot">Gli eventi passati restano nel tuo Profilo.</div>';
         return html;
       }
+
+      listEl.addEventListener('click', function (e) {
+        var nav = e.target.closest && e.target.closest('[data-cal-nav]');
+        if (nav) {
+          calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + parseInt(nav.getAttribute('data-cal-nav'), 10), 1);
+          calSel = null;
+          render();
+          return;
+        }
+        var day = e.target.closest && e.target.closest('[data-cal-day]');
+        if (day) {
+          var iso = day.getAttribute('data-cal-day');
+          calSel = (calSel === iso) ? null : iso;
+          var dd = new Date(iso + 'T00:00:00');
+          if (dd.getMonth() !== calMonth.getMonth()) calMonth = new Date(dd.getFullYear(), dd.getMonth(), 1);
+          render();
+        }
+      });
 
       function render() {
         var mine = SeevaData.classifyMyEvents(events);
