@@ -43,6 +43,13 @@
     window.addEventListener('orientationchange', setAppHeight);
   })();
 </script>
+<style>
+  /* Giorni da votare nell'invito (Fil, 2026-10-25): riquadri bianchi ben
+     visibili, verdi quando scelti (in evento.html stanno dentro una card,
+     qui sono sullo sfondo della pagina). */
+  #inviteDayGrid .day-card { background: var(--card); box-shadow: 0 2px 8px rgba(58,50,90,0.08); padding: 12px 4px 10px; }
+  #inviteDayGrid .day-card.selected { background: var(--mint-soft); border-color: var(--mint); }
+</style>
 </head>
 <body>
 
@@ -548,6 +555,309 @@
         });
       }
 
+      /* ================================================================
+         "Rispondi prima, registrati dopo" (Fil + Virgi, 2026-10-25)
+         ================================================================
+         Prima chi apriva il link senza account faceva 4 passaggi prima di
+         poter rispondere (benvenuto -> scegli il nome -> accedi/registrati/
+         senza login -> evento). Ora, come Partiful / Apple Invites / Doodle:
+         1) vede subito l'evento con i pulsanti per rispondere;
+         2) tocca la risposta, poi solo "chi sei?" (il suo nome in lista);
+         3) risposta salvata, schermata "Fatto!" con la proposta di crearsi
+            un profilo (facoltativa: se lo crea su questo telefono, le
+            risposte da ospite passano al suo account, vedi
+            adoptGuestAnswers in data.js).
+         Chi ha già un account su questo telefono resta sul percorso di
+         prima (renderSelection). "Hai già un account? Accedi" porta lì. */
+      var pendingAnswer = null; // { kind: 'yes'|'maybe'|'no'|'dates', ids: [...] }
+
+      function sortedDateOptions() {
+        return (event.dateOptions || []).slice().sort(function (a, b) {
+          return a.dateISO < b.dateISO ? -1 : (a.dateISO > b.dateISO ? 1 : 0);
+        });
+      }
+
+      function tr(it, vars) {
+        return (typeof window.t === 'function') ? window.t(it, vars) : it.replace(/\{(\w+)\}/g, function (m, k) { return vars && vars[k] != null ? vars[k] : m; });
+      }
+
+      function inviteHeaderHTML(info) {
+        var photoHTML = event.photoUrl
+          ? '<img src="' + SeevaData.escapeHTML(event.photoUrl) + '" alt="" decoding="async" style="width:100%; height:150px; object-fit:cover; border-radius:18px; margin-bottom:14px;">'
+          : '';
+        var dates = sortedDateOptions();
+        var whenLabel;
+        if (info.bestOption && (info.status === 'done' || info.status === 'passato')) {
+          whenLabel = SeevaData.formatDateTimeLabel(info.bestOption.dateISO, event.eventTime);
+        } else if (dates.length === 1) {
+          whenLabel = SeevaData.formatDateTimeLabel(dates[0].dateISO, event.eventTime);
+        } else if (dates.length > 1) {
+          whenLabel = tr('Da decidere tra {n} date', { n: dates.length });
+        } else {
+          whenLabel = '';
+        }
+        var place = event.locationAddress || '';
+        var goingNames = (event.participants || []).filter(function (p) {
+          return (p.availableDateOptionIds || []).length > 0;
+        }).map(function (p) { return p.name; });
+        var goingHTML = goingNames.length
+          ? '<div class="card-date" style="margin:10px 2px 0;">' + SeevaData.escapeHTML(tr('Ci saranno: {names}', { names: goingNames.slice(0, 6).join(', ') + (goingNames.length > 6 ? ' +' + (goingNames.length - 6) : '') })) + '</div>'
+          : '';
+        var desc = (event.description || '').trim();
+        var descHTML = desc
+          ? '<div data-no-i18n style="font-size:14px; line-height:1.5; color:var(--ink-soft); margin-top:10px; display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden;">' + SeevaData.escapeHTML(desc) + '</div>'
+          : '';
+        return ''
+          + '<div style="font-size:13.5px; color:var(--ink-soft); margin:0 2px 10px;">' + SeevaData.escapeHTML(tr('{name} ti ha invitato', { name: ownerLabel })) + '</div>'
+          + photoHTML
+          + '<div data-no-i18n style="font-family:\'Fraunces\',serif; font-weight:700; font-size:24px; line-height:1.25; margin:0 2px 12px;">' + SeevaData.escapeHTML(event.name) + '</div>'
+          + '<div class="settings-row" style="cursor:default; margin-bottom:8px;"><div class="left">📅 ' + SeevaData.escapeHTML(whenLabel) + '</div></div>'
+          + (place ? '<div class="settings-row" style="cursor:default; margin-bottom:8px;"><div class="left" data-no-i18n>📍 ' + SeevaData.escapeHTML(place) + '</div></div>' : '')
+          + descHTML
+          + goingHTML;
+      }
+
+      function renderInvite() {
+        var info = SeevaData.computeEventStatus(event);
+        var dates = sortedDateOptions();
+        var bodyHTML = '';
+        var mode = 'none';
+
+        if (info.status === 'cancelled') {
+          bodyHTML = '<div class="empty-hint" style="margin-top:18px;">Questo evento è stato annullato.</div>';
+        } else if (info.status === 'passato') {
+          bodyHTML = '<div class="empty-hint" style="margin-top:18px;">Questo evento è già passato.</div>';
+        } else if (info.status === 'done' && info.bestOption) {
+          mode = 'rsvp';
+        } else if (dates.length === 1) {
+          mode = 'rsvp';
+        } else if (dates.length > 1 && (info.status === 'waiting' || info.status === 'almost')) {
+          mode = 'vote';
+        } else {
+          // pareggio / l'organizzatore deve scegliere: si entra e basta
+          mode = 'enter';
+        }
+
+        if (mode === 'rsvp') {
+          bodyHTML = ''
+            + '<div class="section-title" style="margin-top:22px;">Ci sarai?</div>'
+            + '<div class="rsvp-seg" style="flex-direction:column; gap:10px;">'
+            + '<button type="button" class="rsvp-seg-btn is-yes is-active" data-answer="yes" style="min-height:54px; font-size:16px;">Ci sono</button>'
+            + '<div style="display:flex; gap:10px;">'
+            + '<button type="button" class="rsvp-seg-btn is-maybe" data-answer="maybe" style="min-height:50px; font-size:15px;">Forse</button>'
+            + '<button type="button" class="rsvp-seg-btn is-no" data-answer="no" style="min-height:50px; font-size:15px;">Non ci sono</button>'
+            + '</div>'
+            + '</div>';
+        } else if (mode === 'vote') {
+          var cards = dates.map(function (opt) {
+            var p = SeevaData.dayParts(opt.dateISO);
+            var mon = p.mon ? p.mon.charAt(0).toUpperCase() + p.mon.slice(1) : '';
+            return '<div class="chip day-card" data-option-id="' + opt.id + '">'
+              + '<div class="day-dow">' + SeevaData.escapeHTML(p.dow) + '</div>'
+              + '<div class="day-num">' + SeevaData.escapeHTML(String(p.day)) + '</div>'
+              + '<div class="day-month">' + SeevaData.escapeHTML(mon) + '</div>'
+              + '<div class="chip-check">✓</div>'
+              + '</div>';
+          }).join('');
+          var deadline = info.voteDeadlineLabel ? '<div class="field-hint" style="margin:-4px 2px 10px;">' + SeevaData.escapeHTML(tr('Si vota fino a {when}', { when: info.voteDeadlineLabel })) + '</div>' : '';
+          bodyHTML = ''
+            + '<div class="section-title" style="margin-top:22px;">Quando puoi?</div>'
+            + '<div class="card-date" style="margin:0 2px 10px;">Tocca tutti i giorni in cui puoi venire.</div>'
+            + deadline
+            + '<div class="day-grid" id="inviteDayGrid">' + cards + '</div>'
+            + '<div class="form-error" id="voteError"></div>'
+            + '<button type="button" class="primary-btn" id="voteSendBtn">Invia →</button>'
+            + '<div style="text-align:center;"><span class="signup-skip-link" id="voteNoneLink">Non posso in nessuno di questi giorni</span></div>';
+        } else if (mode === 'enter') {
+          bodyHTML = ''
+            + '<div class="card-date" style="margin:18px 2px 12px;">L\'organizzatore sta scegliendo la data.</div>'
+            + '<button type="button" class="primary-btn" id="inviteEnterBtn">Entra nell\'evento →</button>';
+        }
+
+        contentEl.innerHTML = ''
+          + inviteHeaderHTML(info)
+          + bodyHTML
+          + '<div style="text-align:center; margin-top:14px;"><span class="signup-skip-link" id="inviteLoginLink">Hai già un account? Accedi</span></div>';
+
+        if (window.SeevaUI) window.SeevaUI.refresh();
+
+        document.getElementById('inviteLoginLink').addEventListener('click', renderSelection);
+
+        contentEl.querySelectorAll('[data-answer]').forEach(function (b) {
+          b.addEventListener('click', function () {
+            var key = b.getAttribute('data-answer');
+            var optId = (info.status === 'done' && info.bestOption) ? info.bestOption.id : dates[0].id;
+            pendingAnswer = key === 'yes' ? { kind: 'yes', ids: [optId] } : { kind: key, ids: [] };
+            renderWho();
+          });
+        });
+
+        var grid = document.getElementById('inviteDayGrid');
+        if (grid) {
+          grid.querySelectorAll('.chip').forEach(function (chip) {
+            chip.addEventListener('click', function () {
+              chip.classList.toggle('selected');
+              document.getElementById('voteError').textContent = '';
+            });
+          });
+          document.getElementById('voteSendBtn').addEventListener('click', function () {
+            var ids = Array.prototype.map.call(grid.querySelectorAll('.chip.selected'), function (c) { return c.getAttribute('data-option-id'); });
+            if (!ids.length) {
+              document.getElementById('voteError').textContent = 'Tocca almeno un giorno, oppure "Non posso in nessuno di questi giorni".';
+              return;
+            }
+            pendingAnswer = { kind: 'dates', ids: ids };
+            renderWho();
+          });
+          document.getElementById('voteNoneLink').addEventListener('click', function () {
+            pendingAnswer = { kind: 'no', ids: [] };
+            renderWho();
+          });
+        }
+
+        var enterBtn = document.getElementById('inviteEnterBtn');
+        if (enterBtn) enterBtn.addEventListener('click', function () {
+          pendingAnswer = null;
+          renderWho();
+        });
+      }
+
+      /* "Chi sei?": i nomi messi dall'organizzatore ancora liberi, più
+         (solo su invito aperto) "Il mio nome non c'è". I nomi già collegati
+         a un account non si mostrano come scelte: per quelli c'è il link
+         "Accedi" in fondo. */
+      function renderWho() {
+        var free = invitees.filter(function (f) { return !f.isClaimed; });
+        var anyClaimed = invitees.some(function (f) { return f.isClaimed; });
+
+        var rows = free.map(function (f) {
+          return ''
+            + '<div class="settings-row reveal" data-who="' + f.id + '" style="cursor:pointer; min-height:52px;">'
+            + '<div class="left" data-no-i18n style="font-size:16px;">' + SeevaData.escapeHTML(f.name) + '</div>'
+            + '<div style="color:var(--ink-soft);">Sono io →</div>'
+            + '</div>';
+        }).join('');
+
+        var selfHTML = event.openInvite
+          ? ''
+            + '<div class="field" style="margin-top:' + (free.length ? '18px' : '0') + ';">'
+            + (free.length ? '<label>Il mio nome non c\'è</label>' : '')
+            + '<input type="text" id="whoNameInput" placeholder="Il tuo nome" autocomplete="given-name"></div>'
+            + '<button type="button" class="primary-btn" id="whoNameBtn">Conferma →</button>'
+          : '';
+
+        var emptyHTML = (!free.length && !event.openInvite)
+          ? '<div class="empty-hint">Tutti i nomi di questo invito sono già collegati a un account: se sei uno di loro, accedi.</div>'
+            + '<a class="primary-btn" href="profilo.html?mode=login" style="display:block; text-align:center; text-decoration:none;">Accedi →</a>'
+          : '';
+
+        contentEl.innerHTML = ''
+          + '<div class="section-title" style="margin-top:4px;">Ultimo passo: chi sei?</div>'
+          + '<div class="card-date" style="margin:0 2px 14px;">' + (free.length ? 'Tocca il tuo nome.' : 'Scrivi il tuo nome, così gli altri sanno chi sei.') + '</div>'
+          + rows
+          + selfHTML
+          + emptyHTML
+          + '<div class="form-error" id="inviteError"></div>'
+          + (anyClaimed && (free.length || event.openInvite) ? '<div style="text-align:center; margin-top:10px;"><span class="signup-skip-link" id="whoLoginLink">Il tuo nome ha già un account? Accedi</span></div>' : '')
+          + '<div class="signup-skip-link" id="whoBackLink">← Torna all\'invito</div>';
+
+        if (window.SeevaUI) window.SeevaUI.refresh();
+
+        document.getElementById('whoBackLink').addEventListener('click', renderInvite);
+        var loginLink = document.getElementById('whoLoginLink');
+        if (loginLink) loginLink.addEventListener('click', renderSelection);
+
+        contentEl.querySelectorAll('[data-who]').forEach(function (row) {
+          row.addEventListener('click', function () {
+            var f = invitees.filter(function (x) { return x.id === row.getAttribute('data-who'); })[0];
+            if (f) saveGuestAnswer(f, f.name, row);
+          });
+        });
+
+        var nameBtn = document.getElementById('whoNameBtn');
+        if (nameBtn) nameBtn.addEventListener('click', function () {
+          var typed = document.getElementById('whoNameInput').value.trim();
+          if (!typed) { document.getElementById('inviteError').textContent = 'Scrivi il tuo nome.'; return; }
+          // Se il nome scritto è proprio uno di quelli in lista, si usa quello
+          // (evita l'errore "c'è già un invitato con questo nome").
+          var match = free.filter(function (x) { return (x.name || '').trim().toLowerCase() === typed.toLowerCase(); })[0];
+          saveGuestAnswer(match || { id: null, name: typed }, typed, nameBtn);
+        });
+      }
+
+      var savingGuest = false;
+      async function saveGuestAnswer(friend, name, el) {
+        if (savingGuest) return;
+        savingGuest = true;
+        var errorEl = document.getElementById('inviteError');
+        if (errorEl) errorEl.textContent = '';
+        if (el) el.style.opacity = '0.6';
+
+        var result;
+        try {
+          result = friend.id
+            ? await SeevaData.claimEventInvitee(token, friend.id, name, null)
+            : await SeevaData.addSelfAsInvitee(token, name, null);
+        } catch (err) {
+          savingGuest = false;
+          if (el) el.style.opacity = '';
+          if (errorEl) errorEl.textContent = SeevaData.friendlyErrorMessage(err);
+          return;
+        }
+
+        var finalName = (result && result.name) || name;
+        SeevaData.setGuestName(finalName);
+        SeevaData.addGuestEventLock(eventId);
+
+        if (!pendingAnswer) {
+          window.location.href = 'evento.html?id=' + encodeURIComponent(eventId);
+          return;
+        }
+
+        try {
+          await SeevaData.upsertParticipant(eventId, finalName, pendingAnswer.ids, [], undefined, pendingAnswer.kind === 'maybe');
+        } catch (err) {
+          // Il nome è salvato, la risposta no: si va sull'evento a ridarla.
+          try { sessionStorage.setItem('seeva:toast', 'Non sono riuscito a salvare la risposta: ridalla qui sotto.'); } catch (e) { /* ignora */ }
+          window.location.href = 'evento.html?id=' + encodeURIComponent(eventId);
+          return;
+        }
+        renderDone(finalName);
+      }
+
+      function renderDone(finalName) {
+        var a = pendingAnswer || {};
+        var answerLine;
+        if (a.kind === 'yes') answerLine = tr('Hai risposto: {answer}', { answer: tr('Ci sono') });
+        else if (a.kind === 'maybe') answerLine = tr('Hai risposto: {answer}', { answer: tr('Forse') });
+        else if (a.kind === 'no') answerLine = tr('Hai risposto: {answer}', { answer: tr('Non ci sono') });
+        else if (a.kind === 'dates') answerLine = a.ids.length === 1 ? tr('Hai segnato 1 giorno') : tr('Hai segnato {n} giorni', { n: a.ids.length });
+        else answerLine = '';
+
+        var locNote = ((event.locationOptions || []).length > 1 && a.kind !== 'no')
+          ? '<div class="card-date" style="margin:0 2px 14px;">C\'è anche da scegliere il posto: lo trovi nell\'evento.</div>'
+          : '';
+
+        contentEl.innerHTML = ''
+          + '<div style="text-align:center; padding:18px 6px 6px;">'
+          + '<div style="font-size:40px; margin-bottom:6px;">🎉</div>'
+          + '<div style="font-family:\'Fraunces\',serif; font-weight:700; font-size:24px; margin-bottom:8px;">Fatto!</div>'
+          + '<div style="font-size:15px; margin-bottom:4px;">' + SeevaData.escapeHTML(answerLine) + '</div>'
+          + '<div class="card-date" style="margin:0 0 18px;">' + SeevaData.escapeHTML(tr('{owner} lo vede subito. Puoi cambiare idea quando vuoi.', { owner: ownerLabel })) + '</div>'
+          + '</div>'
+          + locNote
+          + '<a class="primary-btn" href="evento.html?id=' + encodeURIComponent(eventId) + '" style="display:block; text-align:center; text-decoration:none;">Vedi l\'evento →</a>'
+          + '<div class="share-box" style="text-align:center; margin-top:18px;">'
+          + '<div class="share-label" style="margin-bottom:8px;">Vuoi un promemoria il giorno prima?</div>'
+          + '<div class="card-date" style="margin:0 0 12px;">Con un profilo gratuito ricevi gli avvisi e ritrovi tutti i tuoi eventi. Ci vuole un minuto, e questa risposta resta tua.</div>'
+          + '<a class="primary-btn" href="profilo.html" style="display:block; text-decoration:none; margin-bottom:0; background:var(--card); color:var(--ink); box-shadow:0 2px 8px rgba(58,50,90,0.08);">Crea il profilo</a>'
+          + '</div>';
+
+        if (window.SeevaUI) window.SeevaUI.refresh();
+        // la stessa proposta in evento.html sarebbe un doppione: già vista qui
+        try { localStorage.setItem('seeva:guestAppNudgeSeen', '1'); } catch (err) { /* ignora */ }
+      }
+
       /* ---------- conferma definitiva verso il database ---------- */
       async function confirmClaim(friend, name, accountId, btn) {
         var errorEl = document.getElementById('inviteError');
@@ -587,9 +897,40 @@
       }
 
       if (SeevaData.hasAccount()) {
+        /* Link nel gruppo (Fil, 2026-10-25): chi ha già un account ed è già
+           tra gli invitati va dritto all'evento; se il link è aperto a tutti
+           si aggiunge da solo (o prende il suo nome se l'organizzatore
+           l'aveva scritto uguale) e va all'evento. Solo negli altri casi
+           resta la scelta del nome di prima. */
+        var meAcc = SeevaData.getAccount();
+        var meLower = String(meAcc.username || '').trim().toLowerCase();
+        var rawInv = event.invitees || [];
+        var goEvent = function () { window.location.replace('evento.html?id=' + encodeURIComponent(eventId)); };
+        if (rawInv.some(function (f) { return f.accountId === meAcc.id; }) || event.createdByAccountId === meAcc.id) { goEvent(); return; }
+        if (event.openInvite) {
+          contentEl.innerHTML = '<div class="empty-hint">Ti aggiungo all\'evento…</div>';
+          try {
+            var sameName = rawInv.filter(function (f) { return !f.claimedAt && String(f.name || '').trim().toLowerCase() === meLower; })[0];
+            if (sameName) await SeevaData.claimEventInvitee(token, sameName.id, null, meAcc.id);
+            else await SeevaData.addSelfAsInvitee(token, null, meAcc.id);
+            try { sessionStorage.setItem('seeva:toast', 'Sei dentro ✓ Rispondi qui sotto'); } catch (e) { /* ignora */ }
+            goEvent();
+            return;
+          } catch (err) { /* qualcosa non va: si torna alla scelta del nome */ }
+        }
         renderSelection();
       } else {
-        renderWelcome();
+        // Ospite che su questo telefono è già entrato in QUESTO evento (con
+        // la sua risposta): niente da rifare, dritto all'evento.
+        var gl = SeevaData.getGuestLock();
+        var already = gl && SeevaData.getGuestName() && ((Array.isArray(gl.eventIds) && gl.eventIds.indexOf(eventId) !== -1) || gl.id === eventId);
+        if (already) {
+          window.location.replace('evento.html?id=' + encodeURIComponent(eventId));
+          return;
+        }
+        // Prima qui c'era renderWelcome() (presentazione dell'app): ora si
+        // parte direttamente dall'invito con i pulsanti per rispondere.
+        renderInvite();
       }
     })();
   </script>

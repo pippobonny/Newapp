@@ -408,6 +408,29 @@
     try { window.localStorage.removeItem(GUEST_LOCK_KEY); } catch (err) { /* ignora */ }
   }
 
+  /* "Rispondi prima, registrati dopo" (Fil, 2026-10-25): chi ha risposto
+     come ospite da un link e poi crea un account (o accede) su questo
+     telefono ritrova quelle risposte nel suo account, e quindi l'evento
+     nella sua Home. Si passa alla RPC solo la lista degli eventi in cui
+     questo telefono era entrato come ospite + il nome usato. Non blocca mai
+     l'accesso: se qualcosa va storto, l'account funziona comunque. */
+  async function adoptGuestAnswers() {
+    var lock = getGuestLock();
+    var guest = readJSON(GUEST_KEY, null);
+    clearGuestLock();
+    var ids = [];
+    if (lock && Array.isArray(lock.eventIds)) ids = lock.eventIds.slice();
+    else if (lock && lock.type === 'event' && lock.id) ids = [lock.id];
+    if (!ids.length || !guest) return;
+    try {
+      var res = await supabase.rpc('link_guest_answers', { p_event_ids: ids, p_guest_name: guest });
+      if (!res.error) {
+        try { window.localStorage.removeItem(GUEST_KEY); } catch (err) { /* ignora */ }
+        clearEventsCache();
+      }
+    } catch (err) { /* non blocca */ }
+  }
+
   /* Ogni pagina chiama questo all'inizio per sapere cosa fare:
      - { action: 'allow' }       → hai un account, nessuna restrizione
      - { action: 'allowLocked' } → sei un ospite bloccato, ma sei nel posto
@@ -600,7 +623,7 @@
 
     var acc = { id: res.data.id, username: res.data.username, avatarUrl: res.data.avatarUrl || '' };
     saveAccountLocal(acc);
-    clearGuestLock();
+    await adoptGuestAnswers();
     notifyAccountCreated(acc.id);
     return acc;
   }
@@ -1296,6 +1319,20 @@
     });
   }
 
+  /* Ricerca persone per la schermata "Cerca e aggiungi" (2026-10-25):
+     come searchAccounts ma torna anche nome e cognome (search_people). */
+  async function searchPeople(query) {
+    var q = (query || '').trim();
+    if (q.length < 2) return [];
+    try {
+      var res = await supabase.rpc('search_people', { p_query: q });
+      if (res.error) return [];
+      return (res.data || []).map(function (row) {
+        return { id: row.id, username: row.username, avatarUrl: row.avatar_url, fullName: row.full_name || '' };
+      });
+    } catch (err) { return []; }
+  }
+
   async function removeFriendFromList(listId, friendId) {
     await assertOwnsFriendList(listId);
     var res = await supabase.from('friends').delete().eq('id', friendId);
@@ -1319,7 +1356,7 @@
 
     var acc = { id: profileRes.data.id, username: profileRes.data.username, avatarUrl: profileRes.data.avatarUrl || '' };
     saveAccountLocal(acc);
-    clearGuestLock();
+    await adoptGuestAnswers();
     return acc;
   }
 
@@ -1353,7 +1390,7 @@
 
     var acc = { id: res.data.id, username: res.data.username, avatarUrl: res.data.avatarUrl || '' };
     saveAccountLocal(acc);
-    clearGuestLock();
+    await adoptGuestAnswers();
     return acc;
   }
 
@@ -1433,7 +1470,7 @@
     if (!res.error && res.data) {
       var acc = { id: res.data.id, username: res.data.username, avatarUrl: res.data.avatarUrl || '' };
       saveAccountLocal(acc);
-      clearGuestLock();
+      await adoptGuestAnswers();
       return { needsProfile: false, account: acc };
     }
 
@@ -1466,7 +1503,7 @@
 
     var acc = { id: res.data.id, username: res.data.username, avatarUrl: res.data.avatarUrl || '' };
     saveAccountLocal(acc);
-    clearGuestLock();
+    await adoptGuestAnswers();
     return acc;
   }
 
@@ -4054,6 +4091,7 @@
     getMyPendingFriendRequests: getMyPendingFriendRequests,
     respondFriendRequest: respondFriendRequest,
     acceptFriendInviteToken: acceptFriendInviteToken,
+    searchPeople: searchPeople,
     getEventInviteInfo: getEventInviteInfo,
     claimEventInvitee: claimEventInvitee,
     addSelfAsInvitee: addSelfAsInvitee,
