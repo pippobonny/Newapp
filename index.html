@@ -177,37 +177,109 @@
       }
 
       function renderFeed(mine, cancelledCount) {
+        /* Home "solo cose da fare" (Fil, 2026-10-25, scelta tra 3 bozze):
+           - in cima "Hai N cose da fare": schede grandi e pulite, una alla
+             volta, da scorrere di lato (pallini sotto);
+           - poi "In programma questa settimana" a righe di una sola linea
+             (se questa settimana non c'è niente: "Il prossimo");
+           - in fondo "Apri l'agenda". Niente più "Hai risposto a tutti". */
+        var esc = SeevaData.escapeHTML;
         var html = '';
-        var upcoming = mine.undecided.concat(mine.agenda);
-        if (mine.toAnswer.length) {
-          html += '<div class="hm-section">'
-            + sectionHead('Da rispondere', mine.toAnswer.length, mine.toAnswer.length > TO_ANSWER_MAX ? 'eventi.html?only=rispondere' : null, 'Vedi tutti →')
-            + mine.toAnswer.slice(0, TO_ANSWER_MAX).map(function (it) { return SeevaData.renderMyEventCardHTML(it, { actions: true }); }).join('')
-            + '</div>';
-        } else if (upcoming.length) {
-          html += '<div class="hm-allgood"><span>✓</span><span>Hai risposto a tutti gli inviti</span></div>';
+        var todo = mine.toAnswer;
+        if (todo.length) {
+          html += '<div class="hm-todo-title">' + esc(todo.length === 1 ? t('Hai 1 cosa da fare') : t('Hai {n} cose da fare', { n: todo.length })) + '</div>'
+            + '<div class="hm-swipe" id="hmSwipe">' + todo.map(actionCardHTML).join('') + '</div>'
+            + (todo.length > 1 ? '<div class="hm-dots" id="hmDots">' + todo.map(function (x, i) { return '<i' + (i === 0 ? ' class="on"' : '') + '></i>'; }).join('') + '</div>' : '');
         }
-        if (upcoming.length) {
-          html += '<div class="hm-section">'
-            + sectionHead('In programma', 0, 'eventi.html?only=agenda', upcoming.length > AGENDA_MAX ? 'Tutta l\'agenda →' : 'Agenda →')
-            + upcoming.slice(0, AGENDA_MAX).map(function (it) { return SeevaData.renderMyEventCardHTML(it); }).join('')
-            + '</div>';
+
+        var upcoming = mine.agenda.slice().sort(function (a, b) { return a.dateISO < b.dateISO ? -1 : 1; });
+        var weekEnd = new Date(); weekEnd.setDate(weekEnd.getDate() + 7);
+        var weekEndISO = weekEnd.getFullYear() + '-' + ('0' + (weekEnd.getMonth() + 1)).slice(-2) + '-' + ('0' + weekEnd.getDate()).slice(-2);
+        var thisWeek = upcoming.filter(function (i) { return i.dateISO && i.dateISO <= weekEndISO; });
+        var rows = thisWeek.length ? thisWeek : upcoming.slice(0, 1);
+        if (rows.length) {
+          html += '<div class="hm-week-title">' + esc(thisWeek.length ? 'In programma questa settimana' : 'Il prossimo') + '</div>'
+            + '<div class="hm-rows">' + rows.map(rowHTML).join('') + '</div>';
         }
-        if (!mine.toAnswer.length && !upcoming.length) {
+
+        if (!todo.length && !upcoming.length && !mine.undecided.length) {
           html += '<div class="hm-section"><div class="hm-empty">'
             + '<div class="hm-empty-emoji">🗓️</div>'
             + '<div class="hm-empty-title">Niente in programma</div>'
-            + '<div class="hm-empty-text">Proponi una serata, una cena o un weekend: scegli il giorno, invita gli amici e loro rispondono con un tocco.</div>'
+            + '<div class="hm-empty-text">Proponi una serata, una cena o un weekend: scegli il giorno, manda il link nel gruppo e gli amici rispondono con un tocco.</div>'
             + '<a class="primary-btn" href="crea.html" style="display:block; text-decoration:none; margin-bottom:0;">Crea un evento</a>'
             + '</div></div>';
+        } else {
+          html += '<a class="hm-agenda-btn" href="eventi.html?only=agenda">Apri l\'agenda</a>';
         }
         if (cancelledCount > 0) {
-          html += '<div class="hm-foot"><a href="eventi.html?only=annullati">' + SeevaData.escapeHTML(cancelledCount === 1 ? t('1 annullato o a cui non vai') : t('{n} annullati o a cui non vai', { n: cancelledCount })) + ' →</a></div>';
+          html += '<div class="hm-foot"><a href="eventi.html?only=annullati">' + esc(cancelledCount === 1 ? t('1 annullato o a cui non vai') : t('{n} annullati o a cui non vai', { n: cancelledCount })) + '</a></div>';
         }
         if (html === lastFeedHTML) return;
         lastFeedHTML = html;
         homeFeed.innerHTML = html;
+        bindSwipeDots();
         if (window.SeevaUI) window.SeevaUI.refresh();
+      }
+
+      function actionCardHTML(item) {
+        var esc = SeevaData.escapeHTML;
+        var ev = item.event;
+        var href = 'evento.html?id=' + encodeURIComponent(ev.id);
+        var who, when, body;
+        if (item.kind === 'pickDate') {
+          who = 'Organizzi tu';
+          when = (item.info && item.info.noVotes) ? 'Nessuno ha votato: scegli tu la data' : 'Pareggio: scegli tu la data';
+          body = '<a class="hm-act-btn is-dark" href="' + href + '">Scegli la data</a>';
+        } else if (item.kind === 'vote') {
+          var n = (ev.dateOptions || []).length;
+          who = t('{who} propone {n} date', { who: ev.createdBy || 'Qualcuno', n: n });
+          when = (item.info && item.info.voteDeadlineLabel) ? t('Si vota fino a {when}', { when: item.info.voteDeadlineLabel }) : 'Scegli quando puoi';
+          body = '<a class="hm-act-btn is-dark" href="' + href + '">Vota le date</a>';
+        } else {
+          who = t('{who} ti invita', { who: ev.createdBy || 'Qualcuno' });
+          when = item.dateISO ? SeevaData.formatDateTimeLabel(item.dateISO, ev.eventTime) : '';
+          body = '<div class="my-card-actions hm-act-row" data-event-id="' + esc(ev.id) + '" data-option-id="' + esc(item.optionId || '') + '" data-date-iso="' + esc(item.dateISO || '') + '">'
+            + '<button type="button" class="hm-act-btn is-yes" data-quick="yes">Ci sono</button>'
+            + '<button type="button" class="hm-act-btn" data-quick="maybe">Forse</button>'
+            + '<button type="button" class="hm-act-btn" data-quick="no">No</button>'
+            + '</div>';
+        }
+        var place = '';
+        try { place = SeevaData.resolveEventLocation(ev).address || ''; } catch (err) { place = ''; }
+        return '<div class="hm-act my-card">'
+          + '<a class="hm-act-top" href="' + href + '">'
+          + '<div class="hm-act-who" data-no-i18n>' + esc(who) + '</div>'
+          + '<div class="hm-act-name" data-no-i18n>' + esc(ev.name) + '</div>'
+          + '<div class="hm-act-when">' + esc(when) + (place ? '<span class="hm-act-place" data-no-i18n> · ' + esc(place) + '</span>' : '') + '</div>'
+          + '</a>'
+          + body
+          + '</div>';
+      }
+
+      function rowHTML(item) {
+        var esc = SeevaData.escapeHTML;
+        var ev = item.event;
+        var dp = SeevaData.dayParts(item.dateISO);
+        var rel = SeevaData.relativeDayWord(item.dateISO);
+        var status = item.myKey === 'maybe' ? '<span class="hm-row-st is-maybe">Forse</span>'
+          : item.myKey === 'organizer' ? '<span class="hm-row-st is-org">Organizzi</span>'
+          : '<span class="hm-row-st is-yes">✓</span>';
+        return '<a class="hm-row" href="evento.html?id=' + encodeURIComponent(ev.id) + '">'
+          + '<span class="hm-row-date' + (rel ? ' is-soon' : '') + '">' + esc(rel || (dp.dow + ' ' + dp.day)) + '</span>'
+          + '<span class="hm-row-name" data-no-i18n>' + esc(ev.name) + '</span>'
+          + status + '</a>';
+      }
+
+      function bindSwipeDots() {
+        var sw = document.getElementById('hmSwipe');
+        var dots = document.getElementById('hmDots');
+        if (!sw || !dots) return;
+        sw.addEventListener('scroll', function () {
+          var w = sw.clientWidth || 1;
+          var idx = Math.round(sw.scrollLeft / (w * 0.88));
+          Array.prototype.forEach.call(dots.children, function (d, i) { d.classList.toggle('on', i === idx); });
+        }, { passive: true });
       }
 
       // Risposta rapida dalle card "Da rispondere" (stessa logica di eventi.html).
@@ -253,7 +325,7 @@
           return;
         }
         if (window.SeevaUI && window.SeevaUI.toast) {
-          window.SeevaUI.toast(key === 'yes' ? 'Ci sei ✓ — lo trovi in programma' : key === 'maybe' ? 'Forse 🤔 — lo trovi in programma' : 'Non ci sei — lo trovi negli annullati');
+          window.SeevaUI.toast(key === 'yes' ? 'Ci sei ✓ — lo trovi in agenda' : key === 'maybe' ? 'Forse 🤔 — lo trovi in agenda' : 'Non ci sei');
         }
         if (card) card.classList.add('is-leaving');
         window.setTimeout(async function () {

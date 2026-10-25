@@ -2667,7 +2667,8 @@
 
     render();
     requestAnimationFrame(function () { requestAnimationFrame(function () { ov.classList.add('show'); }); });
-    window.setTimeout(function () { try { input.focus({ preventScroll: true }); } catch (err) { /* ignora */ } }, 250);
+    // Niente tastiera all'apertura (Fil, 2026-10-25): prima si scorrono gli
+    // amici già noti e si spuntano; per cercare qualcun altro si tocca il campo.
   }
 
   window.SeevaUI = {
