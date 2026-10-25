@@ -94,42 +94,10 @@
     </div>
 
     <div class="content">
-      <div class="home-grid home-grid-actions">
-        <a class="home-tile is-action reveal" href="crea.html">
-          <div class="home-tile-deco is-small pos-mr"></div>
-          <svg class="home-tile-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          <div class="home-tile-label">Nuova proposta</div>
-        </a>
-        <a class="home-tile is-action reveal" href="amici.html">
-          <div class="home-tile-deco is-small pos-tr"></div>
-          <svg class="home-tile-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3"></circle><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"></path><circle cx="17" cy="9" r="2.4"></circle><path d="M15.5 13.3c2.6 0.3 4.5 2.2 4.5 5.7"></path></svg>
-          <div class="home-tile-label">Amici</div>
-        </a>
-      </div>
-
-      <div class="section-title home-events-title">I tuoi eventi</div>
-      <div class="home-grid home-grid-events">
-        <!-- Nuova Home (Fil, 2026-10-04): i riquadri parlano di TE, non
-             dello stato dell'evento. Grande = cose da fare (rispondere,
-             votare, scegliere la data); verde = la tua agenda; rosso =
-             annullati e quelli a cui non vai. Vedi classifyMyEvents. -->
-        <a class="home-tile is-big reveal" href="eventi.html?only=rispondere">
-          <div class="home-tile-deco"></div>
-          <svg class="home-tile-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8.5 8.5 0 0 1-12.6 7.4L3 21l1.6-5.1A8.5 8.5 0 1 1 21 12z"></path></svg>
-          <div><div class="home-tile-num" id="tileWaitingNum">0</div><div class="home-tile-label">Da rispondere</div></div>
-        </a>
-        <a class="home-tile is-mid reveal" href="eventi.html?only=agenda">
-          <div class="home-tile-deco is-small pos-mr"></div>
-          <svg class="home-tile-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"></rect><line x1="16" y1="3" x2="16" y2="7"></line><line x1="8" y1="3" x2="8" y2="7"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-          <div><div class="home-tile-num" id="tileConfirmedNum">0</div><div class="home-tile-label">La tua agenda</div></div>
-        </a>
-        <a class="home-tile is-cancel reveal" href="eventi.html?only=annullati">
-          <div class="home-tile-deco is-small"></div>
-          <svg class="home-tile-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5l5 5M14.5 9.5l-5 5"></path></svg>
-          <div><div class="home-tile-num" id="tileCancelledNum">0</div><div class="home-tile-label">Annullati</div></div>
-        </a>
-      </div>
-      <div id="homeNextSlot" class="home-next-slot"></div>
+      <!-- Home nuova (Fil + Virgi, 2026-10-25): niente più riquadri
+           colorati da aprire, gli eventi stanno direttamente qui (vedi
+           renderFeed sotto). Crea e Amici sono nella barra in basso. -->
+      <div id="homeFeed"></div>
     </div>
    </div>
 
@@ -183,61 +151,121 @@
       }
 
       // swipeToRemove: true solo qui in Home (Fil, 2026-07-20) — vedi il
-      var tileWaitingNum = document.getElementById('tileWaitingNum');
-      var tileConfirmedNum = document.getElementById('tileConfirmedNum');
-      var tileCancelledNum = document.getElementById('tileCancelledNum');
       var bellBadge = document.getElementById('bellBadge');
       var homeBellEl = document.getElementById('homeBell');
-
-      // I numeri sui riquadri "contano su" invece di comparire di colpo
-      // (Fil, 2026-08-23) — stessa animateCount già usata per i numeri
-      // delle barre di progresso (script.js), solo esposta anche qui.
-      // Solo la prima volta (come le barre di progresso, mai ri-animate):
-      // se il numero cambia in un giro di refresh automatico successivo
-      // (raro: vorrebbe dire che qualcuno ha risposto a un evento proprio
-      // mentre stai guardando la Home) si aggiorna e basta, di scatto —
-      // altrimenti l'animazione ripartirebbe da 0 ogni volta, sembrando un
-      // reset invece che un aggiornamento.
-      var lastTileCounts = { waiting: null, confirmed: null, cancelled: null };
-      // Per capire se una notifica è "nuova" rispetto all'ultimo giro di
-      // refreshHome (non solo "non letta": quella potrebbe già esserci da
-      // prima) — vedi uso più sotto, insieme a flashAttendanceBadge.
       var lastNotifKey = null;
       var notifBellInitialized = false;
-      function setTileCount(el, key, value) {
-        if (lastTileCounts[key] === value) return;
-        var isFirstRender = lastTileCounts[key] === null;
-        lastTileCounts[key] = value;
-        if (isFirstRender && window.SeevaUI && window.SeevaUI.animateCount) {
-          window.SeevaUI.animateCount(el, value, 700);
-        } else {
-          el.textContent = value;
-        }
+
+      /* ---------- Home nuova (Fil + Virgi, 2026-10-25) ----------
+         1) "Da rispondere": le card con i pulsanti Ci sono/Forse/Non ci
+            sono (le stesse della lista in eventi.html, stessa risposta
+            rapida qui sotto) — le prime 4, poi "Vedi tutti".
+         2) "In programma": data da decidere + agenda, i prossimi 5.
+         3) In fondo, piccolo, il link agli annullati (se ce ne sono).
+         Niente in programma e niente da rispondere -> invito a creare. */
+      var homeFeed = document.getElementById('homeFeed');
+      var homeEvents = [];
+      var lastFeedHTML = null;
+      var homeSaving = false;
+      var TO_ANSWER_MAX = 4;
+      var AGENDA_MAX = 5;
+
+      function sectionHead(title, count, moreHref, moreLabel) {
+        return '<div class="hm-section-head"><div class="hm-section-title">' + SeevaData.escapeHTML(title)
+          + (count ? ' <span class="hm-count">' + count + '</span>' : '') + '</div>'
+          + (moreHref ? '<a class="hm-more" href="' + moreHref + '">' + SeevaData.escapeHTML(moreLabel) + '</a>' : '') + '</div>';
       }
 
-      // Conteggi per i riquadri + pallino notifiche sulla campanella, insieme
-      // in una funzione sola perché usano entrambi la stessa lista eventi:
-      // richiamata al primo caricamento e poi da sola ogni tot secondi
-      // (Fil, 2026-07-21: niente più refresh manuale della pagina per
-      // vedere un evento nuovo o una notifica arrivata mentre questa scheda
-      // era già aperta — vedi SeevaData.startAutoRefresh in data.js).
-      // 2026-08-22 (restyling): la Home non renderizza più le card degli
-      // eventi (via "In evidenza", più spazio ai riquadri) — solo i tre
-      // conteggi. Le liste vere vivono in eventi.html?only=... .
-      // "Il prossimo" sotto i riquadri: il primo evento in agenda con la
-      // data decisa. Niente in programma -> la riga sparisce.
-      var homeNextSlot = document.getElementById('homeNextSlot');
-      var lastNextHTML = null;
-      function renderHomeNext(item) {
-        var html = item ? '<div class="home-next-label">Il prossimo</div>' + SeevaData.renderMyEventCardHTML(item) : '';
-        if (html === lastNextHTML) return;
-        lastNextHTML = html;
-        homeNextSlot.innerHTML = html;
+      function renderFeed(mine, cancelledCount) {
+        var html = '';
+        var upcoming = mine.undecided.concat(mine.agenda);
+        if (mine.toAnswer.length) {
+          html += '<div class="hm-section">'
+            + sectionHead('Da rispondere', mine.toAnswer.length, mine.toAnswer.length > TO_ANSWER_MAX ? 'eventi.html?only=rispondere' : null, 'Vedi tutti →')
+            + mine.toAnswer.slice(0, TO_ANSWER_MAX).map(function (it) { return SeevaData.renderMyEventCardHTML(it, { actions: true }); }).join('')
+            + '</div>';
+        } else if (upcoming.length) {
+          html += '<div class="hm-allgood"><span>✓</span><span>Hai risposto a tutti gli inviti</span></div>';
+        }
+        if (upcoming.length) {
+          html += '<div class="hm-section">'
+            + sectionHead('In programma', 0, 'eventi.html?only=agenda', upcoming.length > AGENDA_MAX ? 'Tutta l\'agenda →' : 'Agenda →')
+            + upcoming.slice(0, AGENDA_MAX).map(function (it) { return SeevaData.renderMyEventCardHTML(it); }).join('')
+            + '</div>';
+        }
+        if (!mine.toAnswer.length && !upcoming.length) {
+          html += '<div class="hm-section"><div class="hm-empty">'
+            + '<div class="hm-empty-emoji">🗓️</div>'
+            + '<div class="hm-empty-title">Niente in programma</div>'
+            + '<div class="hm-empty-text">Proponi una serata, una cena o un weekend: scegli il giorno, invita gli amici e loro rispondono con un tocco.</div>'
+            + '<a class="primary-btn" href="crea.html" style="display:block; text-decoration:none; margin-bottom:0;">Crea un evento</a>'
+            + '</div></div>';
+        }
+        if (cancelledCount > 0) {
+          html += '<div class="hm-foot"><a href="eventi.html?only=annullati">' + SeevaData.escapeHTML(cancelledCount === 1 ? t('1 annullato o a cui non vai') : t('{n} annullati o a cui non vai', { n: cancelledCount })) + ' →</a></div>';
+        }
+        if (html === lastFeedHTML) return;
+        lastFeedHTML = html;
+        homeFeed.innerHTML = html;
+        if (window.SeevaUI) window.SeevaUI.refresh();
       }
+
+      // Risposta rapida dalle card "Da rispondere" (stessa logica di eventi.html).
+      var homeBusyMap = null;
+      homeFeed.addEventListener('click', async function (e) {
+        var btn = e.target.closest && e.target.closest('[data-quick]');
+        if (!btn || homeSaving) return;
+        e.preventDefault();
+        var box = btn.closest('.my-card-actions');
+        var card = btn.closest('.my-card');
+        var eventId = box.getAttribute('data-event-id');
+        var optionId = box.getAttribute('data-option-id');
+        var dateISO = box.getAttribute('data-date-iso');
+        var key = btn.getAttribute('data-quick');
+        var ev = homeEvents.filter(function (x) { return x.id === eventId; })[0];
+        if (!ev) return;
+        if (key === 'yes' && dateISO) {
+          try {
+            if (!homeBusyMap) homeBusyMap = await SeevaData.getMyBusyDates(null);
+            var others = (homeBusyMap[dateISO] || []).filter(function (b) { return b.eventId !== eventId; });
+            var b = SeevaData.classifyBusy(others, SeevaData.formatTimeLabel(ev.eventTime));
+            var unlockKey = 'seeva:busyUnlock:' + eventId + ':' + dateISO;
+            var unlocked = false;
+            try { unlocked = localStorage.getItem(unlockKey) === '1'; } catch (err) { /* ignora */ }
+            if (b.hard.length && !unlocked) {
+              if (!await SeevaUI.ask('Quel giorno hai già ' + b.hard.map(SeevaData.busyLabel).join(', ') + '.\n\nVuoi rispondere "Ci sono" lo stesso?')) return;
+              try { localStorage.setItem(unlockKey, '1'); } catch (err) { /* ignora */ }
+            }
+          } catch (err) { /* nel dubbio non blocchiamo */ }
+        }
+        homeSaving = true;
+        var buttons = box.querySelectorAll('button');
+        buttons.forEach(function (x) { x.disabled = true; });
+        var original = btn.textContent;
+        btn.textContent = 'Salvo...';
+        try {
+          await SeevaData.upsertParticipant(eventId, SeevaData.getGuestName(), key === 'yes' ? [optionId] : [], [], undefined, key === 'maybe');
+        } catch (err) {
+          homeSaving = false;
+          buttons.forEach(function (x) { x.disabled = false; });
+          btn.textContent = original;
+          SeevaUI.alert('Non sono riuscito a salvare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+          return;
+        }
+        if (window.SeevaUI && window.SeevaUI.toast) {
+          window.SeevaUI.toast(key === 'yes' ? 'Ci sei ✓ — lo trovi in programma' : key === 'maybe' ? 'Forse 🤔 — lo trovi in programma' : 'Non ci sei — lo trovi negli annullati');
+        }
+        if (card) card.classList.add('is-leaving');
+        window.setTimeout(async function () {
+          homeSaving = false;
+          await refreshHome();
+        }, 260);
+      });
 
       var cancelledExtra = 0;
       async function refreshHome(preloaded) {
         var events;
+        if (homeSaving) return;
         if (preloaded) {
           events = preloaded;
         } else {
@@ -254,25 +282,19 @@
         // Profilo.
         // Nuova Home (2026-10-04): stessa funzione che usano le liste
         // aperte dai riquadri, quindi i numeri coincidono sempre.
+        homeEvents = events;
         var mine = SeevaData.classifyMyEvents(events);
-        var waitingCount = mine.toAnswer.length;
-        var confirmedCount = mine.agenda.length + mine.undecided.length;
-        // Gli annullati a mano non si scaricano più con la lista (2026-10-05):
+        // Gli annullati a mano non si scaricano con la lista (2026-10-05):
         // qui se ne chiede solo il numero, in sottofondo.
-        var cancelledCount = mine.notGoing.length + cancelledExtra;
-        renderHomeNext(mine.next);
+        renderFeed(mine, mine.notGoing.length + cancelledExtra);
         if (!preloaded && SeevaData.getCancelledCount) {
           var activeIds = events.map(function (e) { return e.id; });
           SeevaData.getCancelledCount(activeIds).then(function (n) {
             if (n === cancelledExtra) return;
             cancelledExtra = n;
-            setTileCount(tileCancelledNum, 'cancelled', mine.notGoing.length + n);
-          }, function () { /* ignora: resta il numero di prima */ });
+            renderFeed(SeevaData.classifyMyEvents(homeEvents), mine.notGoing.length + n);
+          }, function () { /* ignora */ });
         }
-
-        setTileCount(tileWaitingNum, 'waiting', waitingCount);
-        setTileCount(tileConfirmedNum, 'confirmed', confirmedCount);
-        setTileCount(tileCancelledNum, 'cancelled', cancelledCount);
 
         // Pallino "hai notifiche nuove?" sulla campanella (Fil, 2026-07-17):
         // stessa lista costruita da notifiche.html (SeevaData.buildNotifications,

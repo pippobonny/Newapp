@@ -4000,3 +4000,192 @@ html.seeva-native body { min-height: 0; }
 /* Niente rettangolo blu/grigio quando si tocca un pulsante (si vedeva sul
    tasto indietro tondo). Vale anche per il sito su Android. */
 * { -webkit-tap-highlight-color: transparent; }
+
+/* ---------- Crea evento a schermata unica (Fil + Virgi, 2026-10-25) ----------
+   Tre sezioni numerate (Cosa / Quando / Chi inviti), bolle degli amici da
+   toccare, "Altre opzioni" chiuse in fondo. Niente card bianca attorno alle
+   sezioni: i campi sono già bianchi, si separano con spazio e una riga. */
+.cr-section { margin: 0 0 24px; }
+.cr-section + .cr-section { padding-top: 22px; border-top: 1px solid var(--track-soft); }
+.cr-section-title {
+  display: flex; align-items: center; gap: 10px;
+  font-family: 'Fraunces', serif; font-weight: 700; font-size: 20px;
+  color: var(--ink); margin: 2px 2px 14px;
+}
+.cr-num {
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  background: var(--peach); color: #fff;
+  font: 700 13px 'Inter', sans-serif;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.cr-opt { font-weight: 400; color: var(--ink-soft); margin-left: 4px; }
+.cr-link-btn {
+  display: inline-block; font-size: 13.5px; font-weight: 600; color: var(--peach);
+  padding: 8px 2px 4px; cursor: pointer; user-select: none;
+}
+.cr-link-btn:active { opacity: .6; }
+.cr-sub {
+  font-size: 11.5px; font-weight: 600; color: var(--ink-soft);
+  text-transform: uppercase; letter-spacing: .05em; margin: 0 2px 8px;
+}
+.cr-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.cr-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 12px 5px 5px; border-radius: 999px;
+  background: var(--card); border: 1.5px solid transparent;
+  box-shadow: 0 2px 8px rgba(58, 50, 90, 0.07);
+  font: 500 14px 'Inter', sans-serif; color: var(--ink);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: transform .12s ease, background .15s ease, border-color .15s ease;
+}
+.cr-chip:active { transform: scale(0.96); }
+.cr-chip-av {
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
+  background: var(--lavender-soft); color: var(--lavender-ink);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 12.5px;
+}
+.cr-chip-av img { width: 100%; height: 100%; object-fit: cover; }
+.cr-chip-tick {
+  display: none; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--peach); color: #fff; font-size: 10.5px;
+  align-items: center; justify-content: center;
+}
+.cr-chip.is-on { background: var(--peach-soft); border-color: var(--peach); }
+.cr-chip.is-on .cr-chip-tick { display: inline-flex; }
+.cr-chip.is-via-list { opacity: .7; cursor: default; }
+.cr-chip-count { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+.cr-more {
+  margin: 0 0 18px; border-radius: 18px;
+  border: 1.5px solid var(--track-soft);
+}
+.cr-more > summary {
+  list-style: none; cursor: pointer; position: relative;
+  padding: 14px 48px 14px 16px; display: flex; flex-direction: column; gap: 2px;
+  -webkit-tap-highlight-color: transparent;
+}
+.cr-more > summary::-webkit-details-marker { display: none; }
+.cr-more > summary::after {
+  content: '+'; position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+  width: 26px; height: 26px; border-radius: 50%; background: var(--peach-soft); color: var(--peach);
+  display: flex; align-items: center; justify-content: center; font: 600 18px/1 'Inter', sans-serif;
+}
+.cr-more[open] > summary::after { content: '–'; }
+.cr-more-title { font-weight: 600; font-size: 15px; color: var(--ink); }
+.cr-more-hint { font-size: 12.5px; color: var(--ink-soft); line-height: 1.4; }
+.cr-more-body { padding: 2px 14px 8px; }
+.cr-create-btn { width: 100%; min-height: 54px; font-size: 16px; margin-bottom: 24px; }
+
+/* ---------- Barra in basso (Fil + Virgi, 2026-10-25) ----------
+   Creata da initTabbar in script.js. Bianca, appoggiata in basso con
+   un'ombra morbida; icone + scritta come nelle app che la gente usa già;
+   "+" arancione rialzato al centro. Il vecchio pallino che scorreva
+   (.nav-indicator) qui non serve: la voce attiva si colora da sola. */
+.navbar.seeva-tabbar {
+  left: 14px; right: 14px; bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  height: 66px; padding: 0 4px; border-radius: 24px;
+  background: var(--card);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  border: 1px solid rgba(58, 50, 90, 0.06);
+  box-shadow: 0 10px 30px rgba(58, 50, 90, 0.14), 0 2px 6px rgba(58, 50, 90, 0.06);
+  justify-content: space-between; z-index: 40;
+}
+.seeva-tabbar .nav-indicator { display: none; }
+.seeva-tabbar .nav-item {
+  flex-direction: column; gap: 2px; text-decoration: none;
+  color: var(--ink-soft); -webkit-tap-highlight-color: transparent;
+}
+.seeva-tabbar .nav-item .icon { width: 32px; height: 28px; border-radius: 10px; color: var(--ink-soft); overflow: visible; }
+.seeva-tabbar .nav-label { font: 600 10.5px/1 'Inter', sans-serif; letter-spacing: .01em; color: var(--ink-soft); }
+.seeva-tabbar .nav-item.active .icon { color: var(--peach); }
+.seeva-tabbar .nav-item.active .nav-label { color: var(--ink); }
+.seeva-tabbar .nav-item.nav-create .icon {
+  width: 54px; height: 54px; border-radius: 50%;
+  background: var(--peach); color: #fff;
+  transform: translateY(-12px);
+  box-shadow: 0 8px 20px rgba(255, 122, 41, 0.45), 0 0 0 5px var(--bg);
+}
+.seeva-tabbar .nav-item.nav-create:active .icon { transform: translateY(-12px) scale(0.92); }
+.phone.has-tabbar.tabbar-off .navbar.seeva-tabbar { display: none; }
+/* Con la barra visibile: niente bolla "indietro" in basso, la coccinella
+   sale sopra la barra e il contenuto lascia spazio sotto. */
+.phone.has-tabbar:not(.tabbar-off) .screen > a.back-btn { display: none !important; }
+.phone.has-tabbar:not(.tabbar-off) .report-problem-btn { display: none; } /* si apre dal Profilo */
+.phone.has-tabbar:not(.tabbar-off) .content { padding-bottom: 120px; }
+
+/* ---------- Home nuova (Fil + Virgi, 2026-10-25) ----------
+   Al posto dei riquadri colorati: una lista, come nelle app di tutti i
+   giorni. In cima quello a cui devi rispondere (con i pulsanti), poi
+   quello che hai in programma, in fondo il link agli annullati. */
+.hm-section { margin: 22px 0 6px; }
+.hm-section-head { display: flex; align-items: baseline; justify-content: space-between; margin: 0 4px 12px; }
+.hm-section-title { font-family: 'Fraunces', serif; font-weight: 700; font-size: 20px; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+.hm-count { font: 700 12px 'Inter', sans-serif; color: #fff; background: var(--peach); border-radius: 999px; padding: 3px 8px; }
+.hm-more { font-size: 13px; font-weight: 600; color: var(--peach); text-decoration: none; }
+.hm-empty {
+  text-align: center; padding: 28px 18px; border-radius: 22px; background: var(--card);
+  box-shadow: 0 2px 10px rgba(58, 50, 90, 0.06);
+}
+.hm-empty-emoji { font-size: 34px; margin-bottom: 8px; }
+.hm-empty-title { font-family: 'Fraunces', serif; font-weight: 700; font-size: 18px; margin-bottom: 6px; color: var(--ink); }
+.hm-empty-text { font-size: 13.5px; color: var(--ink-soft); line-height: 1.5; margin-bottom: 16px; }
+.hm-allgood { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-radius: 18px; background: var(--confirmed-soft); color: var(--confirmed); font-weight: 600; font-size: 14px; margin: 18px 0 4px; }
+.hm-foot { display: flex; justify-content: center; margin: 22px 0 8px; }
+.hm-foot a { font-size: 13px; color: var(--ink-soft); text-decoration: none; padding: 8px 14px; border-radius: 999px; background: var(--card); box-shadow: 0 2px 8px rgba(58,50,90,0.06); }
+
+/* ---------- Schermata "Cerca e aggiungi persone" (2026-10-25) ---------- */
+.pp-overlay {
+  position: absolute; inset: 0; z-index: 90; background: var(--bg);
+  display: flex; flex-direction: column;
+  transform: translateY(24px); opacity: 0; transition: transform .22s ease, opacity .22s ease;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.pp-overlay.show { transform: none; opacity: 1; }
+.pp-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 14px 8px; }
+.pp-title { font-family: 'Fraunces', serif; font-weight: 700; font-size: 17px; color: var(--ink); }
+.pp-cancel, .pp-done { border: 0; background: none; font: 600 15px 'Inter', sans-serif; padding: 8px 6px; cursor: pointer; }
+.pp-cancel { color: var(--ink-soft); }
+.pp-done { color: #fff; background: var(--peach); border-radius: 999px; padding: 8px 16px; }
+.pp-search {
+  margin: 4px 14px 8px; display: flex; align-items: center; gap: 10px;
+  background: var(--card); border-radius: 14px; padding: 0 14px; color: var(--ink-soft);
+  box-shadow: 0 2px 8px rgba(58, 50, 90, 0.07);
+}
+.pp-input { flex: 1; border: 0; outline: 0; background: none; font: 400 16px 'Inter', sans-serif; color: var(--ink); padding: 13px 0; }
+.pp-selected { display: flex; gap: 8px; overflow-x: auto; padding: 4px 14px 8px; scrollbar-width: none; }
+.pp-selected::-webkit-scrollbar { display: none; }
+.pp-pill {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; border: 0; cursor: pointer;
+  background: var(--peach-soft); color: var(--ink); border-radius: 999px; padding: 4px 10px 4px 4px;
+  font: 500 13.5px 'Inter', sans-serif;
+}
+.pp-pill-av { width: 24px; height: 24px; border-radius: 50%; overflow: hidden; background: var(--lavender-soft); color: var(--lavender-ink); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+.pp-pill-av img { width: 100%; height: 100%; object-fit: cover; }
+.pp-pill-x { font-size: 11px; color: var(--ink-soft); }
+.pp-list { flex: 1; overflow-y: auto; padding: 0 8px 40px; -webkit-overflow-scrolling: touch; }
+.pp-sec { font-size: 11.5px; font-weight: 600; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .05em; margin: 14px 10px 6px; }
+.pp-row { display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-radius: 14px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.pp-row:active { background: rgba(58, 50, 90, 0.05); }
+.pp-av { width: 44px; height: 44px; border-radius: 50%; overflow: hidden; flex-shrink: 0; background: var(--lavender-soft); color: var(--lavender-ink); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 17px; }
+.pp-av img { width: 100%; height: 100%; object-fit: cover; }
+.pp-av-free { background: var(--track-soft); color: var(--ink-soft); }
+.pp-txt { flex: 1; min-width: 0; }
+.pp-name { font-weight: 600; font-size: 15px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pp-sub { font-size: 13px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pp-check { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--track-soft); display: flex; align-items: center; justify-content: center; color: transparent; flex-shrink: 0; transition: background .15s ease, border-color .15s ease; }
+.pp-row.is-on .pp-check { background: var(--peach); border-color: var(--peach); color: #fff; }
+.pp-empty { text-align: center; color: var(--ink-soft); font-size: 14px; padding: 40px 20px; }
+.cr-search-btn {
+  display: flex; align-items: center; gap: 10px; width: 100%; cursor: pointer;
+  background: var(--card); border: 0; border-radius: 14px; padding: 13px 14px; margin: 0 0 14px;
+  box-shadow: 0 2px 8px rgba(58, 50, 90, 0.07); color: var(--ink-soft); font: 400 15px 'Inter', sans-serif; text-align: left;
+}
+.cr-search-btn svg { flex-shrink: 0; }
+
+/* Pagina Amici (2026-10-25) */
+.am-head { display: flex; align-items: center; justify-content: space-between; }
+.am-share { border: 0; background: var(--peach-soft); color: var(--peach); font: 600 12.5px 'Inter', sans-serif; padding: 7px 12px; border-radius: 999px; cursor: pointer; }
+.am-list { background: var(--card); border-radius: 20px; padding: 4px 6px; box-shadow: 0 2px 10px rgba(58, 50, 90, 0.06); }
+.am-row { display: flex; align-items: center; gap: 12px; padding: 9px 8px; }
+.am-row + .am-row { border-top: 1px solid var(--track-soft); }
+.am-invite { flex-shrink: 0; text-decoration: none; background: var(--peach); color: #fff; font: 600 13px 'Inter', sans-serif; padding: 8px 14px; border-radius: 999px; }

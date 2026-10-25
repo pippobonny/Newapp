@@ -163,6 +163,56 @@
     }
   }
 
+
+  /* ---------- 0b. Barra in basso (Fil + Virgi, 2026-10-25) ----------
+     Tolta ad agosto, rimessa perché è come funzionano tutte le app che la
+     gente usa ogni giorno: Home, Agenda, "+" grande al centro per creare,
+     Amici, Profilo. Creata qui (non copiata in ogni HTML) e agganciata a
+     .phone, FUORI da .screen: il cambio tab SPA rimpiazza solo .screen,
+     quindi la barra resta ferma e cambia solo la voce attiva (vedi
+     syncTabbar, richiamata anche da spaRenderView). Nascosta su Crea
+     (lì serve tutto lo schermo per il modulo) e per chi non ha un
+     account. Quando è visibile, la vecchia bolla "indietro" in basso a
+     sinistra non serve più e si nasconde (style.css, .has-tabbar). */
+  var TABBAR_ITEMS = [
+    ['index.html', 'Home', '<path d="M3.5 10.5L12 4l8.5 6.5"></path><path d="M5.5 9v10a1 1 0 0 0 1 1H10v-5.5h4V20h3.5a1 1 0 0 0 1-1V9"></path>'],
+    ['eventi.html', 'Agenda', '<rect x="3.5" y="5" width="17" height="15.5" rx="3"></rect><line x1="16" y1="3" x2="16" y2="7"></line><line x1="8" y1="3" x2="8" y2="7"></line><line x1="3.5" y1="10" x2="20.5" y2="10"></line>'],
+    ['crea.html', 'Crea', '<line x1="12" y1="6" x2="12" y2="18"></line><line x1="6" y1="12" x2="18" y2="12"></line>'],
+    ['amici.html', 'Amici', '<circle cx="9" cy="8.5" r="3"></circle><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"></path><circle cx="17" cy="9" r="2.4"></circle><path d="M15.5 13.3c2.6.3 4.5 2.2 4.5 5.7"></path>'],
+    ['profilo.html', 'Profilo', '<circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7"></path>']
+  ];
+
+  function initTabbar() {
+    if (TAB_ORDER.indexOf(currentFile()) === -1) return;
+    var phone = document.querySelector('.phone');
+    if (!phone || phone.querySelector('.navbar')) return;
+    var nav = document.createElement('nav');
+    nav.className = 'navbar seeva-tabbar';
+    nav.setAttribute('aria-label', 'Menu');
+    nav.innerHTML = TABBAR_ITEMS.map(function (it) {
+      var isCreate = it[0] === 'crea.html';
+      return '<a class="nav-item' + (isCreate ? ' nav-create' : '') + '" href="' + it[0] + '" aria-label="' + it[1] + '">'
+        + '<span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (isCreate ? '2.4' : '1.8') + '" stroke-linecap="round" stroke-linejoin="round" width="' + (isCreate ? 24 : 22) + '" height="' + (isCreate ? 24 : 22) + '">' + it[2] + '</svg></span>'
+        + (isCreate ? '' : '<span class="nav-label">' + it[1] + '</span>')
+        + '</a>';
+    }).join('');
+    phone.appendChild(nav);
+    syncTabbar(currentFile());
+  }
+
+  function syncTabbar(file) {
+    var phone = document.querySelector('.phone');
+    var nav = document.querySelector('.navbar.seeva-tabbar');
+    if (!phone || !nav) return;
+    var hasAcc = !!(window.SeevaData && SeevaData.hasAccount && SeevaData.hasAccount());
+    var off = file === 'crea.html' || !hasAcc;
+    phone.classList.add('has-tabbar');
+    phone.classList.toggle('tabbar-off', off);
+    nav.querySelectorAll('.nav-item').forEach(function (n) {
+      n.classList.toggle('active', n.getAttribute('href') === file);
+    });
+  }
+
   function initNavIndicator() {
     var navbar = document.querySelector('.navbar');
     if (!navbar) return;
@@ -447,6 +497,7 @@
           n.classList.toggle('active', n.getAttribute('href') === targetFile);
         });
       }
+      syncTabbar(targetFile);
 
       // Fil, 2026-07-22: rete di sicurezza dopo un bug reale trovato in
       // test (una lista smetteva di comparire dopo qualche cambio tab,
@@ -2377,6 +2428,11 @@
     function closeModal() { overlay.style.display = 'none'; }
 
     btn.addEventListener('click', openModal);
+    // Riga "Segnala un problema" nel Profilo (2026-10-25): delegata, così
+    // funziona anche dopo un cambio tab SPA che ricrea la pagina.
+    document.addEventListener('click', function (e) {
+      if (e.target.closest && e.target.closest('[data-open-report]')) openModal();
+    });
     closeBtn.addEventListener('click', closeModal);
     overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
 
@@ -2473,12 +2529,154 @@
   function askDialog(message, opts) { return showDialog(message, true, opts); }
   function alertDialog(message, opts) { return showDialog(message, false, opts); }
 
+
+  /* ---------- Schermata "Cerca e aggiungi persone" (Fil + Virgi, 2026-10-25) ----------
+     Stile tag di Instagram: si apre a tutto schermo, in alto il campo di
+     ricerca, sotto subito le persone che conosci già (amici e chi hai
+     invitato in passato), tocchi e compare la spunta, poi "Fatto".
+     Scrivendo, l'elenco si filtra e sotto compaiono anche gli altri su
+     seeva (SeevaData.searchPeople: nome utente, nome e cognome veri).
+     Con allowFreeName si può aggiungere anche un nome libero (chi non ha
+     seeva: riceverà il link). Usata da crea.html e amici.html.
+     opts: { title, known:[{name, accountId, avatarUrl, sub}], selected:[{name, accountId}],
+             allowFreeName, doneLabel, onDone(selected[]) } */
+  function openPeoplePicker(opts) {
+    opts = opts || {};
+    var esc = window.SeevaData ? SeevaData.escapeHTML : function (s) { return String(s); };
+    var host = document.querySelector('.phone') || document.body;
+    var known = (opts.known || []).slice();
+    var keyOf = function (p) { return p.accountId ? 'a:' + p.accountId : 'n:' + String(p.name || '').trim().toLowerCase(); };
+    var selected = {};
+    var order = [];
+    (opts.selected || []).forEach(function (p) { var k = keyOf(p); if (!selected[k]) { selected[k] = p; order.push(k); } });
+    var remote = [];
+    var query = '';
+    var searchTimer = null;
+    var searchSeq = 0;
+
+    var ov = document.createElement('div');
+    ov.className = 'pp-overlay';
+    ov.innerHTML = ''
+      + '<div class="pp-head">'
+      + '<button type="button" class="pp-cancel">Annulla</button>'
+      + '<div class="pp-title">' + esc(opts.title || 'Aggiungi persone') + '</div>'
+      + '<button type="button" class="pp-done"></button>'
+      + '</div>'
+      + '<div class="pp-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="18" height="18"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>'
+      + '<input type="search" class="pp-input" placeholder="Cerca per nome o nome utente" autocomplete="off" autocapitalize="words" enterkeyhint="search"></div>'
+      + '<div class="pp-selected"></div>'
+      + '<div class="pp-list"></div>';
+    host.appendChild(ov);
+
+    var input = ov.querySelector('.pp-input');
+    var listEl = ov.querySelector('.pp-list');
+    var selEl = ov.querySelector('.pp-selected');
+    var doneBtn = ov.querySelector('.pp-done');
+
+    function avatarHTML(p) {
+      if (p.avatarUrl) return '<img src="' + esc(p.avatarUrl) + '" alt="" loading="lazy">';
+      return esc((String(p.name || '?').trim().charAt(0) || '?').toUpperCase());
+    }
+    function rowHTML(p, k) {
+      var on = !!selected[k];
+      return '<div class="pp-row' + (on ? ' is-on' : '') + '" data-pp-key="' + esc(k) + '">'
+        + '<div class="pp-av">' + avatarHTML(p) + '</div>'
+        + '<div class="pp-txt"><div class="pp-name" data-no-i18n>' + esc(p.name) + '</div>'
+        + (p.sub ? '<div class="pp-sub" data-no-i18n>' + esc(p.sub) + '</div>' : '') + '</div>'
+        + '<div class="pp-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></div>'
+        + '</div>';
+    }
+    var lookup = {};
+    function render() {
+      lookup = {};
+      var q = query.trim().toLowerCase();
+      var match = function (p) { return !q || String(p.name || '').toLowerCase().indexOf(q) !== -1 || String(p.sub || '').toLowerCase().indexOf(q) !== -1; };
+      var knownShown = known.filter(match);
+      var knownKeys = {};
+      known.forEach(function (p) { knownKeys[keyOf(p)] = true; });
+      var html = '';
+      if (knownShown.length) {
+        html += '<div class="pp-sec">' + esc(q ? 'Tra chi conosci' : 'Amici e persone che hai già invitato') + '</div>';
+        knownShown.forEach(function (p) { var k = keyOf(p); lookup[k] = p; html += rowHTML(p, k); });
+      }
+      var others = remote.filter(function (p) { return !knownKeys[keyOf(p)]; });
+      if (others.length) {
+        html += '<div class="pp-sec">Altri su seeva</div>';
+        others.forEach(function (p) { var k = keyOf(p); lookup[k] = p; html += rowHTML(p, k); });
+      }
+      if (opts.allowFreeName && query.trim().length >= 2) {
+        var free = { name: query.trim().replace(/\s+/g, ' '), accountId: null, sub: 'Non ha seeva: riceverà il link' };
+        var fk = keyOf(free);
+        var already = knownShown.concat(others).some(function (p) { return String(p.name).trim().toLowerCase() === free.name.toLowerCase(); });
+        if (!already) { lookup[fk] = free; html += '<div class="pp-sec">Non è su seeva?</div>' + rowHTML(free, fk).replace('class="pp-av">', 'class="pp-av pp-av-free">'); }
+      }
+      if (!html) html = '<div class="pp-empty">' + esc(q ? 'Nessuno trovato con questo nome' : 'Scrivi il nome di chi vuoi aggiungere') + '</div>';
+      listEl.innerHTML = html;
+      selEl.innerHTML = order.map(function (k) {
+        var p = selected[k];
+        return '<button type="button" class="pp-pill" data-pp-unsel="' + esc(k) + '"><span class="pp-pill-av">' + avatarHTML(p) + '</span><span data-no-i18n>' + esc(p.name) + '</span><span class="pp-pill-x">✕</span></button>';
+      }).join('');
+      selEl.style.display = order.length ? '' : 'none';
+      doneBtn.textContent = (opts.doneLabel || 'Fatto') + (order.length ? ' (' + order.length + ')' : '');
+    }
+
+    function toggle(k) {
+      if (selected[k]) {
+        delete selected[k];
+        order = order.filter(function (x) { return x !== k; });
+      } else if (lookup[k]) {
+        selected[k] = lookup[k];
+        order.push(k);
+        if (lookup[k].accountId === null && !known.some(function (p) { return keyOf(p) === k; })) known.unshift(lookup[k]);
+      }
+      render();
+    }
+
+    listEl.addEventListener('click', function (e) {
+      var row = e.target.closest('[data-pp-key]');
+      if (row) toggle(row.getAttribute('data-pp-key'));
+    });
+    selEl.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-pp-unsel]');
+      if (b) toggle(b.getAttribute('data-pp-unsel'));
+    });
+    input.addEventListener('input', function () {
+      query = input.value;
+      render();
+      window.clearTimeout(searchTimer);
+      var q = query.trim();
+      if (q.length < 2 || !window.SeevaData || !SeevaData.searchPeople) { remote = []; render(); return; }
+      var mySeq = ++searchSeq;
+      searchTimer = window.setTimeout(function () {
+        SeevaData.searchPeople(q).then(function (res) {
+          if (mySeq !== searchSeq) return;
+          remote = (res || []).map(function (r) { return { name: r.username, accountId: r.id, avatarUrl: r.avatarUrl, sub: r.fullName || '' }; });
+          render();
+        });
+      }, 220);
+    });
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') input.blur(); });
+
+    function close() { ov.classList.remove('show'); window.setTimeout(function () { ov.remove(); }, 220); }
+    ov.querySelector('.pp-cancel').addEventListener('click', close);
+    doneBtn.addEventListener('click', function () {
+      var out = order.map(function (k) { return selected[k]; });
+      close();
+      if (opts.onDone) opts.onDone(out);
+    });
+
+    render();
+    requestAnimationFrame(function () { requestAnimationFrame(function () { ov.classList.add('show'); }); });
+    window.setTimeout(function () { try { input.focus({ preventScroll: true }); } catch (err) { /* ignora */ } }, 250);
+  }
+
   window.SeevaUI = {
     refresh: refreshDynamicContent,
     ask: askDialog,
     alert: alertDialog,
     toast: showToast,
     attachAccountSearch: attachAccountSearch,
+    openPeoplePicker: openPeoplePicker,
     showOnceHint: showOnceHint,
     offerPushPromptIfNeeded: offerPushPromptIfNeeded,
     // Fil, 2026-08-23: stessa funzione già usata per i numeri delle barre
@@ -2579,9 +2777,13 @@
   }
 
   document.addEventListener('DOMContentLoaded', function () {
+    initTabbar();
     initNavIndicator();
     initPageTransitions();
-    initTabSwipeNavigation();
+    // Swipe orizzontale tra le tab lasciato spento con la barra nuova
+    // (2026-10-25): si confondeva con lo swipe per togliere le card in Home
+    // e con "+ Crea" in mezzo alle tab. Si può riaccendere togliendo il //.
+    // initTabSwipeNavigation();
     initRipples();
     initProgressBars();
     initScrollReveal();

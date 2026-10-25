@@ -340,6 +340,16 @@
         return found;
       }
 
+      /* Link nel gruppo (Fil, 2026-10-25): chi ha un account e apre il
+         link di un evento aperto a tutti finisce tra gli invitati da solo,
+         così l'evento gli compare in Home e riceve gli avvisi. In silenzio:
+         se non riesce (es. nome già preso) resta tutto come prima. */
+      if (SeevaData.hasAccount() && event.openInvite && event.shareToken) {
+        var meJoin = SeevaData.getAccount();
+        var alreadyIn = (event.invitees || []).some(function (f) { return f.accountId === meJoin.id; }) || event.createdByAccountId === meJoin.id;
+        if (!alreadyIn) SeevaData.addSelfAsInvitee(event.shareToken, null, meJoin.id).catch(function () { /* ignora */ });
+      }
+
       /* ---------- "sei tu uno di questi?" per chi arriva già registrato ----------
          Bug segnalato da Fil il 2026-07-07: se scrivi un invitato a mano
          (es. "patty") e quella persona si registra DOPO con uno username

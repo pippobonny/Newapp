@@ -54,7 +54,7 @@
   <div class="phone">
    <div class="screen">
     <div class="header simple">
-      <div class="header-title" id="pageTitle">Nuova proposta</div>
+      <div class="header-title" id="pageTitle">Nuovo evento</div>
     </div>
     <!-- Fuori dall'header apposta (Fil, 2026-08-22): vedi lo stesso
          commento in eventi.html — a.back-btn è position:absolute rispetto
@@ -62,20 +62,153 @@
     <a class="back-btn" href="index.html" id="crBackBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M15 18l-6-6 6-6"></path></svg></a>
 
     <div class="content" id="pageContent">
-      <div class="wizard-dots" id="wizardDots">
+      <!-- Fil + Virgi, 2026-10-25 ("crea evento in una schermata"): prima
+           erano 3 schede con Continua/Indietro e la data per ultima. Ora tre
+           riquadri sempre visibili (Cosa / Quando / Chi) e tutto il resto in
+           "Altre opzioni", chiuso finché non lo apri. Gli id restano quelli di
+           prima (wizardStep1/2/3, step1Error...) così la logica sotto
+           (bozza, modifica, date impegnate) non cambia. -->
+      <div class="wizard-dots" id="wizardDots" style="display:none;">
         <span class="wizard-dot active" data-step="1"></span>
         <span class="wizard-dot" data-step="2"></span>
         <span class="wizard-dot" data-step="3"></span>
       </div>
 
-      <div class="wizard-step" id="wizardStep1">
+      <div class="wizard-step cr-section" id="wizardStep1">
+        <div class="cr-section-title"><span class="cr-num">1</span>Cosa</div>
         <div class="field">
-          <label>Nome evento <svg id="eventNamePencil" class="field-pencil-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></label>
-          <input type="text" id="eventName" placeholder="Es. Weekend in montagna">
+          <label>Nome <svg id="eventNamePencil" class="field-pencil-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></label>
+          <input type="text" id="eventName" placeholder="Es. Pizza da Mario" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>Dove <span class="cr-opt">facoltativo</span></label>
+          <input type="text" id="eventLocationInput" placeholder="Scrivi un indirizzo o un luogo">
+          <div class="field-hint" id="locationHint" style="display:none;"></div>
+          <!-- Righe in più per proporre più location tra cui far scegliere gli
+               invitati (Fil, 2026-07-21): stesso meccanismo delle date "in
+               più" qui sotto, stesso stile "+ aggiungi". Il campo sopra resta
+               SEMPRE la prima location: se resta l'unica, tutto si comporta
+               esattamente come prima (nessuna riga qui dentro, nessuna
+               location_options creata — vedi createEventBtn). -->
+          <div class="date-row-list" id="extraLocationRowList" style="margin-top:8px;"></div>
+          <div class="cr-link-btn" id="addLocationBtn">+ Fai scegliere tra più posti</div>
         </div>
 
+        <div class="form-error" id="step1Error"></div>
+        <button type="button" class="primary-btn" id="step1NextBtn" style="display:none;">Continua →</button>
+      </div>
+
+      <div class="wizard-step cr-section" id="wizardStep3">
+        <div class="cr-section-title"><span class="cr-num">2</span>Quando</div>
         <div class="field">
-          <label>Descrizione (testo o vocale, opzionale)</label>
+          
+          <div class="pill-row" id="dateModeTabs">
+            <div class="pill active" data-mode="singole">Giorni</div>
+            <div class="pill" data-mode="range">Un periodo</div>
+            <div class="pill" data-mode="pattern">Ogni settimana</div>
+          </div>
+
+          <div class="date-mode-panel" data-panel="range" style="display:none;">
+            <div class="date-row">
+              <input type="date" id="rangeStart">
+              <span style="flex:0 0 auto;color:var(--ink-soft);font-size:13px;">→</span>
+              <input type="date" id="rangeEnd">
+            </div>
+            <div class="field-hint">Ogni giorno nel range diventa un'opzione tra cui scegliere (max 60 giorni).</div>
+          </div>
+
+          <div class="date-mode-panel" data-panel="singole">
+            <!-- Fil, 2026-10-11: si parte da "Date singole" con UNA casella
+                 sola (prima: Range di default e 2 caselle già aperte). -->
+            <div class="date-row-list" id="dateRowList">
+              <div class="date-row">
+                <input type="date">
+                <div class="remove-date">✕</div>
+              </div>
+            </div>
+            <div class="cr-link-btn" id="addDateBtn">+ Aggiungi un'altra data da far votare</div>
+            <!-- 2026-10-14 (giro UX): con una data sola niente ✕ e testo diverso (vedi style.css, .date-hint-*). -->
+            <div class="field-hint date-hint-single">Una data sola: gli invitati rispondono "ci sono" o "non ci sono". Più date: votano quando possono.</div>
+            <div class="field-hint date-hint-multi">Ogni data che aggiungi diventa un'opzione tra cui gli invitati scelgono quando possono esserci.</div>
+          </div>
+
+          <div class="date-mode-panel" data-panel="pattern" style="display:none;">
+            <div class="date-row">
+              <select id="patternWeekday">
+                <option value="weekend">Ogni weekend (sab + dom)</option>
+                <option value="1">Ogni lunedì</option>
+                <option value="2">Ogni martedì</option>
+                <option value="3">Ogni mercoledì</option>
+                <option value="4">Ogni giovedì</option>
+                <option value="5">Ogni venerdì</option>
+                <option value="6">Ogni sabato</option>
+                <option value="0">Ogni domenica</option>
+              </select>
+            </div>
+            <div class="date-row">
+              <select id="patternMonth"></select>
+            </div>
+            <div class="field-hint">Genera automaticamente tutte le date che corrispondono, nel mese scelto.</div>
+          </div>
+        </div>
+
+        <!-- Orario facoltativo (Fil, 2026-07-20): UNO solo per tutto
+             l'evento, non per singola data proposta -- vale su qualunque
+             giorno finisca per vincere. Se lasciato vuoto, l'evento resta
+             "senza ora" (buildEventICS in data.js lo tratta come evento
+             "tutto il giorno" quando si aggiunge al calendario). -->
+        <div class="field">
+          <label>Ora <span class="cr-opt">facoltativa</span></label>
+          <input type="time" id="eventTimeInput">
+          
+        </div>
+
+        <div id="step3BackBtn" style="display:none;"></div>
+      </div>
+
+      <div class="wizard-step cr-section" id="wizardStep2">
+        <div class="cr-section-title"><span class="cr-num">3</span>Chi inviti</div>
+        <div id="crPeoplePicker"></div>
+        <div class="field" id="friendListSelectField" style="display:none;">
+          <label>Lista amici (opzionale)</label>
+          <select id="friendListSelect"></select>
+        </div>
+
+        <!-- Riepilogo della lista scelta, solo se ne hai scelta una vera
+             (non "Nessuna lista"): serve a ricordare chi c'è già dentro,
+             visto che sotto puoi comunque aggiungere altre persone (Fil,
+             2026-07-19: prima era "o lista o nomi a mano", mai insieme). -->
+        <div class="card" id="selectedListPreview" style="display:none; margin-bottom:16px; padding:14px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:2px;">
+            <span style="font-family:'Fraunces',serif; font-weight:600; font-size:15px;" id="selectedListPreviewName"></span>
+            <span style="font-size:12px; color:var(--ink-soft);" id="selectedListPreviewCount"></span>
+          </div>
+          <div style="font-size:12px; color:var(--ink-soft); line-height:1.5;" id="selectedListPreviewNames"></div>
+        </div>
+
+        <div class="field" id="manualNamesField">
+          <style>#manualNamesField > label, #manualNamesField > .inline-add-row, #totalInviteesHint { display: none; }</style>
+          <label id="manualNamesLabel">Aggiungi qualcun altro</label>
+          <div class="inline-add-row">
+            <input type="text" id="manualNameInput" placeholder="Nome">
+            <button type="button" id="manualNameAddBtn" class="btn-reveal">+</button>
+          </div>
+          <div id="manualNamesList"></div>
+          <div class="field-hint" id="totalInviteesHint">Scrivi un nome e premi +. Chi ha già seeva compare mentre scrivi.</div>
+        </div>
+
+        <div class="form-error" id="step2Error"></div>
+        <div style="display:none;">
+          <div id="step2BackBtn"></div>
+          <button type="button" id="step2NextBtn"></button>
+        </div>
+      </div>
+
+      <details class="cr-more" id="crMoreOptions">
+        <summary><span class="cr-more-title">Altre opzioni</span><span class="cr-more-hint">descrizione, foto, link aperto, spese, chi porta cosa</span></summary>
+        <div class="cr-more-body">
+        <div class="field">
+          <label>Descrizione</label>
           <div class="pill-row" id="descriptionModeTabs">
             <div class="pill pill-icon active" data-desc-mode="text" title="Testo" aria-label="Testo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></div>
             <div class="pill pill-icon" data-desc-mode="audio" title="Vocale" aria-label="Vocale"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><line x1="12" y1="18" x2="12" y2="22"></line><line x1="8" y1="22" x2="16" y2="22"></line></svg></div>
@@ -124,7 +257,7 @@
         </div>
 
         <div class="field">
-          <label>Foto dell'evento (opzionale)</label>
+          <label>Foto</label>
           <label class="event-photo-preview" id="eventPhotoPreview" for="eventPhotoFile">
             <span id="eventPhotoEmoji"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><rect x="3" y="4" width="18" height="16" rx="2.5"></rect><circle cx="8.5" cy="10" r="1.6"></circle><path d="M21 16l-5.5-5.5a2 2 0 0 0-2.8 0L4 19"></path></svg></span>
             <span class="photo-placeholder-text" id="eventPhotoPlaceholder">Carica una tua immagine</span>
@@ -132,55 +265,6 @@
           <input type="file" id="eventPhotoFile" accept="image/*" style="display:none;">
           <div class="add-date-btn" id="removeEventPhotoBtn" style="display:none; margin-top:8px; margin-bottom:0; text-align:center;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="vertical-align:-2px; margin-right:4px;"><path d="M4 7h16"></path><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"></path><line x1="9" y1="11" x2="9" y2="17"></line><line x1="15" y1="11" x2="15" y2="17"></line></svg>Togli foto</div>
         </div>
-
-        <div class="field">
-          <label>Dove sarà (opzionale)</label>
-          <input type="text" id="eventLocationInput" placeholder="Scrivi un indirizzo o un luogo">
-          <div class="field-hint" id="locationHint" style="display:none;"></div>
-          <!-- Righe in più per proporre più location tra cui far scegliere gli
-               invitati (Fil, 2026-07-21): stesso meccanismo delle date "in
-               più" qui sotto, stesso stile "+ aggiungi". Il campo sopra resta
-               SEMPRE la prima location: se resta l'unica, tutto si comporta
-               esattamente come prima (nessuna riga qui dentro, nessuna
-               location_options creata — vedi createEventBtn). -->
-          <div class="date-row-list" id="extraLocationRowList" style="margin-top:8px;"></div>
-          <div class="add-date-btn" id="addLocationBtn" style="margin-top:8px;">+ Proponi un'altra location (gli invitati sceglieranno)</div>
-        </div>
-
-        <div class="form-error" id="step1Error"></div>
-
-        <button type="button" class="primary-btn" id="step1NextBtn">Continua →</button>
-      </div>
-
-      <div class="wizard-step" id="wizardStep2" style="display:none;">
-        <div class="field">
-          <label>Lista amici (opzionale)</label>
-          <select id="friendListSelect"></select>
-        </div>
-
-        <!-- Riepilogo della lista scelta, solo se ne hai scelta una vera
-             (non "Nessuna lista"): serve a ricordare chi c'è già dentro,
-             visto che sotto puoi comunque aggiungere altre persone (Fil,
-             2026-07-19: prima era "o lista o nomi a mano", mai insieme). -->
-        <div class="card" id="selectedListPreview" style="display:none; margin-bottom:16px; padding:14px;">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:2px;">
-            <span style="font-family:'Fraunces',serif; font-weight:600; font-size:15px;" id="selectedListPreviewName"></span>
-            <span style="font-size:12px; color:var(--ink-soft);" id="selectedListPreviewCount"></span>
-          </div>
-          <div style="font-size:12px; color:var(--ink-soft); line-height:1.5;" id="selectedListPreviewNames"></div>
-        </div>
-
-        <div class="field" id="manualNamesField">
-          <label id="manualNamesLabel">Scrivi i nomi degli invitati (uno alla volta)</label>
-          <div class="inline-add-row">
-            <input type="text" id="manualNameInput" placeholder="Nome">
-            <button type="button" id="manualNameAddBtn" class="btn-reveal">+</button>
-          </div>
-          <div id="manualNamesList"></div>
-          <div class="field-hint" id="totalInviteesHint">Il link che ricevi dopo aver creato l'evento è unico: chi lo apre sceglie il proprio nome tra questi, poi entra come ospite o con un account.</div>
-        </div>
-
-        <div class="form-error" id="step2Error"></div>
 
         <!-- Le opzioni extra a coppie affiancate invece che impilate in
              righe intere (Fil, 2026-07-25: "troppo lunghi e invasivi" così),
@@ -197,11 +281,11 @@
           <label class="option-tile" id="openInviteField">
             <span class="option-tile-info-btn" id="openInviteInfoBtn" role="button" aria-label="Cosa significa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="11" x2="12" y2="16"></line><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"></circle></svg></span>
             <div class="option-tile-top">
-              <span class="option-tile-title">Apri il link a tutti</span>
+              <span class="option-tile-title">Link aperto a tutti</span>
               <input type="checkbox" id="openInviteCheckbox" class="option-row-switch">
             </div>
             <div class="option-tile-info-popup" id="openInviteInfoPopup" style="display:none;">Attivalo solo se vuoi che chiunque abbia il link possa aggiungersi da solo, anche se non l'hai scritto qui sopra. Comodo per eventi aperti a un gruppo largo, ma il link diventa di fatto un accesso libero.</div>
-            <span class="option-tile-hint">anche a chi non hai scritto sopra</span>
+            <span class="option-tile-hint">chi ha il link si aggiunge da solo</span>
           </label>
         </div>
 
@@ -249,90 +333,11 @@
           <div id="stagedItemsList"></div>
         </div>
 
-        <!-- align-items:center (Fil, 2026-08-25, bug segnalato: "la
-             freccia indietro non è centrata"): senza, il default
-             align-items:stretch della riga flex allunga "← Indietro" fino
-             all'altezza del bottone "Continua →" (più alto, padding
-             15px contro 10px) — il testo restava in cima alla pillola
-             invece che centrato nello spazio in più. -->
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
-          <div class="add-date-btn" id="step2BackBtn" style="flex:0 0 110px; margin-bottom:0; cursor:pointer;">← Indietro</div>
-          <button type="button" class="primary-btn" id="step2NextBtn" style="flex:1;">Continua →</button>
         </div>
-      </div>
+      </details>
 
-      <div class="wizard-step" id="wizardStep3" style="display:none;">
-        <div class="field">
-          <label>Quando può essere l'evento</label>
-          <div class="pill-row" id="dateModeTabs">
-            <div class="pill active" data-mode="singole">Date singole</div>
-            <div class="pill" data-mode="range">Range di date</div>
-            <div class="pill" data-mode="pattern">Ricorrenza</div>
-          </div>
-
-          <div class="date-mode-panel" data-panel="range" style="display:none;">
-            <div class="date-row">
-              <input type="date" id="rangeStart">
-              <span style="flex:0 0 auto;color:var(--ink-soft);font-size:13px;">→</span>
-              <input type="date" id="rangeEnd">
-            </div>
-            <div class="field-hint">Ogni giorno nel range diventa un'opzione tra cui scegliere (max 60 giorni).</div>
-          </div>
-
-          <div class="date-mode-panel" data-panel="singole">
-            <!-- Fil, 2026-10-11: si parte da "Date singole" con UNA casella
-                 sola (prima: Range di default e 2 caselle già aperte). -->
-            <div class="date-row-list" id="dateRowList">
-              <div class="date-row">
-                <input type="date">
-                <div class="remove-date">✕</div>
-              </div>
-            </div>
-            <div class="add-date-btn" id="addDateBtn">+ Aggiungi un'altra data</div>
-            <!-- 2026-10-14 (giro UX): con una data sola niente ✕ e testo diverso (vedi style.css, .date-hint-*). -->
-            <div class="field-hint date-hint-single">Con una sola data l'evento è confermato subito: gli invitati rispondono solo "ci sono" o "non ci sono". Aggiungi altre date se vuoi farli votare.</div>
-            <div class="field-hint date-hint-multi">Ogni data che aggiungi diventa un'opzione tra cui gli invitati scelgono quando possono esserci.</div>
-          </div>
-
-          <div class="date-mode-panel" data-panel="pattern" style="display:none;">
-            <div class="date-row">
-              <select id="patternWeekday">
-                <option value="weekend">Ogni weekend (sab + dom)</option>
-                <option value="1">Ogni lunedì</option>
-                <option value="2">Ogni martedì</option>
-                <option value="3">Ogni mercoledì</option>
-                <option value="4">Ogni giovedì</option>
-                <option value="5">Ogni venerdì</option>
-                <option value="6">Ogni sabato</option>
-                <option value="0">Ogni domenica</option>
-              </select>
-            </div>
-            <div class="date-row">
-              <select id="patternMonth"></select>
-            </div>
-            <div class="field-hint">Genera automaticamente tutte le date che corrispondono, nel mese scelto.</div>
-          </div>
-        </div>
-
-        <!-- Orario facoltativo (Fil, 2026-07-20): UNO solo per tutto
-             l'evento, non per singola data proposta -- vale su qualunque
-             giorno finisca per vincere. Se lasciato vuoto, l'evento resta
-             "senza ora" (buildEventICS in data.js lo tratta come evento
-             "tutto il giorno" quando si aggiunge al calendario). -->
-        <div class="field">
-          <label>Orario (facoltativo)</label>
-          <input type="time" id="eventTimeInput">
-          <div class="field-hint">Se lo lasci vuoto, l'evento sul calendario risulterà "tutto il giorno".</div>
-        </div>
-
-        <div class="form-error" id="formError"></div>
-
-        <!-- align-items:center: stesso motivo di step2BackBtn più sopra. -->
-        <div style="display:flex; align-items:center; gap:10px;">
-          <div class="add-date-btn" id="step3BackBtn" style="flex:0 0 110px; margin-bottom:0; cursor:pointer;">← Indietro</div>
-          <button type="button" class="primary-btn" id="createEventBtn" style="flex:1;">Crea e genera link →</button>
-        </div>
-      </div>
+      <div class="form-error" id="formError"></div>
+      <button type="button" class="primary-btn cr-create-btn" id="createEventBtn">Crea l'evento</button>
     </div>
    </div>
 
@@ -363,7 +368,8 @@
       try {
         var earlyDraft = JSON.parse(sessionStorage.getItem('seeva:eventDraft') || 'null');
         var earlyStep = (earlyDraft && earlyDraft.currentStep) || 1;
-        if (earlyStep !== 1) {
+        // Pagina a schermata unica dal 2026-10-25: niente più schede da nascondere.
+        if (false && earlyStep !== 1) {
           [1, 2, 3].forEach(function (n) {
             var stepEl = document.getElementById('wizardStep' + n);
             if (stepEl) stepEl.style.display = (n === earlyStep) ? '' : 'none';
@@ -441,7 +447,7 @@
       // mostra semplicemente nel titolo della pagina.
       var savedGuestName = SeevaData.getGuestName();
       var pageTitleEl = document.getElementById('pageTitle');
-      if (savedGuestName && pageTitleEl) pageTitleEl.textContent = 'Nuova proposta di ' + savedGuestName;
+      /* titolo fisso "Nuovo evento" (2026-10-25) */
 
       /* ---------- foto dell'evento (opzionale) ----------
          Stessa idea dell'avatar profilo: si tiene il file scelto in memoria e
@@ -1094,15 +1100,19 @@
       function inviteesMissing() {
         return totalInviteesCount() === 0 && !openInviteCheckbox.checked;
       }
-      var INVITEES_MISSING_MSG = 'Aggiungi almeno un invitato, oppure attiva "Apri il link a tutti".';
+      var INVITEES_MISSING_MSG = 'Aggiungi almeno un invitato, oppure accendi "Link aperto a tutti" in Altre opzioni.';
 
       function renderManualNamesList() {
         clearWizardErrors();
+        if (typeof renderPeoplePicker === 'function' && crPeoplePicker) renderPeoplePicker();
         if (!manualNames.length) {
           manualNamesListEl.innerHTML = '';
           return;
         }
+        var crChipNames = {};
+        (crPeople || []).forEach(function (p) { crChipNames[p.name.toLowerCase()] = true; });
         manualNamesListEl.innerHTML = manualNames.map(function (entry, idx) {
+          if (crChipNames[entry.name.trim().toLowerCase()]) return ''; // già visibile come bolla selezionata
           // nome collegato per sempre a un account vero (scelto dai
           // suggerimenti username+foto) — vedi "ci-siamo-omonimi.pdf". Foto
           // vera se ce l'abbiamo già (appena scelta dal suggerimento, o
@@ -1134,7 +1144,9 @@
       function updateInviteUIState() {
         var list = getSelectedList();
 
-        if (list) {
+        // Riepilogo lista nascosto (2026-10-25): ora le bolle mostrano già
+        // chi è dentro la lista scelta (spuntate e un po' più chiare).
+        if (list && !crPeoplePicker) {
           selectedListPreview.style.display = '';
           selectedListPreviewName.textContent = list.name;
           selectedListPreviewCount.textContent = list.friends.length === 1 ? t('1 persona') : t('{n} persone', { n: list.friends.length });
@@ -1145,7 +1157,7 @@
           selectedListPreview.style.display = 'none';
         }
 
-        manualNamesLabel.textContent = list ? 'Aggiungi qualcun altro fuori dalla lista' : 'Scrivi i nomi degli invitati (uno alla volta)';
+        manualNamesLabel.textContent = 'Aggiungi qualcun altro';
         saveAsListField.style.display = list ? 'none' : '';
         // Con "salva come lista" nascosta, "apri il link a tutti" resta
         // l'unica tile della coppia: la allarghiamo a tutta la riga invece
@@ -1156,10 +1168,12 @@
         if (list && manualNames.length) {
           totalInviteesHint.textContent = t('In tutto saranno invitate {n} persone: la lista «{list}» più {m} aggiunte qui.', { n: total, list: list.name, m: manualNames.length });
         } else {
-          totalInviteesHint.textContent = 'Il link che ricevi dopo aver creato l\'evento è unico: chi lo apre sceglie il proprio nome tra questi, poi entra come ospite o con un account.';
+          totalInviteesHint.textContent = 'Scrivi un nome e premi +. Chi ha già seeva compare mentre scrivi.';
         }
+        crSyncPicker();
       }
 
+      function crSyncPicker() { if (crPeoplePicker) renderPeoplePicker(); }
       friendListSelect.addEventListener('change', function () {
         if (friendListSelect.value === CREATE_LIST_VALUE) {
           goCreateFriendList();
@@ -1168,6 +1182,187 @@
         updateInviteUIState();
       });
       updateInviteUIState();
+
+      /* ---------- "Chi inviti": amici da toccare (Fil + Virgi, 2026-10-25) ----------
+         Prima gli invitati si scrivevano a mano uno alla volta. Ora in cima
+         al riquadro ci sono le tue liste e le persone che inviti più spesso
+         (dalle liste amici + dagli invitati dei tuoi eventi): un tocco le
+         aggiunge (o le toglie) dagli stessi manualNames di sempre, quindi
+         la creazione dell'evento non cambia. Il campo "Aggiungi qualcun
+         altro" resta sotto per chi non c'è. */
+      var crPeoplePicker = document.getElementById('crPeoplePicker');
+      var crMyLower = (savedGuestName || '').trim().toLowerCase();
+      var crAvatarStore = {};
+      try { crAvatarStore = SeevaData.getAvatarsInstant() || {}; } catch (err) { crAvatarStore = {}; }
+      var crPeople = [];
+
+      function crBuildPeople(evs) {
+        var map = {};
+        var order = [];
+        function add(name, accountId, weight) {
+          name = (name || '').trim();
+          if (!name) return;
+          var key = name.toLowerCase();
+          if (key === crMyLower) return;
+          if (!map[key]) { map[key] = { name: name, accountId: accountId || null, score: 0 }; order.push(key); }
+          if (accountId && !map[key].accountId) map[key].accountId = accountId;
+          map[key].score += weight;
+        }
+        friendLists.forEach(function (l) { (l.friends || []).forEach(function (f) { add(f.name, f.accountId, 2); }); });
+        (evs || []).forEach(function (ev) {
+          (ev.invitees || []).forEach(function (f) { add(f.name, f.accountId, 1); });
+          if (ev.createdBy) add(ev.createdBy, ev.createdByAccountId, 1);
+        });
+        crPeople = order.map(function (k) { return map[k]; })
+          .sort(function (a, b) { return b.score - a.score || a.name.localeCompare(b.name); })
+          .slice(0, 24);
+        var needIds = crPeople.filter(function (p) { return p.accountId && !Object.prototype.hasOwnProperty.call(crAvatarStore, p.accountId); }).map(function (p) { return p.accountId; });
+        if (needIds.length && SeevaData.getAvatarsForAccountIds) {
+          SeevaData.getAvatarsForAccountIds(needIds).then(function (m) {
+            if (!mounted) return;
+            needIds.forEach(function (id) { crAvatarStore[id] = (m[id] && m[id].avatarUrl) || null; });
+            renderPeoplePicker();
+          }).catch(function () { /* niente foto: restano le iniziali */ });
+        }
+      }
+
+      function crCachedEvents() {
+        var evs = [];
+        try { evs = (SeevaData.getEventsInstant() || []).concat(SeevaData.getArchivedEventsInstant() || []); } catch (err) { evs = []; }
+        return evs;
+      }
+
+      function crIsPicked(p) {
+        var k = p.name.toLowerCase();
+        return manualNames.some(function (e) { return e.name.trim().toLowerCase() === k; });
+      }
+
+      function renderPeoplePicker() {
+        if (!crPeoplePicker) return;
+        var esc = SeevaData.escapeHTML;
+        var list = getSelectedList();
+        var inList = {};
+        if (list) list.friends.forEach(function (f) { inList[f.name.trim().toLowerCase()] = true; });
+
+        var listChips = (!isEditMode && friendLists.length) ? friendLists.map(function (l) {
+          var on = !!(list && list.id === l.id);
+          return '<button type="button" class="cr-chip cr-chip-list' + (on ? ' is-on' : '') + '" data-cr-list="' + esc(l.id) + '">'
+            + '<span class="cr-chip-av cr-chip-av-list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="9" cy="8" r="3.2"></circle><path d="M3.5 19c0-3.3 2.5-5.5 5.5-5.5s5.5 2.2 5.5 5.5"></path><circle cx="17" cy="9" r="2.6"></circle><path d="M16 13.6c2.7.2 4.5 2.2 4.5 5"></path></svg></span>'
+            + '<span data-no-i18n>' + esc(l.name) + '</span><span class="cr-chip-count">' + l.friends.length + '</span></button>';
+        }).join('') : '';
+
+        var peopleChips = crPeople.map(function (p, idx) {
+          var lower = p.name.toLowerCase();
+          var viaList = !!inList[lower];
+          var on = viaList || crIsPicked(p);
+          var url = p.accountId ? crAvatarStore[p.accountId] : null;
+          var av = url ? '<img src="' + esc(url) + '" alt="" loading="lazy">' : esc((p.name.charAt(0) || '?').toUpperCase());
+          return '<button type="button" class="cr-chip' + (on ? ' is-on' : '') + (viaList ? ' is-via-list' : '') + '" data-cr-person="' + idx + '">'
+            + '<span class="cr-chip-av">' + av + '</span><span data-no-i18n>' + esc(p.name) + '</span><span class="cr-chip-tick" aria-hidden="true">✓</span></button>';
+        }).join('');
+
+        crPeoplePicker.innerHTML = ''
+          + '<button type="button" class="cr-search-btn" id="crSearchBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="18" height="18"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>Cerca e aggiungi persone</button>'
+          + (listChips ? '<div class="cr-sub">Le tue liste</div><div class="cr-chips">' + listChips + '</div>' : '')
+          + (peopleChips
+              ? '<div class="cr-sub">Tocca chi vuoi invitare</div><div class="cr-chips">' + peopleChips + '</div>'
+              : '')
+          + '<div class="field-hint" style="margin:-6px 2px 12px;">Non è obbligatorio scegliere qualcuno: dopo averlo creato mandi il link nel gruppo e chi lo apre si aggiunge da solo. Chi tocchi qui riceve anche una notifica.</div>';
+        if (window.SeevaUI && SeevaUI.refresh) SeevaUI.refresh();
+      }
+
+      if (crPeoplePicker) {
+        crPeoplePicker.addEventListener('click', function (e) {
+          if (e.target.closest('#crSearchBtn')) { crOpenSearch(); return; }
+          var b = e.target.closest('[data-cr-list],[data-cr-person]');
+          if (!b) return;
+          clearWizardErrors();
+          if (b.hasAttribute('data-cr-list')) {
+            var id = b.getAttribute('data-cr-list');
+            friendListSelect.value = (friendListSelect.value === id) ? NONE_VALUE : id;
+            updateInviteUIState();
+            return;
+          }
+          if (b.classList.contains('is-via-list')) return; // già dentro la lista scelta
+          var p = crPeople[parseInt(b.getAttribute('data-cr-person'), 10)];
+          if (!p) return;
+          var k = p.name.toLowerCase();
+          var at = -1;
+          manualNames.forEach(function (en, i) { if (en.name.trim().toLowerCase() === k) at = i; });
+          if (at >= 0) manualNames.splice(at, 1);
+          else manualNames.push({ name: p.name, accountId: p.accountId || null, avatarUrl: p.accountId ? (crAvatarStore[p.accountId] || null) : null });
+          renderManualNamesList();
+          updateInviteUIState();
+        });
+      }
+
+      /* "Cerca e aggiungi persone": schermata stile tag di Instagram
+         (SeevaUI.openPeoplePicker in script.js). Quello che scegli lì
+         sostituisce gli invitati scelti a mano (manualNames); chi non era
+         tra le bolle ci entra, già spuntato. */
+      function crOpenSearch() {
+        if (!window.SeevaUI || !SeevaUI.openPeoplePicker) return;
+        SeevaUI.openPeoplePicker({
+          title: 'Chi inviti?',
+          known: crPeople.map(function (p) { return { name: p.name, accountId: p.accountId || null, avatarUrl: p.accountId ? (crAvatarStore[p.accountId] || null) : null, sub: '' }; }),
+          selected: manualNames.map(function (m) { return { name: m.name, accountId: m.accountId || null, avatarUrl: m.avatarUrl || null }; }),
+          allowFreeName: true,
+          onDone: function (sel) {
+            manualNames = sel.map(function (p) { return { name: p.name, accountId: p.accountId || null, avatarUrl: p.avatarUrl || null }; });
+            sel.forEach(function (p) {
+              var k = p.name.trim().toLowerCase();
+              if (!crPeople.some(function (c) { return c.name.toLowerCase() === k; })) {
+                crPeople.unshift({ name: p.name, accountId: p.accountId || null, score: 99 });
+                if (p.accountId && p.avatarUrl) crAvatarStore[p.accountId] = p.avatarUrl;
+              }
+            });
+            clearWizardErrors();
+            renderManualNamesList();
+            updateInviteUIState();
+          }
+        });
+      }
+
+      crBuildPeople(crCachedEvents());
+
+      // Arrivi da Amici toccando una persona (crea.html?invita=<account>&nome=<nome>):
+      // è già spuntata.
+      function crApplyInviteParam() {
+        var sp = new URLSearchParams(window.location.search);
+        var nm = (sp.get('nome') || '').trim();
+        if (isEditMode || !nm) return;
+        var acc = sp.get('invita') || null;
+        if (!manualNames.some(function (m) { return m.name.toLowerCase() === nm.toLowerCase(); })) manualNames.push({ name: nm, accountId: acc, avatarUrl: acc ? (crAvatarStore[acc] || null) : null });
+        if (!crPeople.some(function (c) { return c.name.toLowerCase() === nm.toLowerCase(); })) crPeople.unshift({ name: nm, accountId: acc, score: 99 });
+      }
+      crApplyInviteParam();
+
+      // Link aperto a tutti di base (Fil, 2026-10-25: "link nel gruppo"):
+      // si crea l'evento, si manda il link nel gruppo WhatsApp e chi lo apre
+      // si aggiunge da solo. In modifica resta quello dell'evento.
+      if (!isEditMode) openInviteCheckbox.checked = true;
+      renderManualNamesList();
+      renderPeoplePicker();
+      if (!crCachedEvents().length && SeevaData.getEvents) {
+        SeevaData.getEvents().then(function (evs) {
+          if (!mounted) return;
+          crBuildPeople(evs || []);
+          renderPeoplePicker();
+        }).catch(function () { /* restano solo le liste */ });
+      }
+
+      /* Altre opzioni: aperte da sole se dentro c'è già qualcosa (bozza,
+         "Ripeti questo evento", modifica), così niente resta nascosto. */
+      function crOpenMoreIfUsed() {
+        var more = document.getElementById('crMoreOptions');
+        if (!more) return;
+        var used = !!document.getElementById('eventDescription').value.trim()
+          || !!carriedPhotoUrl || !!carriedAudioUrl
+          || (eventPhotoPreview && !!eventPhotoPreview.querySelector('img'))
+          || (isEditMode && openInviteCheckbox.checked) || expensesEnabledCheckbox.checked
+          || itemsEnabledCheckbox.checked || saveAsListCheckbox.checked;
+        if (used) more.open = true;
+      }
 
       /* ---------- form a step: 3 schede (evento / inviti / date) ----------
          Stesso form di sempre, solo diviso in 3 "schede" per non mostrare
@@ -1184,22 +1379,21 @@
 
       function showStep(n) {
         currentStep = n;
+        // Schermata unica (2026-10-25): tutte le sezioni restano visibili.
         Object.keys(wizardStepEls).forEach(function (key) {
-          wizardStepEls[key].style.display = (parseInt(key, 10) === n) ? '' : 'none';
+          wizardStepEls[key].style.display = '';
         });
         // Fil, 2026-08-24: niente doppio bottone indietro a video — sugli
         // step 2/3 la pillola inline "← Indietro" basta da sola, coerente
         // con lo stile del wizard; la bolla viola (pensata per uscire DEL
         // TUTTO dalla creazione) resta visibile solo al primo step, che è
         // l'unico dove serve davvero.
-        crBackBtn.style.display = (n === 1) ? '' : 'none';
+        crBackBtn.style.display = '';
         wizardDotEls.forEach(function (dot) {
           var dotStep = parseInt(dot.getAttribute('data-step'), 10);
           dot.classList.toggle('active', dotStep === n);
           dot.classList.toggle('done', dotStep < n);
         });
-        var screenEl = document.querySelector('.screen');
-        if (screenEl) screenEl.scrollTop = 0;
       }
 
       /* ---------- tasto indietro (pillola inline + sistema) durante il wizard ----------
@@ -1598,7 +1792,7 @@
       createEventBtn.addEventListener('click', async function () {
         var name = document.getElementById('eventName').value.trim();
         var description = descriptionMode === 'text' ? document.getElementById('eventDescription').value.trim() : '';
-        var defaultBtnLabel = isEditMode ? 'Salva modifiche →' : 'Crea e genera link →';
+        var defaultBtnLabel = isEditMode ? 'Salva modifiche →' : 'Crea l\'evento';
 
         formError.textContent = '';
 
@@ -1856,7 +2050,7 @@
           + '<div class="signup-modal-text" style="margin-bottom:6px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><rect x="3" y="5" width="18" height="16" rx="3"></rect><line x1="16" y1="3" x2="16" y2="7"></line><line x1="8" y1="3" x2="8" y2="7"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>' + SeevaData.escapeHTML(dateText) + '</div>'
           + (inviteesCount
               ? '<div class="signup-modal-text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><circle cx="9" cy="8.5" r="3"></circle><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"></path><circle cx="17" cy="9" r="2.4"></circle><path d="M15.5 13.3c2.6 0.3 4.5 2.2 4.5 5.7"></path></svg>' + (inviteesCount === 1 ? t('1 invitato') : t('{n} invitati', { n: inviteesCount })) + '</div>'
-              : '<div class="signup-modal-text">Nessun invitato ancora: puoi aggiungerne dopo.</div>')
+              : '<div class="signup-modal-text">Ora manda il link nel gruppo: chi lo apre si aggiunge da solo.</div>')
           + '</div>';
 
         // 2026-10-14 (giro UX): il pulsante si chiama "Crea e genera link",
@@ -1867,7 +2061,7 @@
         var actions = document.createElement('div');
         actions.style.cssText = 'display:flex; flex-direction:column; gap:8px; margin-top:16px;';
         actions.innerHTML = ''
-          + '<button type="button" class="primary-btn" data-act="share" style="margin:0;">' + t('Condividi il link') + '</button>'
+          + '<button type="button" class="primary-btn" data-act="share" style="margin:0;">' + t('Manda il link agli amici') + '</button>'
           + '<div class="add-date-btn" data-act="go" style="margin:0; cursor:pointer;">' + t('Vai all\'evento →') + '</div>';
         overlay.querySelector('.signup-modal').appendChild(actions);
 
@@ -2025,7 +2219,7 @@
           renderManualNamesList();
         }
         if (draft.saveAsListChecked) saveAsListCheckbox.checked = true;
-        if (draft.openInviteChecked) openInviteCheckbox.checked = true;
+        if (typeof draft.openInviteChecked === 'boolean') openInviteCheckbox.checked = draft.openInviteChecked;
         if (draft.expensesEnabledChecked) expensesEnabledCheckbox.checked = true;
         if (draft.itemsEnabledChecked) itemsEnabledCheckbox.checked = true;
         if (draft.stagedExpenses && draft.stagedExpenses.length) {
@@ -2068,6 +2262,11 @@
       }
 
       restoreDraftIfAny();
+      // dopo la bozza, così la persona scelta da Amici non viene sovrascritta
+      crApplyInviteParam();
+      renderManualNamesList();
+      updateInviteUIState();
+      crOpenMoreIfUsed();
 
       /* ---------- Date già impegnate (Fil, 2026-10-04, #15) ----------
          Mentre crei (o modifichi) un evento: sotto ogni data che hai già
@@ -2268,6 +2467,8 @@
         });
 
         openInviteCheckbox.checked = !!editingEvent.openInvite;
+        renderPeoplePicker();
+        crOpenMoreIfUsed();
       }
 
       // Fil, 2026-07-22: se te ne vai da questa scheda mentre stai
