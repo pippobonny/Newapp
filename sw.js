@@ -28,7 +28,7 @@ self.addEventListener('activate', function (event) {
    rete. Le pagine, data.js, script.js e style.css NON passano da qui: si
    scaricano sempre aggiornati, così dopo un push nessuno resta con un mix di
    file vecchi e nuovi. */
-var STATIC_CACHE = 'seeva-static-v1';
+var STATIC_CACHE = 'seeva-static-v2';
 var MAX_CACHED = 250;
 
 function isCacheable(url) {
