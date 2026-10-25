@@ -4287,3 +4287,123 @@ html.seeva-native body { min-height: 0; }
 }
 .hm-foot { margin: 10px 0 8px; }
 .hm-foot a { background: none; box-shadow: none; padding: 6px; }
+
+/* =====================================================================
+   Ritocchi grafici (Fil, 2026-10-25: "freccia indietro in alto, cura le
+   animazioni, i pop up, abbellisci un po' tutto"). Tutto qui in fondo:
+   sovrascrive le regole sopra senza toccarle, così si torna indietro
+   cancellando solo questo blocco.
+   ===================================================================== */
+
+/* --- Freccia indietro in alto a sinistra, accanto al titolo --- */
+a.back-btn {
+  top: calc(15px + env(safe-area-inset-top, 0px));
+  bottom: auto;
+  left: 14px;
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 2px 10px rgba(58, 50, 90, 0.10);
+  z-index: 31;
+}
+a.back-btn svg { width: 19px; height: 19px; }
+.phone:not(.has-tabbar) .screen:has(> a.back-btn) > .header.simple:not(.home-header),
+.phone.tabbar-off .screen:has(> a.back-btn) > .header.simple:not(.home-header) { padding-left: 66px; }
+/* eventi.html la nasconde con style="display:none" finché non serve */
+.screen:has(> a.back-btn[style*="none"]) > .header.simple { padding-left: 20px !important; }
+/* Condividi resta in basso a destra (pagina evento): la coccinella gli sta a sinistra */
+.phone:has(#shareFab:not([style*="none"])) .report-problem-btn { right: 84px; }
+
+/* --- Popup: sfondo sfocato che entra, riquadro con un piccolo rimbalzo --- */
+.signup-overlay {
+  background: rgba(40, 24, 46, 0.42);
+  backdrop-filter: blur(8px) saturate(120%);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  animation: sOverlayIn .25s ease both;
+}
+@keyframes sOverlayIn { from { opacity: 0; } to { opacity: 1; } }
+.signup-modal {
+  border-radius: 28px;
+  padding: 30px 22px 22px;
+  box-shadow: 0 30px 70px rgba(40, 24, 46, 0.30), 0 2px 8px rgba(40, 24, 46, 0.08);
+  animation: sModalIn .42s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+@keyframes sModalIn {
+  from { transform: translateY(28px) scale(0.94); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.signup-modal-icon {
+  width: 64px; height: 64px; margin: 0 auto 12px; border-radius: 22px;
+  background: var(--peach-soft); color: var(--peach);
+  display: flex; align-items: center; justify-content: center;
+}
+.signup-modal-title { font-size: 20px; font-weight: 700; line-height: 1.25; }
+.signup-modal-text { font-size: 14px; line-height: 1.5; }
+.seeva-dialog .signup-modal { max-width: 330px; }
+.seeva-dialog .signup-modal-text { color: var(--ink); font-size: 15px; white-space: pre-line; }
+
+/* --- Messaggi brevi in basso: pillola centrata --- */
+.toast {
+  left: 50%; right: auto;
+  width: max-content; max-width: calc(100% - 44px);
+  border-radius: 999px;
+  padding: 12px 20px;
+  font-size: 14px;
+  background: rgba(40, 24, 46, 0.92);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 14px 34px rgba(40, 24, 46, 0.30);
+  transform: translate(-50%, 24px) scale(0.94);
+  transition: transform .38s cubic-bezier(0.34, 1.4, 0.64, 1), opacity .25s ease;
+}
+.toast.show { transform: translate(-50%, 0) scale(1); }
+.phone.has-tabbar:not(.tabbar-off) .toast { bottom: 96px; }
+.phone:not(.has-tabbar) .toast, .phone.tabbar-off .toast { bottom: calc(30px + env(safe-area-inset-bottom, 0px)); }
+
+/* --- Pulsanti: ombra calda e pressione morbida --- */
+.primary-btn {
+  box-shadow: 0 10px 24px rgba(255, 122, 41, 0.28);
+  transition: transform .15s ease, box-shadow .2s ease, filter .2s ease;
+}
+.primary-btn:active { transform: scale(0.98); box-shadow: 0 4px 12px rgba(255, 122, 41, 0.22); }
+.primary-btn:disabled { filter: saturate(0.6); opacity: .75; }
+.hm-act:active, .hm-row:active, .am-row:active, .cr-chip:active { transform: scale(0.985); }
+.hm-act, .hm-row, .cal-day, .cr-x, .pp-row, .am-invite { transition: transform .15s ease, background .2s ease, box-shadow .2s ease; }
+
+/* --- Entrata a cascata di schede e righe --- */
+@keyframes sFadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.hm-todo-title, .hm-week-title, .hm-swipe, .hm-rows, .hm-agenda-btn, .hm-empty,
+.cal, .cal-list > *, .am-list, .cr-section, .cr-extras {
+  animation: sFadeUp .42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.hm-swipe { animation-delay: .04s; } .hm-week-title { animation-delay: .08s; }
+.hm-rows { animation-delay: .11s; } .hm-agenda-btn { animation-delay: .14s; }
+.cal-list > *:nth-child(1) { animation-delay: .05s; } .cal-list > *:nth-child(2) { animation-delay: .09s; }
+.cal-list > *:nth-child(3) { animation-delay: .13s; } .cal-list > *:nth-child(n+4) { animation-delay: .17s; }
+.cr-section:nth-of-type(2) { animation-delay: .05s; } .cr-section:nth-of-type(3) { animation-delay: .1s; }
+.cr-extras { animation-delay: .14s; }
+.am-row { animation: sFadeUp .38s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.am-row:nth-child(2) { animation-delay: .04s; } .am-row:nth-child(3) { animation-delay: .08s; } .am-row:nth-child(n+4) { animation-delay: .12s; }
+
+/* --- Spunte che "scattano" --- */
+@keyframes sCheckPop { 0% { transform: scale(0.6); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
+.pp-row.is-on .pp-check, .cr-chip.is-on .cr-chip-tick, .cal-day.is-sel .cal-num { animation: sCheckPop .32s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.cr-x.is-on { animation: sCheckPop .3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* --- Barra in basso: la voce scelta fa un piccolo salto --- */
+@keyframes sTabHop { 0% { transform: translateY(0); } 40% { transform: translateY(-4px); } 100% { transform: translateY(0); } }
+.seeva-tabbar .nav-item.active:not(.nav-create) .icon { animation: sTabHop .36s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.seeva-tabbar .nav-item.nav-create .icon { transition: transform .2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow .2s ease; }
+
+/* --- Schermata cerca persone: righe scelte evidenziate --- */
+.pp-row.is-on { background: rgba(255, 122, 41, 0.07); }
+.pp-overlay { transition: transform .32s cubic-bezier(0.22, 1, 0.36, 1), opacity .22s ease; }
+
+/* --- Calendario: giorno scelto morbido --- */
+.cal-num { transition: background .2s ease, color .2s ease, box-shadow .2s ease; }
+.cal-day:active .cal-num { background: var(--peach-soft); }
+/* la scheda a cui hai appena risposto deve poter scivolare via */
+.my-card.is-leaving, .cal-list > .my-card.is-leaving { animation: none !important; opacity: 0; transform: translateX(30px) scale(0.98); transition: transform .26s ease, opacity .26s ease; }
+.date-typed input.date-typed-text, .date-typed input.date-typed-text[readonly] { opacity: 1 !important; background-color: var(--card) !important; color: var(--ink) !important; -webkit-text-fill-color: var(--ink); }
+.date-typed input.date-typed-text::placeholder { -webkit-text-fill-color: var(--ink-soft); color: var(--ink-soft); opacity: 1; }
