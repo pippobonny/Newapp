@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="it" translate="no">
+<head>
+<meta charset="UTF-8">
+<!-- Niente traduzione automatica di Chrome (Fil, 2026-10-10): l'app ha già italiano/inglese suoi; con l'app in inglese su un telefono italiano Chrome traduceva sopra, mischiando le lingue. -->
+<meta name="google" content="notranslate">
+<script src="i18n.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>seeva — Eventi passati</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://kruphqdahghxuvutonae.supabase.co" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FF7A29">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="favicon.ico">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="seeva">
+<script>
+  /* Fix navbar tagliata sull'app installata (PWA a schermo intero): su alcuni
+     Android/Chrome 100dvh non combacia col vero window.innerHeight quando
+     l'app gira standalone, e la navbar finisce a metà, sotto la gesture bar.
+     Misuriamo noi lo spazio vero e lo passiamo a style.css via --app-height.
+     Solo in standalone: in Safari normale (scheda del browser) 100dvh da solo
+     si aggiorna già correttamente quando la barra degli indirizzi si nasconde/
+     mostra, mentre un innerHeight misurato una volta e aggiornato solo su
+     resize/orientationchange restava indietro e lasciava una striscia grigia
+     sotto la tab bar (bug notato da Fil su iPhone il 2026-07-05). */
+  (function () {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (!isStandalone) return;
+    function setAppHeight() {
+      document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+    }
+    setAppHeight();
+    window.addEventListener('resize', setAppHeight);
+    window.addEventListener('orientationchange', setAppHeight);
+  })();
+</script>
+</head>
+<body>
+
+  <!-- passati.html (Fil, 2026-10-26): l'elenco COMPLETO dei tuoi eventi
+       passati, diviso per mese (dal più recente). Ci si arriva da
+       "Vedi tutti" nel Profilo, che invece ne mostra solo gli ultimi 3.
+       Stesse righe compatte del Profilo (SeevaData.renderPastEventRowHTML):
+       tocco = apre l'evento, icona a destra = Ripeti, trascinare verso
+       destra = elimina (se l'hai organizzato) / togli dalla tua lista.
+       Non è una delle schede della barra in basso: si torna al Profilo
+       con la freccia. -->
+  <div class="phone">
+   <div class="screen">
+    <div class="header simple">
+      <div class="header-title">Eventi passati</div>
+    </div>
+    <a class="back-btn" href="profilo.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M15 18l-6-6 6-6"></path></svg></a>
+
+    <div class="content" id="pastPage">
+      <div id="pastList"><div class="sk-wrap" aria-hidden="true"><div class="sk-card" style="padding:10px 12px"><div class="sk-row"><span class="sk sk-icon"></span><div class="sk-col"><span class="sk" style="width:58%"></span><span class="sk" style="width:38%;height:10px"></span></div></div></div><div class="sk-card" style="padding:10px 12px"><div class="sk-row"><span class="sk sk-icon"></span><div class="sk-col"><span class="sk" style="width:52%"></span><span class="sk" style="width:34%;height:10px"></span></div></div></div><div class="sk-card" style="padding:10px 12px"><div class="sk-row"><span class="sk sk-icon"></span><div class="sk-col"><span class="sk" style="width:62%"></span><span class="sk" style="width:40%;height:10px"></span></div></div></div><div class="sk-card" style="padding:10px 12px"><div class="sk-row"><span class="sk sk-icon"></span><div class="sk-col"><span class="sk" style="width:48%"></span><span class="sk" style="width:30%;height:10px"></span></div></div></div></div></div>
+    </div>
+   </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
+  <script src="data.js"></script>
+  <script>
+    (async function () {
+      var listEl = document.getElementById('pastList');
+
+      // Stessa regola d'accesso di Notifiche: serve un profilo.
+      var gate = SeevaData.checkAccessGate(null);
+      if (gate.action === 'redirect') {
+        window.location.href = gate.url;
+        return;
+      }
+      if (gate.action === 'block') {
+        listEl.innerHTML = SeevaData.accountRequiredBlockHTML(
+          'Per vedere i tuoi eventi passati devi prima creare un profilo.'
+        );
+        if (window.SeevaUI) window.SeevaUI.refresh();
+        return;
+      }
+      SeevaData.renderSessionWarningIfNeeded();
+
+      function monthLabel(dateISO) {
+        if (!dateISO) return '';
+        try {
+          var d = new Date(dateISO + 'T00:00:00');
+          return d.toLocaleDateString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { month: 'long', year: 'numeric' });
+        } catch (err) { return dateISO.slice(0, 7); }
+      }
+
+      function draw(events) {
+        var mine = SeevaData.getMyPastEvents(events);
+        var html;
+        if (!mine.length) {
+          html = '<div class="empty-hint">Nessun evento passato ancora: qui trovi l\'archivio di quelli tuoi già conclusi.</div>';
+        } else {
+          // Gruppi per mese (la lista arriva già dal più recente)
+          var groups = [];
+          mine.forEach(function (it) {
+            var key = (it.dateISO || '').slice(0, 7);
+            var g = groups.length ? groups[groups.length - 1] : null;
+            if (!g || g.key !== key) { g = { key: key, label: monthLabel(it.dateISO), items: [] }; groups.push(g); }
+            g.items.push(it);
+          });
+          html = groups.map(function (g) {
+            return '<div class="past-month"><span>' + SeevaData.escapeHTML(g.label) + '</span><span class="past-month-n" data-no-i18n>' + g.items.length + '</span></div>'
+              + g.items.map(function (it) { return SeevaData.renderPastEventRowHTML(it); }).join('');
+          }).join('');
+        }
+        if (!SeevaData.swapHTML(listEl, html)) return;
+        if (window.SeevaUI) window.SeevaUI.refresh();
+      }
+
+      // Subito coi dati salvati sul telefono (come il Profilo), poi quelli veri.
+      var instantRecent = SeevaData.getEventsInstant ? SeevaData.getEventsInstant() : null;
+      var instantArchived = SeevaData.getArchivedEventsInstant ? SeevaData.getArchivedEventsInstant() : null;
+      if (instantRecent || instantArchived) {
+        draw((instantRecent || []).concat(instantArchived || []));
+      }
+
+      try {
+        var both = await Promise.all([SeevaData.getEvents(), SeevaData.getArchivedEvents()]);
+        draw((both[0] || []).concat(both[1] || []));
+      } catch (err) {
+        if (!(instantRecent || instantArchived)) {
+          SeevaData.resetSwap(listEl);
+          listEl.innerHTML = '<div class="empty-hint">Non riesco a caricare i tuoi eventi (' + SeevaData.escapeHTML(SeevaData.friendlyErrorMessage(err)) + ').</div>';
+        }
+      }
+    })();
+  </script>
+  <script src="script.js"></script>
+</body>
+</html>

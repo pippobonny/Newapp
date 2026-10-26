@@ -4639,3 +4639,103 @@ html:active-view-transition-type(backward)::view-transition-new(root) { animatio
 /* Amici, "Le tue liste": due quadrati affiancati come le card vere */
 #listsContainer > .sk-wrap { display: contents; }
 #listsContainer > .sk-wrap > .sk-card { aspect-ratio: 1; margin-bottom: 0; }
+
+/* =========================================================
+   Profilo rinnovato (Fil, 2026-10-26)
+   - in alto: nome come titolo + due numeri (eventi fatti / organizzati)
+   - "I tuoi eventi passati": righe compatte, solo le ultime 3, più
+     "Vedi tutti" verso passati.html (stesse righe, divise per mese)
+   - impostazioni raggruppate in blocchi come quelle del telefono
+   ========================================================= */
+.profile-header .profile-name { font-size: 22px; font-weight: 700; color: var(--ink); line-height: 1.2; margin-top: -2px; }
+.profile-stats { display: flex; justify-content: center; gap: 10px; margin: 16px 0 6px; }
+.profile-stat {
+  flex: 0 1 132px; background: var(--card); border-radius: 16px; padding: 10px 8px 9px;
+  box-shadow: 0 2px 8px rgba(58,50,90,0.06); display: flex; flex-direction: column; align-items: center; gap: 1px;
+}
+.profile-stat b { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 700; color: var(--peach); line-height: 1.1; }
+.profile-stat span { font-size: 12px; color: var(--ink-soft); font-weight: 500; }
+
+.section-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.section-row .section-title { flex: 1; min-width: 0; }
+.section-link {
+  display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+  font-size: 13px; font-weight: 600; color: var(--peach); text-decoration: none; padding: 4px 0 4px 8px;
+}
+.section-link-n {
+  font-size: 11px; font-weight: 700; background: var(--peach-soft); color: var(--peach);
+  border-radius: 999px; padding: 1px 7px; margin-left: 2px;
+}
+
+/* Riga compatta di un evento passato (SeevaData.renderPastEventRowHTML) */
+.card.past-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 10px 10px 10px; border-radius: 18px; margin-bottom: 8px;
+  box-shadow: 0 2px 8px rgba(58,50,90,0.06);
+  text-decoration: none; color: var(--ink);
+}
+.card-swipe-wrap.past-wrap { border-radius: 18px; margin-bottom: 8px; }
+.card-swipe-wrap.past-wrap .card.past-row { margin-bottom: 0; }
+/* il cestino rosso, sotto la riga, si intravedeva come un filo sul bordo
+   sinistro arrotondato: lo si "rimpicciolisce" di 1px tutto attorno */
+.card-swipe-wrap.past-wrap .card-swipe-trash { border-radius: 18px; clip-path: inset(1px round 17px); }
+.past-thumb { width: 44px; height: 44px; border-radius: 12px; object-fit: cover; flex-shrink: 0; display: block; }
+.past-thumb-date {
+  background: var(--past-soft); color: var(--lavender-ink);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1;
+}
+.past-thumb-date b { font-family: 'Fraunces', serif; font-size: 17px; font-weight: 700; }
+.past-thumb-date span { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; opacity: 0.85; }
+.past-main { flex: 1; min-width: 0; }
+.card.past-row .past-title {
+  font-size: 15px; font-weight: 600; margin: 0; line-height: 1.25;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.past-meta {
+  font-size: 12.5px; color: var(--ink-soft); margin-top: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.past-repeat {
+  flex-shrink: 0; width: 36px; height: 36px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--lavender-ink); background: var(--lavender-soft); cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.past-repeat:active { transform: scale(0.9); }
+.past-repeat.is-busy svg { animation: past-repeat-spin 0.8s linear infinite; }
+@keyframes past-repeat-spin { to { transform: rotate(360deg); } }
+
+/* passati.html: titoletti per mese */
+.past-month {
+  font-family: 'Fraunces', serif; font-size: 14px; font-weight: 600; color: var(--ink-soft);
+  margin: 18px 4px 8px; text-transform: capitalize;
+}
+.past-month:first-child { margin-top: 6px; }
+.past-month .past-month-n { font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500; margin-left: 6px; opacity: 0.8; }
+
+/* Impostazioni a blocchi */
+.settings-group {
+  background: var(--card); border-radius: 18px; margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(58,50,90,0.06); overflow: hidden;
+}
+.settings-group .settings-row {
+  background: transparent; box-shadow: none; border-radius: 0; margin-bottom: 0; padding: 12px 14px;
+}
+.settings-group .settings-row + .settings-row { border-top: 1px solid var(--track-soft); }
+.settings-group .settings-row:active { transform: none; background: var(--track-soft); }
+.settings-group .settings-row .left { gap: 12px !important; }
+.settings-group .settings-row .left > svg {
+  box-sizing: content-box; padding: 7px; border-radius: 10px; flex-shrink: 0;
+  background: var(--lavender-soft); color: var(--lavender-ink);
+}
+.settings-group .settings-row.danger .left > svg { background: var(--cancel-soft); color: var(--cancel-ink); }
+.settings-group .settings-row > div:last-child { color: var(--ink-soft); }
+
+@media (prefers-color-scheme: dark) {
+  .past-thumb-date { background: #3B2E44; color: #E6D3EA; }
+  .past-repeat { background: #3B2E44; color: #E6D3EA; }
+  .section-link-n { background: rgba(255,122,41,0.18); }
+  .settings-group .settings-row .left > svg { background: #3B2E44; color: #E6D3EA; }
+  .settings-group .settings-row.danger .left > svg { background: rgba(188,71,73,0.22); color: #F0A3A4; }
+  .profile-stat, .card.past-row, .settings-group { box-shadow: none; }
+}

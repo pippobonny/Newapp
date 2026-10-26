@@ -570,3 +570,8 @@ Apri ⇒ Open
 con ⇒ in
 e poi ⇒ and then
 Da questo browser l'installazione su iPhone spesso non è possibile: con Safari funziona sempre. ⇒ From this browser, installing on iPhone often isn't possible: it always works with Safari.
+Eventi passati ⇒ Past events
+Vedi tutti ⇒ See all
+Eventi fatti ⇒ Events done
+Organizzati ⇒ Organised
+Per vedere i tuoi eventi passati devi prima creare un profilo. ⇒ To see your past events you need to create a profile first.

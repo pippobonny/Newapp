@@ -209,22 +209,41 @@
       </div>
 
       <div id="normalProfileView">
+        <!-- 2026-10-26 (Fil: "in alto troppo spoglio"): chi ha un account
+             vede il nome come titolo (non più un campo grigio bloccato) e
+             sotto due numeri, come i profili delle app che si usano tutti i
+             giorni. Chi è ospite continua a scrivere il nome nel campo. -->
         <div class="profile-header">
           <div class="avatar large" id="profileAvatar">?</div>
-          <div class="field">
-            <input type="text" id="profileNameInput" placeholder="Come ti chiami?" style="text-align:center; font-family:'Fraunces',serif; font-size:18px; font-weight:600;">
+          <div class="name profile-name" id="profileNameText" data-no-i18n style="display:none;"></div>
+          <div id="profileNameEdit">
+            <div class="field">
+              <input type="text" id="profileNameInput" placeholder="Come ti chiami?" style="text-align:center; font-family:'Fraunces',serif; font-size:18px; font-weight:600;">
+            </div>
+            <div class="email">Il nome utente è pubblico: lo vedono tutti negli eventi</div>
           </div>
-          <div class="email">Il nome utente è pubblico: lo vedono tutti negli eventi</div>
+          <div class="profile-stats" id="profileStats" style="display:none;">
+            <div class="profile-stat"><b id="statDone" data-no-i18n>0</b><span>Eventi fatti</span></div>
+            <div class="profile-stat"><b id="statOrg" data-no-i18n>0</b><span>Organizzati</span></div>
+          </div>
         </div>
 
         <div id="profileSaveRow" style="margin-bottom: 18px;">
           <button type="button" class="primary-btn" id="saveNameBtn">Salva nome utente</button>
         </div>
 
-        <div class="section-title">I tuoi eventi passati</div>
-        <div id="myEventsList"><div class="sk-wrap" aria-hidden="true"><div class="sk-card" style="padding:16px"><div class="sk-col" style="gap:10px"><span class="sk" style="width:58%;height:16px"></span><span class="sk" style="width:38%"></span><span class="sk" style="width:46%"></span></div></div><div class="sk-card" style="padding:16px"><div class="sk-col" style="gap:10px"><span class="sk" style="width:58%;height:16px"></span><span class="sk" style="width:38%"></span><span class="sk" style="width:46%"></span></div></div></div></div>
+        <!-- 2026-10-26: solo gli ultimi 3 in righe compatte; "Vedi tutti"
+             apre passati.html con l'elenco completo diviso per mese. -->
+        <div class="section-row">
+          <div class="section-title">I tuoi eventi passati</div>
+          <a class="section-link" href="passati.html" id="pastSeeAll" style="display:none;"><span>Vedi tutti</span><span class="section-link-n" id="pastSeeAllN" data-no-i18n></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M9 6l6 6-6 6"></path></svg></a>
+        </div>
+        <div id="myEventsList"><div class="sk-wrap" aria-hidden="true"><div class="sk-card" style="padding:10px 12px"><div class="sk-row"><span class="sk sk-icon"></span><div class="sk-col"><span class="sk" style="width:58%"></span><span class="sk" style="width:38%;height:10px"></span></div></div></div><div class="sk-card" style="padding:10px 12px"><div class="sk-row"><span class="sk sk-icon"></span><div class="sk-col"><span class="sk" style="width:52%"></span><span class="sk" style="width:34%;height:10px"></span></div></div></div><div class="sk-card" style="padding:10px 12px"><div class="sk-row"><span class="sk sk-icon"></span><div class="sk-col"><span class="sk" style="width:62%"></span><span class="sk" style="width:40%;height:10px"></span></div></div></div></div></div>
 
         <div class="section-title">Impostazioni</div>
+        <!-- 2026-10-26 (rifinitura): righe raggruppate in blocchi, come le
+             impostazioni del telefono, invece di tante card separate. -->
+        <div class="settings-group">
         <div class="settings-row" id="editAccountRow">
           <div class="left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg> Dati del profilo (nome, email...)</div>
           <div>›</div>
@@ -244,13 +263,17 @@
           <div class="left" id="pushNotifLabel" style="display:flex; align-items:center; gap:8px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M12 3a6 6 0 0 0-6 6v3.2c0 .87-.35 1.7-.97 2.32L4 15.5h16l-1.03-1.98A3.28 3.28 0 0 1 18 11.2V9a6 6 0 0 0-6-6z"></path><path d="M9.5 18.5a2.5 2.5 0 0 0 5 0"></path></svg><span id="pushNotifLabelText">Attiva notifiche push</span></div>
           <div>›</div>
         </div>
+        </div>
+        <div class="settings-group">
         <!-- 2026-10-25: con la barra in basso la coccinella fluttuante copriva
              le schede; nelle pagine con la barra si apre da qui (vedi
              data-open-report in script.js). -->
         <div class="settings-row" data-open-report="1" style="cursor:pointer;">
-          <div class="left">🐞 Segnala un problema</div>
+          <div class="left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M5 21V4"></path><path d="M5 4h11l-2 4 2 4H5"></path></svg> Segnala un problema</div>
           <div>›</div>
         </div>
+        </div>
+        <div class="settings-group">
         <div class="settings-row danger" id="forgetMeRow">
           <div class="left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M15 3h-9a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9"></path><line x1="10" y1="12" x2="21" y2="12"></line><path d="M17 8l4 4-4 4"></path></svg> Esci</div>
           <div>›</div>
@@ -258,6 +281,7 @@
         <div class="settings-row danger" id="deleteAccountRow">
           <div class="left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M4 7h16"></path><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"></path><line x1="9" y1="11" x2="9" y2="17"></line><line x1="15" y1="11" x2="15" y2="17"></line></svg> Elimina account</div>
           <div>›</div>
+        </div>
         </div>
       </div>
     </div>
@@ -666,6 +690,11 @@
         var isAccountHolder = SeevaData.hasAccount();
         nameInput.disabled = isAccountHolder;
         profileSaveRow.style.display = isAccountHolder ? 'none' : '';
+        // 2026-10-26: con l'account il nome è un titolo, non un campo bloccato
+        var nameTextEl = document.getElementById('profileNameText');
+        nameTextEl.textContent = guestName;
+        nameTextEl.style.display = isAccountHolder ? '' : 'none';
+        document.getElementById('profileNameEdit').style.display = isAccountHolder ? 'none' : '';
 
         var acc = SeevaData.getAccount();
         if (acc && acc.avatarUrl) {
@@ -676,33 +705,34 @@
         }
 
         // Disegna l'archivio "eventi passati" da una lista di eventi.
+        // Qui restano solo gli eventi "passato" (confermati e già successi da
+        // un po'): quelli ancora aperti/in attesa/annullati si vedono in Home
+        // e in Agenda. Chi li vede: chi li ha organizzati o c'era davvero
+        // (2026-07-20) — regola in SeevaData.getMyPastEvents.
+        // 2026-10-26 (Fil: "sono tanti e non si raggruppano"): solo gli
+        // ultimi 3 in righe compatte; "Vedi tutti (N)" apre passati.html.
+        // Sopra, sotto il nome: quanti eventi fatti e quanti organizzati.
+        var PROFILE_PAST_MAX = 3;
         function drawMine(events) {
-          // Qui restano solo gli eventi "passato" (confermati e già successi da
-          // un po'): quelli ancora aperti/in attesa/annullati si vedono in Home
-          // e in Eventi, non anche qui — il Profilo è l'archivio di quello che
-          // è già successo, non un doppione delle altre due pagine.
-          // 2026-07-20 (Fil): prima si vedevano qui SOLO gli eventi organizzati
-          // da te — ora anche quelli a cui hai partecipato davvero (disponibile
-          // per la data poi confermata, vedi getConfirmedParticipantNames), non
-          // solo chi li ha creati. Chi aveva detto "non ci sono" non li vede.
-          var myNameLower = (guestName || '').trim().toLowerCase();
-          var mine = events.filter(function (e) {
-            if (!guestName || SeevaData.computeEventStatus(e).status !== 'passato') return false;
-            var isOrganizer = !!(e.createdBy && e.createdBy.trim().toLowerCase() === myNameLower);
-            var wasThere = SeevaData.getConfirmedParticipantNames(e).some(function (n) {
-              return (n || '').trim().toLowerCase() === myNameLower;
-            });
-            return isOrganizer || wasThere;
-          });
+          var mine = SeevaData.getMyPastEvents(events);
+
+          var statsEl = document.getElementById('profileStats');
+          if (guestName) {
+            document.getElementById('statDone').textContent = mine.length;
+            document.getElementById('statOrg').textContent = mine.filter(function (it) { return it.isOrganizer; }).length;
+            statsEl.style.display = '';
+          } else {
+            statsEl.style.display = 'none';
+          }
+          var seeAll = document.getElementById('pastSeeAll');
+          seeAll.style.display = mine.length > PROFILE_PAST_MAX ? '' : 'none';
+          document.getElementById('pastSeeAllN').textContent = mine.length;
 
           var html;
           if (mine.length) {
-            // swipeToRemove:true (Fil, 2026-08-24, bug segnalato dall'app):
-            // la Home non mostra più una lista di card evento (solo tessere
-            // aggregate), quindi questa è rimasta l'unica pagina con una vera
-            // lista scorrevole di card — stesso gesto/cestino rosso che
-            // c'era prima in Home.
-            html = mine.map(function (e) { return SeevaData.renderEventCardHTML(e, { swipeToRemove: true }); }).join('');
+            // Swipe per eliminare/rimuovere (2026-08-24) e "Ripeti" restano
+            // anche sulle righe compatte (vedi renderPastEventRowHTML).
+            html = mine.slice(0, PROFILE_PAST_MAX).map(function (it) { return SeevaData.renderPastEventRowHTML(it); }).join('');
           } else {
             html = '<div class="empty-hint">Nessun evento passato ancora: qui trovi l\'archivio di quelli tuoi già conclusi.</div>';
           }

@@ -1431,17 +1431,23 @@
         if (!window.SeevaData) return;
 
         var eventId = btn.getAttribute('data-repeat-event');
-        var originalText = btn.textContent;
-        btn.textContent = 'Preparo...';
+        // 2026-10-26: nelle righe compatte di Profilo/passati.html "Ripeti"
+        // è solo un'icona (data-repeat-icon): niente "Preparo..." al posto
+        // del disegno, gira l'icona (classe is-busy in style.css).
+        var isIcon = btn.hasAttribute('data-repeat-icon');
+        if (isIcon && btn.classList.contains('is-busy')) return;
+        var originalText = isIcon ? null : btn.textContent;
+        function restoreBtn() { if (isIcon) btn.classList.remove('is-busy'); else btn.textContent = originalText; }
+        if (isIcon) btn.classList.add('is-busy'); else btn.textContent = 'Preparo...';
 
         var ev;
         try {
           ev = await SeevaData.getEventById(eventId);
         } catch (err) {
-          btn.textContent = originalText;
+          restoreBtn();
           return;
         }
-        if (!ev) { btn.textContent = originalText; return; }
+        if (!ev) { restoreBtn(); return; }
 
         // Fil, 2026-07-21, bug trovato in review: con un evento a più
         // location (vedi resolveEventLocation in data.js) ev.locationAddress

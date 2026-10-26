@@ -4145,6 +4145,91 @@
       + '</div>';
   }
 
+  /* ---------- Archivio "eventi passati" (Fil, 2026-10-26) ----------
+     Prima il Profilo mostrava TUTTI gli eventi passati come card grandi,
+     uno sotto l'altro: con tanti eventi la pagina diventava lunghissima e
+     le Impostazioni finivano in fondo. Ora: nel Profilo solo gli ultimi 3,
+     in righe compatte, più "Vedi tutti" che apre passati.html (tutti,
+     divisi per mese). Stessa regola di prima per chi li vede: eventi
+     "passato" che hai organizzato o a cui c'eri davvero (disponibile per
+     la data poi confermata); chi aveva detto "non ci sono" non li vede.
+     Torna [{event, dateISO, isOrganizer}] dal più recente al più vecchio,
+     senza doppioni (la lista recenti + archivio può ripetere un evento). */
+  function getMyPastEvents(events) {
+    var me = (getGuestName() || '').trim().toLowerCase();
+    if (!me) return [];
+    var seen = {};
+    var out = [];
+    (events || []).forEach(function (e) {
+      if (!e || !e.id || seen[e.id]) return;
+      seen[e.id] = true;
+      var info = computeEventStatus(e);
+      if (info.status !== 'passato') return;
+      var isOrg = (e.createdBy || '').trim().toLowerCase() === me;
+      var wasThere = getConfirmedParticipantNames(e).some(function (n) {
+        return (n || '').trim().toLowerCase() === me;
+      });
+      if (!isOrg && !wasThere) return;
+      out.push({ event: e, dateISO: (info.bestOption && info.bestOption.dateISO) || '', isOrganizer: isOrg });
+    });
+    out.sort(function (a, b) { return a.dateISO < b.dateISO ? 1 : a.dateISO > b.dateISO ? -1 : 0; });
+    return out;
+  }
+
+  /* Riga compatta di un evento passato (Profilo + passati.html): foto (o,
+     se manca, un quadratino con giorno e mese), titolo, data e luogo,
+     icona "Ripeti" a destra. Lo swipe verso destra per eliminare/rimuovere
+     resta identico alle card di prima (stesso wrapper .card-swipe-wrap e
+     stesso cestino, vedi initSwipeToRemove in script.js). La riga ha
+     ancora la classe .card apposta: swipe, ripple e tocco la cercano lì. */
+  function renderPastEventRowHTML(item) {
+    var e = item.event;
+    var esc = escapeHTML;
+    var loc = window.SeevaI18n ? SeevaI18n.locale() : 'it-IT';
+    var d = item.dateISO ? new Date(item.dateISO + 'T00:00:00') : null;
+    var dateText = '';
+    var thumb;
+    if (d && !isNaN(d.getTime())) {
+      var dOpts = { weekday: 'short', day: 'numeric', month: 'short' };
+      if (d.getFullYear() !== new Date().getFullYear()) dOpts.year = 'numeric';
+      try { dateText = d.toLocaleDateString(loc, dOpts); } catch (err) { dateText = item.dateISO; }
+      dateText = dateText.charAt(0).toUpperCase() + dateText.slice(1);
+    }
+    if (e.photoUrl) {
+      thumb = '<img class="past-thumb" src="' + esc(e.photoUrl) + '" alt="" loading="lazy">';
+    } else if (d && !isNaN(d.getTime())) {
+      var mon = '';
+      try { mon = d.toLocaleDateString(loc, { month: 'short' }).replace('.', ''); } catch (err) { mon = ''; }
+      thumb = '<div class="past-thumb past-thumb-date"><b>' + d.getDate() + '</b><span>' + esc(mon) + '</span></div>';
+    } else {
+      thumb = '<div class="past-thumb past-thumb-date"></div>';
+    }
+    var place = '';
+    try { place = (resolveEventLocation(e).address || '').split(',')[0].trim(); } catch (err) { place = ''; }
+
+    var cardHTML = ''
+      + '<a class="card past-row reveal" href="evento.html?id=' + encodeURIComponent(e.id) + '">'
+      + thumb
+      + '<div class="past-main">'
+      + '<div class="card-title past-title" data-no-i18n>' + esc(e.name) + '</div>'
+      + '<div class="past-meta"><span>' + esc(dateText) + '</span>' + (place ? '<span class="past-place" data-no-i18n> · ' + esc(place) + '</span>' : '') + '</div>'
+      + '</div>'
+      + '<span class="past-repeat" role="button" data-repeat-event="' + esc(e.id) + '" data-repeat-icon="1" aria-label="Ripeti questo evento" title="Ripeti questo evento">'
+      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M17 2.1l4 4-4 4"></path><path d="M3 12.6v-2a4 4 0 0 1 4-4h14"></path><path d="M7 21.9l-4-4 4-4"></path><path d="M21 11.4v2a4 4 0 0 1-4 4H3"></path></svg>'
+      + '</span>'
+      + '</a>';
+
+    if (!hasAccount()) return cardHTML;
+    var myAccountId = (getAccount() || {}).id || null;
+    var myParticipant = (e.participants || []).filter(function (p) { return p.accountId === myAccountId; })[0];
+    var wasAvailable = !!(myParticipant && (myParticipant.availableDateOptionIds || []).length > 0);
+    return ''
+      + '<div class="card-swipe-wrap past-wrap">'
+      + cardHTML
+      + '<div class="card-swipe-trash" data-remove-event="' + esc(e.id) + '" data-event-name="' + esc(e.name) + '" data-was-available="' + (wasAvailable ? '1' : '0') + '" data-is-organizer="' + (item.isOrganizer ? '1' : '0') + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M4 7h16"></path><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"></path><line x1="9" y1="11" x2="9" y2="17"></line><line x1="15" y1="11" x2="15" y2="17"></line></svg></div>'
+      + '</div>';
+  }
+
   global.SeevaData = {
     getGuestName: getGuestName,
     setGuestName: setGuestName,
@@ -4179,6 +4264,8 @@
     getCancelledEvents: getCancelledEvents,
     getCancelledCount: getCancelledCount,
     getArchivedEvents: getArchivedEvents,
+    getMyPastEvents: getMyPastEvents,
+    renderPastEventRowHTML: renderPastEventRowHTML,
     getEventsInstant: getEventsInstant,
     swapHTML: swapHTML,
     resetSwap: resetSwap,
