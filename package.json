@@ -1,6 +1,13 @@
 {
   "private": true,
   "type": "module",
-  "scripts": { "build": "node build.mjs" },
-  "devDependencies": { "esbuild": "0.23.1" }
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "@fontsource/fraunces": "5.2.9",
+    "@fontsource/inter": "5.2.8",
+    "@supabase/supabase-js": "2.117.2",
+    "esbuild": "0.23.1"
+  }
 }

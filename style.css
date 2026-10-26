@@ -4545,3 +4545,33 @@ a.back-btn svg { width: 19px; height: 19px; }
    la freccia (posizionata dentro .screen) non deve aggiungerlo una seconda
    volta, altrimenti scende sopra il contenuto. */
 html.seeva-native a.back-btn { top: 15px; }
+
+/* =====================================================================
+   Transizioni tra pagine fatte dal browser (Fil, 2026-10-26, "super
+   veloce, effetti wow"). Vedi XDOC_VT in script.js: dove sono supportate
+   si cambia pagina subito e la nuova scorre dentro; la barra in basso
+   resta ferma; il titolo dell'evento vola dalla card all'intestazione.
+   ===================================================================== */
+@view-transition { navigation: auto; }
+.seeva-tabbar { view-transition-name: tabbar; }
+.event-hero-title { view-transition-name: ev-title; }
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: .26s;
+  animation-timing-function: cubic-bezier(.22, 1, .36, 1);
+}
+::view-transition-old(root) { animation-name: vt-out-left; }
+::view-transition-new(root) { animation-name: vt-in-right; }
+html:active-view-transition-type(backward)::view-transition-old(root) { animation-name: vt-out-right; }
+html:active-view-transition-type(backward)::view-transition-new(root) { animation-name: vt-in-left; }
+::view-transition-group(ev-title) { animation-duration: .34s; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+::view-transition-old(ev-title), ::view-transition-new(ev-title) { height: 100%; object-fit: none; object-position: left center; }
+@keyframes vt-in-right { from { transform: translateX(28%); opacity: 0; } }
+@keyframes vt-out-left { to { transform: translateX(-10%); opacity: 0; } }
+@keyframes vt-in-left { from { transform: translateX(-28%); opacity: 0; } }
+@keyframes vt-out-right { to { transform: translateX(10%); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+}
+/* "Non ci sono" per intero sulle card della Home (vocabolario unico, 2026-10-26) */
+.hm-act-btn { font-size: 14px; padding: 0 6px; white-space: nowrap; }

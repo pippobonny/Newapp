@@ -973,8 +973,17 @@
   // dato il permesso per le notifiche): così quando l'utente preme
   // "Attiva" nel profilo non deve aspettare la registrazione del service
   // worker, è già pronta.
+  // 2026-10-26: un attimo DOPO che la pagina è pronta, perché ora il
+  // service worker scarica anche tutti i file dell'app (vedi sw.js) e non
+  // deve rubare banda alla prima apertura di chi arriva da un invito.
   if (global.navigator && global.navigator.serviceWorker) {
-    ensureServiceWorkerRegistered().catch(function () { /* silenzioso: se fallisce qui, si vedrà comunque quando l'utente prova ad attivarle */ });
+    var registerLater = function () {
+      global.setTimeout(function () {
+        ensureServiceWorkerRegistered().catch(function () { /* silenzioso: se fallisce qui, si vedrà comunque quando l'utente prova ad attivarle */ });
+      }, global.navigator.serviceWorker.controller ? 0 : 1500);
+    };
+    if (global.document && global.document.readyState === 'complete') registerLater();
+    else global.addEventListener('load', registerLater, { once: true });
   }
 
   async function isPushSubscribed() {
@@ -2184,7 +2193,7 @@
         if (iAmOrganizer || (meN && (meN.maybe || (info.bestOption && (meN.availableDateOptionIds || []).indexOf(info.bestOption.id) !== -1)))) {
           notifications.push({
             icon: 'confirmed', emoji: '✅', time: latestEventActivityTime(event), eventId: event.id,
-            text: whenN ? T('<b>{name}</b> si fa: {when}!', { name: escapeHTML(event.name), when: escapeHTML(whenN) }) : T('<b>{name}</b> si fa!', { name: escapeHTML(event.name) })
+            text: whenN ? T('<b>{name}</b> è confermato: {when}!', { name: escapeHTML(event.name), when: escapeHTML(whenN) }) : T('<b>{name}</b> è confermato!', { name: escapeHTML(event.name) })
           });
         } else if (!meN) {
           notifications.push({

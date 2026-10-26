@@ -113,6 +113,47 @@
   var TAB_ORDER = ['index.html', 'eventi.html', 'crea.html', 'amici.html', 'profilo.html', 'notifiche.html'];
   var STORAGE_KEY = 'cs-nav-direction';
 
+  /* Transizioni "native" tra le pagine (Fil, 2026-10-26: "super veloce,
+     effetti wow"). Dove il browser sa fare le View Transitions anche tra
+     pagine diverse (Chrome/Android recenti, Safari 18.2+), niente più
+     attesa di 160 ms prima di cambiare pagina né slide fatto a mano: si
+     naviga SUBITO e il browser fa scorrere la pagina nuova sopra la
+     vecchia (CSS @view-transition in style.css), con il titolo
+     dell'evento che "vola" dalla card all'intestazione. Altrove resta il
+     comportamento di prima. */
+  var XDOC_VT = !!(window.PageRevealEvent && window.CSS && CSS.supports && CSS.supports('view-transition-name: none'));
+  var vtIncomingDirection = null;
+  try { vtIncomingDirection = sessionStorage.getItem(STORAGE_KEY); } catch (err) { /* ignora */ }
+  if (XDOC_VT) {
+    document.documentElement.classList.add('has-xdoc-vt');
+    window.addEventListener('pagereveal', function (e) {
+      if (!e.viewTransition) return;
+      var dir = vtIncomingDirection;
+      try {
+        var nt = window.navigation && navigation.activation && navigation.activation.navigationType;
+        if (nt === 'traverse' && !dir) dir = 'backward';
+      } catch (err) { /* ignora */ }
+      try { e.viewTransition.types.add(dir === 'backward' ? 'backward' : 'forward'); } catch (err) { /* tipi non supportati: animazione di base */ }
+    });
+    // Tocco su un evento (anche card disegnate dopo, non legate a mano):
+    // il suo titolo diventa quello che "vola" nell'intestazione.
+    document.addEventListener('click', function (e) {
+      var link = e.target && e.target.closest ? e.target.closest('a[href*="evento.html"]') : null;
+      if (!link) return;
+      document.querySelectorAll('[data-vt-title]').forEach(function (el) { el.style.viewTransitionName = ''; el.removeAttribute('data-vt-title'); });
+      var titleEl = link.querySelector('.hm-row-name, .hm-act-name, .my-card-title, .card-title')
+        || (link.closest('.my-card') && link.closest('.my-card').querySelector('.my-card-title'));
+      if (titleEl) { titleEl.style.viewTransitionName = 'ev-title'; titleEl.setAttribute('data-vt-title', '1'); }
+    }, true);
+    // Tornando indietro su una pagina rimasta in memoria, il titolo
+    // marcato resta: va bene (vola al contrario), ma solo per quel giro.
+    window.addEventListener('pageshow', function () {
+      window.setTimeout(function () {
+        document.querySelectorAll('[data-vt-title]').forEach(function (el) { el.style.viewTransitionName = ''; el.removeAttribute('data-vt-title'); });
+      }, 600);
+    });
+  }
+
   function currentFile() {
     var path = window.location.pathname;
     var file = path.substring(path.lastIndexOf('/') + 1);
@@ -245,6 +286,7 @@
 
     resetScreen(screen);
 
+    if (XDOC_VT) incoming = null; // l'entrata la anima il browser (View Transitions)
     if (incoming === 'forward') {
       screen.classList.add('slide-in-from-right');
     } else if (incoming === 'backward') {
@@ -336,6 +378,8 @@
           spaNavigate(href, base, direction);
           return;
         }
+
+        if (XDOC_VT) { window.location.href = href; return; }
 
         screen.classList.remove('slide-in-active');
         screen.classList.add(direction === 'forward' ? 'slide-out-left' : 'slide-out-right');
@@ -2710,6 +2754,14 @@
       });
     }, true);
   }
+
+  /* Piccola vibrazione al tocco dei pulsanti di risposta e azione (Fil,
+     2026-10-26, "effetti wow"): su Android si "sente" il tocco come nelle
+     app native. Dove non c'è (iPhone, computer) non succede niente. */
+  document.addEventListener('click', function (e) {
+    var t = e.target && e.target.closest ? e.target.closest('.rsvp-seg-btn, .hm-act-btn, .my-act, .org-action, .seeva-tabbar .nav-item, .primary-btn') : null;
+    if (t && navigator.vibrate) { try { navigator.vibrate(8); } catch (err) { /* ignora */ } }
+  }, true);
 
   window.SeevaUI = {
     refresh: refreshDynamicContent,

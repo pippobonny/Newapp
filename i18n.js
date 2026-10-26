@@ -32,6 +32,14 @@
   }
 
   var lang = detect();
+  // Dizionario inglese caricato SOLO a chi usa l'app in inglese (Fil,
+  // 2026-10-26, velocità): agli italiani 60 KB in meno a ogni apertura.
+  // document.write durante il caricamento = stesso effetto del vecchio
+  // <script src="i18n-en.js"> fisso subito dopo questo.
+  if (lang === 'en' && !window.SEEVA_EN_LOADED) {
+    window.SEEVA_EN_LOADED = true;
+    try { document.write('<script src="i18n-en.js"><\/script>'); } catch (err) { /* ignora */ }
+  }
   try { document.documentElement.lang = lang; document.documentElement.setAttribute('translate', 'no'); } catch (err) { /* ok: niente traduttore di Chrome sopra il nostro */ }
 
   var dict = window.SEEVA_EN = window.SEEVA_EN || {};

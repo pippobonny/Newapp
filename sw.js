@@ -5,18 +5,43 @@
    Fil, 2026-07-19.
    ========================================================= */
 
-self.addEventListener('install', function () {
+/* ---------- App "installata" sul telefono (Fil, 2026-10-26: "super veloce") ----------
+   A ogni pubblicazione build.mjs scrive qui sotto un codice di versione e
+   l'elenco dei file dell'app (pagine, script, stili, caratteri, Supabase).
+   Il service worker nuovo li scarica TUTTI insieme in sottofondo; da quel
+   momento le pagine si aprono dal telefono, senza aspettare la rete. Sempre
+   lo stesso gruppo di file della stessa versione: mai un mix vecchio/nuovo.
+   Alla pubblicazione successiva il codice cambia, il telefono se ne accorge
+   da solo (questo file non va mai in cache) e scarica la versione nuova.
+   Mentre si lavora in locale i segnaposto restano tali e non si usa nulla. */
+var SEEVA_BUILD = '__SEEVA_BUILD__';
+var SEEVA_SHELL = '__SEEVA_SHELL__';
+var SHELL_ON = SEEVA_BUILD.indexOf('__') !== 0 && Array.isArray(SEEVA_SHELL);
+var SHELL_CACHE = 'seeva-shell-' + SEEVA_BUILD;
+
+self.addEventListener('install', function (event) {
   // Non aspettare che le vecchie schede si chiudano: un service worker per
   // le notifiche push deve diventare attivo subito.
   self.skipWaiting();
+  if (!SHELL_ON) return;
+  event.waitUntil(caches.open(SHELL_CACHE).then(function (cache) {
+    return cache.addAll(SEEVA_SHELL.map(function (f) { return new Request(f, { cache: 'reload' }); }));
+  }).catch(function () { /* rete assente: si riproverà alla prossima apertura */ }));
 });
+
+function shellKey(url) {
+  if (url.origin !== self.location.origin) return null;
+  var p = url.pathname.replace(/^\//, '');
+  if (p === '') p = 'index.html';
+  return SEEVA_SHELL.indexOf(p) !== -1 ? p : null;
+}
 
 self.addEventListener('activate', function (event) {
   event.waitUntil(Promise.all([
     self.clients.claim(),
     // via le cache di versioni vecchie di questo file
     caches.keys().then(function (keys) {
-      return Promise.all(keys.filter(function (k) { return k.indexOf('seeva-') === 0 && k !== STATIC_CACHE; }).map(function (k) { return caches.delete(k); }));
+      return Promise.all(keys.filter(function (k) { return k.indexOf('seeva-') === 0 && k !== STATIC_CACHE && k !== SHELL_CACHE; }).map(function (k) { return caches.delete(k); }));
     })
   ]));
 });
@@ -51,6 +76,16 @@ self.addEventListener('fetch', function (event) {
   if (req.method !== 'GET') return;
   var url;
   try { url = new URL(req.url); } catch (err) { return; }
+
+  // File dell'app: dal telefono (senza "?..."), rete solo se manca.
+  var key = SHELL_ON ? shellKey(url) : null;
+  if (key) {
+    event.respondWith(caches.open(SHELL_CACHE).then(function (cache) {
+      return cache.match(key).then(function (hit) { return hit || fetch(req); });
+    }).catch(function () { return fetch(req); }));
+    return;
+  }
+
   if (!isCacheable(url)) return; // tutto il resto: rete normale, come prima
 
   event.respondWith(caches.open(STATIC_CACHE).then(function (cache) {
