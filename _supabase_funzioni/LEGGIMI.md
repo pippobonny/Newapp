@@ -33,3 +33,15 @@ Novità: push ed email in italiano o inglese secondo `accounts.lang`
 - 29 febbraio: auguri il 28 negli anni non bisestili.
 - Da cancellare a mano dal pannello Supabase (Edge Functions): `birthday-virginia`
   (usa-e-getta, scaduta il 25/10).
+
+## 2026-10-26 — Forse, "È andata?", notifica commenti (già pubblicato su Supabase da Claude)
+
+- DB: `events.took_place` (true = svolto, false = no → annullato), `events.outcome_asked_at`,
+  `events.maybe_reminder_sent_at`, `event_comments.notified_at`; `get_event_public` restituisce `tookPlace`.
+- `send-event-reminders` v8: chi ha detto Forse riceve un sollecito 2 giorni prima (con pulsanti);
+  nuovo `{"mode":"outcome"}` = "Com'è andata?" all'organizzatore il giorno dopo (pulsanti Sì/No).
+  Nuovo cron `ask-event-outcome` alle 9 UTC.
+- `notify-event-nudge` v6: Sollecita arriva anche a chi ha detto Forse.
+- Nuova `notify-event-comment` (verify_jwt false, controlli dentro): push del commento a tutti
+  gli invitati + organizzatore, tranne chi ha detto Non ci sono e chi ha scritto.
+  Il suo i18n.ts pubblicato contiene solo le funzioni che usa.

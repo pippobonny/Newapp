@@ -2671,6 +2671,46 @@
     // amici già noti e si spuntano; per cercare qualcun altro si tocca il campo.
   }
 
+  /* ---------- Foto nell'app Android: Scatta o Galleria (Fil, 2026-10-24,
+     bug "non si può scattare foto sul momento") ----------
+     Nel browser un <input type=file accept=image/*> propone già anche la
+     fotocamera; dentro l'app (WebView) apre solo la galleria. Qui, SOLO
+     nell'app, ogni input foto senza "capture" chiede prima Scatta/Galleria
+     e poi si riapre da solo nel modo scelto. Il profilo ha già la sua scelta
+     (input con capture), quindi non passa di qui. */
+  if (document.documentElement.classList.contains('seeva-native')) {
+    document.addEventListener('click', function (e) {
+      var input = e.target;
+      if (!input || input.tagName !== 'INPUT' || input.type !== 'file') return;
+      if (!/image/.test(input.getAttribute('accept') || '')) return;
+      if (input.getAttribute('data-src-chosen') === '1') { input.removeAttribute('data-src-chosen'); return; }
+      if (input.hasAttribute('capture')) return;
+      e.preventDefault();
+      var host = document.querySelector('.phone') || document.body;
+      var overlay = document.createElement('div');
+      overlay.className = 'signup-overlay';
+      overlay.innerHTML = '<div class="signup-modal">'
+        + '<div class="signup-modal-title">Aggiungi una foto</div>'
+        + '<div style="display:flex; flex-direction:column; gap:8px; margin-top:12px;">'
+        + '<button type="button" class="lang-opt" data-src="camera">📷 Scatta una foto</button>'
+        + '<button type="button" class="lang-opt" data-src="gallery">🖼️ Scegli dalla galleria</button>'
+        + '<button type="button" class="lang-opt" data-src="cancel" style="opacity:.7;">Annulla</button>'
+        + '</div></div>';
+      host.appendChild(overlay);
+      overlay.addEventListener('click', function (ev) {
+        var btn = ev.target.closest ? ev.target.closest('[data-src]') : null;
+        if (!btn && ev.target !== overlay) return;
+        overlay.remove();
+        var src = btn ? btn.getAttribute('data-src') : 'cancel';
+        if (src === 'cancel') return;
+        if (src === 'camera') input.setAttribute('capture', 'environment');
+        input.setAttribute('data-src-chosen', '1');
+        input.click();
+        if (src === 'camera') window.setTimeout(function () { input.removeAttribute('capture'); }, 1500);
+      });
+    }, true);
+  }
+
   window.SeevaUI = {
     refresh: refreshDynamicContent,
     ask: askDialog,

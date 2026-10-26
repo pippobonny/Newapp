@@ -1526,7 +1526,7 @@
     + 'cancelledAt:cancelled_at, shareToken:share_token, openInvite:open_invite, '
     + 'confirmedDateOptionId:confirmed_date_option_id, confirmedLocationOptionId:confirmed_location_option_id, '
     + 'manuallyCancelled:manually_cancelled, eventTime:event_time, itemsEnabled:items_enabled, '
-    + 'expensesEnabled:expenses_enabled, '
+    + 'expensesEnabled:expenses_enabled, tookPlace:took_place, '
     + 'dateOptions:date_options!date_options_event_id_fkey(id, dateISO:date_iso), '
     + 'locationOptions:location_options!location_options_event_id_fkey(id, address, placeId:place_id, lat, lng), '
     + 'participants(name, availableDateOptionIds:available_date_option_ids, availableLocationOptionIds:available_location_option_ids, accountId:account_id, createdAt:created_at, hiddenFromHome:hidden_from_home, note, maybe), '
@@ -2172,7 +2172,7 @@
           icon: 'cancelled', emoji: '🚫', time: event.cancelledAt || latestEventActivityTime(event), eventId: event.id,
           text: info.cancelledManually
             ? '<b>' + escapeHTML(event.name) + '</b> è stato annullato dall\'organizzatore.'
-            : '<b>' + escapeHTML(event.name) + '</b> è stato annullato: hanno risposto tutti ma nessuno era disponibile.'
+            : '<b>' + escapeHTML(event.name) + '</b> è stato annullato: hanno risposto tutti ma nessuno c\'era.'
         });
       } else if (info.status === 'done') {
         // Nuova Home (2026-10-04): il testo dipende dalla TUA risposta.
@@ -2219,7 +2219,7 @@
       } else if (!iAmOrganizer) {
         notifications.push({
           icon: 'new', emoji: '📅', time: ts, eventId: event.id,
-          text: T('Nuova proposta: <b>{name}</b>. Segna la tua disponibilità.', { name: escapeHTML(event.name) })
+          text: T('Nuovo evento: <b>{name}</b>. Vota le date.', { name: escapeHTML(event.name) })
         });
       }
 
@@ -2727,6 +2727,19 @@
      cancelled_at viene scritto subito (non aspetta il prossimo giro di
      pruneCancelledEvents): stessa scadenza di una settimana degli annullati
      automatici, vedi pruneCancelledEvents. */
+  /* "È andata?" (Fil, 2026-10-26): l'organizzatore dice se l'evento passato
+     si è svolto. No = annullato come cancelEventManually, ma SENZA avvisi
+     (qui non si chiama nessuna notify-*). */
+  async function setEventOutcome(eventId, tookPlace) {
+    var patch = tookPlace
+      ? { took_place: true }
+      : { took_place: false, manually_cancelled: true, confirmed_date_option_id: null, cancelled_at: new Date().toISOString() };
+    var res = await supabase.from('events').update(patch).eq('id', eventId);
+    if (res.error) throw new Error(res.error.message);
+    clearEventsCache();
+    return getEventById(eventId);
+  }
+
   async function cancelEventManually(eventId) {
     var res = await supabase
       .from('events')
@@ -2903,6 +2916,15 @@
     });
     if (res.error) throwSupabaseError(res.error);
 
+    // Notifica del commento (Fil, 2026-10-26) a tutti gli invitati tranne
+    // chi ha detto "Non ci sono" e chi scrive: la scelta la fa il server.
+    // Senza attendere: se fallisce il commento resta comunque salvato.
+    var newId = res.data && res.data.id;
+    if (newId) {
+      supabase.functions.invoke('notify-event-comment', { body: { commentId: newId } })
+        .catch(function () { /* ignora */ });
+    }
+
     clearEventsCache();
     return getEventById(eventId);
   }
@@ -3070,7 +3092,7 @@
      qui in un punto solo per non farli disallineare in futuro. */
   function buildRemoveFromHomeConfirmMessage(eventName, wasAvailable) {
     return wasAvailable
-      ? 'Rimuovendo "' + eventName + '" dalla tua home risulterai non disponibile per tutti gli invitati. L\'azione non si può annullare: continuare?'
+      ? 'Rimuovendo "' + eventName + '" dalla tua home risulterai "Non ci sono" per tutti gli invitati. L\'azione non si può annullare: continuare?'
       : 'Rimuovere "' + eventName + '" dalla tua home? Non potrai più vederlo qui, l\'azione non si può annullare.';
   }
 
@@ -3079,7 +3101,7 @@
   // eventi organizzati da te — a differenza di "rimuovi dalla home" qui
   // sopra, questa elimina l'evento vero per tutti, non solo per te.
   function buildDeleteEventConfirmMessage(eventName) {
-    return 'Eliminare "' + eventName + '"? Chi aveva già risposto disponibile riceverà un avviso. Non si può annullare.';
+    return 'Eliminare "' + eventName + '"? Chi aveva già risposto "Ci sono" riceverà un avviso. Non si può annullare.';
   }
 
   /* "Segnala problema" (Fil, 2026-07-20): bottone temporaneo per il giro di
@@ -3559,13 +3581,13 @@
   }
 
   var MY_PILLS = {
-    yes: ['Ci sei', 'pill-yes'],
+    yes: ['Ci sono', 'pill-yes'],
     maybe: ['Forse', 'pill-maybe'],
     organizer: ['Organizzi tu', 'pill-org'],
     voted: ['Hai votato', 'pill-voted'],
     waiting: ['Sceglie l’organizzatore', 'pill-voted'],
     cancelled: ['Annullato', 'pill-no'],
-    saidNo: ['Non ci sei', 'pill-no'],
+    saidNo: ['Non ci sono', 'pill-no'],
     dateNotMine: ['Non c’eri', 'pill-no']
   };
 
@@ -3603,7 +3625,7 @@
       var n = (ev.dateOptions || []).length;
       statusLine = (n === 1 ? T('Da decidere · 1 data') : T('Da decidere · {n} date', { n: n })) + (info.voteDeadlineLabel && info.status !== 'tie' ? T(' · si vota fino a {when}', { when: info.voteDeadlineLabel }) : '');
     } else {
-      statusLine = T('Si fa') + (t ? T(' · ore {t}', { t: t }) : '') + (loc ? ' · ' + loc : '');
+      statusLine = T('Confermato') + (t ? T(' · ore {t}', { t: t }) : '') + (loc ? ' · ' + loc : '');
     }
     if (ev.createdBy && item.myKey !== 'organizer' && (item.kind || item.reason)) statusLine += T(' · da {who}', { who: ev.createdBy });
 
@@ -4019,6 +4041,7 @@
     deleteEvent: deleteEvent,
     confirmEventDate: confirmEventDate,
     cancelEventManually: cancelEventManually,
+    setEventOutcome: setEventOutcome,
     getEventNotices: getEventNotices,
     upsertParticipant: upsertParticipant,
     postEventComment: postEventComment,

@@ -10,7 +10,9 @@ import { L, Lang, langsOf, groupByLang, dayLabel, sendPushToAccounts } from "./i
    = voteDeadline, regola 2026-10-05; cron "votes" ogni 10 minuti):
    leader unico con almeno un sì -> confermato + "✅ Si fa!"; pareggio o
    nessun sì -> push solo all'organizzatore, una volta. Mai annullato da solo.
-   2026-10-07: ogni push nella lingua di chi la riceve (accounts.lang). */
+   2026-10-07: ogni push nella lingua di chi la riceve (accounts.lang).
+   2026-10-26: Forse sollecitato 2 giorni prima (sendMaybeReminders) e
+   "È andata?" all'organizzatore il giorno dopo (mode "outcome"). */
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -234,12 +236,91 @@ async function sendDayBeforeReminders(admin: any, event: any, optionId: string, 
     body: [whenLine(lang) + L(lang, " · non hai ancora risposto", " · you haven't replied yet"), locLine, L(lang, "👉 Ci sei? Rispondi in un tap", "👉 Are you in? Reply in one tap")].filter(Boolean).join("\n"),
     url, rsvp: true
   }));
-  await pushI18n(admin, maybeIds, (lang) => ({
-    title: L(lang, "🤔 Domani c'è ", "🤔 Tomorrow: ") + ev.name,
-    body: [whenLine(lang) + L(lang, " · avevi risposto forse", " · you said maybe"), locLine, L(lang, "👉 Hai deciso? Rispondi in un tap", "👉 Made up your mind? Reply in one tap")].filter(Boolean).join("\n"),
-    url, rsvp: true
-  }));
+  // Forse: niente più promemoria il giorno prima (Fil, 2026-10-26: basta
+  // quello di 2 giorni prima, vedi sendMaybeReminders).
   return { yes: yesIds.length, pending: pendingIds.length, maybe: maybeIds.length };
+}
+
+/* Forse, 2 giorni prima (Fil, 2026-10-26: "il giorno prima è troppo
+   tardi"): chi ha risposto Forse riceve un sollecito a decidersi, con i
+   pulsanti. Eventi confermati (o a data singola) con la data dopodomani.
+   Una volta sola per evento (events.maybe_reminder_sent_at). */
+async function sendMaybeReminders(admin: any, siteUrl: string): Promise<number> {
+  const target = addDaysISO(romeISO(new Date()), 2);
+  const { data: opts } = await admin.from("date_options").select("id, event_id").eq("date_iso", target);
+  if (!opts || !opts.length) return 0;
+  const eventIds = Array.from(new Set(opts.map((o: any) => o.event_id)));
+  const { data: events } = await admin.from("events")
+    .select("id, name, event_time, confirmed_date_option_id, location_address, confirmed_location_option_id, manually_cancelled")
+    .in("id", eventIds).is("cancelled_at", null).is("maybe_reminder_sent_at", null);
+  let sent = 0;
+  for (const ev of (events || [])) {
+    if (ev.manually_cancelled) continue;
+    let optionId = ev.confirmed_date_option_id;
+    if (optionId) {
+      if (!opts.some((o: any) => o.id === optionId)) continue; // confermato su un'altra data
+    } else {
+      const { data: allOpts } = await admin.from("date_options").select("id").eq("event_id", ev.id);
+      if ((allOpts || []).length !== 1) continue; // più date ancora da votare: il Forse non esiste
+      optionId = allOpts[0].id;
+    }
+    const { data: claimed } = await admin.from("events").update({ maybe_reminder_sent_at: new Date().toISOString() })
+      .eq("id", ev.id).is("maybe_reminder_sent_at", null).select("id");
+    if (!claimed || !claimed.length) continue;
+    const { data: parts } = await admin.from("participants").select("account_id, available_date_option_ids, maybe").eq("event_id", ev.id);
+    const maybeIds: string[] = Array.from(new Set((parts || [])
+      .filter((p: any) => p.account_id && p.maybe && (p.available_date_option_ids || []).length === 0)
+      .map((p: any) => p.account_id)));
+    if (!maybeIds.length) continue;
+    const loc = await resolveLocationText(admin, ev);
+    const time = ev.event_time ? String(ev.event_time).slice(0, 5) : "";
+    const url = siteUrl + "/evento.html?id=" + encodeURIComponent(ev.id);
+    sent += await pushI18n(admin, maybeIds, (lang) => ({
+      title: L(lang, "🤔 Hai detto forse: ", "🤔 You said maybe: ") + ev.name,
+      body: [L(lang, "Dopodomani", "The day after tomorrow") + (time ? L(lang, " alle ", " at ") + time : "") + " · " + dayLabel(target, lang),
+        loc ? "📍 " + loc : "",
+        L(lang, "👉 Ci sei? Rispondi in un tap, così chi organizza si regola", "👉 Are you in? Reply in one tap so the organiser can plan")].filter(Boolean).join("\n"),
+      url, rsvp: true, tag: "maybe|" + ev.id
+    }));
+  }
+  return sent;
+}
+
+/* "È andata?" (Fil, 2026-10-26): il giorno dopo l'evento, solo a chi
+   organizza, una volta (events.outcome_asked_at). Risponde Sì/No dalla
+   notifica (Android, pulsanti outcome) o dalla pagina evento: Sì =
+   took_place true, No = annullato (senza avvisare nessuno). Cron
+   "ask-event-outcome" alle 9 UTC con {"mode":"outcome"}. */
+async function askOutcomes(admin: any, siteUrl: string): Promise<number> {
+  const yesterday = addDaysISO(romeISO(new Date()), -1);
+  const { data: opts } = await admin.from("date_options").select("id, event_id").eq("date_iso", yesterday);
+  if (!opts || !opts.length) return 0;
+  const eventIds = Array.from(new Set(opts.map((o: any) => o.event_id)));
+  const { data: events } = await admin.from("events")
+    .select("id, name, created_by_account_id, confirmed_date_option_id, manually_cancelled")
+    .in("id", eventIds).is("cancelled_at", null).is("took_place", null).is("outcome_asked_at", null)
+    .not("created_by_account_id", "is", null);
+  let asked = 0;
+  for (const ev of (events || [])) {
+    if (ev.manually_cancelled) continue;
+    if (ev.confirmed_date_option_id) {
+      if (!opts.some((o: any) => o.id === ev.confirmed_date_option_id)) continue;
+    } else {
+      const { data: allOpts } = await admin.from("date_options").select("id").eq("event_id", ev.id);
+      if ((allOpts || []).length !== 1) continue;
+    }
+    const { data: claimed } = await admin.from("events").update({ outcome_asked_at: new Date().toISOString() })
+      .eq("id", ev.id).is("outcome_asked_at", null).select("id");
+    if (!claimed || !claimed.length) continue;
+    const url = siteUrl + "/evento.html?id=" + encodeURIComponent(ev.id);
+    const n = await pushI18n(admin, [ev.created_by_account_id], (lang) => ({
+      title: L(lang, "🎉 Com'è andata? ", "🎉 How did it go? ") + ev.name,
+      body: L(lang, "Ieri c'era il tuo evento: si è svolto?\n👉 Rispondi in un tap", "Your event was yesterday: did it happen?\n👉 Reply in one tap"),
+      url, outcome: true, tag: "outcome|" + ev.id
+    }));
+    if (n) asked++;
+  }
+  return asked;
 }
 
 Deno.serve(async (req: Request) => {
@@ -255,13 +336,22 @@ Deno.serve(async (req: Request) => {
     // cron ogni 10 minuti con {"mode":"votes"}: solo chiusura voti.
     const reqBody = await req.json().catch(() => ({}));
     if (reqBody && reqBody.mode === "votes") return json({ votes: voteResult });
+    if (reqBody && reqBody.mode === "outcome") {
+      let outcomeAsked = 0;
+      try { outcomeAsked = await askOutcomes(admin, siteUrl); } catch (_err) { /* ignora */ }
+      return json({ votes: voteResult, outcomeAsked });
+    }
+
+    // 1b) Forse: sollecito 2 giorni prima (indipendente dai promemoria "domani")
+    let maybeReminders = 0;
+    try { maybeReminders = await sendMaybeReminders(admin, siteUrl); } catch (_err) { /* non blocca il resto */ }
 
     // 2) promemoria "domani"
     const tomorrow = tomorrowISOInRome();
     const { data: tomorrowOptions, error: optionsErr } = await admin.from("date_options").select("id, event_id").eq("date_iso", tomorrow);
     if (optionsErr) return json({ error: optionsErr.message }, 500);
     const tomorrowOptionIds = (tomorrowOptions || []).map((o: any) => o.id);
-    if (!tomorrowOptionIds.length) return json({ votes: voteResult, checked: 0, remindersSent: 0 });
+    if (!tomorrowOptionIds.length) return json({ votes: voteResult, maybeReminders, checked: 0, remindersSent: 0 });
 
     const { data: confirmedDue, error: eventsErr } = await admin.from("events")
       .select("id, name, confirmed_date_option_id")
@@ -303,7 +393,7 @@ Deno.serve(async (req: Request) => {
         if (r.yes || r.pending || r.maybe) remindersSent++;
       } catch (_err) { /* passa al prossimo evento */ }
     }
-    return json({ votes: voteResult, checked: dueEvents.length, remindersSent, details });
+    return json({ votes: voteResult, maybeReminders, checked: dueEvents.length, remindersSent, details });
   } catch (err) {
     return json({ error: String(err) }, 500);
   }

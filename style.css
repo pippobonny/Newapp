@@ -4407,3 +4407,141 @@ a.back-btn svg { width: 19px; height: 19px; }
 .my-card.is-leaving, .cal-list > .my-card.is-leaving { animation: none !important; opacity: 0; transform: translateX(30px) scale(0.98); transition: transform .26s ease, opacity .26s ease; }
 .date-typed input.date-typed-text, .date-typed input.date-typed-text[readonly] { opacity: 1 !important; background-color: var(--card) !important; color: var(--ink) !important; -webkit-text-fill-color: var(--ink); }
 .date-typed input.date-typed-text::placeholder { -webkit-text-fill-color: var(--ink-soft); color: var(--ink-soft); opacity: 1; }
+
+/* Azioni di chi organizza in vista sotto il titolo (Fil, 2026-10-26):
+   prima erano nascoste nel menu ⋮. Stile "pulsanti tondi" come le azioni
+   rapide delle grandi app (icona sopra, parola sotto). */
+.org-actions {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+.org-action {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 4px 9px;
+  background: var(--card);
+  color: var(--ink);
+  border: 0;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(58,50,90,0.06);
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .12s ease;
+}
+.org-action:active { transform: scale(.96); }
+.org-action-icon {
+  position: relative;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--lavender-soft);
+  color: var(--lavender-ink);
+}
+.org-action-count {
+  position: absolute; top: -4px; right: -6px;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 9px;
+  background: var(--peach); color: #fff;
+  font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;
+}
+.org-action-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.event-details-text { white-space: pre-line; }
+
+/* "Com'è andata?" (Fil, 2026-10-26): solo per chi organizza, evento passato. */
+.outcome-card {
+  background: var(--lavender-soft);
+  border-radius: 18px;
+  padding: 14px 15px 6px;
+  margin: 0 0 16px;
+}
+.outcome-title { font-weight: 700; font-size: 16px; color: var(--ink); margin-bottom: 2px; }
+.outcome-sub { font-size: 13px; color: var(--ink-soft); margin-bottom: 10px; }
+.see-all-link { display: inline-block; margin: 8px 2px 14px; font-size: 13.5px; font-weight: 600; color: var(--lavender-ink); cursor: pointer; }
+
+/* ---------- Pagina evento: intestazione + card Quando/Dove (Fil, 2026-10-26) ---------- */
+.header-title { transition: opacity .2s ease; }
+.header-title.is-hidden { opacity: 0; }
+.event-hero { margin: 0 0 16px; }
+.event-hero #eventPhotoImg { margin-bottom: 14px !important; height: 180px !important; }
+.event-hero-banner {
+  height: 120px; border-radius: 20px; margin-bottom: 14px;
+  background: linear-gradient(135deg, var(--lavender-soft), var(--peach-soft));
+  display: flex; align-items: center; justify-content: center;
+}
+.event-hero-banner span { font-size: 56px; line-height: 1; filter: drop-shadow(0 6px 14px rgba(58,50,90,0.18)); }
+.event-hero-title {
+  font-family: 'Fraunces', serif; font-size: 28px; font-weight: 700; line-height: 1.15;
+  color: var(--ink); margin: 0 2px 8px; overflow-wrap: anywhere;
+}
+.event-hero-org { display: flex; align-items: center; gap: 8px; margin: 0 2px; font-size: 14px; color: var(--ink-soft); }
+.event-hero-org b { color: var(--ink); font-weight: 600; }
+
+.face {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 13px; font-weight: 700; overflow: hidden;
+  border: 2px solid var(--bg);
+}
+.face img { width: 100%; height: 100%; object-fit: cover; }
+.event-hero-org .face { width: 26px; height: 26px; font-size: 12px; border: 0; }
+
+.event-info-card {
+  background: var(--card); border-radius: 20px; padding: 4px 0;
+  box-shadow: 0 4px 16px rgba(58,50,90,0.06); margin: 0 0 18px;
+}
+.event-info-card .confirmed-date-card {
+  background: transparent !important; box-shadow: none; border: 0 !important;
+  margin: 0; padding: 12px 16px; border-radius: 0;
+}
+.event-info-card .confirmed-date-icon { width: 40px; height: 40px; border-radius: 12px; }
+.event-info-card .confirmed-date-card:not(.is-leading) .confirmed-date-icon { background: var(--mint-soft); color: #9C4A0F; }
+.event-info-card .confirmed-date-card.passato .confirmed-date-icon { background: var(--past-soft); color: var(--ink-soft); }
+.event-info-card .confirmed-date-value { font-size: 17px; }
+.event-info-card > * + * { border-top: 1px solid var(--track-soft); }
+.event-info-row {
+  display: flex; align-items: center; gap: 14px; padding: 12px 16px;
+  color: inherit; text-decoration: none;
+}
+.event-info-icon {
+  width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--lavender-soft); color: var(--lavender-ink);
+}
+.event-info-body { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.event-info-main { font-weight: 600; font-size: 15px; color: var(--ink); overflow-wrap: anywhere; }
+.event-info-sub { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+
+.people-row {
+  display: flex; align-items: center; gap: 12px; background: var(--card);
+  border-radius: 18px; padding: 12px 14px; box-shadow: 0 4px 16px rgba(58,50,90,0.06); margin: 0 0 16px;
+}
+.people-row.is-clickable { cursor: pointer; }
+.facepile { display: flex; flex-shrink: 0; }
+.facepile .face + .face { margin-left: -9px; }
+.face-more { background: var(--track-soft); color: var(--ink); font-size: 11px; }
+.people-counts { flex: 1; font-size: 14px; font-weight: 600; color: var(--ink); }
+
+.event-desc-card {
+  background: var(--card); border-radius: 18px; padding: 14px 16px; margin: 0 0 16px;
+  font-size: 14.5px; line-height: 1.5; color: var(--ink);
+  box-shadow: 0 4px 16px rgba(58,50,90,0.06);
+}
+
+/* App Android (Fil, 2026-10-25, bug "tasto indietro sovrapposto al testo"
+   in Crea): nell'app .phone ha già il margine della barra di stato, quindi
+   la freccia (posizionata dentro .screen) non deve aggiungerlo una seconda
+   volta, altrimenti scende sopra il contenuto. */
+html.seeva-native a.back-btn { top: 15px; }

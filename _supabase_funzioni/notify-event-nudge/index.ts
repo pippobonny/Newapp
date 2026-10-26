@@ -8,7 +8,9 @@ import { L, Lang, langsOf, groupByLang, buildWhenText, isVoteText, shortDescript
    un sollecito ogni 15 minuti per evento (claim_event_nudge).
    verify_jwt = true: l'organizzatore si riconosce dal token.
    2026-10-03: push ricca; rsvp:true sugli eventi con una data sola.
-   2026-10-07: testi nella lingua di chi riceve (accounts.lang). */
+   2026-10-07: testi nella lingua di chi riceve (accounts.lang).
+   2026-10-26 (Fil): il sollecito arriva anche a chi ha risposto Forse
+   (solo push, testo suo: "hai detto forse, ci sei?"). */
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -42,7 +44,7 @@ Deno.serve(async (req: Request) => {
 
     const [{ data: invitees }, { data: participants }, { data: dateOpts }] = await Promise.all([
       admin.from("event_invitees").select("name, account_id").eq("event_id", eventId),
-      admin.from("participants").select("name, account_id").eq("event_id", eventId),
+      admin.from("participants").select("name, account_id, maybe, available_date_option_ids").eq("event_id", eventId),
       admin.from("date_options").select("id, date_iso").eq("event_id", eventId)
     ]);
     const confirmedOpt = event.confirmed_date_option_id ? (dateOpts || []).find((d: any) => d.id === event.confirmed_date_option_id) : null;
@@ -63,7 +65,11 @@ Deno.serve(async (req: Request) => {
     const reachable = pending.filter((inv: any) => !!inv.account_id);
     const unreachableNames: string[] = pending.filter((inv: any) => !inv.account_id).map((inv: any) => inv.name);
     const reachableIds: string[] = Array.from(new Set(reachable.map((inv: any) => inv.account_id)));
-    if (!reachableIds.length) return jsonRes({ notified: 0, notifiedNames: [], unreachableNames });
+    const maybeParts = (participants || []).filter((p: any) => p.account_id && p.account_id !== userId
+      && p.maybe && (p.available_date_option_ids || []).length === 0);
+    const maybeIds: string[] = Array.from(new Set(maybeParts.map((p: any) => p.account_id))) as string[];
+    const maybeNames: string[] = maybeParts.map((p: any) => p.name).filter(Boolean);
+    if (!reachableIds.length && !maybeIds.length) return jsonRes({ notified: 0, notifiedNames: [], unreachableNames });
 
     const { data: waitSeconds, error: claimErr } = await admin.rpc("claim_event_nudge", { p_event_id: eventId, p_cooldown_seconds: 900 });
     if (claimErr) return jsonRes({ error: claimErr.message }, 500);
@@ -73,7 +79,7 @@ Deno.serve(async (req: Request) => {
     const descText = shortDescription(event.description);
     const eventUrl = siteUrl + "/evento.html?id=" + encodeURIComponent(event.id);
     const pushIds = await accountIdsWithPush(admin, reachableIds);
-    const { data: accounts } = await admin.from("accounts").select("id, email").in("id", reachableIds);
+    const { data: accounts } = reachableIds.length ? await admin.from("accounts").select("id, email").in("id", reachableIds) : { data: [] };
     const groups = groupByLang(reachableIds, await langsOf(admin, reachableIds));
 
     let sentEmails = 0, sentPush = 0;
@@ -118,7 +124,22 @@ Deno.serve(async (req: Request) => {
         body: pushLines.join("\n"), url: eventUrl, rsvp: !!fixedOpt, lang
       });
     }
-    return jsonRes({ notified: reachableIds.length, notifiedNames: reachable.map((inv: any) => inv.name), unreachableNames, sentPush, sentEmails });
+    if (maybeIds.length) {
+      const mg = groupByLang(maybeIds, await langsOf(admin, maybeIds));
+      for (const lang of ["it", "en"] as Lang[]) {
+        if (!mg[lang].length) continue;
+        const whenText = buildWhenText(dateISOs, confirmedOpt ? String(confirmedOpt.date_iso) : null, event.event_time || null, lang);
+        const organizer = event.created_by || L(lang, "Chi organizza", "The organiser");
+        const lines = [L(lang, "Avevi risposto forse", "You said maybe") + (whenText ? " · " + whenText : ""),
+          organizer + L(lang, " vuole sapere se ci sei", " wants to know if you're in"),
+          L(lang, "👉 Hai deciso? Rispondi in un tap", "👉 Made up your mind? Reply in one tap")];
+        sentPush += await sendPushToAccounts(admin, mg[lang], {
+          title: "🤔 " + event.name + L(lang, " — ci sei?", " — are you in?"),
+          body: lines.join("\n"), url: eventUrl, rsvp: !!fixedOpt, lang
+        });
+      }
+    }
+    return jsonRes({ notified: reachableIds.length + maybeIds.length, notifiedNames: reachable.map((inv: any) => inv.name).concat(maybeNames), unreachableNames, sentPush, sentEmails });
   } catch (err) {
     return jsonRes({ error: String(err) }, 500);
   }

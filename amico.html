@@ -891,7 +891,7 @@
         // invece di restare qui, si rimbalza subito sull'evento: il messaggio
         // di conferma appare come un popup dal basso che sparisce da solo
         // (vedi initPendingToast in script.js)
-        var toastMessage = 'Sei entrato come ' + result.name + '. Segna la tua disponibilità!';
+        var toastMessage = 'Sei entrato come ' + result.name + '. Rispondi all\'invito!';
         try { sessionStorage.setItem('seeva:toast', toastMessage); } catch (err) { /* ignora */ }
         window.location.href = 'evento.html?id=' + encodeURIComponent(eventId);
       }

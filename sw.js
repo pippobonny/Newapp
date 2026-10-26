@@ -120,6 +120,14 @@ self.addEventListener('push', function (event) {
     ];
   }
 
+  // "Com'è andata?" all'organizzatore il giorno dopo (Fil, 2026-10-26).
+  if (data.outcome) {
+    options.actions = [
+      { action: 'outcome-yes', title: data.lang === 'en' ? '✅ It happened' : '✅ Sì, fatto' },
+      { action: 'outcome-no', title: data.lang === 'en' ? "❌ It didn't" : '❌ No' }
+    ];
+  }
+
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
@@ -139,6 +147,9 @@ self.addEventListener('notificationclick', function (event) {
   // la pagina salva la risposta da sola (vedi fondo di evento.html).
   if (event.action === 'rsvp-yes' || event.action === 'rsvp-no') {
     url += (url.indexOf('?') === -1 ? '?' : '&') + 'rsvp=' + (event.action === 'rsvp-yes' ? 'yes' : 'no');
+  }
+  if (event.action === 'outcome-yes' || event.action === 'outcome-no') {
+    url += (url.indexOf('?') === -1 ? '?' : '&') + 'esito=' + (event.action === 'outcome-yes' ? 'yes' : 'no');
   }
   var absUrl = new URL(url, self.registration.scope).href;
 

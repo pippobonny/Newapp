@@ -203,7 +203,7 @@
           + '<button type="button" class="cal-nav" data-cal-nav="1" aria-label="Mese dopo">›</button></div>'
           + '<div class="cal-dow">' + dowNames.map(function (n) { return '<span>' + n + '</span>'; }).join('') + '</div>'
           + '<div class="cal-grid">' + cells + '</div>'
-          + '<div class="cal-legend"><span><i class="cal-dot is-yes"></i>Ci sei</span><span><i class="cal-dot is-maybe"></i>Forse</span><span><i class="cal-dot is-dec"></i>Da decidere</span><span><i class="cal-dot is-ans"></i>Da rispondere</span></div>'
+          + '<div class="cal-legend"><span><i class="cal-dot is-yes"></i>Ci sono</span><span><i class="cal-dot is-maybe"></i>Forse</span><span><i class="cal-dot is-dec"></i>Da decidere</span><span><i class="cal-dot is-ans"></i>Da rispondere</span></div>'
           + '</div>';
 
         var listHTML = '';
@@ -330,7 +330,7 @@
           return;
         }
         if (window.SeevaUI && window.SeevaUI.toast) {
-          window.SeevaUI.toast(key === 'yes' ? 'Ci sei ✓ — lo trovi nella tua agenda' : key === 'maybe' ? 'Forse 🤔 — lo trovi nella tua agenda' : 'Non ci sei — lo trovi negli annullati');
+          window.SeevaUI.toast(key === 'yes' ? 'Ci sono ✓ — lo trovi nella tua agenda' : key === 'maybe' ? 'Forse 🤔 — lo trovi nella tua agenda' : 'Non ci sono — lo trovi negli annullati');
         }
         if (card) card.classList.add('is-leaving');
         window.setTimeout(async function () {
