@@ -45,3 +45,13 @@ Novità: push ed email in italiano o inglese secondo `accounts.lang`
 - Nuova `notify-event-comment` (verify_jwt false, controlli dentro): push del commento a tutti
   gli invitati + organizzatore, tranne chi ha detto Non ci sono e chi ha scritto.
   Il suo i18n.ts pubblicato contiene solo le funzioni che usa.
+
+## 2026-10-26 — notifiche nell'app vera (Firebase)
+
+- Nuova funzione `native-push-relay` (verify_jwt false, controlla la firma VAPID):
+  l'app registra in push_subscriptions un indirizzo che punta lì
+  (RPC `register_native_push`); la relay decifra il Web Push e lo gira a Firebase (FCM).
+  Così tutte le funzioni che mandano notifiche funzionano anche per l'app senza toccarle.
+- Segreto `FCM_SERVICE_ACCOUNT` (messo da Fil dal pannello). Chiave della relay in
+  tabella `app_secrets` (RLS senza policy: invisibile dall'app).
+- Progetto Firebase: seeva-23403, app Android it.seeva.app.

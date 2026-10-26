@@ -4575,3 +4575,8 @@ html:active-view-transition-type(backward)::view-transition-new(root) { animatio
 }
 /* "Non ci sono" per intero sulle card della Home (vocabolario unico, 2026-10-26) */
 .hm-act-btn { font-size: 14px; padding: 0 6px; white-space: nowrap; }
+
+/* Coccinella flottante tolta dalle pagine (Fil, 2026-10-26): copriva pezzi
+   di pagina. Resta solo "Segnala un problema" nel Profilo, che apre lo
+   stesso popup (data-open-report in script.js). */
+.report-problem-btn { display: none !important; }

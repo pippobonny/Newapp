@@ -948,8 +948,62 @@
     }
   }
 
+  /* ---------- Notifiche nell'app vera (Fil, 2026-10-26) ----------
+     Nell'app Android/iPhone niente Web Push: il plugin Capacitor
+     PushNotifications chiede il permesso e dà un "token" Firebase, che si
+     salva sul server con register_native_push (diventa una riga di
+     push_subscriptions che punta alla funzione native-push-relay). Da lì le
+     notifiche arrivano come tutte le altre, dalle stesse funzioni. */
+  var NATIVE_TOKEN_KEY = 'seeva:nativePushToken';
+  function nativePushPlugin() {
+    var C = global.Capacitor;
+    return (isNativeApp() && C && C.Plugins && C.Plugins.PushNotifications) || null;
+  }
+  var nativeTokenWaiters = [];
+  var nativeListenersReady = false;
+  function nativeLinkToPath(url) {
+    var u = String(url || 'index.html');
+    // https://seeva.it/evento.html?id=… -> evento.html?id=… (le pagine sono dentro l'app)
+    var m = u.match(/^https?:\/\/[^/]+\/(.*)$/);
+    if (m) u = m[1] || 'index.html';
+    return u.replace(/^\//, '') || 'index.html';
+  }
+  function setupNativePushListeners() {
+    var P = nativePushPlugin();
+    if (!P || nativeListenersReady) return;
+    nativeListenersReady = true;
+    try { P.createChannel({ id: 'seeva', name: 'seeva', description: 'Inviti, promemoria e commenti', importance: 5, visibility: 1, vibration: true }); } catch (err) { /* ignora */ }
+    P.addListener('registration', function (t) {
+      var token = t && t.value;
+      if (!token) return;
+      try { localStorage.setItem(NATIVE_TOKEN_KEY, token); } catch (err) { /* ignora */ }
+      if (hasAccount()) supabase.rpc('register_native_push', { p_token: token, p_platform: 'android' }).then(function () {}, function () {});
+      nativeTokenWaiters.splice(0).forEach(function (w) { w.resolve(token); });
+    });
+    P.addListener('registrationError', function (e) {
+      nativeTokenWaiters.splice(0).forEach(function (w) { w.reject(new Error((e && e.error) || 'Registrazione notifiche non riuscita')); });
+    });
+    // Tocco sulla notifica: si apre la pagina giusta dentro l'app.
+    P.addListener('pushNotificationActionPerformed', function (a) {
+      var d = (a && a.notification && a.notification.data) || {};
+      if (d.url) global.location.href = nativeLinkToPath(d.url);
+    });
+    // Notifica arrivata con l'app aperta: avviso dentro l'app.
+    P.addListener('pushNotificationReceived', function (n) {
+      var text = ((n && n.title) || '') + (n && n.body ? ' — ' + String(n.body).split('\n')[0] : '');
+      if (global.SeevaUI && global.SeevaUI.toast && text) global.SeevaUI.toast(text);
+    });
+  }
+  if (nativePushPlugin()) {
+    setupNativePushListeners();
+    // Permesso già dato: si rinnova il token a ogni avvio (Firebase può cambiarlo).
+    nativePushPlugin().checkPermissions().then(function (p) {
+      if (p && p.receive === 'granted' && hasAccount()) nativePushPlugin().register();
+    }, function () {});
+  }
+
   function isPushSupported() {
-    if (isNativeApp()) return false;
+    if (isNativeApp()) return !!nativePushPlugin();
     return !!(global.navigator && 'serviceWorker' in global.navigator && global.PushManager);
   }
 
@@ -965,7 +1019,7 @@
   }
 
   async function ensureServiceWorkerRegistered() {
-    if (!isPushSupported()) return null;
+    if (isNativeApp() || !isPushSupported()) return null;
     return global.navigator.serviceWorker.register('sw.js');
   }
 
@@ -988,6 +1042,12 @@
 
   async function isPushSubscribed() {
     if (!isPushSupported()) return false;
+    if (isNativeApp()) {
+      var perm = await nativePushPlugin().checkPermissions();
+      var hasToken = false;
+      try { hasToken = !!localStorage.getItem(NATIVE_TOKEN_KEY); } catch (err) { /* ignora */ }
+      return !!(perm && perm.receive === 'granted' && hasToken);
+    }
     var reg = await global.navigator.serviceWorker.getRegistration('sw.js');
     if (!reg) return false;
     var sub = await reg.pushManager.getSubscription();
@@ -997,6 +1057,21 @@
   async function subscribeToPush() {
     if (!isPushSupported()) throw new Error('Le notifiche push non sono supportate su questo browser o dispositivo.');
     if (!hasAccount()) throw new Error('Serve un account per attivare le notifiche push.');
+
+    if (isNativeApp()) {
+      var P = nativePushPlugin();
+      setupNativePushListeners();
+      var perm = await P.requestPermissions();
+      if (!perm || perm.receive !== 'granted') throw new Error('Permesso per le notifiche non concesso.');
+      var token = await new Promise(function (resolve, reject) {
+        nativeTokenWaiters.push({ resolve: resolve, reject: reject });
+        global.setTimeout(function () { reject(new Error('Il telefono non ha risposto, riprova tra poco.')); }, 15000);
+        P.register();
+      });
+      var regRes = await supabase.rpc('register_native_push', { p_token: token, p_platform: 'android' });
+      if (regRes.error) throw new Error(regRes.error.message);
+      return true;
+    }
 
     var permission = await global.Notification.requestPermission();
     if (permission !== 'granted') throw new Error('Permesso per le notifiche non concesso.');
@@ -1049,10 +1124,10 @@
      deciso esplicitamente da Fil (mai più dopo un rifiuto vero, sempre se
      ignorata). */
   async function shouldOfferPushPrompt() {
-    if (!isStandaloneApp()) return false;
+    if (!isStandaloneApp() && !isNativeApp()) return false;
     if (!isPushSupported()) return false;
     if (!hasAccount()) return false;
-    if (global.Notification && global.Notification.permission === 'denied') return false;
+    if (!isNativeApp() && global.Notification && global.Notification.permission === 'denied') return false;
     var alreadySubscribed = false;
     try {
       alreadySubscribed = await isPushSubscribed();
@@ -1062,6 +1137,13 @@
 
   async function unsubscribeFromPush() {
     if (!isPushSupported()) return;
+    if (isNativeApp()) {
+      var tok = null;
+      try { tok = localStorage.getItem(NATIVE_TOKEN_KEY); localStorage.removeItem(NATIVE_TOKEN_KEY); } catch (err) { /* ignora */ }
+      if (tok && hasAccount()) await supabase.rpc('unregister_native_push', { p_token: tok });
+      try { await nativePushPlugin().unregister(); } catch (err) { /* ignora */ }
+      return;
+    }
     var reg = await global.navigator.serviceWorker.getRegistration('sw.js');
     if (!reg) return;
     var sub = await reg.pushManager.getSubscription();

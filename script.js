@@ -2386,7 +2386,8 @@
      una volta per apertura dell'app. */
   function initStandalonePushOffer() {
     try {
-      if (!window.SeevaData || !window.SeevaData.isStandaloneApp || !window.SeevaData.isStandaloneApp()) return;
+      var isNative = document.documentElement.classList.contains('seeva-native');
+      if (!window.SeevaData || ((!window.SeevaData.isStandaloneApp || !window.SeevaData.isStandaloneApp()) && !isNative)) return;
       if (sessionStorage.getItem('seeva:pushOfferedThisSession')) return;
       sessionStorage.setItem('seeva:pushOfferedThisSession', '1');
     } catch (err) { return; }
