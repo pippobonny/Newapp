@@ -57,9 +57,8 @@
 
     <div class="content" id="notifList">
       <div id="friendRequestsSection"></div>
-      <div id="notifBody">
-        <div class="empty-hint">Caricamento...</div>
-      </div>
+      <!-- Sagome grigie finché non ci sono dati (2026-10-26) -->
+      <div id="notifBody"><div class="sk-wrap" aria-hidden="true"><div class="sk-card sk-notif"><div class="sk-row" style="align-items:flex-start"><span class="sk sk-icon"></span><div class="sk-col"><span class="sk" style="width:88%"></span><span class="sk" style="width:64%"></span><span class="sk" style="width:26%;height:10px"></span></div></div></div><div class="sk-card sk-notif"><div class="sk-row" style="align-items:flex-start"><span class="sk sk-icon"></span><div class="sk-col"><span class="sk" style="width:88%"></span><span class="sk" style="width:64%"></span><span class="sk" style="width:26%;height:10px"></span></div></div></div><div class="sk-card sk-notif"><div class="sk-row" style="align-items:flex-start"><span class="sk sk-icon"></span><div class="sk-col"><span class="sk" style="width:88%"></span><span class="sk" style="width:64%"></span><span class="sk" style="width:26%;height:10px"></span></div></div></div><div class="sk-card sk-notif"><div class="sk-row" style="align-items:flex-start"><span class="sk sk-icon"></span><div class="sk-col"><span class="sk" style="width:88%"></span><span class="sk" style="width:64%"></span><span class="sk" style="width:26%;height:10px"></span></div></div></div><div class="sk-card sk-notif"><div class="sk-row" style="align-items:flex-start"><span class="sk sk-icon"></span><div class="sk-col"><span class="sk" style="width:88%"></span><span class="sk" style="width:64%"></span><span class="sk" style="width:26%;height:10px"></span></div></div></div></div></div>
     </div>
    </div>
 
@@ -92,7 +91,8 @@
         return;
       }
 
-      await SeevaData.renderSessionWarningIfNeeded();
+      // 2026-10-26: senza await (vedi index.html)
+      SeevaData.renderSessionWarningIfNeeded();
 
       var myUsername = (SeevaData.getGuestName() || '').toLowerCase();
 
@@ -230,6 +230,9 @@
             events = events.concat(cancelledEv.filter(function (e) { return activeIds.indexOf(e.id) === -1; }));
           } catch (err) { /* ignora: solo quegli avvisi in meno */ }
         } catch (err) {
+          // con le notifiche dell'ultima volta già in pagina, meglio
+          // lasciarle lì che sostituirle con l'errore
+          if (notifBodyEl.__seevaHtml != null) return;
           notifBodyEl.innerHTML = '<div class="empty-hint">Non riesco a caricare le notifiche (' + SeevaData.escapeHTML(SeevaData.friendlyErrorMessage(err)) + ').</div>';
           return;
         }
@@ -335,10 +338,22 @@
         // gira ogni 30s. L'effetto collaterale di prima (un refresh in
         // background richiude l'accordion se l'avevi aperto) resta solo per
         // quando è cambiato QUALCOSA di vero, non più ad ogni singolo giro.
-        if (newBodyHTML === lastNotifBodyHTML) return;
-        lastNotifBodyHTML = newBodyHTML;
-        notifBodyEl.innerHTML = newBodyHTML;
+        // 2026-10-26: swapHTML (data.js) + copia sul telefono per il
+        // prossimo ingresso istantaneo (vedi in fondo).
+        if (SeevaData.swapHTML(notifBodyEl, newBodyHTML)) {
+          lastNotifBodyHTML = newBodyHTML;
+          bindNotifBody();
+          if (window.SeevaUI) window.SeevaUI.refresh();
+        }
+        SeevaData.saveNotifInstant(newBodyHTML);
 
+        // Segna "vista fino a qui" solo ora che la pagina è davvero disegnata
+        // (notifiche vere + richieste amicizia): è quello che spegne il
+        // pallino sulla campanella in Home (Fil, 2026-07-17).
+        SeevaData.markNotificationsSeen();
+      }
+
+      function bindNotifBody() {
         var olderNotifHeader = document.getElementById('olderNotifHeader');
         if (olderNotifHeader) {
           olderNotifHeader.addEventListener('click', function () {
@@ -346,13 +361,18 @@
             document.getElementById('olderNotifChevron').classList.toggle('open');
           });
         }
+      }
 
+      // Ingresso istantaneo (2026-10-26, come Home/Amici/Profilo): le
+      // notifiche dell'ultima volta subito, mentre la scheda scorre dentro;
+      // quelle vere le sostituiscono appena arrivano. Senza copia salvata
+      // restano le sagome grigie.
+      var instantNotif = SeevaData.getNotifInstant ? SeevaData.getNotifInstant() : null;
+      if (instantNotif) {
+        SeevaData.swapHTML(notifBodyEl, instantNotif);
+        lastNotifBodyHTML = instantNotif;
+        bindNotifBody();
         if (window.SeevaUI) window.SeevaUI.refresh();
-
-        // Segna "vista fino a qui" solo ora che la pagina è davvero disegnata
-        // (notifiche vere + richieste amicizia): è quello che spegne il
-        // pallino sulla campanella in Home (Fil, 2026-07-17).
-        SeevaData.markNotificationsSeen();
       }
 
       await refreshNotifications();

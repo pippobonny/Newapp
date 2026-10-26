@@ -96,7 +96,8 @@
       <!-- Home nuova (Fil + Virgi, 2026-10-25): niente più riquadri
            colorati da aprire, gli eventi stanno direttamente qui (vedi
            renderFeed sotto). Crea e Amici sono nella barra in basso. -->
-      <div id="homeFeed"></div>
+      <!-- Sagome grigie finché non ci sono dati (2026-10-26, vedi .sk in style.css) -->
+      <div id="homeFeed"><div class="sk-wrap" aria-hidden="true"><span class="sk sk-title"></span><div class="sk-card sk-act"><div class="sk-col"><span class="sk" style="width:34%"></span><span class="sk" style="width:78%;height:22px"></span><span class="sk" style="width:52%"></span></div><div class="sk-btns"><span class="sk"></span><span class="sk"></span><span class="sk"></span></div></div><span class="sk sk-subtitle"></span><div class="sk-card sk-rows"><div class="sk-row"><span class="sk" style="width:48px"></span><span class="sk" style="flex:1"></span><span class="sk sk-pill" style="width:52px;height:20px"></span></div><div class="sk-row"><span class="sk" style="width:48px"></span><span class="sk" style="flex:1"></span><span class="sk sk-pill" style="width:52px;height:20px"></span></div><div class="sk-row"><span class="sk" style="width:48px"></span><span class="sk" style="flex:1"></span><span class="sk sk-pill" style="width:52px;height:20px"></span></div></div></div></div>
     </div>
    </div>
 
@@ -125,7 +126,11 @@
         return;
       }
 
-      await SeevaData.renderSessionWarningIfNeeded();
+      // 2026-10-26 (scattini cambiando scheda): non si aspetta più questo
+      // controllo prima di disegnare — la Home coi dati salvati deve essere
+      // già pronta mentre la scheda scorre dentro. L'eventuale avviso
+      // compare in cima appena il controllo finisce.
+      SeevaData.renderSessionWarningIfNeeded();
 
       var guestName = SeevaData.getGuestName();
       document.getElementById('homeGreeting').textContent = 'Ciao, ' + (guestName || 'Ospite');
@@ -187,7 +192,7 @@
         var todo = mine.toAnswer;
         if (todo.length) {
           html += '<div class="hm-todo-title">' + esc(todo.length === 1 ? t('Hai 1 cosa da fare') : t('Hai {n} cose da fare', { n: todo.length })) + '</div>'
-            + '<div class="hm-swipe" id="hmSwipe">' + todo.map(actionCardHTML).join('') + '</div>'
+            + '<div class="hm-swipe" id="hmSwipe" data-keep-scroll="1">' + todo.map(actionCardHTML).join('') + '</div>'
             + (todo.length > 1 ? '<div class="hm-dots" id="hmDots">' + todo.map(function (x, i) { return '<i' + (i === 0 ? ' class="on"' : '') + '></i>'; }).join('') + '</div>' : '');
         }
 
@@ -214,9 +219,11 @@
         if (cancelledCount > 0) {
           html += '<div class="hm-foot"><a href="eventi.html?only=annullati">' + esc(cancelledCount === 1 ? t('1 annullato o a cui non vai') : t('{n} annullati o a cui non vai', { n: cancelledCount })) + '</a></div>';
         }
-        if (html === lastFeedHTML) return;
+        // 2026-10-26: swapHTML (data.js) — la prima volta sostituisce le
+        // sagome con l'animazione di entrata, dopo aggiorna in silenzio e
+        // lascia la striscia "cose da fare" sulla scheda dove eri.
+        if (!SeevaData.swapHTML(homeFeed, html)) return;
         lastFeedHTML = html;
-        homeFeed.innerHTML = html;
         bindSwipeDots();
         if (window.SeevaUI) window.SeevaUI.refresh();
       }
@@ -274,11 +281,15 @@
         var sw = document.getElementById('hmSwipe');
         var dots = document.getElementById('hmDots');
         if (!sw || !dots) return;
-        sw.addEventListener('scroll', function () {
+        var sync = function () {
           var w = sw.clientWidth || 1;
           var idx = Math.round(sw.scrollLeft / (w * 0.88));
           Array.prototype.forEach.call(dots.children, function (d, i) { d.classList.toggle('on', i === idx); });
-        }, { passive: true });
+        };
+        sw.addEventListener('scroll', sync, { passive: true });
+        // dopo un aggiornamento silenzioso la striscia resta dov'era: i
+        // pallini vanno subito sulla scheda giusta, non sulla prima
+        if (sw.scrollLeft) sync();
       }
 
       // Risposta rapida dalle card "Da rispondere" (stessa logica di eventi.html).
@@ -342,7 +353,15 @@
         } else {
           try {
             events = await SeevaData.getEvents();
-          } catch (err) { return; } // silenzioso: resta quello che c'era già in pagina
+          } catch (err) {
+            // silenzioso: resta quello che c'era già in pagina — ma se c'erano
+            // ancora le sagome (nessun dato salvato) meglio dirlo; il
+            // refresh automatico riprova da solo tra poco.
+            if (homeFeed.__seevaHtml == null) {
+              homeFeed.innerHTML = '<div class="empty-hint">Non riesco a caricare i tuoi eventi. Controlla la connessione: riprovo da solo tra poco.</div>';
+            }
+            return;
+          }
         }
 
         // Stessa suddivisione di sempre (vedi eventi.html per la versione

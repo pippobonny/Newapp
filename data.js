@@ -512,7 +512,7 @@
     // vedrebbe per qualche secondo ancora la lista eventi di chi c'era prima
     // (vedi la cache in getEvents, Fil 2026-07-22).
     clearEventsCache();
-    try { localStorage.removeItem(LAST_EVENTS_KEY); localStorage.removeItem(ARCHIVE_CACHE_KEY); localStorage.removeItem(EVENT_CACHE_KEY); localStorage.removeItem(LAST_FRIEND_LISTS_KEY); localStorage.removeItem(AVATAR_CACHE_KEY); } catch (err) { /* ignora */ }
+    try { localStorage.removeItem(LAST_EVENTS_KEY); localStorage.removeItem(ARCHIVE_CACHE_KEY); localStorage.removeItem(EVENT_CACHE_KEY); localStorage.removeItem(LAST_FRIEND_LISTS_KEY); localStorage.removeItem(AVATAR_CACHE_KEY); localStorage.removeItem(LAST_NOTIF_KEY); } catch (err) { /* ignora */ }
   }
 
   /* Inserisce l'avviso "sessione scaduta" in cima a containerEl se serve
@@ -1869,6 +1869,64 @@
 
   function clearEventsCache() {
     try { sessionStorage.removeItem(EVENTS_CACHE_KEY); } catch (err) { /* ignora */ }
+  }
+
+  /* 2026-10-26 (Fil, "piccoli scattini tipo refresh" cambiando scheda):
+     unico punto da cui le schede principali riempiono una lista.
+     - Prima volta (dentro c'è ancora la sagoma grigia dell'HTML statico):
+       contenuto dentro con la sua animazione di entrata normale.
+     - Volte dopo (arrivano i dati freschi, refresh ogni 30s, foto amici...):
+       aggiornamento "silenzioso" — niente dissolvenza rifatta (classe
+       seeva-quiet in style.css + .reveal già accese) e le strisce che
+       scorrono di lato (data-keep-scroll, con id) restano dov'erano.
+     - HTML identico all'ultimo: non tocca niente.
+     opts.animate: true per i ridisegni chiesti da te con un tocco (filtri
+     dell'agenda...), dove l'animazione serve come risposta al tocco.
+     Restituisce true se ha cambiato qualcosa. */
+  function swapHTML(el, html, opts) {
+    if (!el) return false;
+    if (el.__seevaHtml === html) return false;
+    var quiet = el.__seevaHtml != null && !(opts && opts.animate);
+    var keep = [];
+    if (quiet) {
+      el.querySelectorAll('[data-keep-scroll][id]').forEach(function (s) { keep.push([s.id, s.scrollLeft, s.scrollTop]); });
+    }
+    el.__seevaHtml = html;
+    el.innerHTML = html;
+    el.classList.toggle('seeva-quiet', quiet);
+    if (quiet) {
+      el.querySelectorAll('.reveal').forEach(function (r) { r.setAttribute('data-reveal-init', '1'); r.classList.add('in-view'); });
+      keep.forEach(function (k) {
+        var s = document.getElementById(k[0]);
+        if (s) { s.scrollLeft = k[1]; s.scrollTop = k[2]; }
+      });
+    }
+    return true;
+  }
+
+  // Per i messaggi "di servizio" (errore, vuoto...) scritti a mano con
+  // innerHTML: il prossimo swapHTML deve ripartire come "prima volta".
+  function resetSwap(el) { if (el) el.__seevaHtml = null; }
+
+  /* Ultime notifiche disegnate su questo telefono (2026-10-26): come per
+     eventi e amici, la scheda Notifiche le mostra subito e poi si aggiorna
+     coi dati veri. Solo l'HTML già pronto, legato all'account. */
+  var LAST_NOTIF_KEY = 'seeva:lastNotif';
+  function getNotifInstant() {
+    try {
+      var acc = getAccount();
+      var raw = localStorage.getItem(LAST_NOTIF_KEY);
+      if (!acc || !raw) return null;
+      var parsed = JSON.parse(raw);
+      if (!parsed || parsed.a !== acc.id || typeof parsed.v !== 'string') return null;
+      return parsed.v;
+    } catch (err) { return null; }
+  }
+  function saveNotifInstant(html) {
+    try {
+      var acc = getAccount();
+      if (acc && acc.id) localStorage.setItem(LAST_NOTIF_KEY, JSON.stringify({ a: acc.id, v: html }));
+    } catch (err) { /* ignora */ }
   }
 
   /* Date sempre in ordine cronologico (Virgi, 2026-10-04: "dopo una
@@ -4122,6 +4180,10 @@
     getCancelledCount: getCancelledCount,
     getArchivedEvents: getArchivedEvents,
     getEventsInstant: getEventsInstant,
+    swapHTML: swapHTML,
+    resetSwap: resetSwap,
+    getNotifInstant: getNotifInstant,
+    saveNotifInstant: saveNotifInstant,
     getEventInstant: getEventInstant,
     getArchivedEventsInstant: getArchivedEventsInstant,
     getFriendListsInstant: getFriendListsInstant,

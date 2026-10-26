@@ -222,7 +222,7 @@
         </div>
 
         <div class="section-title">I tuoi eventi passati</div>
-        <div id="myEventsList"></div>
+        <div id="myEventsList"><div class="sk-wrap" aria-hidden="true"><div class="sk-card" style="padding:16px"><div class="sk-col" style="gap:10px"><span class="sk" style="width:58%;height:16px"></span><span class="sk" style="width:38%"></span><span class="sk" style="width:46%"></span></div></div><div class="sk-card" style="padding:16px"><div class="sk-col" style="gap:10px"><span class="sk" style="width:58%;height:16px"></span><span class="sk" style="width:38%"></span><span class="sk" style="width:46%"></span></div></div></div></div>
 
         <div class="section-title">Impostazioni</div>
         <div class="settings-row" id="editAccountRow">
@@ -648,7 +648,9 @@
         hideAllProfileViews();
         normalView.style.display = '';
         profileHomeBackBtn.style.display = '';
-        await SeevaData.renderSessionWarningIfNeeded();
+        // 2026-10-26: senza await, il profilo coi dati salvati si disegna
+        // subito mentre la scheda scorre dentro (vedi index.html)
+        SeevaData.renderSessionWarningIfNeeded();
         await refreshProfile();
       }
 
@@ -706,9 +708,9 @@
           }
           // uguale a quello già disegnato (dati salvati = dati veri): non si
           // ridisegna, così le card non rifanno l'animazione di entrata.
-          if (myEventsList.__seevaHtml === html) return;
-          myEventsList.__seevaHtml = html;
-          myEventsList.innerHTML = html;
+          // 2026-10-26: swapHTML (data.js) — prima volta al posto delle
+          // sagome, poi aggiornamento silenzioso senza rifare l'entrata.
+          if (!SeevaData.swapHTML(myEventsList, html)) return;
           if (window.SeevaUI) window.SeevaUI.refresh();
         }
 
@@ -720,9 +722,9 @@
         if (instantRecent || instantArchived) {
           var instIds = (instantRecent || []).map(function (e) { return e.id; });
           drawMine((instantRecent || []).concat((instantArchived || []).filter(function (e) { return instIds.indexOf(e.id) === -1; })));
-        } else {
-          myEventsList.innerHTML = '<div class="empty-hint">Caricamento...</div>';
         }
+        // 2026-10-26: niente più "Caricamento...": senza dati salvati
+        // restano le sagome grigie dell'HTML.
 
         var events;
         try {
@@ -736,6 +738,7 @@
           events = events.concat(archived.filter(function (e) { return recentIds.indexOf(e.id) === -1; }));
         } catch (err) {
           if (!(instantRecent || instantArchived)) {
+            SeevaData.resetSwap(myEventsList);
             myEventsList.innerHTML = '<div class="empty-hint">Non riesco a caricare i tuoi eventi (' + SeevaData.escapeHTML(SeevaData.friendlyErrorMessage(err)) + ').</div>';
           }
           return;

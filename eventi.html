@@ -70,7 +70,8 @@
         <div class="pill" data-filter="tutti">Tutti</div>
       </div>
 
-      <div id="eventsList"></div>
+      <!-- Sagome grigie finché non ci sono dati (2026-10-26) -->
+      <div id="eventsList"><div class="sk-wrap" aria-hidden="true"><div class="sk-card"><div class="sk-row"><span class="sk" style="width:40px;height:40px;border-radius:10px"></span><div class="sk-col"><span class="sk" style="width:62%;height:14px"></span><span class="sk" style="width:40%"></span></div><span class="sk sk-pill" style="width:58px;height:24px"></span></div></div><div class="sk-card"><div class="sk-row"><span class="sk" style="width:40px;height:40px;border-radius:10px"></span><div class="sk-col"><span class="sk" style="width:62%;height:14px"></span><span class="sk" style="width:40%"></span></div><span class="sk sk-pill" style="width:58px;height:24px"></span></div></div><div class="sk-card"><div class="sk-row"><span class="sk" style="width:40px;height:40px;border-radius:10px"></span><div class="sk-col"><span class="sk" style="width:62%;height:14px"></span><span class="sk" style="width:40%"></span></div><span class="sk sk-pill" style="width:58px;height:24px"></span></div></div><div class="sk-card"><div class="sk-row"><span class="sk" style="width:40px;height:40px;border-radius:10px"></span><div class="sk-col"><span class="sk" style="width:62%;height:14px"></span><span class="sk" style="width:40%"></span></div><span class="sk sk-pill" style="width:58px;height:24px"></span></div></div></div></div>
     </div>
    </div>
 
@@ -97,7 +98,8 @@
         return;
       }
 
-      await SeevaData.renderSessionWarningIfNeeded();
+      // 2026-10-26: senza await, la lista salvata si disegna subito (vedi index.html)
+      SeevaData.renderSessionWarningIfNeeded();
 
       /* ---------- Nuova Home (Fil, 2026-10-04) ----------
          Questa pagina ora mostra una delle tre liste "tue" aperte dai
@@ -266,9 +268,10 @@
         } else {
           newHTML = buildAgendaHTML(mine);
         }
-        if (newHTML === lastListHTML) return;
+        // 2026-10-26: prima volta al posto delle sagome, poi aggiornamenti
+        // silenziosi (niente calendario/lista che rifà la dissolvenza).
+        if (!SeevaData.swapHTML(listEl, newHTML)) return;
         lastListHTML = newHTML;
-        listEl.innerHTML = newHTML;
         if (window.SeevaUI) window.SeevaUI.refresh();
       }
 
@@ -347,8 +350,12 @@
         render();
         loadEvents().then(render, function () { /* resta quella di prima */ });
       } else {
-        await loadEvents();
-        render();
+        try {
+          await loadEvents();
+          render();
+        } catch (err) {
+          listEl.innerHTML = '<div class="empty-hint">Non riesco a caricare i tuoi eventi. Controlla la connessione: riprovo da solo tra poco.</div>';
+        }
       }
 
       // Fil, 2026-07-21: niente più refresh manuale — vedi

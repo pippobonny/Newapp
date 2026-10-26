@@ -4580,3 +4580,62 @@ html:active-view-transition-type(backward)::view-transition-new(root) { animatio
    di pagina. Resta solo "Segnala un problema" nel Profilo, che apre lo
    stesso popup (data-open-report in script.js). */
 .report-problem-btn { display: none !important; }
+
+/* ---------- Sagome di caricamento ("skeleton", Fil 2026-10-26) ----------
+   Mentre i dati non ci sono ancora (prima apertura, dopo il login, rete
+   lenta) al posto della lista ci sono delle sagome grigie della forma
+   giusta con una luce che scorre: quando arrivano i dati la pagina si
+   "riempie" al suo posto invece di saltare. Stanno direttamente nell'HTML
+   delle 5 schede, dentro il contenitore che poi viene riempito: se il
+   telefono ha già i dati dell'ultima volta vengono sostituite prima ancora
+   di essere viste. */
+:root { --sk-base: #E8E2E8; --sk-shine: rgba(255, 255, 255, 0.75); }
+@media (prefers-color-scheme: dark) {
+  :root { --sk-base: #3A3042; --sk-shine: rgba(255, 255, 255, 0.07); }
+}
+.sk {
+  position: relative; overflow: hidden; display: block;
+  background: var(--sk-base); border-radius: 8px; height: 12px;
+}
+.sk::after {
+  content: ''; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent 0%, var(--sk-shine) 50%, transparent 100%);
+  animation: skShine 1.4s ease-in-out infinite;
+}
+@keyframes skShine { to { transform: translateX(100%); } }
+.sk-wrap { pointer-events: none; }
+.sk-card {
+  background: var(--card); border-radius: 18px; padding: 14px; margin-bottom: 10px;
+  box-shadow: 0 2px 8px rgba(58, 50, 90, 0.06);
+}
+.sk-row { display: flex; align-items: center; gap: 12px; }
+.sk-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.sk-circle { border-radius: 50%; flex-shrink: 0; }
+.sk-pill { border-radius: 999px; flex-shrink: 0; }
+/* Home */
+.sk-title { height: 22px; width: 52%; margin: 24px 4px 14px; border-radius: 9px; }
+.sk-subtitle { height: 16px; width: 44%; margin: 28px 4px 12px; }
+.sk-act { border-radius: 24px; padding: 18px 16px 16px; box-shadow: 0 6px 22px rgba(58, 50, 90, 0.09); }
+.sk-act .sk-col { gap: 10px; }
+.sk-btns { display: flex; gap: 8px; margin-top: 18px; }
+.sk-btns .sk { flex: 1; height: 48px; border-radius: 14px; }
+.sk-btns .sk:first-child { flex: 1.4; }
+.sk-rows { border-radius: 20px; padding: 2px 4px; }
+.sk-rows .sk-row { padding: 14px 12px; }
+.sk-rows .sk-row + .sk-row { border-top: 1px solid var(--track-soft); }
+/* Notifiche */
+.sk-notif { border-radius: 18px; margin-bottom: 12px; }
+.sk-icon { width: 38px; height: 38px; border-radius: 12px; flex-shrink: 0; }
+@media (prefers-reduced-motion: reduce) { .sk::after { display: none; } }
+
+/* Aggiornamento silenzioso (vedi SeevaData.swapHTML in data.js): quando
+   arrivano i dati freschi su una lista già piena non si rifà l'entrata a
+   cascata — era lo "scattino" che si vedeva un attimo dopo aver cambiato
+   scheda. */
+.seeva-quiet .hm-todo-title, .seeva-quiet .hm-week-title, .seeva-quiet .hm-swipe,
+.seeva-quiet .hm-rows, .seeva-quiet .hm-agenda-btn, .seeva-quiet .hm-empty,
+.seeva-quiet .cal, .seeva-quiet .cal-list > *, .seeva-quiet .am-list,
+.seeva-quiet .am-row { animation: none; }
+/* Amici, "Le tue liste": due quadrati affiancati come le card vere */
+#listsContainer > .sk-wrap { display: contents; }
+#listsContainer > .sk-wrap > .sk-card { aspect-ratio: 1; margin-bottom: 0; }
