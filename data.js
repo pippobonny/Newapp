@@ -3092,6 +3092,63 @@
     return getEventById(eventId);
   }
 
+  /* ---------- Sondaggi dentro l'evento (Fil, 2026-10-27) ----------
+     Es. cena etnica: si vota dove andare o che cucina. Solo chi organizza
+     lo crea (uno aperto alla volta) e lo chiude; tutti, anche gli ospiti
+     senza account (col nome), votano più opzioni e possono aggiungerne.
+     Tutto via RPC SECURITY DEFINER; i sondaggi arrivano in event.polls
+     dentro get_event_public. Notifiche: notify-event-poll (nuovo
+     sondaggio a tutti tranne chi ha detto Non ci sono; nuova opzione solo
+     a chi organizza), lanciate senza attendere. */
+  async function createEventPoll(eventId, question, options) {
+    var res = await supabase.rpc('create_event_poll', {
+      p_event_id: eventId, p_question: question, p_options: options
+    });
+    if (res.error) throwSupabaseError(res.error);
+    var newId = res.data && res.data.id;
+    if (newId) {
+      supabase.functions.invoke('notify-event-poll', { body: { pollId: newId } })
+        .catch(function () { /* ignora */ });
+    }
+    clearEventsCache();
+    return getEventById(eventId);
+  }
+  async function setPollVotes(eventId, pollId, guestName, optionIds) {
+    var res = await supabase.rpc('set_poll_votes', {
+      p_poll_id: pollId, p_name: (guestName || '').trim() || null, p_option_ids: optionIds || []
+    });
+    if (res.error) throwSupabaseError(res.error);
+    clearEventsCache();
+    return getEventById(eventId);
+  }
+  async function addPollOption(eventId, pollId, guestName, text) {
+    var res = await supabase.rpc('add_poll_option', {
+      p_poll_id: pollId, p_name: (guestName || '').trim() || null, p_text: text
+    });
+    if (res.error) throwSupabaseError(res.error);
+    var newId = res.data && res.data.id;
+    if (newId) {
+      supabase.functions.invoke('notify-event-poll', { body: { optionId: newId } })
+        .catch(function () { /* ignora */ });
+    }
+    clearEventsCache();
+    return { event: await getEventById(eventId), optionId: newId || null };
+  }
+  async function closeEventPoll(eventId, pollId, chosenOptionId) {
+    var res = await supabase.rpc('close_event_poll', {
+      p_poll_id: pollId, p_chosen_option_id: chosenOptionId || null
+    });
+    if (res.error) throwSupabaseError(res.error);
+    clearEventsCache();
+    return getEventById(eventId);
+  }
+  async function deleteEventPoll(eventId, pollId) {
+    var res = await supabase.rpc('delete_event_poll', { p_poll_id: pollId });
+    if (res.error) throwSupabaseError(res.error);
+    clearEventsCache();
+    return getEventById(eventId);
+  }
+
   /* "Aggiungi persone" dal menu ⋮ della pagina evento (Fil, 2026-09-26):
      solo inserimento di nuovi invitati, senza passare da tutto il giro di
      Modifica. Chi c'è già (stesso nome, maiuscole ignorate) viene saltato.
@@ -4286,6 +4343,11 @@
     upsertParticipant: upsertParticipant,
     postEventComment: postEventComment,
     deleteEventComment: deleteEventComment,
+    createEventPoll: createEventPoll,
+    setPollVotes: setPollVotes,
+    addPollOption: addPollOption,
+    closeEventPoll: closeEventPoll,
+    deleteEventPoll: deleteEventPoll,
     withdrawFromEvent: withdrawFromEvent,
     removeEventFromHome: removeEventFromHome,
     buildRemoveFromHomeConfirmMessage: buildRemoveFromHomeConfirmMessage,

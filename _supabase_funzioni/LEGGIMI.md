@@ -55,3 +55,13 @@ Novità: push ed email in italiano o inglese secondo `accounts.lang`
 - Segreto `FCM_SERVICE_ACCOUNT` (messo da Fil dal pannello). Chiave della relay in
   tabella `app_secrets` (RLS senza policy: invisibile dall'app).
 - Progetto Firebase: seeva-23403, app Android it.seeva.app.
+
+## 2026-10-27 — sondaggi dentro l'evento (già pubblicato su Supabase da Claude)
+
+- Tabelle `event_polls`, `event_poll_options`, `event_poll_votes` (RLS: lettura solo a chi vede l'evento;
+  scrittura solo tramite le funzioni qui sotto). Un solo sondaggio aperto per evento (indice unico).
+- RPC: `create_event_poll`, `close_event_poll`, `delete_event_poll` (solo organizzatore con account);
+  `set_poll_votes`, `add_poll_option` (tutti, anche ospiti col nome). `get_event_public` restituisce `polls`.
+- Nuova funzione `notify-event-poll` (verify_jwt false, controlli dentro): `{pollId}` = nuovo sondaggio a tutti
+  gli invitati tranne chi ha detto Non ci sono; `{optionId}` = nuova opzione, avvisa solo l'organizzatore.
+  Il clic sulla notifica apre `evento.html?id=...&sondaggio=1` (porta al sondaggio).

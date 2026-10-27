@@ -73,3 +73,43 @@ Aggiungi {n} persone ⇒ Add {n} people
 Ciao {name}! Scegli un nome utente e la tua data di nascita per finire. ⇒ Hi {name}! Choose a username and enter your date of birth to finish.
 Dettagli su seeva: {url} ⇒ Details on seeva: {url}
 {a} di {b} ci sono · tocca per i dettagli ⇒ {a} of {b} going · tap for details
+Hai 1 cosa da fare ⇒ You have 1 thing to do
+Hai {n} cose da fare ⇒ You have {n} things to do
+1 annullato o a cui non vai ⇒ 1 cancelled or not going
+{n} annullati o a cui non vai ⇒ {n} cancelled or not going
+{who} propone {n} date ⇒ {who} suggests {n} dates
+Si vota fino a {when} ⇒ Voting until {when}
+{who} ti invita ⇒ {who} invites you
+Ci sono in {n} date ⇒ I'm in on {n} dates
+1 c'era ⇒ 1 was there
+{n} c'erano ⇒ {n} were there
+1 c'è ⇒ 1 is in
+{n} ci sono ⇒ {n} are in
+{n} forse ⇒ {n} maybe
+{n} in attesa ⇒ {n} waiting
+1 c'è · non ancora definitiva ⇒ 1 is in · not final yet
+{n} ci sono · non ancora definitiva ⇒ {n} are in · not final yet
+{a} di {b} ci sono ⇒ {a} of {b} are in
+Manda il link agli amici ⇒ Send the link to your friends
+Vai all'evento → ⇒ Go to the event →
+1 evento insieme ⇒ 1 event together
+{n} eventi insieme ⇒ {n} events together
+{name} aggiunto ai tuoi amici ✓ ⇒ {name} added to your friends ✓
+{n} amici aggiunti ✓ ⇒ {n} friends added ✓
+Organizziamo le uscite su seeva: si risponde con un tocco, senza mille messaggi nel gruppo. {url} ⇒ Let's plan our nights out on seeva: everyone answers with one tap, no endless group messages. {url}
+Da decidere tra {n} date ⇒ To be decided between {n} dates
+Ci saranno: {names} ⇒ Going: {names}
+{name} ti ha invitato ⇒ {name} invited you
+Hai risposto: {answer} ⇒ You answered: {answer}
+Hai segnato 1 giorno ⇒ You picked 1 day
+Hai segnato {n} giorni ⇒ You picked {n} days
+{owner} lo vede subito. Puoi cambiare idea quando vuoi. ⇒ {owner} sees it straight away. You can change your mind whenever you like.
+<b>{name}</b> è confermato: {when}! ⇒ <b>{name}</b> is confirmed: {when}!
+<b>{name}</b> è confermato! ⇒ <b>{name}</b> is confirmed!
+Nuovo evento: <b>{name}</b>. Vota le date. ⇒ New event: <b>{name}</b>. Vote on the dates.
+Ancora nessun voto ⇒ No votes yet
+1 persona ha votato ⇒ 1 person has voted
+{n} persone hanno votato ⇒ {n} people have voted
+1 voto ⇒ 1 vote
+{n} voti ⇒ {n} votes
+Tu ⇒ You

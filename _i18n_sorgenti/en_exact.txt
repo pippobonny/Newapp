@@ -575,3 +575,166 @@ Vedi tutti ⇒ See all
 Eventi fatti ⇒ Events done
 Organizzati ⇒ Organised
 Per vedere i tuoi eventi passati devi prima creare un profilo. ⇒ To see your past events you need to create a profile first.
+In programma questa settimana ⇒ Coming up this week
+Niente in programma ⇒ Nothing planned
+Proponi una serata, una cena o un weekend: scegli il giorno, manda il link nel gruppo e gli amici rispondono con un tocco. ⇒ Suggest a night out, a dinner or a weekend: pick the day, send the link to the group and your friends answer with one tap.
+Crea un evento ⇒ Create an event
+Apri l'agenda ⇒ Open the agenda
+Scegli quando puoi ⇒ Pick when you can
+Vota le date ⇒ Vote on the dates
+Vuoi rispondere "Ci sono" lo stesso? ⇒ Do you want to answer "I'm in" anyway?
+Ci sono ✓ — lo trovi in agenda ⇒ I'm in ✓ — it's in your agenda
+Forse 🤔 — lo trovi in agenda ⇒ Maybe 🤔 — it's in your agenda
+Non riesco a caricare i tuoi eventi. Controlla la connessione: riprovo da solo tra poco. ⇒ Couldn't load your events. Check your connection: I'll try again shortly.
+Mese prima ⇒ Previous month
+Mese dopo ⇒ Next month
+Niente in programma questo giorno. ⇒ Nothing planned on this day.
+Crea un evento → ⇒ Create an event →
+Niente di confermato questo mese. ⇒ Nothing confirmed this month.
+Ci sono ✓ — lo trovi nella tua agenda ⇒ I'm in ✓ — it's in your agenda
+Non ci sono — lo trovi negli annullati ⇒ I'm out — it's under cancelled
+Queste date hanno lo stesso numero di persone che ci sono — l'evento resta in sospeso finché non ne confermi una. ⇒ These dates have the same number of people in — the event stays on hold until you confirm one.
+Partecipanti ⇒ Participants
+Quando ci sei? ⇒ When can you make it?
+Salva la mia risposta ⇒ Save my answer
+Non ci sono in nessuna data ⇒ I can't make any of the dates
+Apri la mappa ⇒ Open the map
+Hanno risposto tutti gli invitati ma nessuno c'era: l'evento si è annullato automaticamente. ⇒ All guests answered but nobody could make it: the event was cancelled automatically.
+Organizza ⇒ Organised by
+organizza ⇒ organiser
+Invita ⇒ Invite
+Sollecita ⇒ Nudge
+Avviso ⇒ Notice
+Com'è andata? Si è svolto? ⇒ How did it go? Did it happen?
+Lo vedi solo tu: serve a tenere in ordine i tuoi eventi. ⇒ Only you can see this: it keeps your events tidy.
+✓ Sì ⇒ ✓ Yes
+Sì ⇒ Yes
+Segnato come non svolto ⇒ Marked as not happened
+Questo evento non esiste più (o il link non è più valido). ⇒ This event no longer exists (or the link is no longer valid).
+Risposta salvata: ci sono ✓ ⇒ Answer saved: I'm in ✓
+Risposta salvata: non ci sono ⇒ Answer saved: I'm out
+Nuovo evento ⇒ New event
+Cosa ⇒ What
++ Fai scegliere tra più posti ⇒ + Let people choose between places
+Giorni ⇒ Days
+Un periodo ⇒ A date range
+Ogni settimana ⇒ Every week
++ Aggiungi un'altra data da far votare ⇒ + Add another date to vote on
+Una data sola: gli invitati rispondono "ci sono" o "non ci sono". Più date: votano quando possono. ⇒ One date: guests answer "I'm in" or "I'm out". Several dates: they vote for when they can.
+Ora ⇒ Time
+facoltativo ⇒ optional
+facoltativa ⇒ optional
+Chi inviti ⇒ Who you're inviting
+Chi inviti? ⇒ Who are you inviting?
+Es. Pizza da Mario ⇒ E.g. Pizza at Mario's
+Aggiungi qualcun altro ⇒ Add someone else
+Scrivi un nome e premi +. Chi ha già seeva compare mentre scrivi. ⇒ Type a name and press +. People already on seeva show up as you type.
+Aggiungi se vuoi ⇒ Add if you like
+✏️ Descrizione ⇒ ✏️ Description
+📷 Foto ⇒ 📷 Photo
+Descrizione ⇒ Description
+Foto ⇒ Photo
+💶 Dividere le spese ⇒ 💶 Split expenses
+🎒 Chi porta cosa ⇒ 🎒 Who brings what
+🔗 Link aperto a tutti ⇒ 🔗 Link open to everyone
+💾 Salva come lista ⇒ 💾 Save as list
+Link aperto a tutti ⇒ Link open to everyone
+chi ha il link si aggiunge da solo ⇒ anyone with the link can join
+Crea l'evento ⇒ Create the event
+Aggiungi almeno un invitato, oppure accendi "Link aperto a tutti" in Altre opzioni. ⇒ Add at least one guest, or turn on "Link open to everyone" in More options.
+Cerca e aggiungi persone ⇒ Search and add people
+Oppure invita una lista ⇒ Or invite a list
+Facoltativo: dopo averlo creato mandi il link nel gruppo e chi lo apre si aggiunge da solo. Chi scegli qui riceve anche una notifica. ⇒ Optional: once it's created you send the link to the group and whoever opens it joins. People you pick here also get a notification.
+Link aperto: chi lo riceve si aggiunge da solo ⇒ Link open: whoever gets it can join
+Link chiuso: possono entrare solo le persone scelte ⇒ Link closed: only the people you picked can join
+Le persone scelte diventeranno una lista ⇒ The people you picked will become a list
+Niente lista ⇒ No list
+una nuova data e una nuova location ⇒ a new date and a new location
+una nuova data ⇒ a new date
+una nuova location ⇒ a new location
+Ora manda il link nel gruppo: chi lo apre si aggiunge da solo. ⇒ Now send the link to the group: whoever opens it joins.
+Scegli il giorno ⇒ Pick the day
+Cerca persone su seeva ⇒ Search people on seeva
+I tuoi amici ⇒ Your friends
+I miei amici ⇒ My friends
+Condividi seeva ⇒ Share seeva
+Gruppi di amici (es. "Calcetto", "Famiglia") da invitare con un tocco quando crei un evento. ⇒ Groups of friends (e.g. "Football", "Family") to invite in one tap when you create an event.
+Nuova lista ⇒ New list
+Ancora nessuno qui. Cerca i tuoi amici qui sopra, o mandagli il link di seeva. ⇒ Nobody here yet. Search for your friends above, or send them the seeva link.
+Non è ancora su seeva ⇒ Not on seeva yet
++ Evento ⇒ + Event
+Invita su seeva ⇒ Invite to seeva
+Aggiungi amici ⇒ Add friends
+Automatica (lingua del telefono: italiano) ⇒ Automatic (phone language: Italian)
+Questo evento è stato annullato. ⇒ This event has been cancelled.
+Questo evento è già passato. ⇒ This event has already happened.
+Quando puoi? ⇒ When can you make it?
+Tocca tutti i giorni in cui puoi venire. ⇒ Tap every day you can make it.
+Non posso in nessuno di questi giorni ⇒ I can't make any of these days
+L'organizzatore sta scegliendo la data. ⇒ The organiser is choosing the date.
+Entra nell'evento → ⇒ Join the event →
+Tocca almeno un giorno, oppure "Non posso in nessuno di questi giorni". ⇒ Tap at least one day, or "I can't make any of these days".
+Ultimo passo: chi sei? ⇒ Last step: who are you?
+Tocca il tuo nome. ⇒ Tap your name.
+Scrivi il tuo nome, così gli altri sanno chi sei. ⇒ Type your name so the others know who you are.
+Il tuo nome ha già un account? Accedi ⇒ Already have an account? Log in
+← Torna all'invito ⇒ ← Back to the invite
+C'è anche da scegliere il posto: lo trovi nell'evento. ⇒ The place still needs choosing too: you'll find it in the event.
+Vedi l'evento → ⇒ See the event →
+Vuoi un promemoria il giorno prima? ⇒ Want a reminder the day before?
+Con un profilo gratuito ricevi gli avvisi e ritrovi tutti i tuoi eventi. Ci vuole un minuto, e questa risposta resta tua. ⇒ With a free profile you get notifications and keep all your events in one place. It takes a minute, and this answer stays yours.
+Crea il profilo ⇒ Create profile
+Ti aggiungo all'evento… ⇒ Adding you to the event…
+Sei dentro ✓ Rispondi qui sotto ⇒ You're in ✓ Answer below
+controlla la connessione e riprova ⇒ check your connection and try again
+Inviti, promemoria e commenti ⇒ Invites, reminders and comments
+Registrazione notifiche non riuscita ⇒ Couldn't turn on notifications
+Crea ⇒ Create
+Cerca per nome o nome utente ⇒ Search by name or username
+Tra chi conosci ⇒ People you know
+Amici e persone che hai già invitato ⇒ Friends and people you've invited before
+Non ha seeva: riceverà il link ⇒ Not on seeva: they'll get the link
+Non è su seeva? ⇒ Not on seeva?
+Nessuno trovato con questo nome ⇒ Nobody found with that name
+Scrivi il nome di chi vuoi aggiungere ⇒ Type the name of the person you want to add
+Aggiungi una foto ⇒ Add a photo
+Oggi seeva festeggia con te 🧡 ⇒ Today seeva celebrates with you 🧡
+Che sia un anno pieno di eventi confermati, amici che rispondono subito e zero spese da dividere 🥂 ⇒ Here's to a year full of confirmed events, friends who answer straight away and zero expenses to split 🥂
+— Tutto il team di seeva ⇒ — The whole seeva team
+Sondaggio ⇒ Poll
+Sondaggio chiuso ⇒ Poll closed
+Puoi sceglierne più di una ⇒ You can pick more than one
+Scrivi la tua opzione ⇒ Write your option
++ Aggiungi un'opzione ⇒ + Add an option
+Rispondi all'invito per poter votare. ⇒ Reply to the invite to be able to vote.
+L'evento è annullato. ⇒ The event is cancelled.
+Chiudi il sondaggio ⇒ Close the poll
+Scelto: ⇒ Chosen:
+Elimina questo sondaggio ⇒ Delete this poll
+Nuovo sondaggio ⇒ New poll
+Annulla ✕ ⇒ Cancel ✕
+Arriva una notifica agli invitati (tranne chi ha detto che non c'è). Ognuno può votare più opzioni e aggiungerne di nuove. ⇒ Guests get a notification (except anyone who said they can't come). Everyone can vote for more than one option and add new ones.
+Domanda ⇒ Question
+Opzioni ⇒ Options
+Es. Che cucina proviamo? ⇒ E.g. Which cuisine shall we try?
+Es. Giapponese ⇒ E.g. Japanese
+Es. Messicano ⇒ E.g. Mexican
+Es. Indiano ⇒ E.g. Indian
+Un'altra opzione ⇒ Another option
+Crea sondaggio ⇒ Create poll
+Creo... ⇒ Creating...
+Chiudo... ⇒ Closing...
+Scrivi la domanda. ⇒ Write the question.
+Servono almeno 2 opzioni diverse. ⇒ You need at least 2 different options.
+Sondaggio creato: gli invitati ricevono la notifica ⇒ Poll created: guests are getting a notification
+Opzione aggiunta: ora puoi votarla ⇒ Option added: you can vote for it now
+Nessuno potrà più votare. Quale opzione avete deciso? Resta in evidenza nella pagina dell'evento. ⇒ No one will be able to vote any more. Which option did you go for? It stays highlighted on the event page.
+Nessuna, chiudilo e basta ⇒ None, just close it
+Elimina il sondaggio ⇒ Delete the poll
+Eliminare questo sondaggio? Spariscono anche tutti i voti. ⇒ Delete this poll? All the votes will be removed too.
+Togli opzione ⇒ Remove option
+Questa opzione c'è già ⇒ This option is already there
+Massimo 15 opzioni ⇒ Maximum 15 options
+Il sondaggio è chiuso ⇒ The poll is closed
+C'è già un sondaggio aperto: chiudilo prima di crearne un altro ⇒ There's already an open poll: close it before creating another one
+Questa opzione c'è già: votala dall'elenco. ⇒ That option is already there: vote for it in the list.

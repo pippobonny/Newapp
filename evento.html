@@ -1520,6 +1520,460 @@
           + '</div>';
       }
 
+      /* ---------- Sondaggi dentro l'evento (Fil, 2026-10-27) ----------
+         Es. "cena etnica": si vota dove andare o che cucina. Solo chi
+         organizza lo crea (pulsante "Sondaggio" sotto il titolo, uno aperto
+         alla volta) e lo chiude, scegliendo se vuole l'opzione decisa.
+         Tutti votano (anche gli ospiti col nome) più opzioni insieme e
+         possono aggiungerne una. Risultati sempre visibili, coi nomi.
+         I sondaggi chiusi restano sotto, compatti, col risultato.
+         Il voto si vede subito (barre animate sul posto) e si salva poco
+         dopo l'ultimo tocco, così tre tocchi veloci = un solo salvataggio. */
+      var POLL_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><line x1="4" y1="20" x2="20" y2="20"></line><rect x="5" y="11" width="3.2" height="6" rx="1"></rect><rect x="10.4" y="6" width="3.2" height="11" rx="1"></rect><rect x="15.8" y="9" width="3.2" height="8" rx="1"></rect></svg>';
+      var pollLocalVotes = null;   // { pollId, ids } scelta non ancora salvata
+      var pollSaveTimer = null;
+      var pollSaving = false;
+      var pollAddOpen = false;
+      var expandedClosedPolls = {};
+
+      function myPollName() { return (guestName || '').trim(); }
+      function openPollOf(ev) {
+        return ((ev && ev.polls) || []).filter(function (p) { return !p.closedAt; })[0] || null;
+      }
+      function pollMyVotes(poll) {
+        if (pollLocalVotes && pollLocalVotes.pollId === poll.id) return pollLocalVotes.ids.slice();
+        var me = myPollName().toLowerCase();
+        if (!me) return [];
+        return (poll.options || []).filter(function (o) {
+          return (o.votes || []).some(function (n) { return (n || '').toLowerCase() === me; });
+        }).map(function (o) { return o.id; });
+      }
+      /* Dati già pronti per disegnare (o aggiornare sul posto) un sondaggio,
+         con dentro la mia scelta non ancora salvata. */
+      function pollView(poll) {
+        var me = myPollName();
+        var meL = me.toLowerCase();
+        var myIds = pollMyVotes(poll);
+        var everyone = {};
+        var opts = (poll.options || []).map(function (o) {
+          var names = (o.votes || []).filter(function (n) { return (n || '').toLowerCase() !== meL; });
+          var mine = !!me && myIds.indexOf(o.id) !== -1;
+          names.forEach(function (n) { everyone[n.toLowerCase()] = 1; });
+          if (mine) everyone[meL] = 1;
+          var shown = (mine ? [t('Tu')] : []).concat(names);
+          return { id: o.id, text: o.text, count: names.length + (mine ? 1 : 0), names: shown, mine: mine, chosen: poll.chosenOptionId === o.id };
+        });
+        var total = Object.keys(everyone).length;
+        var max = 0;
+        opts.forEach(function (o) { if (o.count > max) max = o.count; });
+        opts.forEach(function (o) {
+          o.pct = total ? Math.round(o.count / total * 100) : 0;
+          o.lead = max > 0 && o.count === max;
+        });
+        return { total: total, opts: opts, myIds: myIds };
+      }
+      function pollVotersText(n) {
+        if (!n) return t('Ancora nessun voto');
+        return n === 1 ? t('1 persona ha votato') : t('{n} persone hanno votato', { n: n });
+      }
+      function pollOptionHTML(o, interactive, closed) {
+        return ''
+          + '<button type="button" class="poll-opt' + (o.mine ? ' is-mine' : '') + (o.lead ? ' is-lead' : '') + (o.chosen ? ' is-chosen' : '') + (interactive ? '' : ' is-static') + '"'
+          + ' data-poll-opt="' + SeevaData.escapeHTML(o.id) + '"' + (interactive ? '' : ' tabindex="-1"') + '>'
+          + '<span class="poll-opt-fill" style="width:' + o.pct + '%"></span>'
+          + (closed ? '' : '<span class="poll-opt-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><polyline points="5 12.5 10 17 19 7.5"></polyline></svg></span>')
+          + '<span class="poll-opt-body">'
+          + '<span class="poll-opt-text" data-no-i18n>' + (o.chosen ? '✓ ' : '') + SeevaData.escapeHTML(o.text) + '</span>'
+          + '<span class="poll-opt-names" data-no-i18n>' + SeevaData.escapeHTML(o.names.join(', ')) + '</span>'
+          + '</span>'
+          + '<span class="poll-opt-count">' + o.count + '</span>'
+          + '</button>';
+      }
+      function buildOpenPollHTML(poll, info) {
+        var v = pollView(poll);
+        var canVote = !!myPollName() && info.status !== 'cancelled';
+        var optsHTML = v.opts.map(function (o) { return pollOptionHTML(o, canVote, false); }).join('');
+        var addHTML = '';
+        if (canVote && (poll.options || []).length < 15) {
+          addHTML = pollAddOpen
+            ? '<div class="poll-add-form"><input type="text" id="pollAddInput" maxlength="80" placeholder="Scrivi la tua opzione"><button type="button" id="pollAddSaveBtn">Aggiungi</button></div>'
+            : '<button type="button" class="poll-add" id="pollAddBtn">+ Aggiungi un\'opzione</button>';
+        }
+        var hint = canVote ? '' : '<div class="poll-hint">' + (info.status === 'cancelled' ? 'L\'evento è annullato.' : 'Rispondi all\'invito per poter votare.') + '</div>';
+        var orgHTML = isOrganizer && SeevaData.hasAccount()
+          ? '<button type="button" class="poll-close-btn" id="pollCloseBtn">Chiudi il sondaggio</button>'
+          : '';
+        return ''
+          + '<div class="poll-card" id="pollCard" data-poll-id="' + SeevaData.escapeHTML(poll.id) + '">'
+          + '<div class="poll-tag">' + POLL_ICON_SVG + '<span>Sondaggio</span></div>'
+          + '<div class="poll-question" data-no-i18n>' + SeevaData.escapeHTML(poll.question) + '</div>'
+          + '<div class="poll-sub"><span>Puoi sceglierne più di una</span> · <span id="pollVotersLine">' + pollVotersText(v.total) + '</span></div>'
+          + '<div class="poll-opts">' + optsHTML + '</div>'
+          + addHTML + hint + orgHTML
+          + '</div>';
+      }
+      function buildClosedPollHTML(poll) {
+        var v = pollView(poll);
+        var chosen = v.opts.filter(function (o) { return o.chosen; })[0];
+        var open = !!expandedClosedPolls[poll.id];
+        var resultText = chosen
+          ? '<span>Scelto:</span> <b data-no-i18n>' + SeevaData.escapeHTML(chosen.text) + '</b>'
+          : '<span>' + pollVotersText(v.total) + '</span>';
+        var body = !open ? '' : ''
+          + '<div class="poll-opts">' + v.opts.map(function (o) { return pollOptionHTML(o, false, true); }).join('') + '</div>'
+          + (isOrganizer && SeevaData.hasAccount() ? '<button type="button" class="poll-del-link" data-delete-poll="' + SeevaData.escapeHTML(poll.id) + '">Elimina questo sondaggio</button>' : '');
+        return ''
+          + '<div class="poll-card is-closed' + (open ? ' is-open' : '') + '">'
+          + '<button type="button" class="poll-closed-head" data-toggle-poll="' + SeevaData.escapeHTML(poll.id) + '">'
+          + '<span class="poll-closed-titles">'
+          + '<span class="poll-tag">' + POLL_ICON_SVG + '<span>Sondaggio chiuso</span></span>'
+          + '<span class="poll-question" data-no-i18n>' + SeevaData.escapeHTML(poll.question) + '</span>'
+          + '<span class="poll-result">' + resultText + '</span>'
+          + '</span>'
+          + '<span class="poll-chevron">&#9662;</span>'
+          + '</button>'
+          + body
+          + '</div>';
+      }
+      function buildPollsHTML(info) {
+        var polls = event.polls || [];
+        if (!polls.length) return '';
+        var openPoll = openPollOf(event);
+        return (openPoll ? buildOpenPollHTML(openPoll, info) : '')
+          + polls.filter(function (p) { return !!p.closedAt; }).map(buildClosedPollHTML).join('');
+      }
+
+      /* Ridisegna solo i sondaggi (non tutta la pagina). Se il sondaggio
+         aperto ha le stesse opzioni di prima aggiorna sul posto, così le
+         barre scorrono invece di ricomparire. */
+      function refreshPolls(forceRebuild) {
+        var wrap = document.getElementById('pollsWrap');
+        if (!wrap) return;
+        var info = SeevaData.computeEventStatus(event);
+        var openPoll = openPollOf(event);
+        var card = document.getElementById('pollCard');
+        if (!forceRebuild && openPoll && card && card.getAttribute('data-poll-id') === openPoll.id) {
+          var domIds = Array.prototype.map.call(card.querySelectorAll('[data-poll-opt]'), function (b) { return b.getAttribute('data-poll-opt'); });
+          var newIds = (openPoll.options || []).map(function (o) { return o.id; });
+          if (domIds.join(',') === newIds.join(',')) { updatePollInPlace(openPoll); return; }
+        }
+        wrap.innerHTML = buildPollsHTML(info);
+        bindPolls();
+      }
+      function updatePollInPlace(poll) {
+        var card = document.getElementById('pollCard');
+        if (!card) return;
+        var v = pollView(poll);
+        v.opts.forEach(function (o) {
+          var btn = card.querySelector('[data-poll-opt="' + o.id + '"]');
+          if (!btn) return;
+          btn.classList.toggle('is-mine', o.mine);
+          btn.classList.toggle('is-lead', o.lead);
+          btn.querySelector('.poll-opt-fill').style.width = o.pct + '%';
+          btn.querySelector('.poll-opt-count').textContent = String(o.count);
+          btn.querySelector('.poll-opt-names').textContent = o.names.join(', ');
+        });
+        var line = document.getElementById('pollVotersLine');
+        if (line) line.textContent = pollVotersText(v.total);
+      }
+
+      function togglePollVote(pollId, optId, btn) {
+        var poll = (event.polls || []).filter(function (p) { return p.id === pollId; })[0];
+        if (!poll || poll.closedAt || !myPollName()) return;
+        var ids = pollMyVotes(poll);
+        var i = ids.indexOf(optId);
+        if (i === -1) ids.push(optId); else ids.splice(i, 1);
+        pollLocalVotes = { pollId: poll.id, ids: ids };
+        updatePollInPlace(poll);
+        if (btn && i === -1) {
+          btn.classList.remove('pop');
+          void btn.offsetWidth;
+          btn.classList.add('pop');
+        }
+        clearTimeout(pollSaveTimer);
+        pollSaveTimer = setTimeout(savePollVotes, 450);
+      }
+      async function savePollVotes() {
+        clearTimeout(pollSaveTimer);
+        pollSaveTimer = null;
+        if (!pollLocalVotes) return;
+        if (pollSaving) { pollSaveTimer = setTimeout(savePollVotes, 300); return; }
+        var pending = pollLocalVotes;
+        pollSaving = true;
+        try {
+          var ev = await SeevaData.setPollVotes(event.id, pending.pollId, myPollName(), pending.ids);
+          if (pollLocalVotes === pending) pollLocalVotes = null;
+          if (ev) event = ev;
+          if (!pollLocalVotes) refreshPolls(false);
+        } catch (err) {
+          if (pollLocalVotes === pending) pollLocalVotes = null;
+          refreshPolls(false);
+          SeevaUI.alert('Non sono riuscito a salvare il voto (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+        } finally {
+          pollSaving = false;
+        }
+      }
+      // Se si esce dalla pagina subito dopo un tocco, il voto parte lo stesso.
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'hidden' && pollLocalVotes && !pollSaving) savePollVotes();
+      });
+      window.addEventListener('pagehide', function () {
+        if (pollLocalVotes && !pollSaving) savePollVotes();
+      });
+
+      function bindPolls() {
+        var wrap = document.getElementById('pollsWrap');
+        if (!wrap) return;
+        var card = document.getElementById('pollCard');
+        if (card) {
+          var pollId = card.getAttribute('data-poll-id');
+          Array.prototype.forEach.call(card.querySelectorAll('.poll-opt:not(.is-static)'), function (btn) {
+            btn.addEventListener('click', function () { togglePollVote(pollId, btn.getAttribute('data-poll-opt'), btn); });
+          });
+          var addBtn = document.getElementById('pollAddBtn');
+          if (addBtn) addBtn.addEventListener('click', function () {
+            pollAddOpen = true;
+            refreshPolls(true);
+            var inp = document.getElementById('pollAddInput');
+            if (inp) { try { inp.focus(); } catch (err) { /* ok */ } }
+          });
+          var addInput = document.getElementById('pollAddInput');
+          var addSave = document.getElementById('pollAddSaveBtn');
+          if (addInput && addSave) {
+            addInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); addSave.click(); } });
+            addInput.addEventListener('blur', function () {
+              // Campo lasciato vuoto: torna la riga "+ Aggiungi un'opzione".
+              setTimeout(function () {
+                if (!pollAddOpen || addSave.disabled) return;
+                if (document.getElementById('pollAddInput') !== addInput) return;
+                if ((addInput.value || '').trim() || document.activeElement === addSave || document.activeElement === addInput) return;
+                pollAddOpen = false;
+                refreshPolls(true);
+              }, 200);
+            });
+            addSave.addEventListener('click', async function () {
+              var txt = (addInput.value || '').trim();
+              if (!txt) { addInput.focus(); return; }
+              if (addSave.disabled) return;
+              var curPoll = openPollOf(event);
+              if (curPoll && (curPoll.options || []).some(function (o) { return (o.text || '').trim().toLowerCase() === txt.toLowerCase(); })) {
+                SeevaUI.alert('Questa opzione c\'è già: votala dall\'elenco.');
+                return;
+              }
+              addSave.disabled = true;
+              addSave.textContent = '...';
+              if (pollLocalVotes) await savePollVotes();
+              var r;
+              try {
+                r = await SeevaData.addPollOption(event.id, pollId, myPollName(), txt);
+                if (r.event) event = r.event;
+              } catch (err) {
+                addSave.disabled = false;
+                addSave.textContent = 'Aggiungi';
+                SeevaUI.alert('Non sono riuscito ad aggiungerla (' + SeevaData.friendlyErrorMessage(err) + ').');
+                return;
+              }
+              pollAddOpen = false;
+              refreshPolls(true);
+              var newBtn = r.optionId ? document.querySelector('[data-poll-opt="' + r.optionId + '"]') : null;
+              if (newBtn) newBtn.classList.add('just-added');
+              if (SeevaUI.toast) SeevaUI.toast('Opzione aggiunta: ora puoi votarla');
+            });
+          }
+          var closeBtn = document.getElementById('pollCloseBtn');
+          if (closeBtn) closeBtn.addEventListener('click', function () {
+            var poll = openPollOf(event);
+            if (poll) openClosePollPopup(poll);
+          });
+        }
+        Array.prototype.forEach.call(wrap.querySelectorAll('[data-toggle-poll]'), function (b) {
+          b.addEventListener('click', function () {
+            var id = b.getAttribute('data-toggle-poll');
+            expandedClosedPolls[id] = !expandedClosedPolls[id];
+            refreshPolls(true);
+          });
+        });
+        Array.prototype.forEach.call(wrap.querySelectorAll('[data-delete-poll]'), function (b) {
+          b.addEventListener('click', async function () {
+            if (!await SeevaUI.ask('Eliminare questo sondaggio? Spariscono anche tutti i voti.')) return;
+            try {
+              event = await SeevaData.deleteEventPoll(event.id, b.getAttribute('data-delete-poll'));
+            } catch (err) {
+              SeevaUI.alert('Non sono riuscito a eliminarlo (' + SeevaData.friendlyErrorMessage(err) + ').');
+              return;
+            }
+            render();
+          });
+        });
+      }
+
+      function openCreatePollPopup() {
+        var phone = document.querySelector('.phone');
+        if (!phone) return;
+        if (openPollOf(event)) {
+          var c = document.getElementById('pollCard');
+          if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
+        var overlay = document.createElement('div');
+        overlay.className = 'signup-overlay';
+        overlay.innerHTML = ''
+          + '<div class="signup-modal poll-modal" style="text-align:left;">'
+          + '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">'
+          + '<div class="signup-modal-title" style="margin:0;">Nuovo sondaggio</div>'
+          + '<div class="list-delete" id="pollNewCloseBtn">Chiudi ✕</div></div>'
+          + '<div class="signup-modal-text" style="text-align:left; margin-bottom:12px;">Arriva una notifica agli invitati (tranne chi ha detto che non c\'è). Ognuno può votare più opzioni e aggiungerne di nuove.</div>'
+          + '<div class="poll-field-label">Domanda</div>'
+          + '<div class="field"><input type="text" id="pollNewQuestion" maxlength="140" placeholder="Es. Che cucina proviamo?"></div>'
+          + '<div class="poll-field-label">Opzioni</div>'
+          + '<div id="pollNewOptions"></div>'
+          + '<button type="button" class="poll-add" id="pollNewAddOpt">+ Aggiungi un\'opzione</button>'
+          + '<div class="field-hint" id="pollNewError" style="color:var(--cancel-ink); min-height:16px; margin-top:6px;"></div>'
+          + '<button type="button" class="primary-btn" id="pollNewSaveBtn" style="margin-top:8px; margin-bottom:0;">Crea sondaggio</button>'
+          + '</div>';
+        function close() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+        phone.appendChild(overlay);
+        var optsEl = overlay.querySelector('#pollNewOptions');
+        var addOptBtn = overlay.querySelector('#pollNewAddOpt');
+        var errorEl = overlay.querySelector('#pollNewError');
+        var saveBtn = overlay.querySelector('#pollNewSaveBtn');
+        var examples = ['Es. Giapponese', 'Es. Messicano', 'Es. Indiano'];
+        function optionRows() { return optsEl.querySelectorAll('.poll-new-opt'); }
+        function syncRemoveButtons() {
+          var rows = optionRows();
+          Array.prototype.forEach.call(rows, function (r) { r.querySelector('.poll-new-del').style.display = rows.length > 2 ? '' : 'none'; });
+          addOptBtn.style.display = rows.length >= 15 ? 'none' : '';
+        }
+        function addOptionRow(focus) {
+          var n = optionRows().length;
+          var row = document.createElement('div');
+          row.className = 'poll-new-opt';
+          row.innerHTML = '<div class="field"><input type="text" maxlength="80" placeholder="' + (examples[n] || 'Un\'altra opzione') + '"></div>'
+            + '<button type="button" class="poll-new-del" aria-label="Togli opzione">✕</button>';
+          row.querySelector('.poll-new-del').addEventListener('click', function () {
+            if (optionRows().length <= 2) return;
+            row.parentNode.removeChild(row);
+            syncRemoveButtons();
+          });
+          row.querySelector('input').addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            var rows = optionRows();
+            if (rows[rows.length - 1] === row && rows.length < 15) addOptionRow(true);
+            else { var next = row.nextElementSibling; if (next) next.querySelector('input').focus(); }
+          });
+          optsEl.appendChild(row);
+          syncRemoveButtons();
+          if (focus) row.querySelector('input').focus();
+        }
+        addOptionRow(false); addOptionRow(false);
+        addOptBtn.addEventListener('click', function () { addOptionRow(true); });
+        overlay.querySelector('#pollNewCloseBtn').addEventListener('click', close);
+        setTimeout(function () { try { overlay.querySelector('#pollNewQuestion').focus(); } catch (err) { /* ok */ } }, 50);
+        saveBtn.addEventListener('click', async function () {
+          var q = (overlay.querySelector('#pollNewQuestion').value || '').trim();
+          var opts = Array.prototype.map.call(optionRows(), function (r) { return (r.querySelector('input').value || '').trim(); }).filter(Boolean);
+          var seen = {};
+          opts = opts.filter(function (o) { var k = o.toLowerCase(); if (seen[k]) return false; seen[k] = 1; return true; });
+          if (!q) { errorEl.textContent = 'Scrivi la domanda.'; return; }
+          if (opts.length < 2) { errorEl.textContent = 'Servono almeno 2 opzioni diverse.'; return; }
+          if (saveBtn.disabled) return;
+          saveBtn.disabled = true;
+          saveBtn.textContent = 'Creo...';
+          errorEl.textContent = '';
+          try {
+            event = await SeevaData.createEventPoll(event.id, q, opts);
+          } catch (err) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Crea sondaggio';
+            errorEl.textContent = SeevaData.friendlyErrorMessage(err);
+            return;
+          }
+          close();
+          render();
+          var card = document.getElementById('pollCard');
+          if (card) {
+            card.classList.add('just-created');
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+          if (SeevaUI.toast) SeevaUI.toast('Sondaggio creato: gli invitati ricevono la notifica');
+        });
+      }
+
+      function openClosePollPopup(poll) {
+        var phone = document.querySelector('.phone');
+        if (!phone) return;
+        var v = pollView(poll);
+        var sorted = v.opts.slice().sort(function (a, b) { return b.count - a.count; });
+        var leaders = sorted.filter(function (o) { return o.lead; });
+        var selected = leaders.length === 1 ? leaders[0].id : '';
+        var overlay = document.createElement('div');
+        overlay.className = 'signup-overlay';
+        function rowsHTML() {
+          return sorted.map(function (o) {
+            return '<button type="button" class="poll-pick' + (selected === o.id ? ' is-on' : '') + '" data-pick="' + SeevaData.escapeHTML(o.id) + '">'
+              + '<span class="poll-pick-dot"></span><span class="poll-pick-text" data-no-i18n>' + SeevaData.escapeHTML(o.text) + '</span>'
+              + '<span class="poll-pick-count">' + (o.count === 1 ? t('1 voto') : t('{n} voti', { n: o.count })) + '</span></button>';
+          }).join('')
+            + '<button type="button" class="poll-pick' + (selected === '' ? ' is-on' : '') + '" data-pick=""><span class="poll-pick-dot"></span><span class="poll-pick-text">Nessuna, chiudilo e basta</span></button>';
+        }
+        overlay.innerHTML = ''
+          + '<div class="signup-modal poll-modal" style="text-align:left;">'
+          + '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">'
+          + '<div class="signup-modal-title" style="margin:0;">Chiudi il sondaggio</div>'
+          + '<div class="list-delete" id="pollEndCloseBtn">Annulla ✕</div></div>'
+          + '<div class="signup-modal-text" style="text-align:left; margin-bottom:12px;">Nessuno potrà più votare. Quale opzione avete deciso? Resta in evidenza nella pagina dell\'evento.</div>'
+          + '<div id="pollPickList">' + rowsHTML() + '</div>'
+          + '<button type="button" class="primary-btn" id="pollEndSaveBtn" style="margin-top:12px; margin-bottom:0;">Chiudi il sondaggio</button>'
+          + '<div style="text-align:center; margin-top:12px;"><span class="signup-skip-link" id="pollEndDeleteBtn">Elimina il sondaggio</span></div>'
+          + '</div>';
+        function close() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+        phone.appendChild(overlay);
+        var list = overlay.querySelector('#pollPickList');
+        function bindPicks() {
+          Array.prototype.forEach.call(list.querySelectorAll('[data-pick]'), function (b) {
+            b.addEventListener('click', function () {
+              selected = b.getAttribute('data-pick');
+              Array.prototype.forEach.call(list.querySelectorAll('[data-pick]'), function (x) { x.classList.toggle('is-on', x === b); });
+            });
+          });
+        }
+        bindPicks();
+        overlay.querySelector('#pollEndCloseBtn').addEventListener('click', close);
+        overlay.querySelector('#pollEndDeleteBtn').addEventListener('click', async function () {
+          if (!await SeevaUI.ask('Eliminare questo sondaggio? Spariscono anche tutti i voti.')) return;
+          try {
+            event = await SeevaData.deleteEventPoll(event.id, poll.id);
+          } catch (err) {
+            SeevaUI.alert('Non sono riuscito a eliminarlo (' + SeevaData.friendlyErrorMessage(err) + ').');
+            return;
+          }
+          close();
+          render();
+        });
+        var saveBtn = overlay.querySelector('#pollEndSaveBtn');
+        saveBtn.addEventListener('click', async function () {
+          if (saveBtn.disabled) return;
+          saveBtn.disabled = true;
+          saveBtn.textContent = 'Chiudo...';
+          if (pollLocalVotes) await savePollVotes();
+          try {
+            event = await SeevaData.closeEventPoll(event.id, poll.id, selected || null);
+          } catch (err) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Chiudi il sondaggio';
+            SeevaUI.alert('Non sono riuscito a chiuderlo (' + SeevaData.friendlyErrorMessage(err) + ').');
+            return;
+          }
+          close();
+          expandedClosedPolls[poll.id] = true;
+          render();
+          if (SeevaUI.toast) SeevaUI.toast('Sondaggio chiuso');
+        });
+      }
+
       function render() {
         var info = SeevaData.computeEventStatus(event);
         var isConfirmedSimple = (info.status === 'done' || info.status === 'passato') && !!info.bestOption;
@@ -1945,6 +2399,7 @@
           + (orgIsOpen ? orgActionBtn('orgInviteBtn', '<circle cx="9" cy="8.5" r="3"></circle><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"></path><line x1="18" y1="8" x2="18" y2="14"></line><line x1="15" y1="11" x2="21" y2="11"></line>', 'Invita') : '')
           + (orgIsOpen && orgPendingCount > 0 ? orgActionBtn('orgNudgeBtn', '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>', 'Sollecita', '<span class="org-action-count">' + orgPendingCount + '</span>') : '')
           + (orgIsOpen ? orgActionBtn('orgShareBtn', '<circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"></line>', 'Condividi') : '')
+          + (orgIsOpen && !openPollOf(event) && SeevaData.hasAccount() ? orgActionBtn('orgPollBtn', '<line x1="4" y1="20" x2="20" y2="20"></line><rect x="5" y="11" width="3.2" height="6" rx="1"></rect><rect x="10.4" y="6" width="3.2" height="11" rx="1"></rect><rect x="15.8" y="9" width="3.2" height="8" rx="1"></rect>', 'Sondaggio') : '')
           + orgActionBtn('orgAnnounceBtn', '<path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"></path><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M18.5 5.5a9 9 0 0 1 0 13"></path>', 'Avviso')
           + '</div>';
 
@@ -1981,6 +2436,7 @@
           + (isConfirmedSimple ? confirmedParts.answer + confirmedParts.people : '')
           + manualConfirmTopHTML
           + (isConfirmedSimple && confirmedParts.people ? '' : whoComingTileHTML)
+          + '<div id="pollsWrap">' + buildPollsHTML(info) + '</div>'
           + detailsHTML
           + commentsTileHTML
           + expensesSectionHTML
@@ -2000,6 +2456,11 @@
         if (window.SeevaUI) window.SeevaUI.refresh();
 
         bindEvents();
+        bindPolls();
+        var orgPollBtnEl = document.getElementById('orgPollBtn');
+        if (orgPollBtnEl) orgPollBtnEl.addEventListener('click', function (e) { e.stopPropagation(); openCreatePollPopup(); });
+        var orgActionsEl = contentEl.querySelector('.org-actions');
+        if (orgActionsEl && orgActionsEl.children.length >= 5) orgActionsEl.classList.add('is-crowded');
         var outcomeYesBtn = document.getElementById('outcomeYesBtn');
         if (outcomeYesBtn) outcomeYesBtn.addEventListener('click', function () { saveOutcome(true, false); });
         var outcomeNoBtn = document.getElementById('outcomeNoBtn');
@@ -3768,10 +4229,11 @@
       // ?commenti=1 (notifica di un nuovo commento: apre la bacheca).
       var esito = params.get('esito');
       var openComments = params.get('commenti') === '1';
-      if (esito || openComments) {
+      var openPollParam = params.get('sondaggio') === '1';
+      if (esito || openComments || openPollParam) {
         try {
           var cleanP = new URLSearchParams(window.location.search);
-          cleanP.delete('esito'); cleanP.delete('commenti');
+          cleanP.delete('esito'); cleanP.delete('commenti'); cleanP.delete('sondaggio');
           history.replaceState(null, '', window.location.pathname + '?' + cleanP.toString());
         } catch (err) { /* ignora */ }
       }
@@ -3781,6 +4243,11 @@
       if (openComments) {
         var ct = document.getElementById('commentsTile');
         if (ct) ct.click();
+      }
+      // ?sondaggio=1 (notifica di un sondaggio, Fil 2026-10-27): porta al sondaggio.
+      if (openPollParam) {
+        var pc = document.getElementById('pollCard');
+        if (pc) setTimeout(function () { pc.scrollIntoView({ behavior: 'smooth', block: 'center' }); pc.classList.add('just-created'); }, 250);
       }
 
       var rsvp = params.get('rsvp');

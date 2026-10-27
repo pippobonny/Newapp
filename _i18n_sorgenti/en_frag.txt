@@ -116,3 +116,9 @@ Ti ha invitato ⇒ Invited by
  minuto. ⇒  minute.
 ! Scegli un nome utente e la tua data di nascita per finire. ⇒ ! Choose a username and enter your date of birth to finish.
 Per " ⇒ For "
+ date proposte, in attesa di conferma ⇒  dates suggested, waiting for confirmation
+ (non ancora confermato) ⇒  (not confirmed yet)
+Non sono riuscito a salvare il voto ( ⇒ Couldn't save your vote (
+Non sono riuscito ad aggiungerla ( ⇒ Couldn't add it (
+Non sono riuscito a eliminarlo ( ⇒ Couldn't delete it (
+Non sono riuscito a chiuderlo ( ⇒ Couldn't close it (

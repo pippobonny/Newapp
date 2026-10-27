@@ -2766,7 +2766,7 @@
      2026-10-26, "effetti wow"): su Android si "sente" il tocco come nelle
      app native. Dove non c'è (iPhone, computer) non succede niente. */
   document.addEventListener('click', function (e) {
-    var t = e.target && e.target.closest ? e.target.closest('.rsvp-seg-btn, .hm-act-btn, .my-act, .org-action, .seeva-tabbar .nav-item, .primary-btn') : null;
+    var t = e.target && e.target.closest ? e.target.closest('.rsvp-seg-btn, .hm-act-btn, .my-act, .org-action, .seeva-tabbar .nav-item, .primary-btn, .poll-opt:not(.is-static)') : null;
     if (t && navigator.vibrate) { try { navigator.vibrate(8); } catch (err) { /* ignora */ } }
   }, true);
 
