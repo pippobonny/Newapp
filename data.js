@@ -886,6 +886,10 @@
   }
   if (isNativeApp() && global.document && global.document.documentElement) {
     global.document.documentElement.classList.add('seeva-native');
+    // App iPhone (2026-10-29): serve al CSS per mostrare "Continua con Apple"
+    if (global.Capacitor.getPlatform && global.Capacitor.getPlatform() === 'ios') {
+      global.document.documentElement.classList.add('seeva-ios');
+    }
   }
   /* App Android, Fil 2026-10-24 (prime prove APK):
      - tasto indietro di Android: torna alla pagina precedente come nel
@@ -959,6 +963,12 @@
     var C = global.Capacitor;
     return (isNativeApp() && C && C.Plugins && C.Plugins.PushNotifications) || null;
   }
+  // 'ios' sull'iPhone (token Apple, lo manda direttamente la relay ad APNs),
+  // 'android' sugli Android (token Firebase).
+  function nativePlatform() {
+    var C = global.Capacitor;
+    return (C && typeof C.getPlatform === 'function' && C.getPlatform() === 'ios') ? 'ios' : 'android';
+  }
   var nativeTokenWaiters = [];
   var nativeListenersReady = false;
   function nativeLinkToPath(url) {
@@ -972,12 +982,12 @@
     var P = nativePushPlugin();
     if (!P || nativeListenersReady) return;
     nativeListenersReady = true;
-    try { P.createChannel({ id: 'seeva', name: 'seeva', description: 'Inviti, promemoria e commenti', importance: 5, visibility: 1, vibration: true }); } catch (err) { /* ignora */ }
+    if (nativePlatform() === 'android') try { P.createChannel({ id: 'seeva', name: 'seeva', description: 'Inviti, promemoria e commenti', importance: 5, visibility: 1, vibration: true }); } catch (err) { /* ignora */ }
     P.addListener('registration', function (t) {
       var token = t && t.value;
       if (!token) return;
       try { localStorage.setItem(NATIVE_TOKEN_KEY, token); } catch (err) { /* ignora */ }
-      if (hasAccount()) supabase.rpc('register_native_push', { p_token: token, p_platform: 'android' }).then(function () {}, function () {});
+      if (hasAccount()) supabase.rpc('register_native_push', { p_token: token, p_platform: nativePlatform() }).then(function () {}, function () {});
       nativeTokenWaiters.splice(0).forEach(function (w) { w.resolve(token); });
     });
     P.addListener('registrationError', function (e) {
@@ -1068,7 +1078,7 @@
         global.setTimeout(function () { reject(new Error('Il telefono non ha risposto, riprova tra poco.')); }, 15000);
         P.register();
       });
-      var regRes = await supabase.rpc('register_native_push', { p_token: token, p_platform: 'android' });
+      var regRes = await supabase.rpc('register_native_push', { p_token: token, p_platform: nativePlatform() });
       if (regRes.error) throw new Error(regRes.error.message);
       return true;
     }
@@ -1512,6 +1522,69 @@
     if (res.error) throwSupabaseError(res.error);
     // Non c'è altro da fare qui: signInWithOAuth porta via dalla pagina
     // (redirect vero verso Google), il resto succede al ritorno.
+  }
+
+  /* ---------- Accedi con Apple (solo app iPhone, Fil 2026-10-29) ----------
+     Il riquadro "Accedi con Apple" (Face ID) lo apre il pezzetto nativo
+     SeevaAppleSignIn (SceneDelegate.swift); Apple restituisce un "token"
+     firmato che Supabase verifica (provider Apple, Client ID it.seeva.app).
+     Poi si prosegue ESATTAMENTE come col primo accesso Google: se il profilo
+     c'è già si entra, altrimenti si chiedono nome utente e data di nascita
+     (getGoogleSignupState / completeGoogleProfile valgono per tutti e due).
+     Nome e cognome Apple li dà solo al PRIMO accesso: si salvano subito nei
+     dati dell'utente Supabase così non si perdono.
+     Ritorna null se la persona chiude il riquadro senza accedere. */
+  var appleSignInPluginRef = null;
+  function appleSignInPlugin() {
+    var C = global.Capacitor;
+    if (!isNativeApp() || !C || typeof C.getPlatform !== 'function' || C.getPlatform() !== 'ios' || typeof C.registerPlugin !== 'function') return null;
+    if (!appleSignInPluginRef) appleSignInPluginRef = C.registerPlugin('SeevaAppleSignIn');
+    return appleSignInPluginRef;
+  }
+  function isAppleSignInAvailable() {
+    return !!appleSignInPlugin();
+  }
+  async function sha256Hex(text) {
+    var buf = await global.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return Array.prototype.map.call(new Uint8Array(buf), function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+  }
+  async function signInWithApple() {
+    var P = appleSignInPlugin();
+    if (!P) throw new Error('L\'accesso con Apple funziona solo nell\'app per iPhone.');
+    // "nonce": numero casuale usa-e-getta, Apple lo mette (cifrato) dentro il
+    // token e Supabase controlla che corrisponda: un token rubato non serve.
+    var rawNonce = null, hashedNonce = null;
+    try {
+      if (global.crypto && global.crypto.subtle && global.crypto.getRandomValues) {
+        var bytes = new Uint8Array(16);
+        global.crypto.getRandomValues(bytes);
+        rawNonce = Array.prototype.map.call(bytes, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+        hashedNonce = await sha256Hex(rawNonce);
+      }
+    } catch (err) { rawNonce = null; hashedNonce = null; }
+
+    var r;
+    try {
+      r = await P.signIn(hashedNonce ? { nonce: hashedNonce } : {});
+    } catch (err) {
+      if (err && (err.code === 'CANCELED' || /cancel|annull/i.test(String(err.message || '')))) return null;
+      throw err;
+    }
+    if (!r || !r.identityToken) throw new Error('Apple non ha risposto, riprova.');
+
+    var opts = { provider: 'apple', token: r.identityToken };
+    if (rawNonce) opts.nonce = rawNonce;
+    var res = await supabase.auth.signInWithIdToken(opts);
+    if (res.error) throwSupabaseError(res.error);
+
+    var given = String(r.givenName || '').trim();
+    var family = String(r.familyName || '').trim();
+    if (given || family) {
+      try {
+        await supabase.auth.updateUser({ data: { given_name: given, family_name: family, full_name: (given + ' ' + family).trim() } });
+      } catch (err) { /* non grave: il nome si può scrivere dopo nel profilo */ }
+    }
+    return getGoogleSignupState();
   }
 
   /* Aspetta che supabase-js abbia finito di leggere un eventuale redirect di
@@ -4427,6 +4500,8 @@
     requestPasswordReset: requestPasswordReset,
     resetPassword: resetPassword,
     signInWithGoogle: signInWithGoogle,
+    signInWithApple: signInWithApple,
+    isAppleSignInAvailable: isAppleSignInAvailable,
     getGoogleSignupState: getGoogleSignupState,
     completeGoogleProfile: completeGoogleProfile
   };

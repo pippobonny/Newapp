@@ -65,3 +65,16 @@ Novità: push ed email in italiano o inglese secondo `accounts.lang`
 - Nuova funzione `notify-event-poll` (verify_jwt false, controlli dentro): `{pollId}` = nuovo sondaggio a tutti
   gli invitati tranne chi ha detto Non ci sono; `{optionId}` = nuova opzione, avvisa solo l'organizzatore.
   Il clic sulla notifica apre `evento.html?id=...&sondaggio=1` (porta al sondaggio).
+
+## 2026-10-29 — notifiche sull'iPhone (DA PUBBLICARE, non ancora su Supabase)
+
+- `native-push-relay`: se il token è quello di Apple (64 caratteri esadecimali, app iPhone)
+  la notifica va direttamente ad APNs (server Apple), senza Firebase. Android invariato.
+- Prima prova il server "production" (TestFlight/App Store), se Apple risponde BadDeviceToken
+  riprova su "sandbox" (app installata da Xcode). Unregistered/410 → riga cancellata come prima.
+- Segreti nuovi da mettere su Supabase (Edge Functions → Secrets) quando Virgi ha creato la
+  chiave APNs: `APNS_KEY_P8` (contenuto del file .p8), `APNS_KEY_ID`, `APNS_TEAM_ID`.
+- L'app iPhone registra il token con `register_native_push(p_platform => 'ios')` (data.js,
+  nativePlatform()): nessuna modifica SQL necessaria.
+- Da pubblicare (verify_jwt false come prima) insieme ai segreti: finché i segreti mancano,
+  le notifiche agli iPhone rispondono 503 e quelle Android funzionano come sempre.

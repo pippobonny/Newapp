@@ -9,6 +9,10 @@
   "android": {
     "backgroundColor": "#FFFFFF"
   },
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#FFFFFF"
+  },
   "plugins": {
     "SystemBars": {
       "insetsHandling": "css",

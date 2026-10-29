@@ -3985,7 +3985,17 @@ a.notif-item:active { background: var(--track-soft); }
 /* App Android (Capacitor, 2026-10-24): il login Google della pagina web
    dentro l'app non funziona (Google blocca le WebView). Nascosto finché
    non c'è il login nativo (fase 2). Email/password resta. */
-html.seeva-native #googleSignInWrap { display: none !important; }
+html.seeva-native #googleSignInBtn { display: none !important; }
+html.seeva-native:not(.seeva-ios) #googleSignInWrap { display: none !important; }
+
+/* "Continua con Apple" (Fil, 2026-10-29): solo nell'app iPhone. Nero con
+   la mela bianca come chiede Apple; in modalità scura bianco con mela nera. */
+#appleSignInBtn { display: none; }
+html.seeva-ios #appleSignInBtn {
+  display: flex; align-items: center; justify-content: center; gap: 9px;
+  width: 100%; margin: 0; background: #000; color: #fff; box-shadow: none;
+}
+@media (prefers-color-scheme: dark) { html.seeva-ios #appleSignInBtn { background: #fff; color: #000; } }
 
 /* App Android, prime prove APK (Fil, 2026-10-24):
    - "tutto troppo in alto": nell'app la pagina va sotto la barra di stato

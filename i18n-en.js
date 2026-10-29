@@ -109,6 +109,7 @@
  "Conguagli suggeriti": "Suggested settle-ups",
  "Conti già in pari.": "All settled up.",
  "Continua con Google": "Continue with Google",
+ "Continua con Apple": "Continue with Apple",
  "Continua →": "Continue →",
  "Cosa avete pagato": "What you paid for",
  "Cosa puoi fare": "What you can do",

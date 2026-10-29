@@ -14,7 +14,15 @@ import { decryptWebPush, verifyVapid } from "./webpush-decrypt.ts";
    - Token non più valido (app disinstallata) -> risposta 410: chi ha mandato
      la notifica cancella da solo la riga da push_subscriptions.
    Segreti: chiave della relay in app_secrets (o NATIVE_PUSH_PRIVATE_JWK), FCM_SERVICE_ACCOUNT
-   (JSON dell'account di servizio Firebase), VAPID_PUBLIC_KEY (già presente). */
+   (JSON dell'account di servizio Firebase), VAPID_PUBLIC_KEY (già presente).
+
+   iPhone (2026-10-29): l'app iPhone registra il "token" di Apple (64 caratteri
+   esadecimali, niente Firebase). Per quei token la notifica va DIRETTAMENTE
+   ai server di Apple (APNs). Segreti in più: APNS_KEY_P8 (contenuto del file
+   AuthKey_XXXX.p8), APNS_KEY_ID, APNS_TEAM_ID; facoltativo APNS_TOPIC
+   (default it.seeva.app). Prima prova il server "production" (TestFlight e
+   App Store); se Apple dice BadDeviceToken riprova su "sandbox" (app
+   installata da Xcode). */
 const RELAY_PUBLIC_KEY = "BJ6Rt9_bAWOCtIoJ7W5bLoV7gN23n8VbtBWXoThZHli5cIrBZFTLNK3bjXeN8_dxoPxkNiD3yOn3B8KiUYKKtJE";
 const RELAY_BASE = "https://kruphqdahghxuvutonae.supabase.co/functions/v1/native-push-relay?t=";
 
@@ -44,6 +52,55 @@ async function fcmAccessToken(sa: any): Promise<string> {
   return cachedToken.value;
 }
 
+/* ---------- APNs (iPhone) ---------- */
+const isApnsToken = (t: string) => /^[0-9a-fA-F]{64,200}$/.test(t);
+let cachedApnsJwt: { value: string; exp: number } | null = null;
+
+async function apnsJwt(): Promise<string> {
+  if (cachedApnsJwt && cachedApnsJwt.exp > Date.now()) return cachedApnsJwt.value;
+  const keyId = Deno.env.get("APNS_KEY_ID") || "";
+  const teamId = Deno.env.get("APNS_TEAM_ID") || "";
+  const p8 = Deno.env.get("APNS_KEY_P8") || "";
+  if (!keyId || !teamId || !p8) throw new Error("APNs not configured");
+  const enc = new TextEncoder();
+  const header = b64u(enc.encode(JSON.stringify({ alg: "ES256", kid: keyId })));
+  const claims = b64u(enc.encode(JSON.stringify({ iss: teamId, iat: Math.floor(Date.now() / 1000) })));
+  const pem = p8.replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
+  const der = Uint8Array.from(atob(pem), (c) => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey("pkcs8", der, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+  const sig = new Uint8Array(await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, enc.encode(header + "." + claims)));
+  const jwt = header + "." + claims + "." + b64u(sig);
+  // Apple: il token vale 1 ora e non va rifatto più spesso di ogni 20 minuti
+  cachedApnsJwt = { value: jwt, exp: Date.now() + 40 * 60 * 1000 };
+  return jwt;
+}
+
+async function sendApns(token: string, payload: Record<string, unknown>): Promise<Response> {
+  if (!Deno.env.get("APNS_KEY_P8")) return new Response("apns not configured", { status: 503 });
+  const body: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(payload)) if (v !== undefined && v !== null && k !== "title" && k !== "body") body[k] = typeof v === "string" ? v : JSON.stringify(v);
+  body.aps = { alert: { title: String(payload.title || "seeva"), body: String(payload.body || "") }, sound: "default" };
+  const tag = typeof payload.tag === "string" ? payload.tag.slice(0, 64) : "";
+  const headers: Record<string, string> = {
+    authorization: "bearer " + (await apnsJwt()),
+    "apns-topic": Deno.env.get("APNS_TOPIC") || "it.seeva.app",
+    "apns-push-type": "alert",
+    "apns-priority": "10",
+    "content-type": "application/json"
+  };
+  if (tag) headers["apns-collapse-id"] = tag;
+  let lastErr = "";
+  for (const host of ["https://api.push.apple.com", "https://api.sandbox.push.apple.com"]) {
+    const r = await fetch(host + "/3/device/" + token, { method: "POST", headers, body: JSON.stringify(body) });
+    if (r.ok) return new Response("sent", { status: 201 });
+    lastErr = await r.text();
+    if (r.status === 410 || /Unregistered/.test(lastErr)) return new Response("gone", { status: 410 });
+    if (!/BadDeviceToken/.test(lastErr)) return new Response("apns " + r.status + " " + lastErr.slice(0, 300), { status: 502 });
+    // BadDeviceToken: forse è un token "sandbox" (app da Xcode) -> riprova sull'altro server
+  }
+  return new Response("gone", { status: 410 });
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return new Response("ok");
   try {
@@ -53,8 +110,6 @@ Deno.serve(async (req: Request) => {
     if (!(await verifyVapid(req.headers.get("Authorization") || "", Deno.env.get("VAPID_PUBLIC_KEY") || ""))) {
       return new Response("forbidden", { status: 403 });
     }
-    const saRaw = Deno.env.get("FCM_SERVICE_ACCOUNT");
-    if (!saRaw) return new Response("not configured", { status: 503 });
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     let jwkRaw = Deno.env.get("NATIVE_PUSH_PRIVATE_JWK") || "";
     if (!jwkRaw) {
@@ -67,6 +122,9 @@ Deno.serve(async (req: Request) => {
 
     const body = new Uint8Array(await req.arrayBuffer());
     const payload = JSON.parse(await decryptWebPush(body, JSON.parse(jwkRaw), RELAY_PUBLIC_KEY, sub.auth));
+    if (isApnsToken(token)) return await sendApns(token, payload);
+    const saRaw = Deno.env.get("FCM_SERVICE_ACCOUNT");
+    if (!saRaw) return new Response("not configured", { status: 503 });
     const sa = JSON.parse(saRaw);
     const data: Record<string, string> = {};
     for (const [k, v] of Object.entries(payload)) if (v !== undefined && v !== null && k !== "title" && k !== "body") data[k] = typeof v === "string" ? v : JSON.stringify(v);
