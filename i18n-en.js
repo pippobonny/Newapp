@@ -295,6 +295,7 @@
  "Non ora": "Not now",
  "Non riesco a verificare questo invito. Riprova tra poco, o controlla di aver aperto il link giusto.": "I can't verify this invite. Try again shortly, or check you opened the right link.",
  "Non riesco ad accedere al microfono (permesso negato?).": "I can't access the microphone (permission denied?).",
+ "Non riesco ad aprire il calendario del telefono": "I can't open the phone's calendar",
  "Non sono mai disponibile": "I'm never free",
  "Non sono riuscito a caricare i suggerimenti di Google Maps: puoi comunque scrivere l'indirizzo a mano.": "Couldn't load Google Maps suggestions: you can still type the address yourself.",
  "Non sono riuscito a eliminare l'evento": "Couldn't delete the event",

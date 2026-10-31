@@ -276,6 +276,51 @@
       + (dateISO ? '&date=' + encodeURIComponent(dateISO) : '');
   }
 
+  /* "Aggiungi al calendario" dentro l'app Android (Fil, 2026-10-31): nella
+     WebView il download del .ics non fa niente. Il plugin nativo
+     SeevaCalendar (SeevaCalendarPlugin.java) apre la schermata "nuovo
+     evento" del calendario del telefono già compilata. Torna true se è
+     andata, false se non siamo nell'app Android (o il plugin non c'è,
+     es. APK vecchio) -> si usa il vecchio metodo. */
+  var calendarPluginRef = null;
+  function nativeCalendarPlugin() {
+    var C = global.Capacitor;
+    if (!isNativeApp() || !C || typeof C.getPlatform !== 'function' || C.getPlatform() !== 'android' || typeof C.registerPlugin !== 'function') return null;
+    if (C.isPluginAvailable && !C.isPluginAvailable('SeevaCalendar')) return null;
+    if (!calendarPluginRef) calendarPluginRef = C.registerPlugin('SeevaCalendar');
+    return calendarPluginRef;
+  }
+  async function addToNativeCalendar(event, dateISO) {
+    var P = nativeCalendarPlugin();
+    if (!P) return false;
+    var y = Number(dateISO.slice(0, 4)), m = Number(dateISO.slice(5, 7)) - 1, d = Number(dateISO.slice(8, 10));
+    var timeLabel = formatTimeLabel(event.eventTime);
+    var begin, end, allDay = !timeLabel;
+    if (timeLabel) {
+      var hm = timeLabel.split(':');
+      // Ora locale del telefono, un'ora di durata (come il file .ics).
+      begin = new Date(y, m, d, Number(hm[0]), Number(hm[1])).getTime();
+      end = begin + 3600000;
+    } else {
+      // "Tutto il giorno": Android vuole la mezzanotte UTC.
+      begin = Date.UTC(y, m, d);
+      end = Date.UTC(y, m, d + 1);
+    }
+    var descriptionParts = [];
+    if (event.description) descriptionParts.push(event.description);
+    descriptionParts.push(T('Dettagli su seeva: {url}', { url: SITE_URL + '/evento.html?id=' + event.id }));
+    var loc = resolveEventLocation(event);
+    await P.addEvent({
+      title: event.name || '',
+      description: descriptionParts.join('\n\n'),
+      location: (loc && loc.address) || '',
+      begin: begin,
+      end: end,
+      allDay: allDay
+    });
+    return true;
+  }
+
   function isIOS() {
     var ua = (global.navigator && global.navigator.userAgent) || '';
     return /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && global.navigator.maxTouchPoints > 1);
@@ -4476,6 +4521,7 @@
     computeExpenseBalances: computeExpenseBalances,
     SITE_URL: SITE_URL,
     eventIcsUrl: eventIcsUrl,
+    addToNativeCalendar: addToNativeCalendar,
     isIOS: isIOS,
     GOOGLE_MAPS_API_KEY: GOOGLE_MAPS_API_KEY,
     getFriendLists: getFriendLists,

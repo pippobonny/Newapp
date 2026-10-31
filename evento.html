@@ -749,7 +749,10 @@
           : '';
 
         return {
-          html: '<div class="section-title first">Partecipanti</div><div class="invitee-chip-wrap">' + rowsHTML + '</div>' + notesHTML,
+          // Niente titolo "Partecipanti" qui: la lista va solo nel popup,
+          // che ha già il suo titolo in alto (Virgi, 2026-10-30: "doppia
+          // scritta Partecipanti").
+          html: '<div class="invitee-chip-wrap">' + rowsHTML + '</div>' + notesHTML,
           rows: rows
         };
       }
@@ -2165,7 +2168,7 @@
           whoComingModalHTML = ''
             + '<div class="signup-overlay" id="whoComingModal" style="display:none;">'
             + '<div class="signup-modal" style="text-align:left; max-height:74vh; overflow-y:auto;">'
-            + '<div class="list-header" style="margin-bottom:4px;">'
+            + '<div class="list-header" style="margin-bottom:14px;">'
             + '<div class="card-title">Partecipanti</div>'
             + '<div class="list-delete" id="whoComingCloseBtn">Chiudi ✕</div>'
             + '</div>'
@@ -3385,7 +3388,15 @@
         });
       }
 
-      function addEventToCalendar(dateISO) {
+      async function addEventToCalendar(dateISO) {
+            // App Android (Fil, 2026-10-31): apre il calendario del telefono
+            // già compilato. Se non va, si prosegue col vecchio metodo.
+            try {
+              if (await SeevaData.addToNativeCalendar(event, dateISO)) return;
+            } catch (err) {
+              if (window.SeevaUI) window.SeevaUI.toast(t('Non riesco ad aprire il calendario del telefono'));
+              return;
+            }
             // iPhone (Michi, Pattu 2026-10-03: "non si collega al
             // calendario"): apro l'indirizzo vero del .ics, iOS mostra da
             // solo "Aggiungi a Calendario". Android resta com'era.
