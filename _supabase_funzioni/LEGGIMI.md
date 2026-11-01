@@ -78,3 +78,15 @@ Novità: push ed email in italiano o inglese secondo `accounts.lang`
   nativePlatform()): nessuna modifica SQL necessaria.
 - Da pubblicare (verify_jwt false come prima) insieme ai segreti: finché i segreti mancano,
   le notifiche agli iPhone rispondono 503 e quelle Android funzionano come sempre.
+
+## 2026-11-01 — spese e chi porta cosa rifatte (già pubblicato su Supabase da Claude)
+
+- DB: vedi `2026-11-01_spese_porta.sql` (spese "tra tutti" che seguono il gruppo, "+ €" sulle voci,
+  spese anche prima della conferma).
+- Nuova `notify-event-expense` (verify_jwt false, controlli dentro): push "nuova spesa" a chi è incluso,
+  tranne chi l'ha aggiunta. Body `{ expenseId }`.
+- `send-event-reminders` v11: mode "votes" (ogni 10 min) manda anche il promemoria "🎒 Ricordati di
+  portare" 4 ore prima (senza orario: ore 10 del giorno); mode "outcome" (9 UTC) manda anche il
+  riepilogo dei conti del giorno prima a tutti quelli nei conti.
+- `send-event-reminders` v12: "Com'è andata?" ora si segna come chiesto solo se la push è partita davvero;
+  se nessun telefono è raggiungibile si riprova le mattine dopo, fino a 3 giorni dall'evento.

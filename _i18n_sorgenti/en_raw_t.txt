@@ -113,3 +113,62 @@ Ancora nessun voto ⇒ No votes yet
 1 voto ⇒ 1 vote
 {n} voti ⇒ {n} votes
 Tu ⇒ You
+Nessuna spesa ⇒ No expenses
+Devi {tot} ⇒ You owe {tot}
+Ricevi {tot} ⇒ You get {tot}
+Sei in pari ⇒ You're square
+{tot} in totale ⇒ {tot} in total
+Tocca per aggiungere ⇒ Tap to add
+Lista vuota ⇒ Empty list
+1 da prendere ⇒ 1 still needed
+{n} da prendere ⇒ {n} still needed
+Tutto preso ✓ ⇒ All covered ✓
+Porti: {what} ⇒ You're bringing: {what}
+Tocca per scegliere ⇒ Tap to choose
+Devi dare <b>{amt}</b> a {name} ⇒ You owe {name} <b>{amt}</b>
+{name} ti deve <b>{amt}</b> ⇒ {name} owes you <b>{amt}</b>
+Sei in pari ✓ ⇒ You're all square ✓
+Il tuo conto ⇒ Your balance
+La tua parte {share} · totale {tot} ⇒ Your share {share} · total {tot}
+La data non è ancora confermata: per ora le spese "tra tutti" si dividono tra chi ha detto sì ({n}). Alla conferma i conti si aggiornano da soli. ⇒ The date isn't confirmed yet: for now "everyone" expenses are split between those who said yes ({n}). Once it's confirmed, the totals update by themselves.
+Aggiungi una spesa ⇒ Add an expense
+Serve un account per aggiungere spese. ⇒ You need an account to add expenses.
+Chi deve dare a chi ⇒ Who owes whom
+tra tutti ({n}) ⇒ split with everyone ({n})
+solo 1 persona ⇒ just 1 person
+tra {n} ⇒ split {n} ways
+Pagato da {name} ⇒ Paid by {name}
+modifica ⇒ edit
+Nessuna spesa ancora. Chi paga qualcosa (spesa, benzina, affitto...) lo segna qui e seeva fa i conti. ⇒ No expenses yet. Whoever pays for something (shopping, fuel, rent...) adds it here and seeva does the maths.
+Dettaglio per persona ⇒ Breakdown per person
+ha pagato {paid} · parte {owed} ⇒ paid {paid} · share {owed}
+1 spesa ⇒ 1 expense
+{n} spese ⇒ {n} expenses
+La porti tu · tocca per lasciarla ⇒ You're bringing it · tap to drop it
+La porta {name} ⇒ {name} is bringing it
+Libera · tocca per portarla tu ⇒ Free · tap to bring it yourself
+Ancora libera ⇒ Still free
+Lista vuota. Aggiungi cosa serve (ghiaccio, casse, carne...) e ognuno sceglie cosa portare. ⇒ Empty list. Add what's needed (ice, speakers, meat...) and everyone picks what to bring.
+Cosa serve? Es. ghiaccio, casse... ⇒ What's needed? E.g. ice, speakers...
+Hai speso qualcosa per quello che porti? Tocca "+ €": finisce nelle spese, diviso tra tutti. ⇒ Did you pay for what you're bringing? Tap "+ €": it goes into the expenses, split with everyone.
+te ⇒ you
+tutti quelli che vengono ({n}) ⇒ everyone coming ({n})
+{amt} a testa ⇒ {amt} each
+Pagato da <b>{payer}</b> · diviso tra <b>{split}</b> ⇒ Paid by <b>{payer}</b> · split between <b>{split}</b>
+Ora {n}: si aggiorna da solo se qualcuno si aggiunge o si toglie ⇒ Now {n}: updates by itself if someone joins or drops out
+Scrivi quanto avete speso. ⇒ Enter how much you spent.
+Scrivi per cosa (es. spesa, benzina). ⇒ Say what it was for (e.g. shopping, fuel).
+Salvo... ⇒ Saving...
+Spesa aggiunta ✓ ⇒ Expense added ✓
+Aggiunta alle spese ✓ ⇒ Added to expenses ✓
+Spesa tolta ⇒ Expense removed
+Scrivi quanto hai speso. ⇒ Enter how much you spent.
+Totale {tot} ⇒ Total {tot}
+Gli altri ⇒ Everyone else
+Ancora nessuna spesa ⇒ No expenses yet
+La porto io ⇒ I'll bring it
+Cosa serve? ⇒ What's needed?
+paghi tu ⇒ you pay
+paga {name} ⇒ {name} pays
+<b>{amt}</b> a testa ⇒ <b>{amt}</b> each
+In {n} ⇒ {n} people

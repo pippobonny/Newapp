@@ -4056,29 +4056,138 @@
     return '"' + e.name + '"' + (e.time ? ' alle ' + e.time : '') + (e.place ? ' a ' + e.place : '') + (e.firm ? '' : ' (non ancora confermato)');
   }
 
+  /* Rifacimento spese (Fil, 2026-11-01): input.splitAll = "diviso tra
+     tutti", il server tiene la divisione allineata al gruppo da solo
+     (chi ha detto sì prima della conferma, i confermati dopo: vedi
+     expense_group / resync_split_all_shares sul DB). Senza splitAll vale
+     input.includedNames, fissi. L'emoji, se non data, si sceglie dalla
+     parola (autoExpenseEmoji). Dopo l'aggiunta parte la push a chi è
+     incluso (notify-event-expense). */
   async function addEventExpense(eventId, input) {
+    var desc = (input.description || '').trim();
     var res = await supabase.rpc('add_event_expense', {
       p_event_id: eventId,
-      p_description: (input.description || '').trim(),
+      p_description: desc,
       p_amount: input.amount,
       p_paid_by_name: input.paidByName,
-      p_included_names: input.includedNames || [],
-      p_emoji: input.emoji || null
+      p_included_names: input.splitAll ? null : (input.includedNames || []),
+      p_emoji: input.emoji || autoExpenseEmoji(desc),
+      p_split_all: !!input.splitAll
     });
     if (res.error) throwSupabaseError(res.error);
+    var newId = res.data && res.data.id;
+    if (newId) notifyEventExpense(newId);
     return res.data;
   }
 
   async function updateEventExpense(expenseId, input) {
+    var desc = (input.description || '').trim();
     var res = await supabase.rpc('update_event_expense', {
       p_expense_id: expenseId,
-      p_description: (input.description || '').trim(),
+      p_description: desc,
       p_amount: input.amount,
       p_paid_by_name: input.paidByName,
-      p_included_names: input.includedNames || [],
-      p_emoji: input.emoji || null
+      p_included_names: input.splitAll ? null : (input.includedNames || []),
+      p_emoji: input.emoji || autoExpenseEmoji(desc),
+      p_split_all: !!input.splitAll
     });
     if (res.error) throwSupabaseError(res.error);
+  }
+
+  // Push "nuova spesa" a chi è incluso (tranne chi l'ha aggiunta). Mai
+  // bloccante: se non parte, la spesa resta comunque salvata.
+  function notifyEventExpense(expenseId) {
+    try {
+      supabase.functions.invoke('notify-event-expense', { body: { expenseId: expenseId } }).catch(function () { /* ignora */ });
+    } catch (err) { /* ignora */ }
+  }
+
+  // Costo di una voce di "chi porta cosa" (Fil, 2026-11-01): diventa una
+  // spesa divisa tra tutti pagata da chi la porta. 0/vuoto = la toglie.
+  async function setEventItemCost(itemId, amount) {
+    var res = await supabase.rpc('set_event_item_cost', { p_item_id: itemId, p_amount: amount || null });
+    if (res.error) throwSupabaseError(res.error);
+    var out = res.data || {};
+    if (out.isNew && out.expenseId) notifyEventExpense(out.expenseId);
+    return out;
+  }
+
+  /* Emoji scelta dalla parola (Fil, 2026-11-01: "automatica dalla
+     parola"). Solo emoji ammesse dal DB (expense_emoji_ok). */
+  var EXPENSE_EMOJI_RULES = [
+    [/pizz/, '🍕'], [/carn|grigliat|bbq|barbecue|salsicc|costin|arrost|bistecc/, '🥩'],
+    [/pasta|spaghett|risott|lasagn|sugo/, '🍝'], [/tort|dolc|gelat|pastic|cake|dessert|biscott/, '🍰'],
+    [/birr|beer/, '🍺'], [/vin[oi]\b|vino|prosecc|spumant|champagne|wine/, '🍷'],
+    [/cocktail|aperitiv|spritz|drink|alcol|liquor|amaro|gin\b|vodka|rum\b/, '🍸'],
+    [/ghiacci|\bice\b/, '🧊'], [/caff|coffee|colazion|cornett|brioche/, '☕'], [/pane|focacc|grissin|bread/, '🥖'],
+    [/benzin|gasolio|carburant|diesel|fuel|pieno\b/, '⛽'], [/taxi|uber|ncc/, '🚖'],
+    [/autostrad|pedagg|parchegg|noleggio auto|macchin|\bauto\b|car\b/, '🚗'],
+    [/treno|train|trenitalia|italo/, '🚆'], [/volo|aere|flight|ryanair|easyjet/, '✈️'],
+    [/hotel|albergo|b&b|bnb|ostello/, '🏨'], [/affitt|casa|airbnb|appartament|villa|rent/, '🏠'],
+    [/bigliett|ingress|ticket|concert|cinema|teatro|museo|parco/, '🎟️'],
+    [/regal|gift/, '🎁'], [/festa|party|addobb|palloncin|decoraz|candelin/, '🎉'],
+    [/spesa|supermerc|esselunga|coop|conad|carrefour|lidl|market|bevand|acqua|snack|patatin/, '🛒'],
+    [/cena|pranzo|ristorant|trattoria|osteria|pizzeria|sushi|cibo|mangiar|food|dinner|lunch/, '🍕']
+  ];
+  function autoExpenseEmoji(text) {
+    var tx = String(text || '').toLowerCase();
+    if (!tx) return null;
+    for (var i = 0; i < EXPENSE_EMOJI_RULES.length; i++) {
+      if (EXPENSE_EMOJI_RULES[i][0].test(tx)) return EXPENSE_EMOJI_RULES[i][1];
+    }
+    return null;
+  }
+
+  /* Gruppo con cui si divide "tra tutti" — IDENTICO a expense_group sul DB:
+     dopo la conferma chi ha confermato la data, prima chi ha detto sì ad
+     almeno una data. */
+  function getExpenseGroupNames(event) {
+    if (!event) return [];
+    if (event.confirmedDateOptionId) return getConfirmedParticipantNames(event);
+    var seen = {};
+    return (event.participants || []).filter(function (p) {
+      var k = (p.name || '').trim().toLowerCase();
+      if (!k || seen[k] || !(p.availableDateOptionIds || []).length) return false;
+      seen[k] = true;
+      return true;
+    }).map(function (p) { return p.name; });
+  }
+
+  /* Chi può essere scelto in una spesa (pagato da / tra chi): il gruppo,
+     più (prima della conferma) chi è invitato o ha risposto. */
+  function getExpenseCandidateNames(event) {
+    var group = getExpenseGroupNames(event);
+    if (event && event.confirmedDateOptionId) return group;
+    var seen = {}; var out = [];
+    function add(n) { var k = (n || '').trim().toLowerCase(); if (k && !seen[k]) { seen[k] = true; out.push(n.trim()); } }
+    group.forEach(add);
+    if (event) {
+      add(event.createdBy);
+      (event.participants || []).forEach(function (p) { add(p.name); });
+      (event.invitees || []).forEach(function (i) { add(i.name); });
+    }
+    return out;
+  }
+
+  /* Riassunto per la card "Spese" della pagina evento e per il pannello:
+     quanto devi / ricevi tu (myName), totale, la tua parte. */
+  function getMyExpenseSummary(event, myName) {
+    var expenses = (event && event.expenses) || [];
+    var total = expenses.reduce(function (s, ex) { return s + (Number(ex.amount) || 0); }, 0);
+    var calc = computeExpenseBalances(event || {});
+    var me = (myName || '').trim().toLowerCase();
+    var mine = calc.balances.filter(function (b) { return (b.name || '').trim().toLowerCase() === me; })[0] || null;
+    var iOwe = calc.settlements.filter(function (s) { return (s.fromName || '').trim().toLowerCase() === me; });
+    var owedToMe = calc.settlements.filter(function (s) { return (s.toName || '').trim().toLowerCase() === me; });
+    return {
+      count: expenses.length,
+      total: Math.round(total * 100) / 100,
+      myShare: mine ? mine.owed : 0,
+      myNet: mine ? mine.net : 0,
+      iOwe: iOwe,
+      owedToMe: owedToMe,
+      calc: calc
+    };
   }
 
   async function deleteEventExpense(expenseId) {
@@ -4519,6 +4628,11 @@
     deleteEventItem: deleteEventItem,
     formatEuro: formatEuro,
     computeExpenseBalances: computeExpenseBalances,
+    setEventItemCost: setEventItemCost,
+    autoExpenseEmoji: autoExpenseEmoji,
+    getExpenseGroupNames: getExpenseGroupNames,
+    getExpenseCandidateNames: getExpenseCandidateNames,
+    getMyExpenseSummary: getMyExpenseSummary,
     SITE_URL: SITE_URL,
     eventIcsUrl: eventIcsUrl,
     addToNativeCalendar: addToNativeCalendar,
@@ -4575,7 +4689,7 @@
   [
     'updateAccount', 'uploadAvatar', 'uploadEventPhoto', 'uploadEventAudio',
     'updateEvent', 'deleteEvent', 'confirmEventDate', 'cancelEventManually', 'upsertParticipant', 'withdrawFromEvent',
-    'markNotificationsSeen', 'updateEventExpense', 'deleteEventExpense',
+    'markNotificationsSeen', 'updateEventExpense', 'deleteEventExpense', 'setEventItemCost',
     'deleteFriendList', 'removeFriendFromList', 'respondFriendRequest',
     'loginAccount', 'resetPassword', 'completeGoogleProfile',
     'subscribeToPush', 'unsubscribeFromPush'

@@ -212,13 +212,15 @@
       <div class="cr-extras">
         <div class="cr-sub">Aggiungi se vuoi</div>
         <div class="cr-chips" id="crExtraChips">
-          <button type="button" class="cr-x" data-x="desc">✏️ Descrizione</button>
-          <button type="button" class="cr-x" data-x="photo">📷 Foto</button>
+          <!-- Spese e Chi porta cosa per primi (Fil, 2026-11-01: "nessuno sa che esistono"). -->
           <button type="button" class="cr-x" data-x="exp">💶 Dividere le spese</button>
           <button type="button" class="cr-x" data-x="items">🎒 Chi porta cosa</button>
+          <button type="button" class="cr-x" data-x="desc">✏️ Descrizione</button>
+          <button type="button" class="cr-x" data-x="photo">📷 Foto</button>
           <button type="button" class="cr-x" data-x="link">🔗 Link aperto a tutti</button>
           <button type="button" class="cr-x" data-x="list">💾 Salva come lista</button>
         </div>
+        <div class="cr-extras-hint" id="crExtrasHint" style="display:none;"></div>
         <div id="crMoreOptions">
         <div class="field" id="crDescField">
           <label>Descrizione</label>
@@ -334,7 +336,7 @@
             <button type="button" id="stagedExpenseAddBtn" class="btn-reveal">+</button>
           </div>
           <div id="stagedExpensesList"></div>
-          <div class="field-hint">Pagata da te, divisa tra tutti gli invitati — i dettagli si affinano dopo, dalla pagina dell'evento.</div>
+          <div class="field-hint">Pagata da te, divisa tra chi partecipa (si aggiorna da sola quando gli altri rispondono).</div>
         </div>
 
         <div class="field" id="stagedItemsField" style="display:none;">
@@ -1395,6 +1397,15 @@
           var c = document.querySelector('#crExtraChips [data-x="' + k + '"]');
           if (c) c.classList.toggle('is-on', !!on[k]);
         });
+        // Una frase su cosa succede dopo (Fil, 2026-11-01).
+        var hintEl = document.getElementById('crExtrasHint');
+        if (hintEl) {
+          var lines = [];
+          if (on.exp && !isEditMode) lines.push('💶 Ognuno segna cosa spende, seeva fa i conti.');
+          if (on.items && !isEditMode) lines.push('🎒 Ognuno sceglie cosa portare.');
+          hintEl.innerHTML = lines.map(function (l) { return '<div>' + l + '</div>'; }).join('');
+          hintEl.style.display = lines.length ? '' : 'none';
+        }
       }
       document.getElementById('crExtraChips').addEventListener('click', function (e) {
         var c = e.target.closest('[data-x]');
@@ -2065,7 +2076,7 @@
                 description: stagedExpenses[sei].description,
                 amount: stagedExpenses[sei].amount,
                 paidByName: savedGuestName,
-                includedNames: allNamesForSplit
+                splitAll: true // diviso tra chi partecipa, si aggiorna da solo (Fil, 2026-11-01)
               });
             } catch (err) { /* l'evento è comunque creato: si aggiunge a mano dopo se questa fallisce */ }
           }

@@ -4921,3 +4921,317 @@ html:active-view-transition-type(backward)::view-transition-new(root) { animatio
   .poll-opt-fill, .poll-opt-check { transition: none; }
   .poll-opt.pop .poll-opt-check, .poll-opt.just-added, .poll-card.just-created { animation: none; }
 }
+
+/* ===================================================================
+   Divisione spese + Chi porta cosa rifatte (Fil, 2026-11-01)
+   Card affiancate nella pagina evento + pannelli dal basso + nuova spesa
+   semplice (importo grande). Vedi evento.html buildFeatureCardsHTML.
+   =================================================================== */
+.cr-extras-hint {
+  margin: -10px 2px 16px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.cr-extras-hint div + div { margin-top: 3px; }
+
+.feat-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.feat-cards.is-single { grid-template-columns: 1fr; }
+.feat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  background: var(--card);
+  border: none;
+  border-radius: 18px;
+  padding: 12px 14px 13px;
+  box-shadow: 0 4px 16px rgba(58,50,90,0.06);
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .2s ease;
+}
+.feat-card:active { transform: scale(0.97); }
+.feat-card-top { display: flex; align-items: center; gap: 6px; width: 100%; }
+.feat-card-emoji { font-size: 16px; }
+.feat-card-title { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.feat-card-chev { color: var(--ink-soft); font-size: 18px; line-height: 1; }
+.feat-card-main {
+  font-family: 'Fraunces', serif;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ink);
+}
+.feat-card-main.is-owe { color: var(--cancel-ink); }
+.feat-card-main.is-get, .feat-card-main.is-even { color: var(--confirmed); }
+.feat-card-sub {
+  font-size: 12px;
+  color: var(--ink-soft);
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Pannello dal basso */
+.sv-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background: rgba(61, 34, 68, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: svSheetFade .2s ease;
+}
+.sv-sheet-overlay.is-closing { animation: svSheetFadeOut .22s ease forwards; }
+.sv-sheet {
+  width: 100%;
+  max-width: 480px;
+  max-height: 88vh;
+  max-height: 88dvh;
+  background: var(--bg);
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -10px 40px rgba(58,50,90,0.25);
+  display: flex;
+  flex-direction: column;
+  animation: svSheetUp .32s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform .22s ease;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.sv-sheet-overlay.is-closing .sv-sheet { transform: translateY(100%) !important; }
+.sv-sheet-grab { padding: 8px 18px 4px; flex-shrink: 0; touch-action: none; cursor: grab; }
+.sv-sheet-handle { width: 40px; height: 5px; border-radius: 3px; background: var(--track-soft); margin: 0 auto 8px; }
+.sv-sheet-head { display: flex; align-items: center; justify-content: space-between; }
+.sv-sheet-title { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 600; color: var(--ink); }
+.sv-sheet-close {
+  width: 34px; height: 34px; border-radius: 50%; border: none;
+  background: var(--card); color: var(--ink); font-size: 15px; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(58,50,90,0.08);
+}
+.sv-sheet-body {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 8px 18px 24px;
+}
+html.sheet-open, html.sheet-open body { overflow: hidden; }
+@keyframes svSheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes svSheetFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes svSheetFadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+.sheet-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin: 18px 2px 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sheet-count {
+  font-size: 11.5px; font-weight: 700; color: var(--ink);
+  background: var(--track-soft); border-radius: 10px; padding: 1px 7px;
+}
+
+/* Spese: il tuo conto */
+.exp-me {
+  background: var(--card);
+  border-radius: 18px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 16px rgba(58,50,90,0.06);
+  margin-bottom: 10px;
+}
+.exp-me-label { font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-bottom: 4px; }
+.exp-me-line { font-family: 'Fraunces', serif; font-size: 19px; line-height: 1.3; color: var(--ink); }
+.exp-me-line b { font-weight: 700; }
+.exp-me-line.is-owe b { color: var(--cancel-ink); }
+.exp-me-line.is-get b, .exp-me-line.is-even { color: var(--confirmed); }
+.exp-me-sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 6px; }
+.exp-note {
+  font-size: 12.5px; line-height: 1.45;
+  background: var(--butter-soft); color: var(--ink);
+  border-radius: 12px; padding: 9px 12px; margin: 0 0 10px;
+}
+.exp-add-btn {
+  display: block; width: 100%;
+  font: inherit; font-weight: 600; font-size: 15px;
+  background: var(--peach); color: #FFF8F0;
+  border: none; border-radius: 16px; padding: 14px;
+  cursor: pointer; margin: 4px 0 2px;
+}
+.exp-add-btn:active { transform: scale(0.98); }
+.exp-empty {
+  font-size: 13.5px; line-height: 1.5; color: var(--ink-soft);
+  text-align: center; padding: 18px 10px 8px;
+}
+.settle-row, .pp-line {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--card); border-radius: 14px;
+  padding: 9px 12px; margin-bottom: 6px;
+}
+.settle-face {
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
+  background: var(--lavender); color: #fff; font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.settle-face img { width: 100%; height: 100%; object-fit: cover; }
+.settle-text { flex: 1; min-width: 0; font-size: 14px; color: var(--ink); }
+.settle-amt { font-weight: 700; font-size: 14.5px; color: var(--ink); white-space: nowrap; }
+
+.exp-list { background: var(--card); border-radius: 16px; padding: 2px 12px; }
+.exp-list:empty { display: none; }
+.exp-row {
+  display: flex; align-items: center; gap: 11px;
+  padding: 11px 0; border-bottom: 0.5px solid rgba(58,50,90,0.08);
+}
+.exp-row:last-child { border-bottom: none; }
+.exp-row.is-editable { cursor: pointer; }
+.exp-row-emoji {
+  width: 36px; height: 36px; border-radius: 12px; flex-shrink: 0;
+  background: var(--mint-soft); font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+}
+.exp-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.exp-row-desc { font-size: 14.5px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.exp-row-meta { font-size: 12px; color: var(--ink-soft); margin-top: 1px; }
+.exp-row-amt { display: flex; flex-direction: column; align-items: flex-end; font-weight: 700; font-size: 14.5px; color: var(--ink); white-space: nowrap; }
+.exp-row-edit { font-size: 11px; font-weight: 500; color: var(--lavender-ink); margin-top: 2px; }
+.exp-list .exp-empty { padding: 14px 4px; }
+
+.exp-perperson { margin-top: 14px; }
+.exp-perperson > summary {
+  list-style: none; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--lavender-ink);
+  padding: 6px 2px 8px;
+}
+.exp-perperson > summary::-webkit-details-marker { display: none; }
+.exp-perperson > summary::after { content: ' ›'; }
+.exp-perperson[open] > summary::after { content: ' ⌄'; }
+.pp-name { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 14px; color: var(--ink); }
+.pp-name span { font-size: 11.5px; color: var(--ink-soft); }
+.pp-net { font-weight: 700; font-size: 14px; white-space: nowrap; }
+.pp-net.is-owe { color: var(--cancel-ink); }
+.pp-net.is-get { color: var(--confirmed); }
+.pp-net.is-even { color: var(--ink-soft); }
+
+/* Chi porta cosa nel pannello */
+#itemsSheetBody .item-swipe-wrap { background: var(--card); border-radius: 14px; margin-bottom: 6px; }
+#itemsSheetBody .item-row-card { padding: 11px 12px; border-bottom: none; }
+#itemsSheetBody .item-row-card.is-mine { background: var(--mint-soft); }
+.item-row-check img { width: 100%; height: 100%; object-fit: cover; }
+.item-cost-btn {
+  flex-shrink: 0; font: inherit; font-size: 12.5px; font-weight: 700;
+  border: 1.5px dashed var(--peach); color: var(--peach);
+  background: transparent; border-radius: 12px; padding: 6px 10px; cursor: pointer;
+}
+.item-cost-btn.has-cost { border-style: solid; background: var(--card); color: var(--ink); border-color: rgba(58,50,90,0.15); }
+.item-cost-btn.is-static { cursor: default; }
+.item-add-row { display: flex; gap: 8px; margin: 2px 0 10px; }
+.item-add-row input {
+  flex: 1; min-width: 0; font: inherit; font-size: 15px;
+  border: 1.5px solid rgba(58,50,90,0.12); border-radius: 14px;
+  padding: 12px 14px; background: var(--card); color: var(--ink);
+}
+.item-add-btn {
+  width: 48px; flex-shrink: 0; border: none; border-radius: 14px;
+  background: var(--peach); color: #FFF8F0; font-size: 24px; line-height: 1; cursor: pointer;
+}
+.item-add-btn:disabled { opacity: .6; }
+
+/* Popup nuova spesa */
+.exp-modal-overlay { position: fixed; z-index: 60; }
+.exp-modal { text-align: left; max-height: 86vh; overflow-y: auto; }
+.exp-amount-wrap {
+  display: flex; align-items: baseline; justify-content: center; gap: 6px;
+  margin: 4px 0 12px;
+}
+.exp-amount-wrap input {
+  width: 170px; text-align: right; border: none; background: transparent;
+  font-family: 'Fraunces', serif; font-size: 44px; font-weight: 600; color: var(--ink);
+  padding: 0; outline: none;
+  border-bottom: 2px solid var(--track-soft);
+}
+.exp-amount-wrap input:focus { border-bottom-color: var(--peach); }
+.exp-amount-cur { font-family: 'Fraunces', serif; font-size: 30px; color: var(--ink-soft); }
+.exp-desc-wrap {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--bg); border-radius: 14px; padding: 4px 6px 4px 10px; margin-bottom: 10px;
+}
+.exp-desc-emoji { font-size: 22px; width: 30px; text-align: center; }
+.exp-desc-wrap input {
+  flex: 1; min-width: 0; border: none; background: transparent; outline: none;
+  font: inherit; font-size: 15px; color: var(--ink); padding: 10px 4px;
+}
+.exp-who { font-size: 13px; line-height: 1.45; color: var(--ink-soft); margin: 2px 2px 6px; }
+.exp-who b { color: var(--ink); }
+.exp-who-toggle {
+  border: none; background: none; font: inherit; font-size: 13px; font-weight: 600;
+  color: var(--lavender-ink); padding: 2px 2px 10px; cursor: pointer;
+}
+.exp-split-all {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--bg); border-radius: 14px; padding: 10px 12px; margin-bottom: 12px;
+  font-size: 14px; color: var(--ink); cursor: pointer;
+}
+.exp-split-hint { font-size: 12px; color: var(--ink-soft); }
+.exp-delete-btn {
+  display: block; width: 100%; margin-top: 8px;
+  border: none; background: none; font: inherit; font-size: 13.5px; font-weight: 600;
+  color: var(--cancel-ink); padding: 10px; cursor: pointer;
+}
+/* Con un pannello aperto (fixed, z 45) i dialoghi di conferma e i toast,
+   che vivono dentro .phone, devono restare sopra. */
+html.sheet-open .seeva-dialog { position: fixed; z-index: 80; }
+html.sheet-open .toast, .toast.at-top { position: fixed; z-index: 85; top: calc(16px + env(safe-area-inset-top, 0px)); bottom: auto !important; }
+/* Versione "meno da leggere" (Fil, 2026-11-01) */
+.exp-who-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 2px 2px 12px; }
+.exp-who-row .exp-who { margin: 0; }
+.exp-who-row .exp-who-toggle { padding: 4px 0; flex-shrink: 0; }
+.exp-row-chev { color: var(--ink-soft); font-size: 18px; margin-left: -4px; }
+.exp-me-sub { margin-top: 4px; }
+.exp-empty-emoji { font-size: 34px; margin-bottom: 6px; }
+.item-take {
+  flex-shrink: 0; font-size: 12.5px; font-weight: 700; color: var(--peach);
+  background: var(--mint-soft); border-radius: 12px; padding: 6px 10px;
+}
+#itemsSheetBody .item-row-meta { font-size: 12px; }
+#itemsSheetBody .item-row-text { flex: 1; min-width: 0; }
+
+/* Sito da PC (Fil, 2026-11-01: "mi taglia la schermata e devo scorrere"):
+   il telefono finto era alto 780px fissi + 40px di margine sopra e sotto,
+   più alto di molti schermi di portatile. Ora si accorcia per stare sempre
+   tutto nella finestra, centrato. Solo con mouse (non tocca telefoni/tablet). */
+@media (hover: hover) and (pointer: fine) and (min-width: 481px) {
+  body { padding: 16px; align-items: center; min-height: 100vh; min-height: 100dvh; }
+  .phone { height: min(780px, calc(100vh - 32px)); height: min(780px, calc(100dvh - 32px)); }
+  /* pannelli dal basso: larghi quanto lo schermo del telefono e dentro la cornice */
+  .sv-sheet-overlay { padding-bottom: max(24px, calc((100dvh - min(780px, calc(100dvh - 32px))) / 2 + 8px)); }
+  .sv-sheet { max-width: 374px; border-radius: 24px; max-height: min(680px, calc(100dvh - 120px)); }
+}
+
+/* Animazioni delle parti nuove (Fil, 2026-11-01) */
+.exp-row.is-new { animation: expRowIn .5s cubic-bezier(0.22, 1, 0.36, 1); }
+@keyframes expRowIn {
+  0% { opacity: 0; transform: translateY(-6px); background: var(--mint-soft); }
+  60% { opacity: 1; transform: none; background: var(--mint-soft); }
+  100% { background: transparent; }
+}
+.feat-card-main.bump { animation: featBump .45s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes featBump { 0% { transform: scale(1); } 40% { transform: scale(1.12); } 100% { transform: scale(1); } }
+#itemsSheetBody .item-row-card { transition: background .25s ease; }
+.item-take, .item-cost-btn, .exp-add-btn, .item-add-btn, .sv-sheet-close, .exp-row.is-editable { transition: transform .12s ease, background .2s ease; }
+.item-take:active, .item-cost-btn:active, .item-add-btn:active, .sv-sheet-close:active { transform: scale(0.94); }
+.exp-row.is-editable:active { transform: scale(0.985); }
+@media (prefers-reduced-motion: reduce) {
+  .sv-sheet, .sv-sheet-overlay, .exp-row.is-new, .feat-card-main.bump { animation: none !important; }
+}

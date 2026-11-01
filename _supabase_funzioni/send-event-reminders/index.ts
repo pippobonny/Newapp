@@ -12,7 +12,9 @@ import { L, Lang, langsOf, groupByLang, dayLabel, sendPushToAccounts } from "./i
    nessun sì -> push solo all'organizzatore, una volta. Mai annullato da solo.
    2026-10-07: ogni push nella lingua di chi la riceve (accounts.lang).
    2026-10-26: Forse sollecitato 2 giorni prima (sendMaybeReminders) e
-   "È andata?" all'organizzatore il giorno dopo (mode "outcome"). */
+   "È andata?" all'organizzatore il giorno dopo (mode "outcome").
+   2026-11-01: promemoria "cosa portare" 4 ore prima (mode "votes", ogni 10
+   minuti) e riepilogo dei conti la mattina dopo (mode "outcome"). */
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -292,8 +294,13 @@ async function sendMaybeReminders(admin: any, siteUrl: string): Promise<number> 
    took_place true, No = annullato (senza avvisare nessuno). Cron
    "ask-event-outcome" alle 9 UTC con {"mode":"outcome"}. */
 async function askOutcomes(admin: any, siteUrl: string): Promise<number> {
-  const yesterday = addDaysISO(romeISO(new Date()), -1);
-  const { data: opts } = await admin.from("date_options").select("id, event_id").eq("date_iso", yesterday);
+  // 2026-11-01 (Fil: "non mi sono arrivate"): se la push non parte (es. app
+  // appena reinstallata, nessun telefono registrato) si riprova le mattine
+  // dopo, fino a 3 giorni dall'evento. Prima si segnava "chiesto" comunque.
+  const today = romeISO(new Date());
+  const days = [addDaysISO(today, -1), addDaysISO(today, -2), addDaysISO(today, -3)];
+  const lastDay = days[2];
+  const { data: opts } = await admin.from("date_options").select("id, event_id, date_iso").in("date_iso", days);
   if (!opts || !opts.length) return 0;
   const eventIds = Array.from(new Set(opts.map((o: any) => o.event_id)));
   const { data: events } = await admin.from("events")
@@ -303,24 +310,178 @@ async function askOutcomes(admin: any, siteUrl: string): Promise<number> {
   let asked = 0;
   for (const ev of (events || [])) {
     if (ev.manually_cancelled) continue;
+    let opt: any = null;
     if (ev.confirmed_date_option_id) {
-      if (!opts.some((o: any) => o.id === ev.confirmed_date_option_id)) continue;
+      opt = opts.find((o: any) => o.id === ev.confirmed_date_option_id);
+      if (!opt) continue;
     } else {
       const { data: allOpts } = await admin.from("date_options").select("id").eq("event_id", ev.id);
       if ((allOpts || []).length !== 1) continue;
+      opt = opts.find((o: any) => o.event_id === ev.id);
+      if (!opt) continue;
     }
     const { data: claimed } = await admin.from("events").update({ outcome_asked_at: new Date().toISOString() })
       .eq("id", ev.id).is("outcome_asked_at", null).select("id");
     if (!claimed || !claimed.length) continue;
     const url = siteUrl + "/evento.html?id=" + encodeURIComponent(ev.id);
+    const when = String(opt.date_iso) === days[0];
     const n = await pushI18n(admin, [ev.created_by_account_id], (lang) => ({
       title: L(lang, "🎉 Com'è andata? ", "🎉 How did it go? ") + ev.name,
-      body: L(lang, "Ieri c'era il tuo evento: si è svolto?\n👉 Rispondi in un tap", "Your event was yesterday: did it happen?\n👉 Reply in one tap"),
+      body: when
+        ? L(lang, "Ieri c'era il tuo evento: si è svolto?\n👉 Rispondi in un tap", "Your event was yesterday: did it happen?\n👉 Reply in one tap")
+        : L(lang, "C'era il tuo evento: si è svolto?\n👉 Rispondi in un tap", "Your event has been: did it happen?\n👉 Reply in one tap"),
       url, outcome: true, tag: "outcome|" + ev.id
     }));
     if (n) asked++;
+    else if (String(opt.date_iso) !== lastDay) {
+      // nessun telefono raggiunto: si riprova domattina
+      await admin.from("events").update({ outcome_asked_at: null }).eq("id", ev.id);
+    }
   }
   return asked;
+}
+
+/* ---------- Spese e chi porta cosa (Fil, 2026-11-01) ---------- */
+function euro(n: number, lang: Lang): string {
+  const v = Math.round(n * 100) / 100;
+  return lang === "en" ? "€" + v.toFixed(2) : v.toFixed(2).replace(".", ",") + " €";
+}
+
+/* Data (e opzione) dell'evento: confermata, o l'unica data. null se ancora da votare. */
+async function eventDateISO(admin: any, ev: any): Promise<string | null> {
+  const { data: opts } = await admin.from("date_options").select("id, date_iso").eq("event_id", ev.id);
+  const list = opts || [];
+  if (ev.confirmed_date_option_id) {
+    const o = list.find((x: any) => x.id === ev.confirmed_date_option_id);
+    return o ? String(o.date_iso) : null;
+  }
+  return list.length === 1 ? String(list[0].date_iso) : null;
+}
+
+/* Promemoria "cosa portare": 4 ore prima dell'inizio; senza orario alle 10
+   del giorno stesso. A chi ha preso almeno una voce, una volta per evento
+   (events.items_reminder_sent_at). Gira col cron ogni 10 minuti. */
+async function sendItemReminders(admin: any, siteUrl: string): Promise<number> {
+  const today = romeISO(new Date());
+  const tomorrow = addDaysISO(today, 1);
+  const { data: opts } = await admin.from("date_options").select("event_id").in("date_iso", [today, tomorrow]);
+  if (!opts || !opts.length) return 0;
+  const eventIds = Array.from(new Set(opts.map((o: any) => o.event_id)));
+  const { data: events } = await admin.from("events")
+    .select("id, name, event_time, confirmed_date_option_id, items_enabled, manually_cancelled")
+    .in("id", eventIds).eq("items_enabled", true).is("cancelled_at", null).is("items_reminder_sent_at", null);
+  let sent = 0;
+  const now = Date.now();
+  for (const ev of (events || [])) {
+    if (ev.manually_cancelled) continue;
+    const iso = await eventDateISO(admin, ev);
+    if (!iso) continue;
+    const time = ev.event_time ? String(ev.event_time).slice(0, 5) : "";
+    const start = time ? romeLocal(iso, +time.slice(0, 2), +time.slice(3, 5)) : romeLocal(iso, 23, 59);
+    const moment = time ? new Date(start.getTime() - 4 * 3600 * 1000) : romeLocal(iso, 10, 0);
+    if (now < moment.getTime() || now > start.getTime()) continue;
+    const { data: claimed } = await admin.from("events").update({ items_reminder_sent_at: new Date().toISOString() })
+      .eq("id", ev.id).is("items_reminder_sent_at", null).select("id");
+    if (!claimed || !claimed.length) continue;
+    const { data: items } = await admin.from("event_items").select("text, taken_by_account_id").eq("event_id", ev.id).not("taken_by_account_id", "is", null);
+    const byAcc = new Map<string, string[]>();
+    (items || []).forEach((it: any) => {
+      const arr = byAcc.get(it.taken_by_account_id) || [];
+      arr.push(String(it.text));
+      byAcc.set(it.taken_by_account_id, arr);
+    });
+    if (!byAcc.size) continue;
+    const url = siteUrl + "/evento.html?id=" + encodeURIComponent(ev.id) + "&porta=1";
+    const ids = Array.from(byAcc.keys());
+    const langs = await langsOf(admin, ids);
+    for (const id of ids) {
+      const lang = langs.get(id) || "it";
+      const what = byAcc.get(id)!.join(", ");
+      sent += await sendPushToAccounts(admin, [id], {
+        title: L(lang, "🎒 Ricordati di portare: ", "🎒 Remember to bring: ") + what,
+        body: ev.name + (time ? L(lang, " · alle ", " · at ") + time : L(lang, " · oggi", " · today")) + "\n" + L(lang, "👉 Apri per vedere la lista", "👉 Open to see the list"),
+        url, lang, tag: "items|" + ev.id
+      });
+    }
+  }
+  return sent;
+}
+
+/* Riepilogo dei conti la mattina dopo l'evento, a tutti quelli nei conti
+   (anche a chi riceve). Una volta per evento (events.expense_summary_sent_at).
+   Stesso calcolo di computeExpenseBalances in data.js. Cron "ask-event-outcome". */
+async function sendExpenseSummaries(admin: any, siteUrl: string): Promise<number> {
+  const yesterday = addDaysISO(romeISO(new Date()), -1);
+  const { data: opts } = await admin.from("date_options").select("id, event_id").eq("date_iso", yesterday);
+  if (!opts || !opts.length) return 0;
+  const eventIds = Array.from(new Set(opts.map((o: any) => o.event_id)));
+  const { data: events } = await admin.from("events")
+    .select("id, name, confirmed_date_option_id, manually_cancelled, took_place")
+    .in("id", eventIds).eq("expenses_enabled", true).is("cancelled_at", null).is("expense_summary_sent_at", null);
+  let sent = 0;
+  for (const ev of (events || [])) {
+    if (ev.manually_cancelled || ev.took_place === false) continue;
+    const iso = await eventDateISO(admin, ev);
+    if (iso !== yesterday) continue;
+    const { data: expenses } = await admin.from("event_expenses").select("id, amount, paid_by_name, paid_by_account_id").eq("event_id", ev.id);
+    if (!expenses || !expenses.length) continue;
+    const { data: claimed } = await admin.from("events").update({ expense_summary_sent_at: new Date().toISOString() })
+      .eq("id", ev.id).is("expense_summary_sent_at", null).select("id");
+    if (!claimed || !claimed.length) continue;
+    const { data: shares } = await admin.from("event_expense_shares").select("expense_id, name, account_id").in("expense_id", expenses.map((e: any) => e.id));
+    const { data: parts } = await admin.from("participants").select("name, account_id").eq("event_id", ev.id);
+
+    const bal = new Map<string, { name: string; acc: string | null; paid: number; owed: number }>();
+    const ensure = (name: string, acc: string | null) => {
+      const k = String(name || "").trim().toLowerCase();
+      if (!bal.has(k)) bal.set(k, { name: String(name || "").trim(), acc: acc || null, paid: 0, owed: 0 });
+      const b = bal.get(k)!;
+      if (acc && !b.acc) b.acc = acc;
+      return b;
+    };
+    let total = 0;
+    for (const ex of expenses) {
+      const amt = Number(ex.amount) || 0;
+      total += amt;
+      ensure(ex.paid_by_name, ex.paid_by_account_id).paid += amt;
+      const sh = (shares || []).filter((s: any) => s.expense_id === ex.id);
+      if (!sh.length) continue;
+      sh.forEach((s: any) => { ensure(s.name, s.account_id).owed += amt / sh.length; });
+    }
+    (parts || []).forEach((p: any) => {
+      const b = bal.get(String(p.name || "").trim().toLowerCase());
+      if (b && !b.acc && p.account_id) b.acc = p.account_id;
+    });
+    const list = Array.from(bal.values()).map((b) => ({ ...b, net: Math.round((b.paid - b.owed) * 100) / 100 }));
+    const cred = list.filter((b) => b.net > 0.01).map((b) => ({ name: b.name, amount: b.net })).sort((a, b) => b.amount - a.amount);
+    const debt = list.filter((b) => b.net < -0.01).map((b) => ({ name: b.name, amount: -b.net })).sort((a, b) => b.amount - a.amount);
+    const settle: { from: string; to: string; amount: number }[] = [];
+    let ci = 0, di = 0;
+    while (ci < cred.length && di < debt.length) {
+      const a = Math.min(cred[ci].amount, debt[di].amount);
+      if (a > 0.01) settle.push({ from: debt[di].name, to: cred[ci].name, amount: Math.round(a * 100) / 100 });
+      cred[ci].amount -= a; debt[di].amount -= a;
+      if (cred[ci].amount <= 0.01) ci++;
+      if (debt[di].amount <= 0.01) di++;
+    }
+    const url = siteUrl + "/evento.html?id=" + encodeURIComponent(ev.id) + "&spese=1";
+    const people = list.filter((b) => b.acc);
+    const langs = await langsOf(admin, people.map((b) => b.acc!));
+    for (const b of people) {
+      const lang = langs.get(b.acc!) || "it";
+      const me = b.name.toLowerCase();
+      const lines: string[] = [];
+      settle.filter((s) => s.from.toLowerCase() === me).forEach((s) => lines.push(L(lang, "Devi dare " + euro(s.amount, lang) + " a " + s.to, "You owe " + s.to + " " + euro(s.amount, lang))));
+      settle.filter((s) => s.to.toLowerCase() === me).forEach((s) => lines.push(L(lang, s.from + " ti deve " + euro(s.amount, lang), s.from + " owes you " + euro(s.amount, lang))));
+      if (!lines.length) lines.push(L(lang, "Sei in pari 👍", "You're all square 👍"));
+      lines.push(L(lang, "Totale " + euro(total, lang) + " · 👉 apri per i dettagli", "Total " + euro(total, lang) + " · 👉 open for details"));
+      sent += await sendPushToAccounts(admin, [b.acc!], {
+        title: L(lang, "💶 I conti di ", "💶 Expenses for ") + ev.name,
+        body: lines.join("\n"), url, lang, tag: "expsum|" + ev.id
+      });
+    }
+  }
+  return sent;
 }
 
 Deno.serve(async (req: Request) => {
@@ -333,13 +494,19 @@ Deno.serve(async (req: Request) => {
     let voteResult = { confirmed: 0, askedOrganizer: 0 };
     try { voteResult = await closeDueVotes(admin, siteUrl); } catch (_err) { /* non deve bloccare i promemoria */ }
 
-    // cron ogni 10 minuti con {"mode":"votes"}: solo chiusura voti.
+    // cron ogni 10 minuti con {"mode":"votes"}: chiusura voti + promemoria cosa portare.
     const reqBody = await req.json().catch(() => ({}));
-    if (reqBody && reqBody.mode === "votes") return json({ votes: voteResult });
+    if (reqBody && reqBody.mode === "votes") {
+      let itemReminders = 0;
+      try { itemReminders = await sendItemReminders(admin, siteUrl); } catch (_err) { /* ignora */ }
+      return json({ votes: voteResult, itemReminders });
+    }
     if (reqBody && reqBody.mode === "outcome") {
       let outcomeAsked = 0;
+      let expenseSummaries = 0;
       try { outcomeAsked = await askOutcomes(admin, siteUrl); } catch (_err) { /* ignora */ }
-      return json({ votes: voteResult, outcomeAsked });
+      try { expenseSummaries = await sendExpenseSummaries(admin, siteUrl); } catch (_err) { /* ignora */ }
+      return json({ votes: voteResult, outcomeAsked, expenseSummaries });
     }
 
     // 1b) Forse: sollecito 2 giorni prima (indipendente dai promemoria "domani")

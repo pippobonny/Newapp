@@ -740,3 +740,21 @@ Massimo 15 opzioni ⇒ Maximum 15 options
 Il sondaggio è chiuso ⇒ The poll is closed
 C'è già un sondaggio aperto: chiudilo prima di crearne un altro ⇒ There's already an open poll: close it before creating another one
 Questa opzione c'è già: votala dall'elenco. ⇒ That option is already there: vote for it in the list.
+Spese ⇒ Expenses
+💶 Spese ⇒ 💶 Expenses
+Per cosa? Es. spesa, benzina, pizza... ⇒ What for? E.g. shopping, fuel, pizza...
+Cambia chi ha pagato o tra chi dividere › ⇒ Change who paid or who to split with ›
+Tra tutti quelli che vengono ⇒ Everyone who's coming
+Elimina questa spesa ⇒ Delete this expense
+Quanto l'hai pagata? ⇒ How much did it cost?
+Finisce nelle spese, divisa tra tutti quelli che vengono. ⇒ It goes into the expenses, split between everyone coming.
+Togli la spesa ⇒ Remove the expense
+Quanto ⇒ Amount
+💶 Chi spende qualcosa lo segna nell'evento, seeva fa i conti e dice chi deve dare a chi. ⇒ 💶 Whoever spends something adds it to the event; seeva does the maths and says who owes whom.
+🎒 Gli invitati scelgono cosa portare dalla lista dell'evento. ⇒ 🎒 Guests pick what to bring from the event's list.
+Pagata da te, divisa tra chi partecipa (si aggiorna da sola quando gli altri rispondono). ⇒ Paid by you, split between everyone taking part (updates by itself as others reply).
+Tocca una voce per dire che la porti tu (o per lasciarla); scorri una voce verso sinistra per eliminarla. ⇒ Tap an item to say you're bringing it (or to drop it); swipe an item left to delete it.
+Cambia ⇒ Change
+Tra tutti ⇒ Everyone
+💶 Ognuno segna cosa spende, seeva fa i conti. ⇒ 💶 Everyone adds what they spend, seeva does the maths.
+🎒 Ognuno sceglie cosa portare. ⇒ 🎒 Everyone picks what to bring.

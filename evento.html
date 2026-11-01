@@ -126,53 +126,95 @@
        deve sfocare tutto lo schermo, non solo .content. -->
   <div id="commentsModalWrap"></div>
 
-  <!-- Aggiungi/modifica una spesa (Fil, 2026-07-13): stesso stile del popup
-       lista amici in amici.html, riusato qui perché il form ha più campi di
-       quanti ne stiano bene in una riga sola dentro il resto della pagina. -->
-  <div class="signup-overlay" id="expenseModal" style="display:none;">
-    <div class="signup-modal" style="text-align:left; max-height:82vh; overflow-y:auto;">
-      <div class="list-header" style="margin-bottom:14px;">
+  <!-- Pannelli dal basso Spese / Chi porta cosa (Fil, 2026-11-01): fuori da
+       .phone come i popup, contenuto scritto da refreshExpensesSheet /
+       refreshItemsSheet. -->
+  <div class="sv-sheet-overlay" id="expensesSheet" style="display:none;">
+    <div class="sv-sheet" role="dialog" aria-label="Spese">
+      <div class="sv-sheet-grab">
+        <div class="sv-sheet-handle"></div>
+        <div class="sv-sheet-head">
+          <div class="sv-sheet-title">💶 Spese</div>
+          <button type="button" class="sv-sheet-close" data-sheet-close aria-label="Chiudi">✕</button>
+        </div>
+      </div>
+      <div class="sv-sheet-body" id="expensesSheetBody"></div>
+    </div>
+  </div>
+  <div class="sv-sheet-overlay" id="itemsSheet" style="display:none;">
+    <div class="sv-sheet" role="dialog" aria-label="Chi porta cosa">
+      <div class="sv-sheet-grab">
+        <div class="sv-sheet-handle"></div>
+        <div class="sv-sheet-head">
+          <div class="sv-sheet-title">🎒 Chi porta cosa</div>
+          <button type="button" class="sv-sheet-close" data-sheet-close aria-label="Chiudi">✕</button>
+        </div>
+      </div>
+      <div class="sv-sheet-body" id="itemsSheetBody"></div>
+    </div>
+  </div>
+
+  <!-- Nuova/modifica spesa, semplificata (Fil, 2026-11-01): importo grande
+       con la tastiera dei numeri subito, "per cosa", e basta. Pagato da te e
+       diviso tra tutti di base; "Cambia" apre chi ha pagato / tra chi.
+       L'emoji si sceglie da sola dalla parola. -->
+  <div class="signup-overlay exp-modal-overlay" id="expenseModal" style="display:none;">
+    <div class="signup-modal exp-modal">
+      <div class="list-header" style="margin-bottom:10px;">
         <div class="card-title" id="expenseModalTitle">Nuova spesa</div>
         <div class="list-delete" id="expenseModalCloseBtn">Chiudi ✕</div>
       </div>
 
-      <div class="field">
-        <label>Cosa avete pagato</label>
-        <div class="expense-desc-row">
-          <div class="emoji-slot" id="expenseEmojiSlot">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" class="emoji-slot-placeholder">
-              <circle cx="12" cy="12" r="8.5"></circle>
-              <circle cx="9" cy="10" r="0.6" fill="currentColor" stroke="none"></circle>
-              <circle cx="15" cy="10" r="0.6" fill="currentColor" stroke="none"></circle>
-              <path d="M8.5 14 C9.8 15.5, 14.2 15.5, 15.5 14"></path>
-            </svg>
-          </div>
-          <input type="text" id="expenseDescInput" placeholder="Es. Cena, taxi, affitto...">
+      <div class="exp-amount-wrap">
+        <input type="text" id="expenseAmountInput" inputmode="decimal" autocomplete="off" placeholder="0" aria-label="Quanto">
+        <span class="exp-amount-cur">€</span>
+      </div>
+      <div class="exp-desc-wrap">
+        <span class="exp-desc-emoji" id="expenseEmojiPreview">💶</span>
+        <input type="text" id="expenseDescInput" maxlength="80" placeholder="Per cosa? Es. spesa, benzina, pizza..." enterkeyhint="done">
+      </div>
+
+      <div class="exp-who-row">
+        <span class="exp-who" id="expenseWhoLine"></span>
+        <button type="button" class="exp-who-toggle" id="expenseDetailsToggle">Cambia</button>
+      </div>
+
+      <div id="expenseDetails" style="display:none;">
+        <div class="field">
+          <label>Chi ha pagato</label>
+          <select id="expensePaidBySelect"></select>
         </div>
-        <div class="emoji-picker" id="expenseEmojiPicker" style="display:none;">
-          <div class="emoji-choice" data-emoji="🍕">🍕</div>
-          <div class="emoji-choice" data-emoji="🍸">🍸</div>
-          <div class="emoji-choice" data-emoji="🚖">🚖</div>
-          <div class="emoji-choice" data-emoji="🏠">🏠</div>
-          <div class="emoji-choice" data-emoji="🎉">🎉</div>
-          <div class="emoji-choice" data-emoji="🛒">🛒</div>
+        <label class="exp-split-all">
+          <span><b>Tra tutti</b> <span class="exp-split-hint" id="expenseSplitAllHint"></span></span>
+          <input type="checkbox" id="expenseSplitAllCheckbox" class="option-row-switch" checked>
+        </label>
+        <div class="field" id="expenseIncludeField" style="display:none;">
+          <label>Tra chi si divide</label>
+          <div class="option-group" id="expenseIncludeList"></div>
         </div>
-      </div>
-      <div class="field">
-        <label>Quanto (€)</label>
-        <input type="number" id="expenseAmountInput" inputmode="decimal" step="0.01" min="0" placeholder="0,00">
-      </div>
-      <div class="field">
-        <label>Chi ha pagato</label>
-        <select id="expensePaidBySelect"></select>
-      </div>
-      <div class="field">
-        <label>Tra chi si divide</label>
-        <div class="option-group" id="expenseIncludeList"></div>
       </div>
 
       <div class="form-error" id="expenseModalError"></div>
       <button type="button" class="primary-btn" id="expenseSaveBtn">Salva spesa</button>
+      <button type="button" class="exp-delete-btn" id="expenseDeleteBtn" style="display:none;">Elimina questa spesa</button>
+    </div>
+  </div>
+
+  <!-- Quanto hai speso per una voce di "chi porta cosa" (Fil, 2026-11-01). -->
+  <div class="signup-overlay exp-modal-overlay" id="itemCostModal" style="display:none;">
+    <div class="signup-modal exp-modal">
+      <div class="list-header" style="margin-bottom:6px;">
+        <div class="card-title">Quanto l'hai pagata?</div>
+        <div class="list-delete" id="itemCostCloseBtn">Chiudi ✕</div>
+      </div>
+      <div class="exp-who" id="itemCostWhat" data-no-i18n></div>
+      <div class="exp-amount-wrap">
+        <input type="text" id="itemCostInput" inputmode="decimal" autocomplete="off" placeholder="0" aria-label="Quanto">
+        <span class="exp-amount-cur">€</span>
+      </div>
+      <div class="form-error" id="itemCostError"></div>
+      <button type="button" class="primary-btn" id="itemCostSaveBtn">Salva</button>
+      <button type="button" class="exp-delete-btn" id="itemCostRemoveBtn" style="display:none;">Togli la spesa</button>
     </div>
   </div>
 
@@ -1291,236 +1333,215 @@
          chi ha un account può aggiungere/modificare (le RPC lato server
          rivalidano comunque tutto): un ospite senza account vede il conto
          ma non i pulsanti per toccarlo. */
-      function buildExpensesSectionHTML() {
-        if (!event.expensesEnabled) return '';
-        var info = SeevaData.computeEventStatus(event);
-        var isConfirmedSimple = (info.status === 'done' || info.status === 'passato') && !!info.bestOption;
-        if (!isConfirmedSimple) return '';
-        var confirmedNames = SeevaData.getConfirmedParticipantNames(event);
-        if (!confirmedNames.length) return '';
+      /* ---------- Divisione spese + Chi porta cosa (Fil, 2026-11-01) ----------
+         Rifatte perché "nessuno le usa: non si sa che esistono e sono
+         scomode". Nella pagina evento non ci sono più le due fisarmoniche
+         chiuse: due card affiancate con un riassunto ("Devi 14 €",
+         "2 da prendere") che aprono un pannello dal basso (#expensesSheet,
+         #itemsSheet, fuori da contentEl come i popup). Le spese si usano
+         anche prima della conferma: "tra tutti" = chi ha detto sì (dopo la
+         conferma, i confermati), la divisione si aggiorna da sola sul DB. */
+      var expensesSheetOpen = false;
+      var itemsSheetOpen = false;
+      var justAddedExpenseId = null; // la spesa appena aggiunta si illumina un attimo
 
+      function featureAvatarHTML(name) {
+        var avatarUrl = attendeeAvatars[(name || '').toLowerCase()];
+        var initial = ((name || '').trim().charAt(0) || '?').toUpperCase();
+        return avatarUrl
+          ? '<img src="' + SeevaData.escapeHTML(avatarUrl) + '" alt="" loading="lazy">'
+          : SeevaData.escapeHTML(initial);
+      }
+
+      function expensesVisible(info) {
+        return !!event.expensesEnabled && info.status !== 'cancelled';
+      }
+      function itemsVisible(info) {
+        return !!event.itemsEnabled && info.status !== 'cancelled';
+      }
+
+      function buildFeatureCardsHTML(info) {
+        var showExp = expensesVisible(info);
+        var showItems = itemsVisible(info);
+        if (!showExp && !showItems) return '';
+        var cards = [];
+        if (showExp) {
+          var sum = SeevaData.getMyExpenseSummary(event, guestName);
+          var expLine, expTone = '';
+          if (!sum.count) {
+            expLine = t('Nessuna spesa');
+          } else if (sum.iOwe.length) {
+            var oweTot = sum.iOwe.reduce(function (s, x) { return s + x.amount; }, 0);
+            expLine = t('Devi {tot}', { tot: SeevaData.formatEuro(oweTot) });
+            expTone = ' is-owe';
+          } else if (sum.owedToMe.length) {
+            var getTot = sum.owedToMe.reduce(function (s, x) { return s + x.amount; }, 0);
+            expLine = t('Ricevi {tot}', { tot: SeevaData.formatEuro(getTot) });
+            expTone = ' is-get';
+          } else {
+            expLine = t('Sei in pari');
+            expTone = ' is-even';
+          }
+          var expSub = sum.count ? t('{tot} in totale', { tot: SeevaData.formatEuro(sum.total) }) : t('Tocca per aggiungere');
+          cards.push(''
+            + '<button type="button" class="feat-card" id="expensesCard">'
+            + '<span class="feat-card-top"><span class="feat-card-emoji">💶</span><span class="feat-card-title">Spese</span><span class="feat-card-chev">›</span></span>'
+            + '<span class="feat-card-main' + expTone + '">' + expLine + '</span>'
+            + '<span class="feat-card-sub">' + expSub + '</span>'
+            + '</button>');
+        }
+        if (showItems) {
+          var items = event.items || [];
+          var free = items.filter(function (it) { return !it.takenByAccountId; }).length;
+          var myId = (SeevaData.getAccount() || {}).id || null;
+          var mine = items.filter(function (it) { return myId && it.takenByAccountId === myId; });
+          var itMain = !items.length ? t('Lista vuota')
+            : (free ? (free === 1 ? t('1 da prendere') : t('{n} da prendere', { n: free })) : t('Tutto preso ✓'));
+          var itSub = mine.length ? t('Porti: {what}', { what: mine.map(function (it) { return it.text; }).join(', ') })
+            : (items.length ? t('Tocca per scegliere') : t('Tocca per aggiungere'));
+          cards.push(''
+            + '<button type="button" class="feat-card" id="itemsCard">'
+            + '<span class="feat-card-top"><span class="feat-card-emoji">🎒</span><span class="feat-card-title">Chi porta cosa</span><span class="feat-card-chev">›</span></span>'
+            + '<span class="feat-card-main' + (items.length && !free ? ' is-even' : '') + '">' + itMain + '</span>'
+            + '<span class="feat-card-sub" data-no-i18n>' + SeevaData.escapeHTML(itSub) + '</span>'
+            + '</button>');
+        }
+        return '<div class="feat-cards' + (cards.length === 1 ? ' is-single' : '') + '">' + cards.join('') + '</div>';
+      }
+
+      /* Contenuto del pannello Spese — versione "meno da leggere" (Fil,
+         2026-11-01: "meno scritte possibili, più intuitivo"): in alto solo
+         il tuo conto in grande, il pulsante, le spese (chi ha pagato e
+         quanto). "Chi deve dare a chi" solo se c'è qualcosa che non
+         riguarda già te. Tocchi una spesa per modificarla. */
+      function buildExpensesSheetBodyHTML() {
         var myAccountId = (SeevaData.getAccount() || {}).id || null;
         var isOrganizerAccount = !!(myAccountId && event.createdByAccountId && myAccountId === event.createdByAccountId);
         var canWrite = SeevaData.hasAccount();
-
         var expenses = event.expenses || [];
-        var rowsHTML = expenses.length
-          ? expenses.map(function (ex) {
-              var canEdit = canWrite && myAccountId && (ex.createdByAccountId === myAccountId || isOrganizerAccount);
-              var actionsHTML = canEdit
-                ? '<span class="expense-edit" data-edit-expense="' + ex.id + '" style="cursor:pointer; display:inline-flex;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></span><span class="expense-remove" data-remove-expense="' + ex.id + '" style="cursor:pointer;">✕</span>'
-                : '';
-              var emojiHTML = ex.emoji
-                ? '<div class="expense-emoji-chip">' + SeevaData.escapeHTML(ex.emoji) + '</div>'
-                : '';
-              return ''
-                + '<div class="expense-row">'
-                + '<div class="expense-row-left">'
-                + emojiHTML
-                + '<div>'
-                + '<div class="expense-desc" data-no-i18n>' + SeevaData.escapeHTML(ex.description) + '</div>'
-                + '<div class="expense-meta">Pagato da ' + SeevaData.escapeHTML(ex.paidByName) + ' · diviso tra ' + (ex.shareNames || []).length + '</div>'
-                + '</div>'
-                + '</div>'
-                + '<div class="expense-row-right">'
-                + '<div class="expense-amount">' + SeevaData.formatEuro(ex.amount) + '</div>'
-                + '<div class="expense-actions">' + actionsHTML + '</div>'
-                + '</div>'
-                + '</div>';
-            }).join('')
-          : '<div class="empty-hint" style="padding:10px 0;">Nessuna spesa ancora.</div>';
+        var sum = SeevaData.getMyExpenseSummary(event, guestName);
+        var me = (guestName || '').trim().toLowerCase();
 
-        var addBtnHTML = canWrite
-          ? '<div class="add-date-btn" id="addExpenseBtn" style="margin-top:8px;">+ Aggiungi una spesa</div>'
-          : '';
-
-        var balanceHTML = '';
+        var meHTML = '';
         if (expenses.length) {
-          var calc = SeevaData.computeExpenseBalances(event);
-          // Stessa logica foto-vera-o-iniziale delle bolle "Chi ci sarà"
-          // (attendeeAvatars, già caricato una volta prima del primo
-          // render): Fil ha notato giustamente che qui mancava, era rimasta
-          // solo l'iniziale anche per chi ha una foto profilo caricata.
-          var avatarChipHTML = function (name) {
-            var avatarUrl = attendeeAvatars[name.toLowerCase()];
-            var initial = (name.trim().charAt(0) || '?').toUpperCase();
-            return avatarUrl
-              ? '<img src="' + SeevaData.escapeHTML(avatarUrl) + '" alt="" loading="lazy">'
-              : SeevaData.escapeHTML(initial);
-          };
-
-          var balRows = calc.balances.map(function (b) {
-            var cls = b.net > 0.01 ? 'balance-pill-amount-positive' : (b.net < -0.01 ? 'balance-pill-amount-negative' : 'balance-pill-amount-neutral');
-            var amountLabel = b.net > 0.01 ? '+' + SeevaData.formatEuro(b.net)
-              : (b.net < -0.01 ? '-' + SeevaData.formatEuro(-b.net) : SeevaData.formatEuro(0));
-            return ''
-              + '<div class="balance-pill-row">'
-              + '<div class="balance-pill-avatar">' + avatarChipHTML(b.name) + '</div>'
-              + '<div class="balance-pill-name" data-no-i18n>' + SeevaData.escapeHTML(b.name) + '</div>'
-              + '<div class="balance-pill-amount ' + cls + '">' + amountLabel + '</div>'
-              + '</div>';
-          }).join('');
-
-          var settleHTML = calc.settlements.length
-            ? calc.settlements.map(function (s) {
-                return ''
-                  + '<div class="settlement-sentence-row">'
-                  + '<div class="settlement-sentence-avatar">' + avatarChipHTML(s.fromName) + '</div>'
-                  + '<div class="settlement-sentence-text">' + SeevaData.escapeHTML(s.fromName) + ' deve dare <b>' + SeevaData.formatEuro(s.amount) + '</b> a ' + SeevaData.escapeHTML(s.toName) + '</div>'
-                  + '</div>';
-              }).join('')
-            : '<div class="empty-hint" style="padding:6px 0;">Conti già in pari.</div>';
-
-          balanceHTML = ''
-            + '<div class="section-title" style="margin-top:16px;">Il conto</div>'
-            + '<div class="balance-pill-list">' + balRows + '</div>'
-            + '<div class="section-title">Conguagli suggeriti</div>'
-            + settleHTML;
+          var lines = [];
+          sum.iOwe.forEach(function (s) {
+            lines.push('<div class="exp-me-line is-owe">' + t('Devi dare <b>{amt}</b> a {name}', { amt: SeevaData.formatEuro(s.amount), name: '<span data-no-i18n>' + SeevaData.escapeHTML(s.toName) + '</span>' }) + '</div>');
+          });
+          sum.owedToMe.forEach(function (s) {
+            lines.push('<div class="exp-me-line is-get">' + t('{name} ti deve <b>{amt}</b>', { amt: SeevaData.formatEuro(s.amount), name: '<span data-no-i18n>' + SeevaData.escapeHTML(s.fromName) + '</span>' }) + '</div>');
+          });
+          if (!lines.length) lines.push('<div class="exp-me-line is-even">' + t('Sei in pari ✓') + '</div>');
+          meHTML = '<div class="exp-me">' + lines.join('')
+            + '<div class="exp-me-sub">' + t('Totale {tot}', { tot: SeevaData.formatEuro(sum.total) }) + '</div></div>';
         }
 
-        var totalAmount = expenses.reduce(function (sum, ex) { return sum + Number(ex.amount || 0); }, 0);
-        var subtitleText = expenses.length
-          ? (expenses.length === 1 ? t('1 spesa · {tot} in totale', { tot: SeevaData.formatEuro(totalAmount) }) : t('{n} spese · {tot} in totale', { n: expenses.length, tot: SeevaData.formatEuro(totalAmount) }))
-          : 'Nessuna spesa ancora';
+        var addBtnHTML = canWrite
+          ? '<button type="button" class="exp-add-btn" id="addExpenseBtn">+ ' + t('Aggiungi una spesa') + '</button>'
+          : '';
 
-        // Niente icona nell'intestazione (Fil non voleva la bustina di soldi):
-        // solo titolo + un'anteprima rapida, per non essere invadente in
-        // pagina. Chiuso di default, si apre al tocco (vedi bindEvents()).
-        return ''
-          + '<div class="expense-accordion">'
-          + '<div class="expense-accordion-header" id="expenseAccordionHeader">'
-          + '<div class="expense-accordion-titles">'
-          + '<div class="expense-accordion-title">Divisione spese</div>'
-          + '<div class="expense-accordion-subtitle">' + subtitleText + '</div>'
-          + '</div>'
-          + '<div class="expense-accordion-chevron" id="expenseAccordionChevron">&#9662;</div>'
-          + '</div>'
-          + '<div class="expense-accordion-body" id="expenseAccordionBody">'
-          + '<div class="expense-accordion-inner">'
-          + rowsHTML
-          + addBtnHTML
-          + balanceHTML
-          + '</div>'
-          + '</div>'
-          + '</div>';
+        // Gli altri conti (quelli che non ti riguardano): solo se ce ne sono.
+        var others = expenses.length ? sum.calc.settlements.filter(function (s) {
+          return s.fromName.trim().toLowerCase() !== me && s.toName.trim().toLowerCase() !== me;
+        }) : [];
+        var settleHTML = others.length
+          ? '<div class="sheet-section-title">' + t('Gli altri') + '</div>'
+            + others.map(function (s) {
+                return '<div class="settle-row">'
+                  + '<span class="settle-face">' + featureAvatarHTML(s.fromName) + '</span>'
+                  + '<span class="settle-text"><b data-no-i18n>' + SeevaData.escapeHTML(s.fromName) + '</b> → <b data-no-i18n>' + SeevaData.escapeHTML(s.toName) + '</b></span>'
+                  + '<span class="settle-amt">' + SeevaData.formatEuro(s.amount) + '</span>'
+                  + '</div>';
+              }).join('')
+          : '';
+
+        var rowsHTML = expenses.slice().reverse().map(function (ex) {
+          var canEdit = canWrite && myAccountId && (ex.createdByAccountId === myAccountId || isOrganizerAccount);
+          var linkedItem = (event.items || []).filter(function (it) { return it.expenseId === ex.id; })[0];
+          var emoji = ex.emoji || SeevaData.autoExpenseEmoji(ex.description) || (linkedItem ? '🎒' : '💶');
+          var payerIsMe = (ex.paidByName || '').trim().toLowerCase() === me;
+          // Solo chi ha pagato; "tra quanti" solo se NON è tra tutti.
+          var meta = payerIsMe ? t('Tu') : '<span data-no-i18n>' + SeevaData.escapeHTML(ex.paidByName) + '</span>';
+          if (!ex.splitAll) meta += ' · ' + t('tra {n}', { n: (ex.shareNames || []).length });
+          return '<div class="exp-row' + (canEdit ? ' is-editable' : '') + (justAddedExpenseId && ex.id === justAddedExpenseId ? ' is-new' : '') + '"' + (canEdit ? ' data-edit-expense="' + ex.id + '"' : '') + '>'
+            + '<span class="exp-row-emoji">' + emoji + '</span>'
+            + '<span class="exp-row-text">'
+            + '<span class="exp-row-desc" data-no-i18n>' + SeevaData.escapeHTML(ex.description) + '</span>'
+            + '<span class="exp-row-meta">' + meta + '</span>'
+            + '</span>'
+            + '<span class="exp-row-amt">' + SeevaData.formatEuro(ex.amount) + '</span>'
+            + (canEdit ? '<span class="exp-row-chev">›</span>' : '')
+            + '</div>';
+        }).join('');
+
+        var emptyHTML = !expenses.length
+          ? '<div class="exp-empty"><div class="exp-empty-emoji">🧾</div>' + t('Ancora nessuna spesa') + '</div>'
+          : '';
+
+        return meHTML + addBtnHTML + emptyHTML + settleHTML
+          + (expenses.length ? '<div class="sheet-section-title">' + t('Spese') + '</div><div class="exp-list">' + rowsHTML + '</div>' : '');
       }
 
-      /* ---------- "Chi porta cosa" (Fil, 2026-07-21, ridisegnata 2026-07-25)
-         ----------
-         Spenta di default, si vede solo se l'organizzatore l'ha attivata dal
-         menu ⋮ (vedi voce "🎒" in bindEvents/menuToggleItemsBtn) — quindi
-         niente sezione qui finché event.itemsEnabled non è true, esattamente
-         come richiesto ("rimane nascosta appena crei l'evento"). Chiunque
-         veda l'evento e abbia un account può proporre una voce e prenotarla
-         (le RPC lato server rivalidano comunque tutto); un ospite senza
-         account vede solo l'elenco.
-         Checklist invece di pulsanti-testo (Fil: "il ci penso io sembra
-         testo normale, troppo vicino alla ✕, confusionario"): tocchi la
-         riga per prenderla/liberarla (un pallino vuoto o il tuo avatar dice
-         subito lo stato), scorri a sinistra per eliminarla — stesso spirito
-         dello swipe già usato per le card evento in Home, ma con lo scroll
-         nativo con snap invece del drag a mano: niente di nuovo da testare
-         sul touch, il browser fa già tutto lui. */
-      function buildItemsSectionHTML(info, justChangedId) {
-        if (!event.itemsEnabled) return '';
-        if (info.status === 'cancelled') return '';
-
+      /* Contenuto del pannello Chi porta cosa — versione "meno da leggere"
+         (Fil, 2026-11-01): il pallino vuoto = libera, la foto = chi la
+         porta; sotto il nome solo "Tu" o il nome. Tocchi per prendere/
+         lasciare, "+ €" sulle tue. */
+      function buildItemsSheetBodyHTML(justChangedId) {
         var items = event.items || [];
         var myAccountId = (SeevaData.getAccount() || {}).id || null;
         var isOrganizerAccount = !!(myAccountId && event.createdByAccountId && myAccountId === event.createdByAccountId);
         var canWrite = SeevaData.hasAccount();
+        var costOn = !!event.expensesEnabled;
 
-        // Riga singola: estratta a parte per riusarla identica nei due
-        // gruppi qui sotto (da prendere / già prese). Il testo sotto al
-        // titolo ora dice esplicitamente cosa succede toccando la riga —
-        // Fil, dopo aver provato la prima versione: "non si capisce bene
-        // quando premere e perché" — un pallino vuoto da solo non bastava.
         function renderItemRow(it) {
           var isTaken = !!it.takenByAccountId;
-          var canRelease = canWrite && myAccountId && (it.takenByAccountId === myAccountId || isOrganizerAccount);
+          var isMine = isTaken && myAccountId && it.takenByAccountId === myAccountId;
+          var canRelease = canWrite && myAccountId && (isMine || isOrganizerAccount);
           var action = isTaken ? (canRelease ? 'release' : 'none') : (canWrite ? 'claim' : 'none');
+          var checkHTML = isTaken ? featureAvatarHTML(it.takenByName) : '';
+          var metaHTML = isMine ? t('Tu')
+            : (isTaken ? '<span data-no-i18n>' + SeevaData.escapeHTML(it.takenByName) + '</span>' : '');
 
-          var checkHTML = '';
-          if (isTaken) {
-            var takerAvatarUrl = it.takenByName ? attendeeAvatars[it.takenByName.toLowerCase()] : null;
-            var takerInitial = (it.takenByName || '?').trim().charAt(0).toUpperCase();
-            checkHTML = takerAvatarUrl
-              ? '<img src="' + SeevaData.escapeHTML(takerAvatarUrl) + '" alt="" loading="lazy">'
-              : SeevaData.escapeHTML(takerInitial);
-          }
-
-          var metaText;
-          if (isTaken) {
-            metaText = t('Porta {name}', { name: SeevaData.escapeHTML(it.takenByName) }) + (action === 'release' ? t(' · tocca per liberarla') : '');
-          } else {
-            metaText = action === 'claim' ? 'Tocca per dire che la porti tu' : 'Nessuno ancora';
+          var costHTML = '';
+          if (costOn && isTaken && (isMine || isOrganizerAccount)) {
+            costHTML = '<button type="button" class="item-cost-btn' + (it.cost ? ' has-cost' : '') + '" data-item-cost="' + it.id + '">'
+              + (it.cost ? SeevaData.formatEuro(it.cost) : '+ €') + '</button>';
+          } else if (costOn && it.cost) {
+            costHTML = '<span class="item-cost-btn has-cost is-static">' + SeevaData.formatEuro(it.cost) + '</span>';
+          } else if (action === 'claim') {
+            costHTML = '<span class="item-take">' + t('La porto io') + '</span>';
           }
 
           var canDelete = canWrite && myAccountId && (it.addedByAccountId === myAccountId || isOrganizerAccount);
           var trashHTML = canDelete
             ? '<div class="item-swipe-trash" data-remove-item="' + it.id + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M4 7h16"></path><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"></path><line x1="9" y1="11" x2="9" y2="17"></line><line x1="15" y1="11" x2="15" y2="17"></line></svg></div>'
             : '';
-
-          // Rimbalzo solo sulla riga appena toccata (Fil: aggiungi qualche
-          // animazione), non su tutta la lista ogni volta che si ridisegna.
           var justPopped = justChangedId && it.id === justChangedId;
-
           return ''
             + '<div class="item-swipe-wrap" data-item-id="' + it.id + '">'
-            + '<div class="item-row-card' + (action === 'none' ? ' not-tappable' : '') + '" data-item-id="' + it.id + '" data-item-action="' + action + '">'
+            + '<div class="item-row-card' + (action === 'none' ? ' not-tappable' : '') + (isMine ? ' is-mine' : '') + '" data-item-id="' + it.id + '" data-item-action="' + action + '">'
             + '<div class="item-row-check' + (isTaken ? ' taken' : '') + (justPopped ? ' pop-in' : '') + '">' + checkHTML + '</div>'
             + '<div class="item-row-text">'
             + '<div class="item-row-title" data-no-i18n>' + SeevaData.escapeHTML(it.text) + '</div>'
-            + '<div class="item-row-meta">' + metaText + '</div>'
+            + (metaHTML ? '<div class="item-row-meta">' + metaHTML + '</div>' : '')
             + '</div>'
+            + costHTML
             + '</div>'
             + trashHTML
             + '</div>';
         }
 
-        // Due gruppi separati (Fil: "dividerei in alto quelle che nessuno ha
-        // ancora detto se le porta, in basso quelle già assegnate") invece
-        // di un elenco unico misto: a colpo d'occhio si vede cosa manca.
-        var toClaimItems = items.filter(function (it) { return !it.takenByAccountId; });
-        var takenItems = items.filter(function (it) { return !!it.takenByAccountId; });
-        var firstGroupHeaderUsed = false;
-        function groupHeader(label) {
-          var cls = firstGroupHeaderUsed ? 'section-title' : 'section-title first';
-          firstGroupHeaderUsed = true;
-          return '<div class="' + cls + '" style="font-size:13.5px; margin:10px 0 6px;">' + label + '</div>';
-        }
-
+        var toClaim = items.filter(function (it) { return !it.takenByAccountId; });
+        var taken = items.filter(function (it) { return !!it.takenByAccountId; });
         var rowsHTML = items.length
-          ? (toClaimItems.length ? groupHeader('Da prendere') + toClaimItems.map(renderItemRow).join('') : '')
-            + (takenItems.length ? groupHeader('Già prese') + takenItems.map(renderItemRow).join('') : '')
-          : '<div class="empty-hint" style="padding:10px 0;">Nessuna voce ancora.</div>';
+          ? (toClaim.length ? '<div class="sheet-section-title">' + t('Da prendere') + ' <span class="sheet-count">' + toClaim.length + '</span></div>' + toClaim.map(renderItemRow).join('') : '')
+            + (taken.length ? '<div class="sheet-section-title">' + t('Già prese') + ' <span class="sheet-count">' + taken.length + '</span></div>' + taken.map(renderItemRow).join('') : '')
+          : '<div class="exp-empty"><div class="exp-empty-emoji">🎒</div>' + t('Lista vuota') + '</div>';
 
         var addHTML = canWrite
-          ? '<div class="field" style="margin-top:10px;"><input type="text" id="newItemInput" maxlength="80" placeholder="Es. ghiaccio, altoparlante, birra..."></div>'
-            + '<div class="add-date-btn" id="addItemBtn" style="margin-top:8px;">+ Aggiungi</div>'
+          ? '<div class="item-add-row"><input type="text" id="newItemInput" maxlength="80" placeholder="' + t('Cosa serve?') + '" enterkeyhint="done"><button type="button" id="addItemBtn" class="item-add-btn" aria-label="Aggiungi">+</button></div>'
           : '';
-
-        var subtitleText = items.length
-          ? (items.length === 1 ? t('1 voce') : t('{n} voci', { n: items.length })) + (items.filter(function (it) { return !it.takenByAccountId; }).length ? t(' · {n} da prendere', { n: items.filter(function (it) { return !it.takenByAccountId; }).length }) : '')
-          : 'Nessuna voce ancora';
-
-        return ''
-          + '<div class="expense-accordion">'
-          + '<div class="expense-accordion-header" id="itemsAccordionHeader">'
-          + '<div class="expense-accordion-titles">'
-          + '<div class="expense-accordion-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="vertical-align:-2px; margin-right:4px;"><path d="M8 8V6a4 4 0 0 1 8 0v2"></path><rect x="4" y="8" width="16" height="13" rx="3"></rect><rect x="9" y="8" width="6" height="4" rx="1"></rect></svg>Chi porta cosa</div>'
-          + '<div class="expense-accordion-subtitle">' + subtitleText + '</div>'
-          + '</div>'
-          + '<div class="expense-accordion-chevron" id="itemsAccordionChevron">&#9662;</div>'
-          + '</div>'
-          + '<div class="expense-accordion-body" id="itemsAccordionBody">'
-          + '<div class="expense-accordion-inner">'
-          + '<div id="itemsHintSlot"></div>'
-          + rowsHTML
-          + addHTML
-          + '</div>'
-          + '</div>'
-          + '</div>';
+        return addHTML + rowsHTML;
       }
 
       /* ---------- Sondaggi dentro l'evento (Fil, 2026-10-27) ----------
@@ -2321,8 +2342,7 @@
         }
         var menuAnnounceBtnEl = document.getElementById('menuAnnounceBtn');
         if (menuAnnounceBtnEl) menuAnnounceBtnEl.style.display = 'none'; // ora pulsante "Avviso" in vista (2026-10-26)
-        var expensesSectionHTML = buildExpensesSectionHTML();
-        var itemsSectionHTML = buildItemsSectionHTML(info);
+        var featureCardsHTML = buildFeatureCardsHTML(info);
 
         // Fil, 2026-07-19: "chi c'è" e "quando sei disponibile" spostati
         // subito dopo le info dell'evento (prima erano in fondo alla
@@ -2442,8 +2462,7 @@
           + '<div id="pollsWrap">' + buildPollsHTML(info) + '</div>'
           + detailsHTML
           + commentsTileHTML
-          + expensesSectionHTML
-          + '<div id="itemsSectionWrap">' + itemsSectionHTML + '</div>'
+          + '<div id="featureCardsWrap">' + featureCardsHTML + '</div>'
           + manualConfirmBottomHTML;
 
         // Fuori da contentEl apposta (bug segnalato dall'app, Fil,
@@ -3176,109 +3195,201 @@
           });
         }
 
-        var expenseAccordionHeader = document.getElementById('expenseAccordionHeader');
-        var expenseAccordionBody = document.getElementById('expenseAccordionBody');
-        var expenseAccordionChevron = document.getElementById('expenseAccordionChevron');
-        if (expenseAccordionHeader) {
-          // expenseAccordionOpen è dichiarata una sola volta fuori da render()
-          // (vedi vicino a editingExpenseId): resta aperta/chiusa anche dopo
-          // che aggiungi/cancelli una spesa e la pagina si ridisegna.
-          if (expenseAccordionOpen) {
-            expenseAccordionBody.classList.add('open');
-            expenseAccordionChevron.classList.add('open');
+        bindFeatureCards();
+        refreshOpenSheets();
+      }
+
+      /* ---------- pannelli dal basso: Spese e Chi porta cosa ----------
+         (Fil, 2026-11-01). Si aprono dalle due card; si chiudono con ✕,
+         toccando fuori o trascinando giù dalla maniglia. Il contenuto si
+         ridisegna da solo (refreshExpensesSheet / refreshItemsSheet) senza
+         chiudere il pannello. */
+      function bindFeatureCards() {
+        var ec = document.getElementById('expensesCard');
+        if (ec) ec.addEventListener('click', function () { openSheet('expenses'); });
+        var ic = document.getElementById('itemsCard');
+        if (ic) ic.addEventListener('click', function () { openSheet('items'); });
+      }
+
+      function refreshFeatureCards() {
+        var wrap = document.getElementById('featureCardsWrap');
+        if (!wrap) return;
+        var before = {};
+        wrap.querySelectorAll('.feat-card').forEach(function (c) { var m = c.querySelector('.feat-card-main'); before[c.id] = m ? m.textContent : ''; });
+        wrap.innerHTML = buildFeatureCardsHTML(SeevaData.computeEventStatus(event));
+        if (window.SeevaUI) window.SeevaUI.refresh();
+        bindFeatureCards();
+        // il numero cambiato fa un piccolo "salto", così si nota
+        wrap.querySelectorAll('.feat-card').forEach(function (c) {
+          var m = c.querySelector('.feat-card-main');
+          if (m && before[c.id] !== undefined && before[c.id] !== m.textContent) m.classList.add('bump');
+        });
+      }
+
+      // Un avviso (toast) nato con un pannello aperto resta in alto anche se
+      // il pannello si chiude mentre è ancora visibile (prima "saltava" giù).
+      function ensureSheetAwareToast() {
+        if (!window.SeevaUI || !SeevaUI.toast || SeevaUI.toast._sheetAware) return;
+        var origToast = SeevaUI.toast;
+        SeevaUI.toast = function (msg) {
+          var r = origToast.apply(this, arguments);
+          if (document.documentElement.classList.contains('sheet-open')) {
+            var all = document.querySelectorAll('.toast');
+            if (all.length) all[all.length - 1].classList.add('at-top');
           }
-          expenseAccordionHeader.addEventListener('click', function () {
-            expenseAccordionOpen = !expenseAccordionOpen;
-            expenseAccordionBody.classList.toggle('open', expenseAccordionOpen);
-            expenseAccordionChevron.classList.toggle('open', expenseAccordionOpen);
-          });
-        }
+          return r;
+        };
+        SeevaUI.toast._sheetAware = true;
+      }
 
-        var addExpenseBtn = document.getElementById('addExpenseBtn');
-        if (addExpenseBtn) {
-          addExpenseBtn.addEventListener('click', function () { openExpenseModal(null); });
-        }
+      function sheetEl(kind) { return document.getElementById(kind === 'expenses' ? 'expensesSheet' : 'itemsSheet'); }
 
-        document.querySelectorAll('[data-edit-expense]').forEach(function (el) {
-          el.addEventListener('click', function () {
-            var id = el.getAttribute('data-edit-expense');
+      function openSheet(kind) {
+        var el = sheetEl(kind);
+        if (!el) return;
+        ensureSheetAwareToast();
+        if (kind === 'expenses') { expensesSheetOpen = true; refreshExpensesSheet(); }
+        else { itemsSheetOpen = true; refreshItemsSheet(); }
+        el.style.display = '';
+        el.classList.remove('is-closing');
+        var panel = el.querySelector('.sv-sheet');
+        if (panel) { panel.style.transform = ''; panel.scrollTop = 0; }
+        var body = el.querySelector('.sv-sheet-body');
+        if (body) body.scrollTop = 0;
+        document.documentElement.classList.add('sheet-open');
+      }
+
+      function closeSheet(kind) {
+        var el = sheetEl(kind);
+        if (!el || el.style.display === 'none') return;
+        if (kind === 'expenses') expensesSheetOpen = false; else itemsSheetOpen = false;
+        el.classList.add('is-closing');
+        window.setTimeout(function () {
+          el.style.display = 'none';
+          el.classList.remove('is-closing');
+          var panel = el.querySelector('.sv-sheet');
+          if (panel) panel.style.transform = '';
+        }, 220);
+        if (!expensesSheetOpen && !itemsSheetOpen) document.documentElement.classList.remove('sheet-open');
+      }
+
+      ['expenses', 'items'].forEach(function (kind) {
+        var el = sheetEl(kind);
+        if (!el) return;
+        el.addEventListener('click', function (e) { if (e.target === el) closeSheet(kind); });
+        var closeBtn = el.querySelector('[data-sheet-close]');
+        if (closeBtn) closeBtn.addEventListener('click', function () { closeSheet(kind); });
+        // Trascina giù dalla maniglia/intestazione per chiudere.
+        var grab = el.querySelector('.sv-sheet-grab');
+        var panel = el.querySelector('.sv-sheet');
+        if (!grab || !panel) return;
+        var startY = null, dy = 0;
+        grab.addEventListener('touchstart', function (e) { startY = e.touches[0].clientY; dy = 0; panel.style.transition = 'none'; }, { passive: true });
+        grab.addEventListener('touchmove', function (e) {
+          if (startY === null) return;
+          dy = Math.max(0, e.touches[0].clientY - startY);
+          panel.style.transform = 'translateY(' + dy + 'px)';
+        }, { passive: true });
+        grab.addEventListener('touchend', function () {
+          if (startY === null) return;
+          panel.style.transition = '';
+          if (dy > 90) closeSheet(kind); else panel.style.transform = '';
+          startY = null;
+        });
+      });
+
+      function refreshOpenSheets() {
+        if (expensesSheetOpen) refreshExpensesSheet();
+        if (itemsSheetOpen) refreshItemsSheet();
+      }
+
+      function refreshExpensesSheet() {
+        var body = document.getElementById('expensesSheetBody');
+        if (!body) return;
+        body.innerHTML = buildExpensesSheetBodyHTML();
+        if (window.SeevaUI) window.SeevaUI.refresh();
+        var addBtn = document.getElementById('addExpenseBtn');
+        if (addBtn) addBtn.addEventListener('click', function () { openExpenseModal(null); });
+        body.querySelectorAll('[data-edit-expense]').forEach(function (row) {
+          row.addEventListener('click', function () {
+            var id = row.getAttribute('data-edit-expense');
             var ex = (event.expenses || []).filter(function (e) { return e.id === id; })[0];
             if (ex) openExpenseModal(ex);
           });
         });
-
-        document.querySelectorAll('[data-remove-expense]').forEach(function (el) {
-          el.addEventListener('click', async function () {
-            var id = el.getAttribute('data-remove-expense');
-            var sure = await SeevaUI.ask('Cancellare questa spesa? Non si può annullare.');
-            if (!sure) return;
-            try {
-              await SeevaData.deleteEventExpense(id);
-            } catch (err) {
-              SeevaUI.alert('Non sono riuscito a cancellare la spesa (' + SeevaData.friendlyErrorMessage(err) + ').');
-              return;
-            }
-            event = await SeevaData.getEventById(event.id);
-            render();
-          });
-        });
-
-        bindItemsEvents();
       }
 
-      /* ---------- eventi della sezione "chi porta cosa" ----------
-         Estratta a parte (Fil, 2026-07-25, dopo test reale: "quando premi
-         qualcosa il testo si sposta, confusionario") perché prendere/
-         liberare/eliminare una voce non deve più ricostruire TUTTA la
-         pagina (bindEvents/render sopra rifanno anche date, invitati,
-         spese...): quel giro cambiava l'altezza di tutto il contenuto e
-         faceva saltare lo scroll proprio mentre stavi guardando la voce
-         appena toccata. refreshItemsSection() più sotto ridisegna solo
-         #itemsSectionWrap, il resto della pagina resta fermo. */
-      function bindItemsEvents() {
-        var itemsAccordionHeader = document.getElementById('itemsAccordionHeader');
-        var itemsAccordionBody = document.getElementById('itemsAccordionBody');
-        var itemsAccordionChevron = document.getElementById('itemsAccordionChevron');
-        if (itemsAccordionHeader) {
-          if (itemsAccordionOpen) {
-            itemsAccordionBody.classList.add('open');
-            itemsAccordionChevron.classList.add('open');
-          }
-          itemsAccordionHeader.addEventListener('click', function () {
-            itemsAccordionOpen = !itemsAccordionOpen;
-            itemsAccordionBody.classList.toggle('open', itemsAccordionOpen);
-            itemsAccordionChevron.classList.toggle('open', itemsAccordionOpen);
-          });
-        }
+      // Dopo una modifica: dati freschi, card e pannelli aggiornati, senza
+      // ridisegnare tutta la pagina.
+      async function reloadEventAndFeatures(justChangedItemId) {
+        try { event = await SeevaData.getEventById(event.id); } catch (err) { /* resta la copia di prima */ }
+        refreshFeatureCards();
+        if (expensesSheetOpen) refreshExpensesSheet();
+        if (itemsSheetOpen) refreshItemsSheet(justChangedItemId);
+        justAddedExpenseId = null;
+      }
 
+      // Ridisegna il contenuto del pannello "chi porta cosa" con la stessa
+      // animazione FLIP di prima (le righe scivolano al posto nuovo invece
+      // di sparire e riapparire).
+      function refreshItemsSheet(justChangedId) {
+        var body = document.getElementById('itemsSheetBody');
+        if (!body) return;
+        var firstRects = {};
+        body.querySelectorAll('.item-swipe-wrap[data-item-id]').forEach(function (rowEl) {
+          firstRects[rowEl.getAttribute('data-item-id')] = rowEl.getBoundingClientRect().top;
+        });
+        var keepText = '';
+        var oldInput = document.getElementById('newItemInput');
+        if (oldInput) keepText = oldInput.value;
+        body.innerHTML = buildItemsSheetBodyHTML(justChangedId);
+        if (window.SeevaUI) window.SeevaUI.refresh();
+        bindItemsSheet();
+        var newInput = document.getElementById('newItemInput');
+        if (newInput && keepText) newInput.value = keepText;
+        body.querySelectorAll('.item-swipe-wrap[data-item-id]').forEach(function (rowEl) {
+          var id = rowEl.getAttribute('data-item-id');
+          var firstTop = firstRects[id];
+          if (firstTop === undefined) return;
+          var dy = firstTop - rowEl.getBoundingClientRect().top;
+          if (Math.abs(dy) < 1) return;
+          rowEl.style.transition = 'none';
+          rowEl.style.transform = 'translateY(' + dy + 'px)';
+          rowEl.getBoundingClientRect();
+          rowEl.style.transition = 'transform 0.28s cubic-bezier(.22,1,.36,1)';
+          rowEl.style.transform = '';
+        });
+      }
+
+      function bindItemsSheet() {
         var addItemBtn = document.getElementById('addItemBtn');
-        if (addItemBtn) {
-          addItemBtn.addEventListener('click', async function () {
-            var input = document.getElementById('newItemInput');
-            var text = (input.value || '').trim();
-            if (!text) { input.focus(); return; }
-            addItemBtn.textContent = 'Aggiungo...';
-            try {
-              await SeevaData.addEventItem(event.id, text);
-            } catch (err) {
-              SeevaUI.alert('Non sono riuscito ad aggiungere la voce (' + SeevaData.friendlyErrorMessage(err) + ').');
-              addItemBtn.textContent = '+ Aggiungi';
-              return;
-            }
-            itemsAccordionOpen = true;
-            event = await SeevaData.getEventById(event.id);
-            refreshItemsSection();
-          });
+        var newItemInput = document.getElementById('newItemInput');
+        async function addItem() {
+          var text = (newItemInput.value || '').trim();
+          if (!text) { newItemInput.focus(); return; }
+          addItemBtn.disabled = true;
+          try {
+            await SeevaData.addEventItem(event.id, text);
+          } catch (err) {
+            addItemBtn.disabled = false;
+            SeevaUI.alert('Non sono riuscito ad aggiungere la voce (' + SeevaData.friendlyErrorMessage(err) + ').');
+            return;
+          }
+          newItemInput.value = '';
+          await reloadEventAndFeatures();
+          var again = document.getElementById('newItemInput');
+          if (again) { try { again.focus({ preventScroll: true }); } catch (err) { /* ignora */ } }
         }
+        if (addItemBtn) addItemBtn.addEventListener('click', addItem);
+        if (newItemInput) newItemInput.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); addItem(); }
+        });
 
-        // Tocco sulla riga: prende/libera la voce a seconda dello stato
-        // (Fil, 2026-07-25, ridisegno "chi porta cosa" — vedi
-        // buildItemsSectionHTML). data-item-action="none" vuol dire che non
-        // è tua né libera: tocco senza effetto, niente da fare per te lì.
-        document.querySelectorAll('.item-row-card[data-item-action]').forEach(function (el) {
+        document.querySelectorAll('#itemsSheetBody .item-row-card[data-item-action]').forEach(function (el) {
           var action = el.getAttribute('data-item-action');
           if (action === 'none') return;
-          el.addEventListener('click', async function () {
+          el.addEventListener('click', async function (e) {
+            if (e.target.closest('[data-item-cost]')) return; // il "€" ha il suo tocco
             var id = el.getAttribute('data-item-id');
             if (action === 'claim') {
               var got = false;
@@ -3290,6 +3401,11 @@
               }
               if (!got) SeevaUI.alert('Qualcun altro l\'ha già presa un attimo fa.');
             } else {
+              var it = (event.items || []).filter(function (x) { return x.id === id; })[0];
+              if (it && it.cost) {
+                var ok = await SeevaUI.ask('Lasciarla libera? Si toglie anche la spesa di ' + SeevaData.formatEuro(it.cost) + ' che avevi segnato.');
+                if (!ok) return;
+              }
               try {
                 await SeevaData.releaseEventItem(id);
               } catch (err) {
@@ -3297,16 +3413,20 @@
                 return;
               }
             }
-            itemsAccordionOpen = true;
-            event = await SeevaData.getEventById(event.id);
-            refreshItemsSection(id);
+            await reloadEventAndFeatures(id);
           });
         });
 
-        // Cestino rivelato con lo swipe (scroll orizzontale con snap, vedi
-        // .item-swipe-wrap in style.css): stesso "conferma comunque" degli
-        // altri swipe-to-delete dell'app, lo swipe da solo non basta.
-        document.querySelectorAll('.item-swipe-trash[data-remove-item]').forEach(function (el) {
+        document.querySelectorAll('#itemsSheetBody [data-item-cost]').forEach(function (btn) {
+          btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var id = btn.getAttribute('data-item-cost');
+            var it = (event.items || []).filter(function (x) { return x.id === id; })[0];
+            if (it) openItemCostModal(it);
+          });
+        });
+
+        document.querySelectorAll('#itemsSheetBody .item-swipe-trash[data-remove-item]').forEach(function (el) {
           el.addEventListener('click', async function () {
             var id = el.getAttribute('data-remove-item');
             var sure = await SeevaUI.ask('Eliminare questa voce?');
@@ -3317,74 +3437,18 @@
               SeevaUI.alert('Non sono riuscito a eliminarla (' + SeevaData.friendlyErrorMessage(err) + ').');
               return;
             }
-            // Collassa la riga prima di ridisegnare la sezione (Fil: stessa
-            // animazione già usata per togliere una card evento dalla
-            // Home), invece di farla sparire di scatto col resto del giro.
             var wrapEl = el.closest('.item-swipe-wrap');
             if (wrapEl) {
               wrapEl.style.transition = 'max-height 0.24s ease, opacity 0.24s ease, margin-bottom 0.24s ease';
               wrapEl.style.maxHeight = wrapEl.offsetHeight + 'px';
-              wrapEl.getBoundingClientRect(); // forza il reflow prima di animare
+              wrapEl.getBoundingClientRect();
               wrapEl.style.maxHeight = '0px';
               wrapEl.style.opacity = '0';
               wrapEl.style.marginBottom = '0px';
               await new Promise(function (r) { window.setTimeout(r, 240); });
             }
-            itemsAccordionOpen = true;
-            event = await SeevaData.getEventById(event.id);
-            refreshItemsSection();
+            await reloadEventAndFeatures();
           });
-        });
-
-        // Fumetto "una volta sola" (Fil, 2026-07-25): spiega tocco/swipe la
-        // prima volta che la sezione si vede aperta con almeno una voce.
-        var itemsHintSlot = document.getElementById('itemsHintSlot');
-        if (itemsHintSlot && window.SeevaUI && SeevaUI.showOnceHint && (event.items || []).length) {
-          SeevaUI.showOnceHint('itemsTapSwipe', itemsHintSlot,
-            'Tocca una voce per dire che la porti tu (o per liberarla, se l\'avevi presa tu); scorri una voce verso sinistra per eliminarla.',
-            itemsAccordionBody, ['click']);
-        }
-      }
-
-      // Ridisegna SOLO la sezione "chi porta cosa" (vedi bindItemsEvents
-      // qui sopra per il perché): il resto della pagina — date, invitati,
-      // spese — resta esattamente dov'era, niente salto di scroll.
-      // justChangedId fa anche rimbalzare il pallino della voce toccata
-      // (vedi renderItemRow).
-      // Tecnica FLIP (Fil, 2026-07-25, dopo aver visto la prima versione a
-      // dissolvenza: "sembra un refresh della schermata, non l'animazione
-      // che mi hai descritto"): si misura dove sta OGNI riga PRIMA di
-      // ridisegnare, poi si applica a ciascuna un transform inverso pari
-      // alla differenza tra vecchia e nuova posizione e lo si rilascia con
-      // una transition — visivamente la riga scivola dalla vecchia
-      // posizione alla nuova invece di sparire e riapparire altrove. Le
-      // righe che non cambiano posizione (delta ~0) restano ferme, quelle
-      // nuove (mai viste prima) compaiono senza animazione di ingresso.
-      function refreshItemsSection(justChangedId) {
-        var wrap = document.getElementById('itemsSectionWrap');
-        if (!wrap) return;
-        var info = SeevaData.computeEventStatus(event);
-
-        var firstRects = {};
-        wrap.querySelectorAll('.item-swipe-wrap[data-item-id]').forEach(function (rowEl) {
-          firstRects[rowEl.getAttribute('data-item-id')] = rowEl.getBoundingClientRect().top;
-        });
-
-        wrap.innerHTML = buildItemsSectionHTML(info, justChangedId);
-        if (window.SeevaUI) window.SeevaUI.refresh();
-        bindItemsEvents();
-
-        wrap.querySelectorAll('.item-swipe-wrap[data-item-id]').forEach(function (rowEl) {
-          var id = rowEl.getAttribute('data-item-id');
-          var firstTop = firstRects[id];
-          if (firstTop === undefined) return; // voce nuova: niente "prima" da cui partire
-          var dy = firstTop - rowEl.getBoundingClientRect().top;
-          if (Math.abs(dy) < 1) return; // non ha cambiato posizione, niente da animare
-          rowEl.style.transition = 'none';
-          rowEl.style.transform = 'translateY(' + dy + 'px)';
-          rowEl.getBoundingClientRect(); // forza il reflow prima di rilasciare la transition
-          rowEl.style.transition = 'transform 0.28s cubic-bezier(.22,1,.36,1)';
-          rowEl.style.transform = '';
         });
       }
 
@@ -4015,11 +4079,10 @@
       }
       setupShareFab();
 
-      /* ---------- popup aggiungi/modifica spesa ----------
-         Legato una sola volta come setupHeaderMenu(): il popup vive fuori da
-         contentEl, non viene ricreato ad ogni render(). editingExpenseId
-         null = sto aggiungendo una nuova spesa, altrimenti sto modificando
-         quella con quell'id (aperto da data-edit-expense in bindEvents). */
+      /* ---------- popup aggiungi/modifica spesa (rifatto 2026-11-01) ----------
+         Legato una sola volta: vive fuori da contentEl. editingExpenseId
+         null = nuova spesa. Di base: pagato da te, diviso "tra tutti"
+         (splitAll, si aggiorna da solo). "Cambia..." apre i dettagli. */
       var expenseModal = document.getElementById('expenseModal');
       var expenseModalTitle = document.getElementById('expenseModalTitle');
       var expenseModalCloseBtn = document.getElementById('expenseModalCloseBtn');
@@ -4027,82 +4090,98 @@
       var expenseAmountInput = document.getElementById('expenseAmountInput');
       var expensePaidBySelect = document.getElementById('expensePaidBySelect');
       var expenseIncludeList = document.getElementById('expenseIncludeList');
+      var expenseIncludeField = document.getElementById('expenseIncludeField');
+      var expenseSplitAllCheckbox = document.getElementById('expenseSplitAllCheckbox');
+      var expenseSplitAllHint = document.getElementById('expenseSplitAllHint');
+      var expenseDetails = document.getElementById('expenseDetails');
+      var expenseDetailsToggle = document.getElementById('expenseDetailsToggle');
+      var expenseWhoLine = document.getElementById('expenseWhoLine');
+      var expenseEmojiPreview = document.getElementById('expenseEmojiPreview');
       var expenseModalError = document.getElementById('expenseModalError');
       var expenseSaveBtn = document.getElementById('expenseSaveBtn');
-      var expenseEmojiSlot = document.getElementById('expenseEmojiSlot');
-      var expenseEmojiPicker = document.getElementById('expenseEmojiPicker');
+      var expenseDeleteBtn = document.getElementById('expenseDeleteBtn');
       var editingExpenseId = null;
-      var selectedExpenseEmoji = '';
-      var expenseAccordionOpen = false;
-      var itemsAccordionOpen = false;
-      // Placeholder "faccina" disegnata a linee (SVG, non emoji a colori): Fil
-      // la voleva stilizzata e a basso contrasto finché non scegli davvero
-      // un'emoji, così si capisce che è un buco vuoto cliccabile senza scritte.
-      var expenseEmojiPlaceholderHTML = expenseEmojiSlot ? expenseEmojiSlot.innerHTML : '';
 
-      function renderExpenseEmojiSlot() {
-        expenseEmojiSlot.innerHTML = selectedExpenseEmoji
-          ? '<span class="emoji-slot-chosen">' + selectedExpenseEmoji + '</span>'
-          : expenseEmojiPlaceholderHTML;
+      function parseEuro(v) {
+        var s = String(v || '').trim().replace(/\s|€/g, '');
+        if (s.indexOf(',') !== -1) s = s.replace(/\./g, '').replace(',', '.');
+        var n = parseFloat(s);
+        return isNaN(n) ? 0 : Math.round(n * 100) / 100;
       }
 
-      function setExpenseEmoji(e) {
-        selectedExpenseEmoji = e;
-        renderExpenseEmojiSlot();
-        expenseEmojiPicker.style.display = 'none';
+      function updateExpenseWhoLine() {
+        var me = (guestName || '').trim().toLowerCase();
+        var payer = expensePaidBySelect.value || '';
+        var group = SeevaData.getExpenseGroupNames(event);
+        var amount = parseEuro(expenseAmountInput.value);
+        var count = expenseSplitAllCheckbox.checked ? (group.length || 1) : document.querySelectorAll('.expense-include-checkbox:checked').length;
+        // Una riga corta (Fil, 2026-11-01: "meno da leggere"): "12,25 € a
+        // testa · paghi tu", oppure "In 2 · paghi tu" finché non c'è l'importo.
+        var payerHTML = payer.trim().toLowerCase() === me ? t('paghi tu') : t('paga {name}', { name: '<span data-no-i18n>' + SeevaData.escapeHTML(payer) + '</span>' });
+        var firstHTML = amount > 0 && count > 0
+          ? t('<b>{amt}</b> a testa', { amt: SeevaData.formatEuro(amount / count) })
+          : t('In {n}', { n: count || 1 });
+        expenseWhoLine.innerHTML = firstHTML + ' · ' + payerHTML;
+        expenseIncludeField.style.display = expenseSplitAllCheckbox.checked ? 'none' : '';
+        expenseSplitAllHint.textContent = '(' + (group.length || 1) + ')';
       }
 
-      if (expenseEmojiSlot) {
-        expenseEmojiSlot.addEventListener('click', function () {
-          expenseEmojiPicker.style.display = expenseEmojiPicker.style.display === 'none' ? 'flex' : 'none';
-        });
+      function updateExpenseEmojiPreview() {
+        expenseEmojiPreview.textContent = SeevaData.autoExpenseEmoji(expenseDescInput.value) || '💶';
       }
-      Array.prototype.forEach.call(document.querySelectorAll('#expenseEmojiPicker .emoji-choice'), function (el) {
-        el.addEventListener('click', function () { setExpenseEmoji(el.getAttribute('data-emoji')); });
-      });
 
       function openExpenseModal(ex) {
         editingExpenseId = ex ? ex.id : null;
-        expenseModalTitle.textContent = ex ? 'Modifica spesa' : 'Nuova spesa';
+        expenseModalTitle.textContent = ex ? t('Modifica spesa') : t('Nuova spesa');
         expenseModalError.textContent = '';
         expenseDescInput.value = ex ? ex.description : '';
-        expenseAmountInput.value = ex ? ex.amount : '';
-        selectedExpenseEmoji = (ex && ex.emoji) ? ex.emoji : '';
-        renderExpenseEmojiSlot();
-        expenseEmojiPicker.style.display = 'none';
+        expenseAmountInput.value = ex ? String(ex.amount).replace('.', ',') : '';
+        expenseDeleteBtn.style.display = ex ? '' : 'none';
 
-        var confirmedNames = SeevaData.getConfirmedParticipantNames(event);
-        expensePaidBySelect.innerHTML = confirmedNames.map(function (n) {
+        var candidates = SeevaData.getExpenseCandidateNames(event);
+        var group = SeevaData.getExpenseGroupNames(event);
+        // chi ha pagato in una spesa vecchia resta sceglibile anche se non è più nel gruppo
+        if (ex && ex.paidByName && !candidates.some(function (n) { return n.toLowerCase() === ex.paidByName.toLowerCase(); })) candidates.push(ex.paidByName);
+        expensePaidBySelect.innerHTML = candidates.map(function (n) {
           return '<option value="' + SeevaData.escapeHTML(n) + '">' + SeevaData.escapeHTML(n) + '</option>';
         }).join('');
-        // Di base propone te stesso come chi ha pagato, se sei tra i
-        // partecipanti confermati: il caso più comune è che chi registra la
-        // spesa sia anche chi l'ha anticipata (Fil, "fondamentale la facilità
-        // d'uso" — un campo pre-riempito bene si tocca una volta in meno).
         var myLower = (guestName || '').toLowerCase();
         var defaultPaidBy = ex ? ex.paidByName
-          : (confirmedNames.filter(function (n) { return n.toLowerCase() === myLower; })[0] || confirmedNames[0]);
+          : (candidates.filter(function (n) { return n.toLowerCase() === myLower; })[0] || guestName || candidates[0]);
+        if (defaultPaidBy && !candidates.some(function (n) { return n.toLowerCase() === String(defaultPaidBy).toLowerCase(); })) {
+          expensePaidBySelect.insertAdjacentHTML('afterbegin', '<option value="' + SeevaData.escapeHTML(defaultPaidBy) + '">' + SeevaData.escapeHTML(defaultPaidBy) + '</option>');
+        }
         expensePaidBySelect.value = defaultPaidBy;
 
-        // In modifica, preseleziona esattamente chi c'era prima; in una
-        // spesa nuova partono tutti spuntati (la divisione di base è "tutti",
-        // vedi le domande fatte a Fil) e si deseleziona chi va escluso.
-        var includedLower = ex ? (ex.shareNames || []).map(function (n) { return n.toLowerCase(); }) : null;
-        expenseIncludeList.innerHTML = confirmedNames.map(function (n) {
-          var checked = includedLower ? includedLower.indexOf(n.toLowerCase()) !== -1 : true;
-          return ''
-            + '<label class="option-row">'
+        var splitAll = ex ? !!ex.splitAll : true;
+        expenseSplitAllCheckbox.checked = splitAll;
+        var includedLower = ex ? (ex.shareNames || []).map(function (n) { return n.toLowerCase(); }) : group.map(function (n) { return n.toLowerCase(); });
+        expenseIncludeList.innerHTML = candidates.map(function (n) {
+          var checked = includedLower.indexOf(n.toLowerCase()) !== -1;
+          return '<label class="option-row">'
             + '<input type="checkbox" class="expense-include-checkbox" value="' + SeevaData.escapeHTML(n) + '"' + (checked ? ' checked' : '') + '>'
             + '<span class="option-row-title">' + SeevaData.escapeHTML(n) + '</span>'
             + '</label>';
         }).join('');
 
+        // Dettagli aperti da soli solo se la spesa non è "standard".
+        var meIsPayer = String(defaultPaidBy || '').toLowerCase() === myLower;
+        var showDetails = !!ex && (!splitAll || !meIsPayer);
+        expenseDetails.style.display = showDetails ? '' : 'none';
+        expenseDetailsToggle.style.display = showDetails ? 'none' : '';
+
+        updateExpenseWhoLine();
+        updateExpenseEmojiPreview();
         expenseModal.style.display = '';
+        // Tastiera dei numeri subito (dentro il tocco dell'utente, se no
+        // il telefono non la apre).
+        if (!ex) { try { expenseAmountInput.focus(); } catch (err) { /* ignora */ } }
       }
 
       function closeExpenseModal() {
         expenseModal.style.display = 'none';
         editingExpenseId = null;
+        try { document.activeElement && document.activeElement.blur(); } catch (err) { /* ignora */ }
       }
 
       if (expenseModalCloseBtn) expenseModalCloseBtn.addEventListener('click', closeExpenseModal);
@@ -4111,36 +4190,70 @@
           if (e.target === expenseModal) closeExpenseModal();
         });
       }
+      if (expenseDetailsToggle) expenseDetailsToggle.addEventListener('click', function () {
+        expenseDetails.style.display = '';
+        expenseDetailsToggle.style.display = 'none';
+      });
+      if (expenseAmountInput) {
+        expenseAmountInput.addEventListener('input', updateExpenseWhoLine);
+        expenseAmountInput.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); expenseDescInput.focus(); }
+        });
+      }
+      if (expenseDescInput) {
+        expenseDescInput.addEventListener('input', updateExpenseEmojiPreview);
+        expenseDescInput.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); expenseSaveBtn.click(); }
+        });
+      }
+      if (expensePaidBySelect) expensePaidBySelect.addEventListener('change', updateExpenseWhoLine);
+      if (expenseSplitAllCheckbox) expenseSplitAllCheckbox.addEventListener('change', updateExpenseWhoLine);
+      if (expenseIncludeList) expenseIncludeList.addEventListener('change', updateExpenseWhoLine);
+
+      if (expenseDeleteBtn) {
+        expenseDeleteBtn.addEventListener('click', async function () {
+          if (!editingExpenseId) return;
+          var id = editingExpenseId;
+          var linked = (event.items || []).filter(function (it) { return it.expenseId === id; })[0];
+          var sure = await SeevaUI.ask(linked ? 'Cancellare questa spesa? La voce "' + linked.text + '" resta nella lista, senza costo.' : 'Cancellare questa spesa? Non si può annullare.');
+          if (!sure) return;
+          try {
+            await SeevaData.deleteEventExpense(id);
+          } catch (err) {
+            expenseModalError.textContent = SeevaData.friendlyErrorMessage(err);
+            return;
+          }
+          closeExpenseModal();
+          await reloadEventAndFeatures();
+        });
+      }
 
       if (expenseSaveBtn) {
         expenseSaveBtn.addEventListener('click', async function () {
           var description = expenseDescInput.value.trim();
-          // virgola o punto, come capita scrivendo su tastiera numerica di
-          // telefono (Fil userà sicuramente la virgola, italiano)
-          var amount = parseFloat((expenseAmountInput.value || '').replace(',', '.'));
-          var paidByName = expensePaidBySelect.value;
+          var amount = parseEuro(expenseAmountInput.value);
+          var paidByName = expensePaidBySelect.value || guestName;
+          var splitAll = expenseSplitAllCheckbox.checked;
           var includedNames = Array.prototype.map.call(
             document.querySelectorAll('.expense-include-checkbox:checked'),
             function (cb) { return cb.value; }
           );
 
           expenseModalError.textContent = '';
-          if (!description) { expenseModalError.textContent = 'Scrivi cosa avete pagato.'; return; }
-          if (!amount || amount <= 0) { expenseModalError.textContent = 'Scrivi un importo maggiore di zero.'; return; }
-          if (!includedNames.length) { expenseModalError.textContent = 'Scegli almeno una persona con cui dividere.'; return; }
+          if (!amount || amount <= 0) { expenseModalError.textContent = t('Scrivi quanto avete speso.'); expenseAmountInput.focus(); return; }
+          if (!description) { expenseModalError.textContent = t('Scrivi per cosa (es. spesa, benzina).'); expenseDescInput.focus(); return; }
+          if (!splitAll && !includedNames.length) { expenseModalError.textContent = t('Scegli almeno una persona con cui dividere.'); return; }
 
           var originalText = expenseSaveBtn.textContent;
           expenseSaveBtn.disabled = true;
-          expenseSaveBtn.textContent = 'Salvo...';
+          expenseSaveBtn.textContent = t('Salvo...');
+          var input = { description: description, amount: amount, paidByName: paidByName, includedNames: includedNames, splitAll: splitAll };
+          var wasNew = !editingExpenseId;
           try {
-            if (editingExpenseId) {
-              await SeevaData.updateEventExpense(editingExpenseId, {
-                description: description, amount: amount, paidByName: paidByName, includedNames: includedNames, emoji: selectedExpenseEmoji
-              });
-            } else {
-              await SeevaData.addEventExpense(event.id, {
-                description: description, amount: amount, paidByName: paidByName, includedNames: includedNames, emoji: selectedExpenseEmoji
-              });
+            if (editingExpenseId) await SeevaData.updateEventExpense(editingExpenseId, input);
+            else {
+              var added = await SeevaData.addEventExpense(event.id, input);
+              justAddedExpenseId = (added && added.id) || null;
             }
           } catch (err) {
             expenseModalError.textContent = SeevaData.friendlyErrorMessage(err);
@@ -4150,10 +4263,60 @@
           }
           expenseSaveBtn.disabled = false;
           expenseSaveBtn.textContent = originalText;
-          event = await SeevaData.getEventById(event.id);
           closeExpenseModal();
-          render();
+          if (!expensesSheetOpen) openSheet('expenses');
+          await reloadEventAndFeatures();
+          if (wasNew && window.SeevaUI && SeevaUI.toast) SeevaUI.toast(t('Spesa aggiunta ✓'));
         });
+      }
+
+      /* ---------- "€" su una voce di chi porta cosa ---------- */
+      var itemCostModal = document.getElementById('itemCostModal');
+      var itemCostInput = document.getElementById('itemCostInput');
+      var itemCostWhat = document.getElementById('itemCostWhat');
+      var itemCostError = document.getElementById('itemCostError');
+      var itemCostSaveBtn = document.getElementById('itemCostSaveBtn');
+      var itemCostRemoveBtn = document.getElementById('itemCostRemoveBtn');
+      var itemCostItemId = null;
+      function openItemCostModal(it) {
+        itemCostItemId = it.id;
+        itemCostWhat.textContent = '🎒 ' + it.text;
+        itemCostInput.value = it.cost ? String(it.cost).replace('.', ',') : '';
+        itemCostError.textContent = '';
+        itemCostRemoveBtn.style.display = it.cost ? '' : 'none';
+        itemCostModal.style.display = '';
+        try { itemCostInput.focus(); } catch (err) { /* ignora */ }
+      }
+      function closeItemCostModal() {
+        itemCostModal.style.display = 'none';
+        itemCostItemId = null;
+      }
+      async function saveItemCost(amount) {
+        if (!itemCostItemId) return;
+        var id = itemCostItemId;
+        itemCostSaveBtn.disabled = true;
+        try {
+          await SeevaData.setEventItemCost(id, amount);
+        } catch (err) {
+          itemCostSaveBtn.disabled = false;
+          itemCostError.textContent = SeevaData.friendlyErrorMessage(err);
+          return;
+        }
+        itemCostSaveBtn.disabled = false;
+        closeItemCostModal();
+        await reloadEventAndFeatures(id);
+        if (window.SeevaUI && SeevaUI.toast) SeevaUI.toast(amount ? t('Aggiunta alle spese ✓') : t('Spesa tolta'));
+      }
+      if (itemCostModal) {
+        itemCostModal.addEventListener('click', function (e) { if (e.target === itemCostModal) closeItemCostModal(); });
+        document.getElementById('itemCostCloseBtn').addEventListener('click', closeItemCostModal);
+        itemCostSaveBtn.addEventListener('click', function () {
+          var amount = parseEuro(itemCostInput.value);
+          if (!amount || amount <= 0) { itemCostError.textContent = t('Scrivi quanto hai speso.'); itemCostInput.focus(); return; }
+          saveItemCost(amount);
+        });
+        itemCostInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); itemCostSaveBtn.click(); } });
+        itemCostRemoveBtn.addEventListener('click', function () { saveItemCost(0); });
       }
 
       /* ---------- foto profilo per le bolle "chi ci sarà" ----------
@@ -4241,10 +4404,13 @@
       var esito = params.get('esito');
       var openComments = params.get('commenti') === '1';
       var openPollParam = params.get('sondaggio') === '1';
-      if (esito || openComments || openPollParam) {
+      // ?spese=1 / ?porta=1 (notifiche spese e promemoria cosa portare, 2026-11-01)
+      var openExpParam = params.get('spese') === '1';
+      var openItemsParam = params.get('porta') === '1';
+      if (esito || openComments || openPollParam || openExpParam || openItemsParam) {
         try {
           var cleanP = new URLSearchParams(window.location.search);
-          cleanP.delete('esito'); cleanP.delete('commenti'); cleanP.delete('sondaggio');
+          cleanP.delete('esito'); cleanP.delete('commenti'); cleanP.delete('sondaggio'); cleanP.delete('spese'); cleanP.delete('porta');
           history.replaceState(null, '', window.location.pathname + '?' + cleanP.toString());
         } catch (err) { /* ignora */ }
       }
@@ -4255,6 +4421,8 @@
         var ct = document.getElementById('commentsTile');
         if (ct) ct.click();
       }
+      if (openExpParam && event.expensesEnabled) openSheet('expenses');
+      else if (openItemsParam && event.itemsEnabled) openSheet('items');
       // ?sondaggio=1 (notifica di un sondaggio, Fil 2026-10-27): porta al sondaggio.
       if (openPollParam) {
         var pc = document.getElementById('pollCard');
