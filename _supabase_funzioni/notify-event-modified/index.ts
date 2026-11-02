@@ -28,6 +28,9 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     const eventId = body.eventId || null;
     const recipientNames: string[] = Array.isArray(body.recipientNames) ? body.recipientNames.map(String) : [];
+    // 2026-11-02: cosa è cambiato, solo chiavi fisse (i valori si leggono dal DB)
+    const KNOWN = ["name", "dates", "time", "place", "places", "description", "photo", "invite"];
+    const changes: string[] = Array.isArray(body.changes) ? Array.from(new Set(body.changes.map(String))).filter((k: string) => KNOWN.indexOf(k) !== -1) as string[] : [];
     if (!eventId || !recipientNames.length) return json({ skipped: true, reason: "eventId o recipientNames mancante" });
 
     const siteUrl = Deno.env.get("SITE_URL") || "https://seeva.it";
@@ -36,7 +39,7 @@ Deno.serve(async (req: Request) => {
     const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
     const { data: userRes, error: userErr } = await admin.auth.getUser(token);
     if (userErr || !userRes || !userRes.user) return json({ error: "Sessione non valida" }, 401);
-    const { data: event } = await admin.from("events").select("id, name, created_by_account_id").eq("id", eventId).maybeSingle();
+    const { data: event } = await admin.from("events").select("id, name, created_by_account_id, event_time, location_address").eq("id", eventId).maybeSingle();
     if (!event) return json({ skipped: true, reason: "evento non trovato" });
     if (event.created_by_account_id !== userRes.user.id) return json({ error: "Solo chi organizza" }, 403);
     const eventName = String(event.name || "");
@@ -72,6 +75,30 @@ Deno.serve(async (req: Request) => {
     const groups = groupByLang(accountIds, await langsOf(admin, accountIds));
     const nameHtml = escHtml(eventName);
 
+    /* Riassunto corto di cosa è cambiato (Fil, 2026-11-02: "solo se ci sta,
+       niente cose chilometriche"). Una sola cosa con un valore corto ->
+       "nuovo orario: 20:30"; altrimenti solo i nomi ("orario e luogo"),
+       al massimo 3. Nessuna chiave (client vecchio) -> testo di prima. */
+    const LBL: Record<string, [string, string]> = {
+      name: ["nome", "name"], dates: ["date", "dates"], time: ["orario", "time"], place: ["luogo", "place"],
+      places: ["luoghi proposti", "place options"], description: ["descrizione", "description"], photo: ["foto", "photo"], invite: ["invito", "invite"]
+    };
+    const timeVal = event.event_time ? String(event.event_time).slice(0, 5) : "";
+    const placeVal = String(event.location_address || "").split(",")[0].trim();
+    function summary(lang: Lang): string {
+      if (!changes.length) return "";
+      const en = lang === "en";
+      if (changes.length === 1) {
+        const k = changes[0];
+        if (k === "time" && timeVal) return (en ? "new time: " : "nuovo orario: ") + timeVal;
+        if (k === "place" && placeVal && placeVal.length <= 32) return (en ? "new place: " : "nuovo luogo: ") + placeVal;
+      }
+      const ls = changes.map((k) => LBL[k][en ? 1 : 0]);
+      const and = en ? " and " : " e ";
+      if (ls.length > 3) return ls.slice(0, 2).join(", ") + (en ? " and more" : " e altro");
+      return ls.length === 1 ? ls[0] : ls.slice(0, -1).join(", ") + and + ls[ls.length - 1];
+    }
+
     let sentEmails = 0, sentPush = 0, totalEmails = 0;
     for (const lang of ["it", "en"] as Lang[]) {
       const gids = groups[lang];
@@ -88,8 +115,12 @@ Deno.serve(async (req: Request) => {
           title: L(lang, "Evento modificato", "Event updated"),
           preheader: L(lang, '"' + nameHtml + '" è stato modificato dall\'organizzatore', '"' + nameHtml + '" has been updated by the organiser'),
           bodyHtml: L(lang,
-            '<p>L\'organizzatore ha modificato <b>"' + nameHtml + '"</b> (nome, luogo, descrizione o altri dettagli).</p>',
-            '<p>The organiser has updated <b>"' + nameHtml + '"</b> (name, place, description or other details).</p>'),
+            summary(lang)
+              ? '<p>L\'organizzatore ha modificato <b>"' + nameHtml + '"</b>: ' + escHtml(summary(lang)) + '.</p>'
+              : '<p>L\'organizzatore ha modificato <b>"' + nameHtml + '"</b> (nome, luogo, descrizione o altri dettagli).</p>',
+            summary(lang)
+              ? '<p>The organiser has updated <b>"' + nameHtml + '"</b>: ' + escHtml(summary(lang)) + '.</p>'
+              : '<p>The organiser has updated <b>"' + nameHtml + '"</b> (name, place, description or other details).</p>'),
           ctaText: L(lang, "Vedi cosa è cambiato", "See what's changed"),
           ctaUrl: eventUrl
         });
@@ -99,7 +130,9 @@ Deno.serve(async (req: Request) => {
       }
       sentPush += await sendPushToAccounts(admin, gids, {
         title: L(lang, "Evento modificato ✏️", "Event updated ✏️"),
-        body: L(lang, 'L\'organizzatore ha modificato "' + eventName + '"', 'The organiser has updated "' + eventName + '"'),
+        body: summary(lang)
+          ? '"' + eventName + '": ' + summary(lang)
+          : L(lang, 'L\'organizzatore ha modificato "' + eventName + '"', 'The organiser has updated "' + eventName + '"'),
         url: eventUrl,
         lang
       });

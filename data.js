@@ -1733,7 +1733,7 @@
     + 'locationLat:location_lat, locationLng:location_lng, '
     + 'createdBy:created_by, createdByAccountId:created_by_account_id, friendListId:friend_list_id, createdAt:created_at, voteOpenedAt:vote_opened_at, '
     + 'cancelledAt:cancelled_at, shareToken:share_token, openInvite:open_invite, '
-    + 'confirmedDateOptionId:confirmed_date_option_id, confirmedLocationOptionId:confirmed_location_option_id, '
+    + 'confirmedDateOptionId:confirmed_date_option_id, confirmedLocationOptionId:confirmed_location_option_id, confirmedAt:confirmed_at, '
     + 'manuallyCancelled:manually_cancelled, eventTime:event_time, itemsEnabled:items_enabled, '
     + 'expensesEnabled:expenses_enabled, tookPlace:took_place, '
     + 'dateOptions:date_options!date_options_event_id_fkey(id, dateISO:date_iso), '
@@ -2450,7 +2450,9 @@
         var whenN = info.bestOption ? shortDateLabel(info.bestOption.dateISO) : '';
         if (iAmOrganizer || (meN && (meN.maybe || (info.bestOption && (meN.availableDateOptionIds || []).indexOf(info.bestOption.id) !== -1)))) {
           notifications.push({
-            icon: 'confirmed', emoji: '✅', time: latestEventActivityTime(event), eventId: event.id,
+            // Ora della conferma vera (events.confirmed_at, 2026-11-02): prima
+            // risaliva in cima a ogni nuova risposta di qualcuno.
+            icon: 'confirmed', emoji: '✅', time: event.confirmedAt || latestEventActivityTime(event), eventId: event.id,
             text: whenN ? T('<b>{name}</b> è confermato: {when}!', { name: escapeHTML(event.name), when: escapeHTML(whenN) }) : T('<b>{name}</b> è confermato!', { name: escapeHTML(event.name) })
           });
         } else if (!meN) {
@@ -2582,9 +2584,9 @@
      (notifyDateRemoved) non è tra i destinatari qui, vedi
      speciallyNotifiedLower in updateEvent — niente doppie email per lo
      stesso salvataggio. */
-  function notifyEventModified(eventId, eventName, recipientNames) {
+  function notifyEventModified(eventId, eventName, recipientNames, changes) {
     if (!recipientNames || !recipientNames.length) return;
-    supabase.functions.invoke('notify-event-modified', { body: { eventId: eventId, eventName: eventName, recipientNames: recipientNames } })
+    supabase.functions.invoke('notify-event-modified', { body: { eventId: eventId, eventName: eventName, recipientNames: recipientNames, changes: changes || [] } })
       .catch(function (err) { /* non blocca il salvataggio */ });
   }
 
@@ -2882,6 +2884,23 @@
       || normTime(normalizeEventTime(input.eventTime)) !== normTime(current.eventTime)
       || addedDateISOs.length > 0 || removedOptionIds.length > 0
       || addedLocations.length > 0 || removedLocIds.length > 0;
+    // Cosa è cambiato, per dirlo nella notifica (Fil, 2026-11-02: "solo se
+    // ci sta, niente cose chilometriche"): solo chiavi fisse, i valori
+    // (orario, luogo) li legge la Edge Function dal DB.
+    var changeKeys = [];
+    if (normStr(input.name || 'Evento senza nome') !== normStr(current.name)) changeKeys.push('name');
+    if (addedDateISOs.length > 0 || removedOptionIds.length > 0) changeKeys.push('dates');
+    if (normTime(normalizeEventTime(input.eventTime)) !== normTime(current.eventTime)) changeKeys.push('time');
+    if (normStr(input.locationAddress) !== normStr(current.locationAddress)) changeKeys.push('place');
+    if (addedLocations.length > 0 || removedLocIds.length > 0) changeKeys.push('places');
+    if (normStr(input.description) !== normStr(current.description) || (input.descriptionAudioUrl || null) !== (current.descriptionAudioUrl || null)) changeKeys.push('description');
+    if ((input.photoUrl || null) !== (current.photoUrl || null)) changeKeys.push('photo');
+    if (!!input.openInvite !== !!current.openInvite) changeKeys.push('invite');
+    var CHANGE_LABEL = { name: 'nome', dates: 'date', time: 'orario', place: 'luogo', places: 'luoghi proposti', description: 'descrizione', photo: 'foto', invite: 'invito' };
+    var changeLabels = changeKeys.map(function (k) { return CHANGE_LABEL[k]; });
+    var changeText = !changeLabels.length ? '' : changeLabels.length > 3
+      ? changeLabels.slice(0, 2).join(', ') + ' e altro'
+      : (changeLabels.length === 1 ? changeLabels[0] : changeLabels.slice(0, -1).join(', ') + ' e ' + changeLabels[changeLabels.length - 1]);
     var addedInviteeNamesLower = addedInviteeEntries.map(function (e) { return e.name.toLowerCase(); });
 
     var speciallyNotifiedLower = affectedByDateRemoval.map(function (a) { return a.name.toLowerCase(); });
@@ -2898,7 +2917,7 @@
       // canale principale dell'app) già spiega bene.
       var genericMessage = (mustReopen && !reconfirmedFixed)
         ? '"' + (input.name || current.name) + '" è tornato in attesa: l\'organizzatore ha aggiunto nuove opzioni, la tua risposta di prima non basta più — vota di nuovo.'
-        : '"' + (input.name || current.name) + '" è stato modificato dall\'organizzatore.';
+        : '"' + (input.name || current.name) + '" è stato modificato dall\'organizzatore' + (changeText ? ': ' + changeText + '.' : '.');
       var genericRows = genericRecipients.map(function (n) {
         return {
           recipient_name: n,
@@ -2909,7 +2928,7 @@
         };
       });
       pushEventNotices(genericRows);
-      notifyEventModified(eventId, input.name || current.name, genericRecipients);
+      notifyEventModified(eventId, input.name || current.name, genericRecipients, changeKeys);
     }
 
     clearEventsCache();
