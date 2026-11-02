@@ -1833,6 +1833,10 @@
     // possa usare l'app (Fil, 2026-07-10).
     if (window.SeevaData && typeof SeevaData.hasAccount === 'function' && !SeevaData.hasAccount()) return;
 
+    // Dal computer non ha senso "installa l'app" (Fil, 2026-11-02): il
+    // banner solo su telefono/tablet, come già il popup automatico.
+    if (!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches)) return;
+
     window.setTimeout(function () {
       // Nei 2s potrebbe essere cambiata pagina (SPA) o essere appena stata
       // installata: ricontrolla, non fidarsi del riferimento chiuso sopra.
