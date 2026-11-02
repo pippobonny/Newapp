@@ -133,7 +133,7 @@ for (const f of pages) {
 // servizio), script, stili, caratteri, Supabase, icone.
 const SHELL_SKIP = new Set(['admin.html', 'presentazione.html', 'privacy.html']);
 const shell = pages.filter((f) => !SHELL_SKIP.has(f) && !/^google[0-9a-f]+\.html$/.test(f))
-  .concat(['script.js', 'data.js', 'style.css', 'i18n.js', 'i18n-en.js', 'manifest.json',
+  .concat(['script.js', 'evento.js', 'data.js', 'style.css', 'i18n.js', 'i18n-en.js', 'manifest.json',
     'vendor/supabase.js', 'vendor/fonts.css', 'icon-192.png', 'badge-96.png', 'favicon.ico'])
   .concat(fontFiles);
 const hash = createHash('sha1');

@@ -3427,3 +3427,74 @@
   window.SeevaMotion = { success: success, tab: tab, bell: bell, busy: busy, unbusy: unbusy, scan: schedule };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
+
+/* ==========================================================================
+   Guida al primo accesso (Fil, 2026-11-02)
+   Solo nell'app scaricata (Android/iPhone, html.seeva-native) e solo la
+   prima volta che si apre su quel telefono. Tre schermate: proponi le date,
+   gli amici votano, seeva conferma. "Salta" in alto per chi ha fretta.
+   Per rivederla: localStorage.removeItem('seeva:onboardingDone').
+   ========================================================================== */
+(function () {
+  var KEY = 'seeva:onboardingDone';
+  function done() { try { localStorage.setItem(KEY, '1'); } catch (e) { /* ignora */ } }
+  function shouldShow() {
+    if (!document.documentElement.classList.contains('seeva-native')) return false;
+    try { return !localStorage.getItem(KEY); } catch (e) { return false; }
+  }
+  var SLIDES = [
+    { title: 'Proponi le date', text: 'Crei l\'evento e scegli i giorni possibili. Bastano pochi secondi.',
+      art: '<div class="onb-cal">' + ['L', 'M', 'M', 'G', 'V', 'S', 'D'].map(function (d) { return '<span class="onb-dow">' + d + '</span>'; }).join('')
+        + [10, 11, 12, 13, 14, 15, 16].map(function (n) { return '<span class="onb-day' + (n === 12 || n === 14 || n === 15 ? ' is-on' : '') + '">' + n + '</span>'; }).join('') + '</div>' },
+    { title: 'Gli amici votano', text: 'Ognuno tocca i giorni in cui c\'è. Niente chat infinite per mettersi d\'accordo.',
+      art: '<div class="onb-bars">'
+        + [['Mer 12', 40, 'A'], ['Ven 14', 92, 'G'], ['Sab 15', 62, 'M']].map(function (b, i) {
+          return '<div class="onb-bar' + (i === 1 ? ' is-lead' : '') + '"><span class="onb-bar-fill" style="--h:' + b[1] + '%"></span><span class="onb-face">' + b[2] + '</span><span class="onb-bar-lbl">' + b[0] + '</span></div>';
+        }).join('') + '</div>' },
+    { title: 'seeva conferma da solo', text: 'Quando una data mette d\'accordo il gruppo, l\'evento è confermato. Poi dividete le spese, chi porta cosa e i sondaggi.',
+      art: '<div class="onb-ok"><span class="onb-ok-check"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>'
+        + '<span class="onb-ok-txt"><b>Ven 14 novembre</b><em>Confermato · 6 ci sono</em></span></div>'
+        + '<div class="onb-chips"><span>💶 Spese</span><span>🍕 Chi porta cosa</span><span>📊 Sondaggi</span></div>' }
+  ];
+  function open() {
+    var i = 0;
+    var el = document.createElement('div');
+    el.className = 'onb';
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-label', 'Benvenuto in seeva');
+    el.innerHTML = '<button type="button" class="onb-skip">Salta</button>'
+      + '<div class="onb-track">' + SLIDES.map(function (s) {
+        return '<section class="onb-slide"><div class="onb-art">' + s.art + '</div><h2 class="onb-title">' + s.title + '</h2><p class="onb-text">' + s.text + '</p></section>';
+      }).join('') + '</div>'
+      + '<div class="onb-foot"><div class="onb-dots">' + SLIDES.map(function () { return '<span></span>'; }).join('') + '</div>'
+      + '<button type="button" class="onb-next">Avanti</button></div>';
+    document.body.appendChild(el);
+    var track = el.querySelector('.onb-track'), slides = el.querySelectorAll('.onb-slide'), dots = el.querySelectorAll('.onb-dots span'), next = el.querySelector('.onb-next');
+    function go(n) {
+      i = Math.max(0, Math.min(SLIDES.length - 1, n));
+      track.style.transform = 'translateX(' + (-100 * i) + '%)';
+      slides.forEach(function (s, k) { s.classList.toggle('is-on', k === i); });
+      dots.forEach(function (d, k) { d.classList.toggle('is-on', k === i); });
+      next.textContent = i === SLIDES.length - 1 ? 'Inizia' : 'Avanti';
+      next.classList.toggle('is-last', i === SLIDES.length - 1);
+    }
+    function close() {
+      done();
+      el.classList.add('is-out');
+      setTimeout(function () { el.remove(); }, 380);
+    }
+    el.querySelector('.onb-skip').addEventListener('click', close);
+    next.addEventListener('click', function () { if (i === SLIDES.length - 1) close(); else go(i + 1); });
+    var x0 = null;
+    el.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; }, { passive: true });
+    el.addEventListener('touchend', function (e) {
+      if (x0 == null) return;
+      var dx = e.changedTouches[0].clientX - x0; x0 = null;
+      if (Math.abs(dx) > 50) go(i + (dx < 0 ? 1 : -1));
+    }, { passive: true });
+    requestAnimationFrame(function () { el.classList.add('is-in'); go(0); });
+  }
+  function start() { if (shouldShow()) open(); }
+  window.SeevaOnboarding = { open: open };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();

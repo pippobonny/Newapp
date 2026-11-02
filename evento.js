@@ -1,0 +1,4260 @@
+/* ==========================================================================
+   evento.js — tutto il codice della pagina Evento (2026-11-02).
+   Prima stava dentro evento.html (oltre 4000 righe in mezzo all'HTML):
+   spostato qui così com'era, senza cambiare niente di come funziona.
+   Viene caricato da evento.html dopo data.js e prima di script.js.
+   ========================================================================== */
+    (async function () {
+      /* La freccia "indietro" deve tornare davvero alla schermata da cui sei
+         arrivato (Home, Eventi, una notifica, ecc.), non sempre a "Eventi" a
+         prescindere da dove vieni. Qui la navigazione è sempre un vero
+         caricamento di pagina (mai SPA), quindi document.referrer riflette
+         davvero la pagina precedente: si riscrive l'href del pulsante con
+         quella pagina, PRIMA che l'utente clicchi. Da lì in poi lo gestisce
+         già script.js con la sua normale animazione/navigazione via link —
+         non serve altro codice qui, e resta anche l'effetto ripple sul
+         pulsante. Se il link è stato aperto direttamente (da WhatsApp, senza
+         passare da un'altra pagina dell'app) o veniva da un'altra pagina
+         "di passaggio" (l'invito di amico.html, o questa stessa pagina),
+         resta l'href statico già nell'HTML: la Home.
+
+         Bug osservato da Fil (2026-07-20): aprendo l'evento da una notifica
+         push, a volte document.referrer risultava "sw.js" invece di una
+         pagina vera — il service worker, quando la scheda dell'app era già
+         aperta, la naviga con client.navigate(url) e in quel caso alcuni
+         browser registrano come "pagina precedente" lo script del service
+         worker stesso, non una pagina reale. La freccia indietro ci finiva
+         dritta, mostrando il codice sorgente invece di tornare in Home.
+         Prima qui c'era una lista di ESCLUSIONI (referrer accettato a meno
+         che non fosse uno dei pochi casi noti) — troppo fragile, un domani
+         basta un altro file statico a ripetere lo stesso bug. Ora è una
+         lista di pagine vere dell'app: si accetta il referrer solo se è
+         una di queste.
+
+         Fil, 2026-08-23: tornava sempre su eventi.html "e basta" — cioè sul
+         tab Confermati di default — anche arrivando da eventi.html?only=
+         attesa o ?only=annullati. Il controllo whitelist deve guardare solo
+         il nome del file (altrimenti una query sconosciuta lo farebbe
+         fallire), ma l'href riscritto sul bottone deve tenersi la query:
+         eventi.html?only=... è la vera pagina di quella categoria, ora che
+         eventi.html da sola (senza query, tab Confermati fisso) non è più
+         un posto dove si arriva davvero navigando nell'app. */
+      var backBtn = document.getElementById('backBtn');
+      if (backBtn) {
+        var ref = document.referrer || '';
+        var cameFromApp = ref.indexOf(window.location.origin) === 0;
+        var refFile = cameFromApp ? ref.split('/').pop().split('#')[0] : ''; // "eventi.html?only=attesa" — tiene la query, non l'hash
+        var refPath = refFile.split('?')[0]; // solo il nome file, per il controllo whitelist qui sotto
+        // crea.html tolta (Fil, 2026-09-26): dopo "Modifica" → OK (o dopo
+        // aver creato l'evento) il referrer è il form, quindi la freccia
+        // riportava dentro la modifica invece che in Home. Da crea.html si
+        // arriva qui solo a lavoro finito: la freccia resta su index.html.
+        var REAL_APP_PAGES = ['index.html', 'eventi.html', 'amici.html', 'notifiche.html', 'lista-invito.html', 'profilo.html', 'passati.html']; // passati.html: 2026-10-26
+        if (REAL_APP_PAGES.indexOf(refPath) !== -1) {
+          backBtn.setAttribute('href', refFile);
+        }
+      }
+
+      var params = new URLSearchParams(window.location.search);
+      var eventId = params.get('id');
+
+      var titleEl = document.getElementById('eventTitle');
+      var contentEl = document.getElementById('eventContent');
+
+      /* Stessa regola d'accesso di tutta l'app: un ospite senza account può
+         vedere QUESTO evento solo se è proprio quello a cui è stato invitato
+         e bloccato (checkAccessGate in data.js) — altrimenti viene rimandato
+         al suo evento/lista vera, o vede "serve un profilo" se non ha nessun
+         invito attivo. Chi è bloccato qui a ragione (isLockedGuest) perde
+         navbar e freccia indietro: l'unica via d'uscita resta il bottone
+         "crea il tuo profilo" mostrato dentro la pagina (vedi render()). */
+      var gate = SeevaData.checkAccessGate(eventId ? { type: 'event', id: eventId } : null);
+      if (gate.action === 'redirect') {
+        window.location.href = gate.url;
+        return;
+      }
+
+      /* Apertura istantanea (Fil, 2026-10-24): se il telefono ha già una
+         copia di questo evento (aperto prima, o presente nella Home) la
+         pagina si disegna subito con quella; i dati veri si chiedono subito
+         in parallelo e, appena arrivano, la pagina si ridisegna (vedi in
+         fondo, dopo il primo render). Senza copia si aspetta come prima. */
+      var instantEvent = (eventId && SeevaData.getEventInstant) ? SeevaData.getEventInstant(eventId) : null;
+      var freshEventPromise = eventId ? SeevaData.getEventById(eventId) : Promise.resolve(null);
+      if (instantEvent) freshEventPromise.catch(function () { /* gestito più sotto */ });
+
+      var event;
+      try {
+        event = instantEvent || await freshEventPromise;
+      } catch (err) {
+        titleEl.textContent = 'Errore';
+        contentEl.innerHTML = '<div class="empty-hint">Non riesco a caricare questo evento (' + SeevaData.escapeHTML(SeevaData.friendlyErrorMessage(err)) + ').<br><a href="index.html">Torna alla Home →</a></div>';
+        return;
+      }
+
+      if (!event) {
+        titleEl.textContent = 'Evento non trovato';
+        contentEl.innerHTML = '<div class="empty-hint">Questo evento non esiste (o il link non è più valido).<br><a href="index.html">Torna alla Home →</a></div>';
+        return;
+      }
+
+      if (gate.action === 'block') {
+        /* Chi non ha account e non è già "bloccato" da nessuna parte è arrivato
+           qui aprendo il link diretto dell'evento (quello mostrato in "Condividi
+           l'invito" per una lista amici vera, non scritta a mano) senza mai
+           essere passato dal passaggio "chi sei tra questi nomi" di amico.html.
+           Fil: chi non è registrato deve SEMPRE passare da lì per identificarsi
+           — quindi, se l'evento ha una lista di invitati con un link di invito
+           valido, lo mandiamo a scegliere il suo nome invece di bloccarlo su
+           "serve un profilo"; una volta scelto, atterra di nuovo qui già
+           sbloccato. Chi ha già un account non passa mai da questo ramo
+           (checkAccessGate torna 'allow' per lui, vedi sopra). */
+        if (event.shareToken) {
+          window.location.href = 'amico.html?token=' + encodeURIComponent(event.shareToken);
+          return;
+        }
+        // ospite già entrato in un altro evento, ma questo non ha un link
+        // d'invito aperto: torna al suo evento come prima
+        if (gate.fallbackUrl) {
+          window.location.href = gate.fallbackUrl;
+          return;
+        }
+        titleEl.textContent = 'Evento';
+        contentEl.innerHTML = SeevaData.accountRequiredBlockHTML(
+          'Per vedere questo evento devi prima creare un profilo, oppure aprirlo dal link di invito che hai ricevuto.'
+        );
+        if (backBtn) backBtn.style.display = 'none';
+        return;
+      }
+      await SeevaData.renderSessionWarningIfNeeded(contentEl);
+
+      var isLockedGuest = gate.action === 'allowLocked';
+      if (isLockedGuest) {
+        if (backBtn) backBtn.style.display = 'none';
+      }
+
+      document.title = 'seeva — ' + event.name;
+      titleEl.setAttribute('data-no-i18n', '');
+      titleEl.textContent = event.name;
+
+      var guestName = SeevaData.getGuestName() || '';
+
+      /* Chi organizza è per forza presente (viene contato in automatico su
+         tutte le date già alla creazione, vedi createEvent in data.js): non
+         deve mai vedere i pulsanti "quando sei disponibile" come un invitato
+         qualsiasi. È anche l'unico a vedere il link da condividere e chi manca
+         ancora a rispondere: agli invitati basta rispondere e vedere chi c'è. */
+      var isOrganizer = !!(guestName && event.createdBy && guestName.toLowerCase() === event.createdBy.toLowerCase());
+
+      /* true quando la sezione "quando sei disponibile" è aperta in modifica
+         (chip selezionabili); false quando mostra solo il riepilogo compatto
+         con "Cambia la tua disponibilità". Parte aperta se non hai ancora
+         risposto, chiusa se hai già una risposta salvata. */
+      var editingAvailability = !findExistingParticipant();
+
+      // Fa partire l'animazione "sbandamento" dei giorni una sola volta per
+      // apertura pagina (vedi bindDayBarsScroll), non ad ogni render().
+      var scrollHintShown = false;
+
+      function findExistingParticipant() {
+        var found = null;
+        (event.participants || []).forEach(function (p) {
+          if (guestName && p.name.toLowerCase() === guestName.toLowerCase()) found = p;
+        });
+        return found;
+      }
+
+      /* Link nel gruppo (Fil, 2026-10-25): chi ha un account e apre il
+         link di un evento aperto a tutti finisce tra gli invitati da solo,
+         così l'evento gli compare in Home e riceve gli avvisi. In silenzio:
+         se non riesce (es. nome già preso) resta tutto come prima. */
+      if (SeevaData.hasAccount() && event.openInvite && event.shareToken) {
+        var meJoin = SeevaData.getAccount();
+        var alreadyIn = (event.invitees || []).some(function (f) { return f.accountId === meJoin.id; }) || event.createdByAccountId === meJoin.id;
+        if (!alreadyIn) SeevaData.addSelfAsInvitee(event.shareToken, null, meJoin.id).catch(function () { /* ignora */ });
+      }
+
+      /* ---------- "sei tu uno di questi?" per chi arriva già registrato ----------
+         Bug segnalato da Fil il 2026-07-07: se scrivi un invitato a mano
+         (es. "patty") e quella persona si registra DOPO con uno username
+         diverso (es. "pattu") e apre l'evento direttamente (non dal link
+         d'invito, dove questo passaggio esiste già in amico.html), l'app non
+         ha modo di sapere che sono la stessa persona — la mostrava come due
+         identità separate ("assenti: pattu" + "ancora da rispondere:
+         patty"). Stesso meccanismo di scelta di amico.html, riusando
+         claimEventInvitee() con lo share_token che l'evento ha già. Si
+         propone solo se: non organizzatore, ha un account (i soli per cui è
+         successo il problema), non ha già una risposta salvata con questo
+         username, il suo username non combacia già con un invitato, e c'è
+         almeno un invitato non ancora rivendicato. Si può anche saltare
+         ("continua come X"): non si ripropone più su QUESTO evento per
+         questo dispositivo (sessionStorage, non permanente: se si ricarica
+         il device o passa tempo può ripresentarsi, va bene così, non è
+         invasivo). */
+      function findClaimCandidates() {
+        if (isOrganizer || !guestName || !SeevaData.hasAccount()) return null;
+        if (findExistingParticipant()) return null;
+
+        var mine = guestName.toLowerCase();
+        var invitees = event.invitees || [];
+        var alreadyNamed = invitees.some(function (f) { return (f.name || '').toLowerCase() === mine; });
+        if (alreadyNamed) return null;
+
+        var unclaimed = invitees.filter(function (f) { return !f.claimedAt; });
+        if (!unclaimed.length) return null;
+
+        try {
+          if (sessionStorage.getItem('seeva:claimDismissed:' + event.id)) return null;
+        } catch (err) { /* ignora */ }
+
+        return unclaimed;
+      }
+
+      function buildClaimPromptHTML(candidates) {
+        var rowsHTML = candidates.map(function (f) {
+          return ''
+            + '<div class="settings-row reveal" data-claim-invitee="' + f.id + '" style="cursor:pointer;">'
+            + '<div class="left">' + SeevaData.escapeHTML(f.name) + '</div>'
+            + '<div style="color:var(--ink-soft);">Sono io →</div>'
+            + '</div>';
+        }).join('');
+
+        return ''
+          + '<div class="section-title">Sei tu uno di questi?</div>'
+          + '<div class="card-date" style="margin:0 2px 12px;">Sei registrato come <b>' + SeevaData.escapeHTML(guestName) + '</b>. Se chi organizza ti aveva invitato con un altro nome, scegli quale sei: così la tua risposta resta collegata a te.</div>'
+          + '<div id="claimPromptList">' + rowsHTML + '</div>'
+          + '<div style="text-align:center; margin-top:8px;"><span class="signup-skip-link" id="claimSkipLink">Nessuno di questi, continua come ' + SeevaData.escapeHTML(guestName) + ' →</span></div>';
+      }
+
+      async function claimInviteeAs(inviteeId) {
+        try {
+          await SeevaData.claimEventInvitee(event.shareToken, inviteeId, null, SeevaData.getAccount().id);
+        } catch (err) {
+          if (window.SeevaUI && SeevaUI.toast) {
+            SeevaUI.toast('Non sono riuscito a collegarti (' + SeevaData.friendlyErrorMessage(err) + ').');
+          } else {
+            SeevaUI.alert('Non sono riuscito a collegarti (' + SeevaData.friendlyErrorMessage(err) + ').');
+          }
+          return;
+        }
+        event = await SeevaData.getEventById(event.id);
+        render();
+      }
+
+      /* ---------- schema "chi c'è per ogni giorno" ----------
+         Sempre visibile, a chiunque apra l'evento: aiuta a capire a colpo
+         d'occhio quale data ha più persone disponibili. Chi ha risposto "non
+         ci sono mai" non compare qui (non essendo disponibile in nessun
+         giorno), ma resta nella riga "Assenti" più sotto.
+         Il giorno (o i giorni, in caso di parità) con più adesioni spicca con
+         un bordino arancione sottile — solo un accenno, niente di vistoso —
+         così si capisce a colpo d'occhio quale data sta vincendo, senza dover
+         contare i nomi in ogni riga. */
+      function buildDayBreakdownHTML() {
+        var TRACK_H = 92;
+        var counts = event.dateOptions.map(function (opt) {
+          return (event.participants || []).filter(function (p) {
+            return (p.availableDateOptionIds || []).indexOf(opt.id) !== -1;
+          }).length;
+        });
+        var maxCount = Math.max.apply(null, counts.concat([0]));
+
+        var barsHTML = event.dateOptions.map(function (opt, idx) {
+          var names = (event.participants || [])
+            .filter(function (p) { return (p.availableDateOptionIds || []).indexOf(opt.id) !== -1; })
+            .map(function (p) { return p.name; });
+          var count = names.length;
+          var namesLabel = names.length ? names.map(SeevaData.escapeHTML).join(', ') : 'Nessuno ancora';
+
+          // ha senso solo se c'è più di una data proposta (altrimenti "spicca"
+          // rispetto a cosa?) e se qualcuno ha già risposto almeno una volta
+          var isLeader = event.dateOptions.length > 1 && maxCount > 0 && counts[idx] === maxCount;
+          var fillH = count ? Math.max(10, Math.round((count / maxCount) * TRACK_H)) : 0;
+
+          var d = new Date(opt.dateISO + 'T00:00:00');
+          var weekday, dayMonth;
+          try {
+            weekday = d.toLocaleDateString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { weekday: 'short' }).replace('.', '');
+            weekday = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+            dayMonth = d.toLocaleDateString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { day: 'numeric', month: 'short' }).replace('.', '');
+          } catch (err) {
+            weekday = '';
+            dayMonth = opt.dateISO;
+          }
+
+          return ''
+            + '<div class="day-bar-col" data-day-idx="' + idx + '">'
+            + '<div class="day-bar-bubble" style="display:none;">' + namesLabel + '</div>'
+            + '<div class="day-bar-badge' + (isLeader ? ' leader' : '') + '"><span aria-hidden="true" style="display:inline-flex;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7"></path></svg></span>' + count + '</div>'
+            + '<div class="day-bar-track' + (isLeader ? ' leader' : '') + '"><div class="day-bar-fill" style="height:' + fillH + 'px;"></div></div>'
+            + '<div class="day-bar-label">' + SeevaData.escapeHTML(weekday) + '<br><span class="sub">' + SeevaData.escapeHTML(dayMonth) + '</span></div>'
+            + '</div>';
+        }).join('');
+
+        return ''
+          + '<div class="day-bars-hint">Più alta la barra, più persone ci sono — scorri per gli altri giorni, tocca per i nomi</div>'
+          + '<div class="day-bars-scroll" id="dayBarsScroll"><div class="day-bars-row">' + barsHTML + '</div></div>';
+      }
+
+      /* ---------- organizzatore: conferma una data a mano ----------
+         Fil, 2026-07-10, due richieste che usano lo stesso meccanismo:
+         1) non aspettare che rispondano tutti — un bottone per chiudere
+            subito su una data a scelta, quale che sia lo stato attuale;
+         2) in caso di pareggio (più date appaiate alla quota, vedi
+            computeEventStatus/tiedOptions), niente scelta automatica e
+            silenziosa della prima inserita — si mostrano solo le date in
+            pareggio e l'organizzatore ne sceglie una lui.
+         Non visibile a chi non organizza, né su un evento già chiuso
+         (confermato/passato/annullato): lì non c'è più nulla da scegliere.
+
+         Fil, 2026-07-19: la vecchia lista verticale (una riga "Conferma →"
+         per ogni data) occupava troppo spazio con più di 2-3 date proposte.
+         Ora restano solo due bottoni, "Conferma" e "Annulla evento": se le
+         date papabili (tiedOptions in caso di pareggio, altrimenti tutte
+         event.dateOptions) sono una sola, "Conferma" chiude subito su
+         quella; se sono di più, apre il popup openConfirmDayPopup() con la
+         scelta a quadrati (vedi bindEvents per la logica). */
+      function buildManualConfirmSectionHTML(info) {
+        if (!isOrganizer) return '';
+        if (info.status === 'done' || info.status === 'passato' || info.status === 'cancelled') return '';
+
+        var isTie = info.status === 'tie';
+        var hasDates = event.dateOptions && event.dateOptions.length;
+
+        var introHTML = !hasDates ? ''
+          : isTie
+          ? ''
+            + (info.noVotes
+              ? '<div class="section-title">Nessuno ha votato: scegli tu</div>'
+                + '<div class="card-date" style="margin:0 2px 10px;">Nessun invitato ha indicato una data. Scegline una tu, oppure annulla l\'evento.</div>'
+              : '<div class="section-title">Pareggio: scegli tu la data</div>'
+                + '<div class="card-date" style="margin:0 2px 10px;">Queste date hanno lo stesso numero di persone che ci sono — l\'evento resta in sospeso finché non ne confermi una.</div>')
+          : ''
+            + '<div class="section-title">Vuoi confermare tu, senza aspettare?</div>'
+            + '<div class="card-date" style="margin:0 2px 10px;">Puoi fissare subito una data, anche prima che rispondano tutti.</div>';
+
+        var buttonsHTML = ''
+          + '<div class="manual-confirm-btn-row">'
+          + (hasDates ? '<button type="button" class="primary-btn" id="manualConfirmBtn">Conferma</button>' : '')
+          + '<button type="button" class="manual-confirm-cancel-btn" id="cancelEventManuallyLink">Annulla evento</button>'
+          + '</div>';
+
+        return introHTML + buttonsHTML;
+      }
+
+      /* Trascinamento con mouse (touch funziona già da solo con
+         overflow-x:auto — anzi, catturare il puntatore anche lì è quello che
+         rompeva il tap: con setPointerCapture il click risultante finisce
+         sempre sul contenitore, mai sulla singola barra sotto il dito/mouse,
+         perché il target del click viene "rediretto" all'elemento che ha la
+         capture. Bug reale, notato da Fil il 2026-07-05: "tocca per i nomi
+         non funziona". Fix: niente setPointerCapture, e il drag manuale parte
+         solo per il mouse (pointerType 'mouse'), su window (non sull'elemento
+         stesso) così il click sulle barre resta intatto in ogni caso.
+         Va rilegato dopo ogni render() come bindDayBars, perché il
+         contenitore viene rigenerato da zero ad ogni giro. */
+      function bindDayBarsScroll() {
+        var scrollEl = document.getElementById('dayBarsScroll');
+        if (!scrollEl) return;
+        var dragging = false;
+        var justDragged = false;
+        var startX = 0;
+        var startScroll = 0;
+
+        function onMove(e) {
+          if (!dragging) return;
+          var delta = e.clientX - startX;
+          if (Math.abs(delta) > 6) justDragged = true;
+          scrollEl.scrollLeft = startScroll - delta;
+        }
+
+        function onUp() {
+          dragging = false;
+          scrollEl.classList.remove('dragging');
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', onUp);
+          window.removeEventListener('pointercancel', onUp);
+        }
+
+        scrollEl.addEventListener('pointerdown', function (e) {
+          if (e.pointerType !== 'mouse') return;
+          dragging = true;
+          justDragged = false;
+          startX = e.clientX;
+          startScroll = scrollEl.scrollLeft;
+          scrollEl.classList.add('dragging');
+          window.addEventListener('pointermove', onMove);
+          window.addEventListener('pointerup', onUp);
+          window.addEventListener('pointercancel', onUp);
+        });
+
+        // Un trascinamento vero (solo mouse, vedi sopra) non deve anche far
+        // scattare il tap sulla barra su cui finisce il rilascio: intercettato
+        // in fase di cattura, prima che l'evento arrivi al listener di
+        // bindDayBars sulla singola barra.
+        scrollEl.addEventListener('click', function (e) {
+          if (justDragged) {
+            e.stopPropagation();
+            e.preventDefault();
+            justDragged = false;
+          }
+        }, true);
+
+        // Suggerimento visivo che si può scorrere: solo la prima volta che
+        // questa pagina viene renderizzata (non ad ogni render(), altrimenti
+        // ripartirebbe anche dopo un semplice salvataggio disponibilità), e
+        // solo se c'è davvero altro da vedere oltre lo schermo. Animazione
+        // fatta a mano frame per frame (non scroll-behavior:smooth, troppo
+        // rapido e non regolabile) per poterla rendere lenta e morbida come
+        // chiesto da Fil il 2026-07-05.
+        if (!scrollHintShown) {
+          scrollHintShown = true;
+          var maxScroll = scrollEl.scrollWidth - scrollEl.clientWidth;
+          if (maxScroll > 4) {
+            var nudge = Math.min(46, maxScroll);
+            window.setTimeout(function () {
+              animateScrollLeft(scrollEl, nudge, 750, function () {
+                window.setTimeout(function () {
+                  animateScrollLeft(scrollEl, 0, 750);
+                }, 260);
+              });
+            }, 1000);
+          }
+        }
+      }
+
+      /* Anima scrollLeft da solo verso "to" in "duration" millisecondi, con
+         una curva ease-in-out (parte piano, accelera, rallenta in fondo) così
+         il "sbandamento" di suggerimento sopra sembra un vero gesto morbido
+         invece di uno scatto. Usata solo per quello, non per il drag manuale
+         (che deve seguire il dito/mouse un frame alla volta, non animare). */
+      function animateScrollLeft(el, to, duration, onDone) {
+        var start = el.scrollLeft;
+        var change = to - start;
+        var startTime = null;
+        function step(ts) {
+          if (startTime === null) startTime = ts;
+          var t = Math.min(1, (ts - startTime) / duration);
+          var eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+          el.scrollLeft = start + change * eased;
+          if (t < 1) {
+            window.requestAnimationFrame(step);
+          } else if (onDone) {
+            onDone();
+          }
+        }
+        window.requestAnimationFrame(step);
+      }
+
+      /* Tocca una barra: apre il fumetto con i nomi sopra di essa, chiudendo
+         quello eventualmente già aperto su un'altra data (una sola alla
+         volta). Fatto senza richiamare render() — sono solo classi/stili
+         locali, niente da salvare, stesso spirito del toggle dei chip qui
+         sotto. Va richiamato dopo ogni render() perché le barre sono
+         rigenerate da zero ad ogni giro. */
+      function bindDayBars() {
+        document.querySelectorAll('.day-bar-col').forEach(function (col) {
+          col.addEventListener('click', function () {
+            var wasOpen = col.classList.contains('bar-selected');
+            document.querySelectorAll('.day-bar-col.bar-selected').forEach(function (other) {
+              other.classList.remove('bar-selected');
+              var b = other.querySelector('.day-bar-bubble');
+              if (b) b.style.display = 'none';
+              var badge = other.querySelector('.day-bar-badge');
+              if (badge) badge.classList.remove('selected');
+              var fill = other.querySelector('.day-bar-fill');
+              if (fill) fill.classList.remove('selected');
+            });
+            if (!wasOpen) {
+              col.classList.add('bar-selected');
+              var bubble = col.querySelector('.day-bar-bubble');
+              if (bubble) bubble.style.display = '';
+              var badge2 = col.querySelector('.day-bar-badge');
+              if (badge2) badge2.classList.add('selected');
+              var fill2 = col.querySelector('.day-bar-fill');
+              if (fill2) fill2.classList.add('selected');
+            }
+          });
+        });
+      }
+
+      /* ---------- "Invitati", con lo stato di ognuno ----------
+         Prima chi era assente o non aveva ancora risposto stava in due righe
+         di testo minuscolo, nascoste dietro un "Mostra dettagli" visibile
+         solo all'organizzatore per la parte "chi manca" — a chiunque altro
+         aprisse l'evento restava difficile capire subito chi fosse invitato
+         (Fil, 2026-07-10: "chi c'è a questo evento non sa rispondersi
+         facilmente"). Ora è un unico elenco sempre visibile, a tutti, con lo
+         stato di ciascuno accanto al nome. Parte dagli invitati "ufficiali"
+         (event.invitees) e aggiunge chi si è unito da solo con un invito
+         aperto e non era già tra loro; l'organizzatore non compare mai qui,
+         è sempre presente per definizione (vedi il messaggio dedicato più
+         sopra). La barra "Chi c'è per ogni giorno" resta un'altra cosa,
+         serve a capire quale data sta vincendo — questo elenco risponde
+         invece a "chi è invitato, punto". */
+      function buildInviteesRosterHTML() {
+        var participants = event.participants || [];
+        var organizerLower = (event.createdBy || '').trim().toLowerCase();
+
+        var participantByName = {};
+        participants.forEach(function (p) {
+          participantByName[(p.name || '').trim().toLowerCase()] = p;
+        });
+
+        var names = (event.invitees || []).map(function (f) { return f.name; });
+        var namesLower = names.map(function (n) { return n.trim().toLowerCase(); });
+        // 2026-10-14 (giro UX): l'organizzatore non era nell'elenco, quindi
+        // "5 ci saranno" (che lo conta) e "4 di 13 disponibili" (che no)
+        // non tornavano. Ora c'è anche lui, in testa.
+        var organizerName = (event.createdBy || '').trim();
+        if (organizerName && namesLower.indexOf(organizerLower) === -1) {
+          names.unshift(organizerName);
+          namesLower.unshift(organizerLower);
+        }
+        participants.forEach(function (p) {
+          var lower = (p.name || '').trim().toLowerCase();
+          if (!lower || lower === organizerLower) return;
+          if (namesLower.indexOf(lower) === -1) {
+            names.push(p.name);
+            namesLower.push(lower);
+          }
+        });
+        if (!names.length) return { html: '', rows: [] };
+
+        // Chi c'è prima, poi chi manca a rispondere, poi chi ha detto di no:
+        // così le informazioni più utili ("chi viene") si leggono subito,
+        // senza dover scorrere tutta la lista.
+        var STATUS_ORDER = { available: 0, maybe: 1, pending: 2, absent: 3 };
+        // Evento confermato (Fil, 2026-10-10: "l'invitato dopo la conferma
+        // non vede chi erano tutti gli invitati"): lo stato si guarda sulla
+        // data fissata, non su una data qualsiasi — chi aveva votato solo
+        // altri giorni risulta "non c'è".
+        var rosterInfo = SeevaData.computeEventStatus(event);
+        var confirmedOptionId = (rosterInfo.status === 'done' && rosterInfo.bestOption) ? rosterInfo.bestOption.id : null;
+        var rows = names.map(function (name) {
+          var participant = participantByName[name.trim().toLowerCase()];
+          var ids = participant ? (participant.availableDateOptionIds || []) : [];
+          var isIn = confirmedOptionId ? ids.indexOf(confirmedOptionId) !== -1 : ids.length > 0;
+          var isOrgRow = name.trim().toLowerCase() === organizerLower;
+          var statusKey = !participant ? (isOrgRow ? 'available' : 'pending') : (isIn ? 'available' : (participant.maybe ? 'maybe' : 'absent'));
+          var statusIconSVG = statusKey === 'available'
+            ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><circle cx="12" cy="12" r="9"></circle><path d="M8 12.5l2.5 2.5L16 9.5"></path></svg>'
+            : statusKey === 'absent'
+              ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><circle cx="12" cy="12" r="9"></circle><line x1="9.5" y1="9.5" x2="14.5" y2="14.5"></line><line x1="14.5" y1="9.5" x2="9.5" y2="14.5"></line></svg>'
+              : statusKey === 'maybe'
+                ? '<span style="margin-right:3px;">🤔</span>'
+                : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg>';
+          return { name: name, statusKey: statusKey, statusIconSVG: statusIconSVG, note: participant ? participant.note : null, isOrganizerRow: name.trim().toLowerCase() === organizerLower };
+        }).sort(function (a, b) { return STATUS_ORDER[a.statusKey] - STATUS_ORDER[b.statusKey]; });
+
+        // Righe piene una per persona -> bolle affiancate, colore = stato
+        // (Fil, 2026-08-23: "tantissimo testo, pochi riquadri come la
+        // Home" — qui il colore e l'icona bastano a dire "disponibile", non
+        // serve ripetere la parola su ogni riga; stessa logica delle altre
+        // pillole di stato in giro per l'app, verde/rosso/neutro).
+        var rowsHTML = rows.map(function (row) {
+          var statusClass = row.statusKey === 'available' ? 'is-available' : row.statusKey === 'absent' ? 'is-absent' : '';
+          // La tua bolla si tocca per cambiare risposta (Big Fra, 2026-10-03).
+          var isMe = !row.isOrganizerRow && guestName && row.name.trim().toLowerCase() === guestName.trim().toLowerCase();
+          return '<span class="invitee-chip ' + statusClass + (isMe ? ' is-me' : '') + '"' + (isMe ? ' data-me-chip="1" title="Tocca per cambiare la tua risposta"' : '') + '>' + row.statusIconSVG + SeevaData.escapeHTML(row.name) + (row.isOrganizerRow ? ' <span class="invitee-chip-edit">organizza</span>' : '') + (isMe ? ' <span class="invitee-chip-edit">cambia</span>' : '') + '</span>';
+        }).join('');
+
+        // Restituisce anche "rows" grezzo (Fil, 2026-08-23), non solo
+        // l'HTML: buildWhoComingTileHTML più sotto lo riusa per il
+        // conteggio "N di M disponibili" senza ricalcolare tutto da capo.
+        // Note di arrivo (Fil, 2026-09-13: "sì ci sono ma arrivo dopo
+        // cena"): riga in più, piccola e solo se qualcuno ne ha lasciata
+        // una -- non tocca le bolle compatte qui sopra, che restano come
+        // sono sempre state.
+        var notedRows = rows.filter(function (r) { return r.note; });
+        var notesHTML = notedRows.length
+          ? '<div class="card-date" style="margin:8px 2px 0;">' + notedRows.map(function (r) {
+              return '<b>' + SeevaData.escapeHTML(r.name) + ':</b> ' + SeevaData.escapeHTML(r.note);
+            }).join(' · ') + '</div>'
+          : '';
+
+        return {
+          // Niente titolo "Partecipanti" qui: la lista va solo nel popup,
+          // che ha già il suo titolo in alto (Virgi, 2026-10-30: "doppia
+          // scritta Partecipanti").
+          html: '<div class="invitee-chip-wrap">' + rowsHTML + '</div>' + notesHTML,
+          rows: rows
+        };
+      }
+
+      /* ---------- organizzatore: è cambiata idea rispetto al "sempre presente"? ----------
+         Alla creazione l'organizzatore viene inserito come partecipante disponibile
+         su TUTTE le date (vedi createEvent in data.js): finché non tocca nulla, resta
+         così. Se in seguito modifica i suoi giorni (un imprevisto, ecc.), questo
+         confronto lo rileva e si passa a mostrargli il riepilogo vero e proprio
+         invece del messaggio generico "sei sempre presente". */
+      function organizerHasCustomAvailability(participant) {
+        if (!participant) return false;
+        var ids = participant.availableDateOptionIds || [];
+        var allIds = event.dateOptions.map(function (o) { return o.id; });
+        if (ids.length !== allIds.length) return true;
+        return allIds.some(function (id) { return ids.indexOf(id) === -1; });
+      }
+
+      /* Aggiornata da buildAvailabilitySectionHTML ogni volta che viene
+         chiamata (Fil, 2026-08-25): dice a render() più sotto se il risultato
+         è una singola tessera compatta (info-tile) o un form/sezione intera —
+         solo nel primo caso ha senso affiancarla a "Dove" in una riga, come i
+         riquadri della Home. Va riazzerata a mano da chi chiama
+         buildAvailabilitySectionHTML per un altro percorso (es. il "claim"
+         di un invitato non ancora reclamato) non la tocca affatto. */
+      var availabilityIsCompactTile = false;
+
+      /* ---------- Date già impegnate (Fil, 2026-10-04, #15) ----------
+         busyDates arriva da SeevaData.getMyBusyDates (i tuoi altri eventi
+         su quei giorni). Una data "bloccata" si sblocca con un tocco, solo
+         per quel giorno di QUESTO evento (ricordato su questo telefono). */
+      var busyDates = {};
+      function busyUnlockKey(iso) { return 'seeva:busyUnlock:' + event.id + ':' + iso; }
+      function isBusyUnlocked(iso) { try { return localStorage.getItem(busyUnlockKey(iso)) === '1'; } catch (err) { return false; } }
+      function unlockBusy(iso) { try { localStorage.setItem(busyUnlockKey(iso), '1'); } catch (err) { /* ignora */ } }
+      function busyFor(iso) { return SeevaData.classifyBusy(busyDates[iso], SeevaData.formatTimeLabel ? SeevaData.formatTimeLabel(event.eventTime) : (event.eventTime ? String(event.eventTime).slice(0, 5) : null)); }
+      function busyNamesText(list) { return list.map(SeevaData.busyLabel).join(', '); }
+      // Riga d'avviso per un giorno solo (eventi a data fissa / confermati).
+      function buildBusyNoteHTML(iso) {
+        if (!iso) return '';
+        var b = busyFor(iso);
+        if (b.hard.length && !isBusyUnlocked(iso)) {
+          return '<div class="busy-note is-hard">🔒 Quel giorno hai già ' + SeevaData.escapeHTML(busyNamesText(b.hard)) + '.</div>';
+        }
+        var all = b.hard.concat(b.soft);
+        if (all.length) return '<div class="busy-note">⚠️ Quel giorno hai anche ' + SeevaData.escapeHTML(busyNamesText(all)) + '.</div>';
+        return '';
+      }
+      // Chiede conferma prima di un "Ci sono" su un giorno bloccato.
+      async function confirmBusyYes(iso) {
+        var b = busyFor(iso);
+        if (!b.hard.length || isBusyUnlocked(iso)) return true;
+        var ok = await SeevaUI.ask('Quel giorno hai già ' + busyNamesText(b.hard) + '.\n\nVuoi rispondere "Ci sono" lo stesso?');
+        if (ok) unlockBusy(iso);
+        return ok;
+      }
+
+      /* Fumetto che esce dal giorno occupato nella griglia (Fil, 2026-10-04). */
+      var openBusyPopChip = null;
+      var busyPopTimer = null;
+      function hideBusyPop() {
+        var old = document.getElementById('busyPop');
+        if (old) old.remove();
+        openBusyPopChip = null;
+        if (busyPopTimer) { window.clearTimeout(busyPopTimer); busyPopTimer = null; }
+      }
+      function unlockBusyChip(chip) {
+        unlockBusy(chip.getAttribute('data-date-iso'));
+        chip.removeAttribute('data-busy');
+        chip.classList.remove('is-busy');
+        chip.classList.add('is-busy-soft');
+        var icon = chip.querySelector('.day-busy-lock');
+        if (icon) icon.textContent = '⚠️';
+        chip.classList.add('selected');
+        hideBusyPop();
+      }
+      function showBusyPop(chip, locked) {
+        hideBusyPop();
+        var grid = chip.parentNode;
+        var pop = document.createElement('div');
+        pop.id = 'busyPop';
+        pop.className = 'busy-pop' + (locked ? ' is-hard' : '');
+        // Contenuto costruito qui dagli impegni veri (cosa / quando / dove),
+        // non letto da un attributo: un nome evento con le virgolette
+        // troncava il testo a "Quel giorno hai già" (Fil, 2026-10-04).
+        var b = busyFor(chip.getAttribute('data-date-iso'));
+        var items = b.hard.concat(b.soft).map(function (e) {
+          return '<div class="busy-pop-item">'
+            + '<div class="busy-pop-name" data-no-i18n>' + SeevaData.escapeHTML(e.name) + (e.firm ? '' : ' <span class="busy-pop-tag">da confermare</span>') + '</div>'
+            + '<div class="busy-pop-meta">' + (e.time ? '🕗 ' + SeevaData.escapeHTML(e.time) : '🕗 orario non indicato') + (e.place ? ' · 📍 ' + SeevaData.escapeHTML(e.place) : '') + '</div>'
+            + '</div>';
+        }).join('');
+        pop.innerHTML = '<div class="busy-pop-text">' + (locked ? '🔒 ' : '⚠️ ') + 'Quel giorno hai già:</div>' + items
+          + (locked ? '<button type="button" class="busy-pop-btn">Sblocca</button>' : '');
+        grid.appendChild(pop);
+        // posizione: sotto il giorno, con la punta centrata sul giorno
+        var top = chip.offsetTop + chip.offsetHeight + 8;
+        var gridW = grid.clientWidth;
+        var popW = Math.min(240, gridW);
+        var center = chip.offsetLeft + chip.offsetWidth / 2;
+        var left = Math.max(0, Math.min(gridW - popW, center - popW / 2));
+        pop.style.top = top + 'px';
+        pop.style.left = left + 'px';
+        pop.style.width = popW + 'px';
+        pop.style.setProperty('--arrow-x', (center - left) + 'px');
+        openBusyPopChip = chip;
+        var btn = pop.querySelector('.busy-pop-btn');
+        if (btn) btn.addEventListener('click', function (e) { e.stopPropagation(); unlockBusyChip(chip); });
+        pop.addEventListener('click', function (e) { e.stopPropagation(); });
+        if (!locked) busyPopTimer = window.setTimeout(hideBusyPop, 4000);
+      }
+      document.addEventListener('click', function (e) {
+        if (!openBusyPopChip) return;
+        if (e.target.closest && (e.target.closest('#busyPop') || e.target.closest('#dayGrid .chip'))) return;
+        hideBusyPop();
+      });
+
+      /* ---------- "La tua risposta" a 3 pulsanti (Fil, 2026-10-04) ----------
+         Segnalazioni: "se metto Forse non posso cambiare", "il Ci sarò
+         dopotutto è super piccolo", "vorrei cambiare scelta dalle presenze".
+         Ora la risposta attuale è sempre un pulsante evidenziato e le
+         altre due sono lì accanto, grandi: un tap e cambi. "Forse" compare
+         solo a chi non ha ancora risposto o ha già risposto forse (regola
+         di Fil del 2026-10-03). ctx: 'single' = data singola non ancora
+         confermata, 'confirmed' = evento confermato. */
+      function buildRsvpSegHTML(currentKey, allowMaybe, ctx) {
+        function btn(key, label) {
+          return '<button type="button" class="rsvp-seg-btn is-' + key + (currentKey === key ? ' is-active' : '') + '" data-rsvp="' + key + '">' + label + '</button>';
+        }
+        return '<div class="rsvp-seg" id="rsvpSeg" data-ctx="' + ctx + '">'
+          + btn('yes', '✓ Ci sono')
+          + (allowMaybe ? btn('maybe', '🤔 Forse') : '')
+          + btn('no', '✕ Non ci sono')
+          + '</div>';
+      }
+
+      /* ---------- sezione "quando sei disponibile" ----------
+         Niente più campo "il tuo nome": l'identità arriva da SeevaData
+         (account o nome ospite già impostato altrove). Se non c'è ancora
+         nessun nome su questo dispositivo, non si può rispondere da qui. */
+      function buildAvailabilitySectionHTML() {
+        availabilityIsCompactTile = false;
+        var existingParticipant = findExistingParticipant();
+
+        // stato di base, mai toccato: niente da mostrare qui (Fil,
+        // 2026-07-19: anche il messaggio informativo tolto, non solo il
+        // bottone — troppa carne al fuoco in mezzo alla pagina per
+        // un'informazione implicita, "sei tu che organizzi quindi ci sei".
+        // Chi vuole cambiarlo trova "📅 I giorni in cui ci sei" nel menu ⋮
+        // dell'header, vedi setupHeaderMenu e render() per la sua
+        // visibilità).
+        if (isOrganizer && !editingAvailability && !organizerHasCustomAvailability(existingParticipant)) {
+          return '';
+        }
+
+        if (!guestName) {
+          return ''
+            + '<div class="section-title">La tua risposta</div>'
+            + '<div class="empty-hint">Imposta prima un nome dal tuo profilo per poter rispondere.<br><a href="profilo.html">Vai al profilo →</a></div>';
+        }
+
+        if (existingParticipant && !editingAvailability && event.dateOptions.length === 1 && !isOrganizer) {
+          var singleKey = (existingParticipant.availableDateOptionIds || []).length > 0 ? 'yes' : (existingParticipant.maybe ? 'maybe' : 'no');
+          return ''
+            + '<div class="section-title">La tua risposta</div>'
+            + buildBusyNoteHTML(event.dateOptions[0].dateISO)
+            + buildRsvpSegHTML(singleKey, true, 'single')
+            + (singleKey === 'yes' ? '<div class="add-cal-link" id="addToCalLink">📅 Aggiungi al calendario</div>' : '')
+            + '<div class="form-error" id="formError"></div>'
+            + '<div style="text-align:center;"><span class="signup-skip-link" id="changeAvailabilityBtn">Aggiungi una nota per gli altri ›</span></div>';
+        }
+
+        if (existingParticipant && !editingAvailability) {
+          var ids = existingParticipant.availableDateOptionIds || [];
+          var isAvailable = ids.length > 0;
+          // Tessera compatta invece di titolo+chip+bottone (Fil, 2026-08-23,
+          // terzo giro: "la tua disponibilità" la sai già, non è la prima
+          // cosa che serve — un valore solo, non un elenco). Un tap apre lo
+          // stesso form di sempre (id invariato, changeAvailabilityBtn: il
+          // resto di bindEvents più sotto non cambia) con tutto già
+          // precompilato — il dettaglio completo (più date, location) non
+          // sparisce, si vede lì.
+          var statusText;
+          if (!isAvailable && existingParticipant.maybe) {
+            statusText = 'Forse 🤔';
+          } else if (!isAvailable) {
+            statusText = 'Non ci sono';
+          } else if (ids.length === 1) {
+            var onlyOpt = event.dateOptions.filter(function (o) { return o.id === ids[0]; })[0];
+            statusText = onlyOpt ? SeevaData.formatDateLabel(onlyOpt.dateISO) : 'Ci sono';
+          } else {
+            statusText = t('Ci sono in {n} date', { n: ids.length });
+          }
+          var statusIconSVG = isAvailable
+            ? '<path d="M8 12.5l2.5 2.5L16 9.5"></path>'
+            : '<line x1="9.5" y1="9.5" x2="14.5" y2="14.5"></line><line x1="14.5" y1="9.5" x2="9.5" y2="14.5"></line>';
+          // Segnalato fuori (Fil, 2026-08-25): render() lo affianca a "Dove"
+          // in una riga sola quando entrambi sono tessere compatte, invece
+          // di impilarle — solo in questo ramo lo sono davvero.
+          availabilityIsCompactTile = true;
+          return ''
+            + '<div class="info-tile is-clickable" id="changeAvailabilityBtn">'
+            + '<div class="info-tile-icon' + (isAvailable ? ' is-available' : ' is-absent') + '"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle>' + statusIconSVG + '</svg></div>'
+            + '<div class="info-tile-body">'
+            + '<div class="info-tile-label">La tua risposta</div>'
+            + '<div class="info-tile-value">' + SeevaData.escapeHTML(statusText) + '</div>'
+            + '</div>'
+            // "Cambia →" (parola intera) sostituito da una freccina sola
+            // (Fil, 2026-08-25, bug segnalato dopo l'affiancamento a "Dove"):
+            // a metà larghezza non c'era più spazio per il valore, che
+            // finiva troncato a una sola lettera. Stessa freccina già usata
+            // su "Chi viene" (.who-coming-chevron), qui in versione propria
+            // perché questa tessera non ha lo sfondo/padding di chi-coming.
+            + '<div class="info-tile-chevron">›</div>'
+            + '</div>';
+        }
+
+        var preselected = existingParticipant ? (existingParticipant.availableDateOptionIds || []) : [];
+        var preselectedLocations = existingParticipant ? (existingParticipant.availableLocationOptionIds || []) : [];
+
+        // Con una sola data proposta non ha senso un selettore "quale giorno":
+        // non c'è scelta. Due bottoni semplici (Fil, 2026-07-10) al posto del
+        // chip + "Conferma disponibilità" + "Non sono mai disponibile".
+        if (event.dateOptions.length === 1) {
+          // Nota facoltativa (Fil, 2026-09-13: "sì ci sono ma arrivo dopo
+          // cena, o non so quando arrivo"): un campo solo, sempre visibile
+          // invece di un secondo passaggio dopo "Ci sono" -- chi non gli
+          // interessa lo ignora, zero tap in più per chi risponde e basta.
+          // Precompilata se stai cambiando risposta (existingParticipant).
+          var noteValue = (existingParticipant && existingParticipant.note) || '';
+          return ''
+            + '<div class="section-title">Ci sarai?</div>'
+            + buildBusyNoteHTML(event.dateOptions[0].dateISO)
+            + buildLocationChipGridHTML(preselectedLocations)
+            + '<div class="field"><input type="text" id="singleDateNoteInput" placeholder="Nota per gli altri, es. orario di arrivo (facoltativo)" value="' + SeevaData.escapeHTML(noteValue) + '"></div>'
+            + '<div class="form-error" id="formError"></div>'
+            + '<button type="button" class="primary-btn" id="singleDateYesBtn" data-option-id="' + event.dateOptions[0].id + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="15" height="15" style="vertical-align:-2px; margin-right:4px;"><circle cx="12" cy="12" r="9"></circle><path d="M8 12.5l2.5 2.5L16 9.5"></path></svg>Ci sono</button>'
+            // "Forse" (Fil, 2026-10-03): solo a chi non ha ancora risposto
+            // (o aveva già detto forse), non a chi ha già deciso.
+            + (!isOrganizer ? '<div class="add-date-btn" id="singleDateMaybeBtn" style="margin-top:10px;">Forse</div>' : '')
+            + '<div class="add-date-btn" id="singleDateNoBtn" style="margin-top:10px;">Non ci sono</div>';
+        }
+
+        // Card quadrate 3 per riga invece di una lista verticale (Fil,
+        // 2026-07-19): con più di 3-4 date proposte una colonna sola
+        // costringeva a scorrere parecchio prima di arrivare al bottone
+        // "Conferma disponibilità". Data abbreviata (giorno/numero/mese) per
+        // stare nello spazio stretto di una card piccola.
+        var dayCardsHTML = event.dateOptions.map(function (opt) {
+          var selected = preselected.indexOf(opt.id) !== -1;
+          var parts = shortDateParts(opt.dateISO);
+          // Giorno già impegnato (#15): bloccato finché non lo sblocchi.
+          var b = busyFor(opt.dateISO);
+          var locked = b.hard.length > 0 && !selected && !isBusyUnlocked(opt.dateISO);
+          var anyBusy = b.hard.concat(b.soft);
+          // Niente legenda sotto la griglia (Fil, 2026-10-04): l'avviso
+          // compare in un fumetto che esce dal giorno quando lo tocchi.
+          return '<div class="chip day-card' + (selected ? ' selected' : '') + (locked ? ' is-busy' : (anyBusy.length ? ' is-busy-soft' : '')) + '" data-option-id="' + opt.id + '" data-date-iso="' + opt.dateISO + '"' + (locked ? ' data-busy="1"' : '') + (anyBusy.length ? ' data-busy-any="1"' : '') + '>'
+            + (locked ? '<div class="day-busy-lock">🔒</div>' : (anyBusy.length ? '<div class="day-busy-lock">⚠️</div>' : ''))
+            + '<div class="day-dow">' + SeevaData.escapeHTML(parts.dow) + '</div>'
+            + '<div class="day-num">' + SeevaData.escapeHTML(parts.day) + '</div>'
+            + '<div class="day-month">' + SeevaData.escapeHTML(parts.month) + '</div>'
+            + '<div class="chip-check">✓</div>'
+            + '</div>';
+        }).join('');
+
+        return ''
+          + '<div class="section-title">Quando ci sei?</div>'
+          + '<div class="day-grid" id="dayGrid">' + dayCardsHTML + '</div>'
+
+          + buildLocationChipGridHTML(preselectedLocations)
+          + '<div class="form-error" id="formError"></div>'
+          + '<button type="button" class="primary-btn" id="confirmBtn">Salva la mia risposta</button>'
+          + '<div style="text-align:center;"><span class="signup-skip-link" id="neverAvailableBtn">Non ci sono in nessuna data</span></div>';
+      }
+
+      /* ---------- voto sulla location (Fil, 2026-07-21) ----------
+         Compare SOLO se l'organizzatore ha proposto più di una location in
+         fase di creazione (event.locationOptions.length > 1) — con una sola
+         (o nessuna) tutto resta esattamente come prima, zero righe in più.
+         Stesso stile "a quadrati" della disponibilità sui giorni qui sopra
+         ("prendi spunto dalla decisione dei giorni", Fil): stesso .day-grid/
+         .chip, solo con l'indirizzo al posto di giorno/numero/mese. Scelta
+         multipla (puoi andar bene con più di una location), sottomessa
+         insieme alla disponibilità sui giorni con lo stesso bottone
+         "Conferma disponibilità" (vedi saveAvailability). */
+      function buildLocationChipGridHTML(preselectedLocationIds) {
+        if ((event.locationOptions || []).length < 2) return '';
+        var cardsHTML = event.locationOptions.map(function (opt) {
+          var selected = preselectedLocationIds.indexOf(opt.id) !== -1;
+          return '<div class="chip day-card' + (selected ? ' selected' : '') + '" data-location-option-id="' + opt.id + '" style="width:100%; height:auto; padding:10px 12px; text-align:left;">'
+            + '<div class="day-num" style="font-size:13px; font-weight:600;">' + SeevaData.escapeHTML(opt.address) + '</div>'
+            + '<div class="chip-check">✓</div>'
+            + '</div>';
+        }).join('');
+        return ''
+          + '<div class="section-title">Quale location ti va bene?</div>'
+          + '<div class="day-grid" id="locationGrid" style="grid-template-columns:1fr;">' + cardsHTML + '</div>';
+      }
+
+      /* Giorno/numero/mese abbreviati per le card quadrate della griglia
+         disponibilità (vedi sopra) — SeevaData.formatDateLabel/shortDateLabel
+         restituiscono invece la data per esteso ("Sabato 25 luglio"), pensata
+         per il resto dell'app dove lo spazio non è così stretto. */
+      function shortDateParts(dateISO) {
+        var d = new Date(dateISO + 'T00:00:00');
+        var dow = d.toLocaleDateString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { weekday: 'short' }).replace('.', '');
+        var month = d.toLocaleDateString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { month: 'short' }).replace('.', '');
+        dow = dow.charAt(0).toUpperCase() + dow.slice(1);
+        month = month.charAt(0).toUpperCase() + month.slice(1);
+        return { dow: dow, day: String(d.getDate()), month: month };
+      }
+
+      /* ---------- vista semplificata per evento confermato/passato ----------
+         Fil, 2026-07-07: una volta raggiunta la soglia minima, il "chi c'è per
+         ogni giorno" (barre per data) non ha più senso — c'è una sola data
+         ormai. Si sostituisce tutto il blocco quota + barre + risposta
+         disponibilità + "chi manca a rispondere" con due righe semplici:
+         quando si tiene l'evento, e chi ci sarà (chi aveva segnato quella
+         data come disponibile). Vale sia per "Confermato" che per "Passato"
+         (confermato via AskUserQuestion) — la fase di risposta è considerata
+         chiusa per tutti da quel momento in poi, nessuno può più cambiare
+         la propria disponibilità (anche questo confermato esplicitamente). */
+      var confirmedParts = { answer: '', people: '' };
+      function buildConfirmedSummaryHTML(info) {
+        confirmedParts = { answer: '', people: '' };
+        if (!info.bestOption) return '';
+        var attendeeNames = (event.participants || [])
+          .filter(function (p) { return (p.availableDateOptionIds || []).indexOf(info.bestOption.id) !== -1; })
+          .map(function (p) { return p.name; });
+
+        // Tocca la data per aggiungerla al calendario del telefono (Fil,
+        // 2026-07-20): solo su un evento ancora da tenersi, non ha senso
+        // per uno "passato". Vedi initCalendarExport più sotto per il tap.
+        var canAddToCalendar = info.status !== 'passato';
+        var dateCardHTML = ''
+          + '<div class="confirmed-date-card' + (info.status === 'passato' ? ' passato' : '') + '"'
+          + (canAddToCalendar ? ' id="confirmedDateCard" style="cursor:pointer;"' : '') + '>'
+          + '<div class="confirmed-date-icon">' + (info.status === 'passato'
+              ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><rect x="3" y="4" width="18" height="5" rx="1.5"></rect><path d="M5 9v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9"></path><line x1="10" y1="13" x2="14" y2="13"></line></svg>'
+              : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><rect x="3" y="5" width="18" height="16" rx="3"></rect><line x1="16" y1="3" x2="16" y2="7"></line><line x1="8" y1="3" x2="8" y2="7"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>') + '</div>'
+          + '<div>'
+          + '<div class="confirmed-date-label">' + (info.status === 'passato' ? 'Si è tenuto' : 'Confermato') + '</div>'
+          + '<div class="confirmed-date-value">' + SeevaData.escapeHTML(SeevaData.formatDateTimeLabel(info.bestOption.dateISO, event.eventTime)) + '</div>'
+          + (canAddToCalendar ? '<div class="confirmed-date-add-cal">＋ Aggiungi al calendario</div>' : '')
+          + '</div>'
+          + '</div>';
+
+        // Foto vera se la persona ha un account con avatar (vedi
+        // attendeeAvatars, caricato una volta prima del primo render con
+        // SeevaData.getAvatarsForNames), altrimenti l'iniziale del nome su
+        // sfondo sfumato — stesso stile dell'avatar generico del profilo.
+        var bubblesHTML = attendeeNames.length
+          ? '<div class="attendee-bubbles">' + attendeeNames.map(function (name) {
+              var avatarUrl = attendeeAvatars[name.toLowerCase()];
+              var initial = (name.trim().charAt(0) || '?').toUpperCase();
+              var circleInner = avatarUrl
+                ? '<img src="' + SeevaData.escapeHTML(avatarUrl) + '" alt="" loading="lazy">'
+                : SeevaData.escapeHTML(initial);
+              return ''
+                + '<div class="attendee-bubble"' + (guestName && !isOrganizer && name.toLowerCase() === guestName.toLowerCase() ? ' data-me-chip="1" style="cursor:pointer;"' : '') + '>'
+                + '<div class="attendee-bubble-circle">' + circleInner + '</div>'
+                + '<div class="attendee-bubble-name" data-no-i18n>' + SeevaData.escapeHTML(name) + '</div>'
+                + '</div>';
+            }).join('') + '</div>'
+          : '<div class="empty-hint" style="padding:10px 0;">Nessuno segnato per questa data.</div>';
+
+        // "Non potrò esserci" / "Ci sarò dopotutto" (Fil, 2026-07-17): solo su
+        // un evento ancora da tenersi (mai su "passato", non ha più senso
+        // cambiare idea su qualcosa già successo) e mai per l'organizzatore
+        // (ha modifica/elimina evento per quello). Chi è tra i presenti vede
+        // la prima; chi aveva già risposto ma non è (più) tra i presenti per
+        // questa data vede la seconda — chi non ha mai risposto affatto non
+        // vede nulla, non ha senso proporgli di "rientrare" in qualcosa a cui
+        // non ha mai partecipato.
+        var withdrawActionHTML = '';
+        if (info.status === 'done' && !isOrganizer && guestName) {
+          var mine = guestName.toLowerCase();
+          var iAmAttending = attendeeNames.some(function (n) { return n.toLowerCase() === mine; });
+          var myParticipant = findExistingParticipant();
+          var noteFieldHTML = '<div class="field"><input type="text" id="confirmedNoteInput" placeholder="Nota per gli altri, es. orario di arrivo (facoltativo)"></div>';
+          if (myParticipant || iAmAttending) {
+            var confirmedKey = iAmAttending ? 'yes' : (myParticipant && myParticipant.maybe ? 'maybe' : 'no');
+            withdrawActionHTML = ''
+              + '<div class="section-title">La tua risposta</div>'
+              + buildBusyNoteHTML(info.bestOption.dateISO)
+              + buildRsvpSegHTML(confirmedKey, !isOrganizer, 'confirmed');
+          } else if ((event.invitees || []).some(function (f) { return (f.name || '').trim().toLowerCase() === mine; }) || event.openInvite) {
+            // Non ha ancora risposto: invitato aggiunto dopo (Fil,
+            // 2026-09-26) o evento a data fissa confermato da subito (Fil,
+            // 2026-10-03). Ci sono / Forse / Non ci sono.
+            withdrawActionHTML = ''
+              + '<div class="section-title">Ci sarai?</div>'
+              + buildBusyNoteHTML(info.bestOption.dateISO)
+              + noteFieldHTML
+              + buildRsvpSegHTML(null, true, 'confirmed');
+          }
+        }
+
+        // Chi non ha ancora risposto, solo per chi organizza e solo prima
+        // dell'evento (Fil, 2026-10-03): con gli eventi a data fissa
+        // confermati da subito, è l'unico posto dove vederlo.
+        var pendingHTML = '';
+        if (isOrganizer && info.status === 'done') {
+          var answeredLower = (event.participants || []).map(function (p) { return (p.name || '').trim().toLowerCase(); });
+          var orgLower = (event.createdBy || '').trim().toLowerCase();
+          var pendingNames = (event.invitees || []).map(function (f) { return f.name; }).filter(function (n) {
+            var l = (n || '').trim().toLowerCase();
+            return l && l !== orgLower && answeredLower.indexOf(l) === -1;
+          });
+          if (pendingNames.length) {
+            pendingHTML = '<div class="card-date" style="margin:8px 2px 0;">Non hanno ancora risposto: <b>' + pendingNames.map(SeevaData.escapeHTML).join(', ') + '</b></div>';
+          }
+        }
+        var notedAttendees = (event.participants || []).filter(function (p) {
+          return p.note && (p.availableDateOptionIds || []).indexOf(info.bestOption.id) !== -1;
+        });
+        var notesHTML = notedAttendees.length
+          ? '<div class="card-date" style="margin:8px 2px 0;">' + notedAttendees.map(function (p) {
+              return '<b>' + SeevaData.escapeHTML(p.name) + ':</b> ' + SeevaData.escapeHTML(p.note);
+            }).join(' · ') + '</div>'
+          : '';
+
+        var maybeNames = (event.participants || []).filter(function (p) {
+          return p.maybe && (p.availableDateOptionIds || []).length === 0;
+        }).map(function (p) { return p.name; });
+        var maybeHTML = maybeNames.length
+          ? '<div class="card-date" style="margin:8px 2px 0;">🤔 Forse: <b>' + maybeNames.map(SeevaData.escapeHTML).join(', ') + '</b></div>'
+          : '';
+
+        // Pezzi separati (Fil, 2026-10-26): render() li mette nell'ordine
+        // Quando -> Dove -> la tua risposta -> Partecipanti. "Vedi tutti"
+        // apre il popup con tutte le risposte (stesso id della tessera
+        // Partecipanti, che sugli eventi confermati non si mostra più: era
+        // un doppione di questo elenco).
+        // Riga di foto sovrapposte + conteggi (Fil, 2026-10-26), al posto
+        // delle bolle grandi e delle righe "Forse: …" / "Non hanno ancora
+        // risposto: …". Il dettaglio (con le note) è nel popup.
+        var FACE_COLORS = ['#FF7A29', '#6B3F73', '#9C6BA3', '#4F8B5C'];
+        var facesHTML = attendeeNames.slice(0, 5).map(function (name, i) {
+          var url = attendeeAvatars[name.toLowerCase()];
+          var ini = (name.trim().charAt(0) || '?').toUpperCase();
+          return url
+            ? '<span class="face"><img src="' + SeevaData.escapeHTML(url) + '" alt="" loading="lazy"></span>'
+            : '<span class="face" style="background:' + FACE_COLORS[i % FACE_COLORS.length] + ';">' + SeevaData.escapeHTML(ini) + '</span>';
+        }).join('') + (attendeeNames.length > 5 ? '<span class="face face-more">+' + (attendeeNames.length - 5) + '</span>' : '');
+        var pendingCountForCounts = 0;
+        if (isOrganizer && info.status === 'done') {
+          var ansL = (event.participants || []).map(function (p) { return (p.name || '').trim().toLowerCase(); });
+          var orgL = (event.createdBy || '').trim().toLowerCase();
+          pendingCountForCounts = (event.invitees || []).filter(function (f) {
+            var l = (f.name || '').trim().toLowerCase();
+            return l && l !== orgL && ansL.indexOf(l) === -1;
+          }).length;
+        }
+        var countParts = [];
+        countParts.push(info.status === 'passato'
+          ? (attendeeNames.length === 1 ? t('1 c\'era') : t('{n} c\'erano', { n: attendeeNames.length }))
+          : (attendeeNames.length === 1 ? t('1 c\'è') : t('{n} ci sono', { n: attendeeNames.length })));
+        if (maybeNames.length && info.status !== 'passato') countParts.push(t('{n} forse', { n: maybeNames.length }));
+        if (pendingCountForCounts) countParts.push(t('{n} in attesa', { n: pendingCountForCounts }));
+        var canOpenRoster = info.status !== 'passato';
+        confirmedParts = {
+          answer: withdrawActionHTML,
+          people: '<div class="section-title">Partecipanti</div>'
+            + '<div class="people-row' + (canOpenRoster ? ' is-clickable' : '') + '"' + (canOpenRoster ? ' id="whoComingTile"' : '') + '>'
+            + (facesHTML ? '<div class="facepile">' + facesHTML + '</div>' : '')
+            + '<div class="people-counts">' + countParts.join(' · ') + '</div>'
+            + (canOpenRoster ? '<div class="who-coming-chevron">›</div>' : '')
+            + '</div>'
+        };
+        return dateCardHTML;
+      }
+
+      /* ---------- data in testa, finché l'evento non è ancora deciso ----------
+         Fil, 2026-08-23: "dopo che ha messo le date, cosa gli serve
+         davvero sapere?" — le proprie risposte le sa già (restano, ma più
+         in basso e più leggere, vedi buildAvailabilitySectionHTML), quello
+         che conta è capire dove sta andando il gruppo. Stessa card di
+         buildConfirmedSummaryHTML qui sopra (coerenza: quando l'evento si
+         conferma davvero, la stessa card "avanza" da provvisoria a
+         definitiva, stesso posto in pagina), variante "is-leading" —
+         niente pulsante calendario (non è ancora certo), etichetta diversa.
+         Mai in caso di pareggio: lì "in testa" sarebbe più di una data
+         insieme, fuorviante — quel caso ha già la sua sezione dedicata
+         (manualConfirmSectionHTML, "Pareggio: scegli tu la data"). */
+      function buildLeadingDateSummaryHTML(info) {
+        if (!info.bestOption) return '';
+        var votesForBest = (event.participants || []).filter(function (p) {
+          return (p.availableDateOptionIds || []).indexOf(info.bestOption.id) !== -1;
+        }).length;
+        // Icona colorata in base allo stato vero (Fil, 2026-08-25: "un
+        // colore in base a quello che è", ma "colori simili", niente
+        // arcobaleno) — stessi due colori già usati per il badge di stato
+        // (.badge.waiting/.badge.almost in style.css), non un terzo
+        // inventato apposta: chi è quasi risolto (almost) spicca un po' di
+        // più di chi è ancora lontano (waiting).
+        // Data singola (Fil, 2026-09-26): nessun "in testa ai voti" né
+        // "non ancora definitiva" (è l'unica data, non sta vincendo su
+        // niente) — solo la data con l'ora, e "Oggi"/"Domani" come
+        // etichetta quando vale. L'ora c'è anche a più date: data e ora
+        // sono le due cose fondamentali di un invito.
+        var isSingleDate = (event.dateOptions || []).length === 1;
+        var dateTimeLabel = SeevaData.formatDateTimeLabel(info.bestOption.dateISO, event.eventTime);
+        var labelText, subText;
+        if (isSingleDate) {
+          var rel = SeevaData.daysUntilLabel ? SeevaData.daysUntilLabel(info.bestOption.dateISO) : '';
+          labelText = rel === 'oggi' ? 'Oggi' : rel === 'domani' ? 'Domani' : 'Quando';
+          subText = votesForBest ? (votesForBest === 1 ? t('1 ci sarà') : t('{n} ci saranno', { n: votesForBest })) : '';
+        } else {
+          labelText = 'In testa ai voti';
+          subText = votesForBest === 1 ? t('1 c\'è · non ancora definitiva') : t('{n} ci sono · non ancora definitiva', { n: votesForBest });
+          // Scadenza del voto (Fil, 2026-10-03), vedi computeEventStatus.
+          if (info.voteDeadlineLabel) {
+            subText += '<br>Si vota fino a ' + SeevaData.escapeHTML(info.voteDeadlineLabel);
+          }
+        }
+        var iconSVG = isSingleDate
+          ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><rect x="3" y="5" width="18" height="16" rx="3"></rect><line x1="16" y1="3" x2="16" y2="7"></line><line x1="8" y1="3" x2="8" y2="7"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>'
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg>';
+        return ''
+          + '<div class="confirmed-date-card is-leading">'
+          + '<div class="confirmed-date-icon status-' + info.status + '">' + iconSVG + '</div>'
+          + '<div>'
+          + '<div class="confirmed-date-label">' + labelText + '</div>'
+          + '<div class="confirmed-date-value">' + SeevaData.escapeHTML(dateTimeLabel) + '</div>'
+          + (subText ? '<div class="confirmed-date-add-cal" style="color:var(--ink-soft);">' + subText + '</div>' : '')
+          + '</div>'
+          + '</div>';
+      }
+
+      /* ---------- Spese (stile Tricount), solo per evento confermato ----------
+         Fil, 2026-07-13: ha senso dividere le spese solo quando c'è una data
+         fissata e quindi un elenco vero di "chi parteciperà" — prima di
+         allora non esiste ancora l'insieme di persone tra cui dividere. Solo
+         chi ha un account può aggiungere/modificare (le RPC lato server
+         rivalidano comunque tutto): un ospite senza account vede il conto
+         ma non i pulsanti per toccarlo. */
+      /* ---------- Divisione spese + Chi porta cosa (Fil, 2026-11-01) ----------
+         Rifatte perché "nessuno le usa: non si sa che esistono e sono
+         scomode". Nella pagina evento non ci sono più le due fisarmoniche
+         chiuse: due card affiancate con un riassunto ("Devi 14 €",
+         "2 da prendere") che aprono un pannello dal basso (#expensesSheet,
+         #itemsSheet, fuori da contentEl come i popup). Le spese si usano
+         anche prima della conferma: "tra tutti" = chi ha detto sì (dopo la
+         conferma, i confermati), la divisione si aggiorna da sola sul DB. */
+      var expensesSheetOpen = false;
+      var itemsSheetOpen = false;
+      var justAddedExpenseId = null; // la spesa appena aggiunta si illumina un attimo
+
+      function featureAvatarHTML(name) {
+        var avatarUrl = attendeeAvatars[(name || '').toLowerCase()];
+        var initial = ((name || '').trim().charAt(0) || '?').toUpperCase();
+        return avatarUrl
+          ? '<img src="' + SeevaData.escapeHTML(avatarUrl) + '" alt="" loading="lazy">'
+          : SeevaData.escapeHTML(initial);
+      }
+
+      function expensesVisible(info) {
+        return !!event.expensesEnabled && info.status !== 'cancelled';
+      }
+      function itemsVisible(info) {
+        return !!event.itemsEnabled && info.status !== 'cancelled';
+      }
+
+      function buildFeatureCardsHTML(info) {
+        var showExp = expensesVisible(info);
+        var showItems = itemsVisible(info);
+        if (!showExp && !showItems) return '';
+        var cards = [];
+        if (showExp) {
+          var sum = SeevaData.getMyExpenseSummary(event, guestName);
+          var expLine, expTone = '';
+          if (!sum.count) {
+            expLine = t('Nessuna spesa');
+          } else if (sum.iOwe.length) {
+            var oweTot = sum.iOwe.reduce(function (s, x) { return s + x.amount; }, 0);
+            expLine = t('Devi {tot}', { tot: SeevaData.formatEuro(oweTot) });
+            expTone = ' is-owe';
+          } else if (sum.owedToMe.length) {
+            var getTot = sum.owedToMe.reduce(function (s, x) { return s + x.amount; }, 0);
+            expLine = t('Ricevi {tot}', { tot: SeevaData.formatEuro(getTot) });
+            expTone = ' is-get';
+          } else {
+            expLine = t('Sei in pari');
+            expTone = ' is-even';
+          }
+          var expSub = sum.count ? t('{tot} in totale', { tot: SeevaData.formatEuro(sum.total) }) : t('Tocca per aggiungere');
+          cards.push(''
+            + '<button type="button" class="feat-card" id="expensesCard">'
+            + '<span class="feat-card-top"><span class="feat-card-emoji">💶</span><span class="feat-card-title">Spese</span><span class="feat-card-chev">›</span></span>'
+            + '<span class="feat-card-main' + expTone + '">' + expLine + '</span>'
+            + '<span class="feat-card-sub">' + expSub + '</span>'
+            + '</button>');
+        }
+        if (showItems) {
+          var items = event.items || [];
+          var free = items.filter(function (it) { return !it.takenByAccountId; }).length;
+          var myId = (SeevaData.getAccount() || {}).id || null;
+          var mine = items.filter(function (it) { return myId && it.takenByAccountId === myId; });
+          var itMain = !items.length ? t('Lista vuota')
+            : (free ? (free === 1 ? t('1 da prendere') : t('{n} da prendere', { n: free })) : t('Tutto preso ✓'));
+          var itSub = mine.length ? t('Porti: {what}', { what: mine.map(function (it) { return it.text; }).join(', ') })
+            : (items.length ? t('Tocca per scegliere') : t('Tocca per aggiungere'));
+          cards.push(''
+            + '<button type="button" class="feat-card" id="itemsCard">'
+            + '<span class="feat-card-top"><span class="feat-card-emoji">🎒</span><span class="feat-card-title">Chi porta cosa</span><span class="feat-card-chev">›</span></span>'
+            + '<span class="feat-card-main' + (items.length && !free ? ' is-even' : '') + '">' + itMain + '</span>'
+            + '<span class="feat-card-sub" data-no-i18n>' + SeevaData.escapeHTML(itSub) + '</span>'
+            + '</button>');
+        }
+        return '<div class="feat-cards' + (cards.length === 1 ? ' is-single' : '') + '">' + cards.join('') + '</div>';
+      }
+
+      /* Contenuto del pannello Spese — versione "meno da leggere" (Fil,
+         2026-11-01: "meno scritte possibili, più intuitivo"): in alto solo
+         il tuo conto in grande, il pulsante, le spese (chi ha pagato e
+         quanto). "Chi deve dare a chi" solo se c'è qualcosa che non
+         riguarda già te. Tocchi una spesa per modificarla. */
+      function buildExpensesSheetBodyHTML() {
+        var myAccountId = (SeevaData.getAccount() || {}).id || null;
+        var isOrganizerAccount = !!(myAccountId && event.createdByAccountId && myAccountId === event.createdByAccountId);
+        var canWrite = SeevaData.hasAccount();
+        var expenses = event.expenses || [];
+        var sum = SeevaData.getMyExpenseSummary(event, guestName);
+        var me = (guestName || '').trim().toLowerCase();
+
+        var meHTML = '';
+        if (expenses.length) {
+          var lines = [];
+          sum.iOwe.forEach(function (s) {
+            lines.push('<div class="exp-me-line is-owe">' + t('Devi dare <b>{amt}</b> a {name}', { amt: SeevaData.formatEuro(s.amount), name: '<span data-no-i18n>' + SeevaData.escapeHTML(s.toName) + '</span>' }) + '</div>');
+          });
+          sum.owedToMe.forEach(function (s) {
+            lines.push('<div class="exp-me-line is-get">' + t('{name} ti deve <b>{amt}</b>', { amt: SeevaData.formatEuro(s.amount), name: '<span data-no-i18n>' + SeevaData.escapeHTML(s.fromName) + '</span>' }) + '</div>');
+          });
+          if (!lines.length) lines.push('<div class="exp-me-line is-even">' + t('Sei in pari ✓') + '</div>');
+          meHTML = '<div class="exp-me">' + lines.join('')
+            + '<div class="exp-me-sub">' + t('Totale {tot}', { tot: SeevaData.formatEuro(sum.total) }) + '</div></div>';
+        }
+
+        var addBtnHTML = canWrite
+          ? '<button type="button" class="exp-add-btn" id="addExpenseBtn">+ ' + t('Aggiungi una spesa') + '</button>'
+          : '';
+
+        // Gli altri conti (quelli che non ti riguardano): solo se ce ne sono.
+        var others = expenses.length ? sum.calc.settlements.filter(function (s) {
+          return s.fromName.trim().toLowerCase() !== me && s.toName.trim().toLowerCase() !== me;
+        }) : [];
+        var settleHTML = others.length
+          ? '<div class="sheet-section-title">' + t('Gli altri') + '</div>'
+            + others.map(function (s) {
+                return '<div class="settle-row">'
+                  + '<span class="settle-face">' + featureAvatarHTML(s.fromName) + '</span>'
+                  + '<span class="settle-text"><b data-no-i18n>' + SeevaData.escapeHTML(s.fromName) + '</b> → <b data-no-i18n>' + SeevaData.escapeHTML(s.toName) + '</b></span>'
+                  + '<span class="settle-amt">' + SeevaData.formatEuro(s.amount) + '</span>'
+                  + '</div>';
+              }).join('')
+          : '';
+
+        var rowsHTML = expenses.slice().reverse().map(function (ex) {
+          var canEdit = canWrite && myAccountId && (ex.createdByAccountId === myAccountId || isOrganizerAccount);
+          var linkedItem = (event.items || []).filter(function (it) { return it.expenseId === ex.id; })[0];
+          var emoji = ex.emoji || SeevaData.autoExpenseEmoji(ex.description) || (linkedItem ? '🎒' : '💶');
+          var payerIsMe = (ex.paidByName || '').trim().toLowerCase() === me;
+          // Solo chi ha pagato; "tra quanti" solo se NON è tra tutti.
+          var meta = payerIsMe ? t('Tu') : '<span data-no-i18n>' + SeevaData.escapeHTML(ex.paidByName) + '</span>';
+          if (!ex.splitAll) meta += ' · ' + t('tra {n}', { n: (ex.shareNames || []).length });
+          return '<div class="exp-row' + (canEdit ? ' is-editable' : '') + (justAddedExpenseId && ex.id === justAddedExpenseId ? ' is-new' : '') + '"' + (canEdit ? ' data-edit-expense="' + ex.id + '"' : '') + '>'
+            + '<span class="exp-row-emoji">' + emoji + '</span>'
+            + '<span class="exp-row-text">'
+            + '<span class="exp-row-desc" data-no-i18n>' + SeevaData.escapeHTML(ex.description) + '</span>'
+            + '<span class="exp-row-meta">' + meta + '</span>'
+            + '</span>'
+            + '<span class="exp-row-amt">' + SeevaData.formatEuro(ex.amount) + '</span>'
+            + (canEdit ? '<span class="exp-row-chev">›</span>' : '')
+            + '</div>';
+        }).join('');
+
+        var emptyHTML = !expenses.length
+          ? '<div class="exp-empty"><div class="exp-empty-emoji">🧾</div>' + t('Ancora nessuna spesa') + '</div>'
+          : '';
+
+        return meHTML + addBtnHTML + emptyHTML + settleHTML
+          + (expenses.length ? '<div class="sheet-section-title">' + t('Spese') + '</div><div class="exp-list">' + rowsHTML + '</div>' : '');
+      }
+
+      /* Contenuto del pannello Chi porta cosa — versione "meno da leggere"
+         (Fil, 2026-11-01): il pallino vuoto = libera, la foto = chi la
+         porta; sotto il nome solo "Tu" o il nome. Tocchi per prendere/
+         lasciare, "+ €" sulle tue. */
+      function buildItemsSheetBodyHTML(justChangedId) {
+        var items = event.items || [];
+        var myAccountId = (SeevaData.getAccount() || {}).id || null;
+        var isOrganizerAccount = !!(myAccountId && event.createdByAccountId && myAccountId === event.createdByAccountId);
+        var canWrite = SeevaData.hasAccount();
+        var costOn = !!event.expensesEnabled;
+
+        function renderItemRow(it) {
+          var isTaken = !!it.takenByAccountId;
+          var isMine = isTaken && myAccountId && it.takenByAccountId === myAccountId;
+          var canRelease = canWrite && myAccountId && (isMine || isOrganizerAccount);
+          var action = isTaken ? (canRelease ? 'release' : 'none') : (canWrite ? 'claim' : 'none');
+          var checkHTML = isTaken ? featureAvatarHTML(it.takenByName) : '';
+          var metaHTML = isMine ? t('Tu')
+            : (isTaken ? '<span data-no-i18n>' + SeevaData.escapeHTML(it.takenByName) + '</span>' : '');
+
+          var costHTML = '';
+          if (costOn && isTaken && (isMine || isOrganizerAccount)) {
+            costHTML = '<button type="button" class="item-cost-btn' + (it.cost ? ' has-cost' : '') + '" data-item-cost="' + it.id + '">'
+              + (it.cost ? SeevaData.formatEuro(it.cost) : '+ €') + '</button>';
+          } else if (costOn && it.cost) {
+            costHTML = '<span class="item-cost-btn has-cost is-static">' + SeevaData.formatEuro(it.cost) + '</span>';
+          } else if (action === 'claim') {
+            costHTML = '<span class="item-take">' + t('La porto io') + '</span>';
+          }
+
+          var canDelete = canWrite && myAccountId && (it.addedByAccountId === myAccountId || isOrganizerAccount);
+          var trashHTML = canDelete
+            ? '<div class="item-swipe-trash" data-remove-item="' + it.id + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M4 7h16"></path><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"></path><line x1="9" y1="11" x2="9" y2="17"></line><line x1="15" y1="11" x2="15" y2="17"></line></svg></div>'
+            : '';
+          var justPopped = justChangedId && it.id === justChangedId;
+          return ''
+            + '<div class="item-swipe-wrap" data-item-id="' + it.id + '">'
+            + '<div class="item-row-card' + (action === 'none' ? ' not-tappable' : '') + (isMine ? ' is-mine' : '') + '" data-item-id="' + it.id + '" data-item-action="' + action + '">'
+            + '<div class="item-row-check' + (isTaken ? ' taken' : '') + (justPopped ? ' pop-in' : '') + '">' + checkHTML + '</div>'
+            + '<div class="item-row-text">'
+            + '<div class="item-row-title" data-no-i18n>' + SeevaData.escapeHTML(it.text) + '</div>'
+            + (metaHTML ? '<div class="item-row-meta">' + metaHTML + '</div>' : '')
+            + '</div>'
+            + costHTML
+            + '</div>'
+            + trashHTML
+            + '</div>';
+        }
+
+        var toClaim = items.filter(function (it) { return !it.takenByAccountId; });
+        var taken = items.filter(function (it) { return !!it.takenByAccountId; });
+        var rowsHTML = items.length
+          ? (toClaim.length ? '<div class="sheet-section-title">' + t('Da prendere') + ' <span class="sheet-count">' + toClaim.length + '</span></div>' + toClaim.map(renderItemRow).join('') : '')
+            + (taken.length ? '<div class="sheet-section-title">' + t('Già prese') + ' <span class="sheet-count">' + taken.length + '</span></div>' + taken.map(renderItemRow).join('') : '')
+          : '<div class="exp-empty"><div class="exp-empty-emoji">🎒</div>' + t('Lista vuota') + '</div>';
+
+        var addHTML = canWrite
+          ? '<div class="item-add-row"><input type="text" id="newItemInput" maxlength="80" placeholder="' + t('Cosa serve?') + '" enterkeyhint="done"><button type="button" id="addItemBtn" class="item-add-btn" aria-label="Aggiungi">+</button></div>'
+          : '';
+        return addHTML + rowsHTML;
+      }
+
+      /* ---------- Sondaggi dentro l'evento (Fil, 2026-10-27) ----------
+         Es. "cena etnica": si vota dove andare o che cucina. Solo chi
+         organizza lo crea (pulsante "Sondaggio" sotto il titolo, uno aperto
+         alla volta) e lo chiude, scegliendo se vuole l'opzione decisa.
+         Tutti votano (anche gli ospiti col nome) più opzioni insieme e
+         possono aggiungerne una. Risultati sempre visibili, coi nomi.
+         I sondaggi chiusi restano sotto, compatti, col risultato.
+         Il voto si vede subito (barre animate sul posto) e si salva poco
+         dopo l'ultimo tocco, così tre tocchi veloci = un solo salvataggio. */
+      var POLL_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><line x1="4" y1="20" x2="20" y2="20"></line><rect x="5" y="11" width="3.2" height="6" rx="1"></rect><rect x="10.4" y="6" width="3.2" height="11" rx="1"></rect><rect x="15.8" y="9" width="3.2" height="8" rx="1"></rect></svg>';
+      var pollLocalVotes = null;   // { pollId, ids } scelta non ancora salvata
+      var pollSaveTimer = null;
+      var pollSaving = false;
+      var pollAddOpen = false;
+      var expandedClosedPolls = {};
+
+      function myPollName() { return (guestName || '').trim(); }
+      function openPollOf(ev) {
+        return ((ev && ev.polls) || []).filter(function (p) { return !p.closedAt; })[0] || null;
+      }
+      function pollMyVotes(poll) {
+        if (pollLocalVotes && pollLocalVotes.pollId === poll.id) return pollLocalVotes.ids.slice();
+        var me = myPollName().toLowerCase();
+        if (!me) return [];
+        return (poll.options || []).filter(function (o) {
+          return (o.votes || []).some(function (n) { return (n || '').toLowerCase() === me; });
+        }).map(function (o) { return o.id; });
+      }
+      /* Dati già pronti per disegnare (o aggiornare sul posto) un sondaggio,
+         con dentro la mia scelta non ancora salvata. */
+      function pollView(poll) {
+        var me = myPollName();
+        var meL = me.toLowerCase();
+        var myIds = pollMyVotes(poll);
+        var everyone = {};
+        var opts = (poll.options || []).map(function (o) {
+          var names = (o.votes || []).filter(function (n) { return (n || '').toLowerCase() !== meL; });
+          var mine = !!me && myIds.indexOf(o.id) !== -1;
+          names.forEach(function (n) { everyone[n.toLowerCase()] = 1; });
+          if (mine) everyone[meL] = 1;
+          var shown = (mine ? [t('Tu')] : []).concat(names);
+          return { id: o.id, text: o.text, count: names.length + (mine ? 1 : 0), names: shown, mine: mine, chosen: poll.chosenOptionId === o.id };
+        });
+        var total = Object.keys(everyone).length;
+        var max = 0;
+        opts.forEach(function (o) { if (o.count > max) max = o.count; });
+        opts.forEach(function (o) {
+          o.pct = total ? Math.round(o.count / total * 100) : 0;
+          o.lead = max > 0 && o.count === max;
+        });
+        return { total: total, opts: opts, myIds: myIds };
+      }
+      function pollVotersText(n) {
+        if (!n) return t('Ancora nessun voto');
+        return n === 1 ? t('1 persona ha votato') : t('{n} persone hanno votato', { n: n });
+      }
+      function pollOptionHTML(o, interactive, closed) {
+        return ''
+          + '<button type="button" class="poll-opt' + (o.mine ? ' is-mine' : '') + (o.lead ? ' is-lead' : '') + (o.chosen ? ' is-chosen' : '') + (interactive ? '' : ' is-static') + '"'
+          + ' data-poll-opt="' + SeevaData.escapeHTML(o.id) + '"' + (interactive ? '' : ' tabindex="-1"') + '>'
+          + '<span class="poll-opt-fill" style="width:' + o.pct + '%"></span>'
+          + (closed ? '' : '<span class="poll-opt-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><polyline points="5 12.5 10 17 19 7.5"></polyline></svg></span>')
+          + '<span class="poll-opt-body">'
+          + '<span class="poll-opt-text" data-no-i18n>' + (o.chosen ? '✓ ' : '') + SeevaData.escapeHTML(o.text) + '</span>'
+          + '<span class="poll-opt-names" data-no-i18n>' + SeevaData.escapeHTML(o.names.join(', ')) + '</span>'
+          + '</span>'
+          + '<span class="poll-opt-count">' + o.count + '</span>'
+          + '</button>';
+      }
+      function buildOpenPollHTML(poll, info) {
+        var v = pollView(poll);
+        var canVote = !!myPollName() && info.status !== 'cancelled';
+        var optsHTML = v.opts.map(function (o) { return pollOptionHTML(o, canVote, false); }).join('');
+        var addHTML = '';
+        if (canVote && (poll.options || []).length < 15) {
+          addHTML = pollAddOpen
+            ? '<div class="poll-add-form"><input type="text" id="pollAddInput" maxlength="80" placeholder="Scrivi la tua opzione"><button type="button" id="pollAddSaveBtn">Aggiungi</button></div>'
+            : '<button type="button" class="poll-add" id="pollAddBtn">+ Aggiungi un\'opzione</button>';
+        }
+        var hint = canVote ? '' : '<div class="poll-hint">' + (info.status === 'cancelled' ? 'L\'evento è annullato.' : 'Rispondi all\'invito per poter votare.') + '</div>';
+        var orgHTML = isOrganizer && SeevaData.hasAccount()
+          ? '<button type="button" class="poll-close-btn" id="pollCloseBtn">Chiudi il sondaggio</button>'
+          : '';
+        return ''
+          + '<div class="poll-card" id="pollCard" data-poll-id="' + SeevaData.escapeHTML(poll.id) + '">'
+          + '<div class="poll-tag">' + POLL_ICON_SVG + '<span>Sondaggio</span></div>'
+          + '<div class="poll-question" data-no-i18n>' + SeevaData.escapeHTML(poll.question) + '</div>'
+          + '<div class="poll-sub"><span>Puoi sceglierne più di una</span> · <span id="pollVotersLine">' + pollVotersText(v.total) + '</span></div>'
+          + '<div class="poll-opts">' + optsHTML + '</div>'
+          + addHTML + hint + orgHTML
+          + '</div>';
+      }
+      function buildClosedPollHTML(poll) {
+        var v = pollView(poll);
+        var chosen = v.opts.filter(function (o) { return o.chosen; })[0];
+        var open = !!expandedClosedPolls[poll.id];
+        var resultText = chosen
+          ? '<span>Scelto:</span> <b data-no-i18n>' + SeevaData.escapeHTML(chosen.text) + '</b>'
+          : '<span>' + pollVotersText(v.total) + '</span>';
+        var body = !open ? '' : ''
+          + '<div class="poll-opts">' + v.opts.map(function (o) { return pollOptionHTML(o, false, true); }).join('') + '</div>'
+          + (isOrganizer && SeevaData.hasAccount() ? '<button type="button" class="poll-del-link" data-delete-poll="' + SeevaData.escapeHTML(poll.id) + '">Elimina questo sondaggio</button>' : '');
+        return ''
+          + '<div class="poll-card is-closed' + (open ? ' is-open' : '') + '">'
+          + '<button type="button" class="poll-closed-head" data-toggle-poll="' + SeevaData.escapeHTML(poll.id) + '">'
+          + '<span class="poll-closed-titles">'
+          + '<span class="poll-tag">' + POLL_ICON_SVG + '<span>Sondaggio chiuso</span></span>'
+          + '<span class="poll-question" data-no-i18n>' + SeevaData.escapeHTML(poll.question) + '</span>'
+          + '<span class="poll-result">' + resultText + '</span>'
+          + '</span>'
+          + '<span class="poll-chevron">&#9662;</span>'
+          + '</button>'
+          + body
+          + '</div>';
+      }
+      function buildPollsHTML(info) {
+        var polls = event.polls || [];
+        if (!polls.length) return '';
+        var openPoll = openPollOf(event);
+        return (openPoll ? buildOpenPollHTML(openPoll, info) : '')
+          + polls.filter(function (p) { return !!p.closedAt; }).map(buildClosedPollHTML).join('');
+      }
+
+      /* Ridisegna solo i sondaggi (non tutta la pagina). Se il sondaggio
+         aperto ha le stesse opzioni di prima aggiorna sul posto, così le
+         barre scorrono invece di ricomparire. */
+      function refreshPolls(forceRebuild) {
+        var wrap = document.getElementById('pollsWrap');
+        if (!wrap) return;
+        var info = SeevaData.computeEventStatus(event);
+        var openPoll = openPollOf(event);
+        var card = document.getElementById('pollCard');
+        if (!forceRebuild && openPoll && card && card.getAttribute('data-poll-id') === openPoll.id) {
+          var domIds = Array.prototype.map.call(card.querySelectorAll('[data-poll-opt]'), function (b) { return b.getAttribute('data-poll-opt'); });
+          var newIds = (openPoll.options || []).map(function (o) { return o.id; });
+          if (domIds.join(',') === newIds.join(',')) { updatePollInPlace(openPoll); return; }
+        }
+        wrap.innerHTML = buildPollsHTML(info);
+        bindPolls();
+      }
+      function updatePollInPlace(poll) {
+        var card = document.getElementById('pollCard');
+        if (!card) return;
+        var v = pollView(poll);
+        v.opts.forEach(function (o) {
+          var btn = card.querySelector('[data-poll-opt="' + o.id + '"]');
+          if (!btn) return;
+          btn.classList.toggle('is-mine', o.mine);
+          btn.classList.toggle('is-lead', o.lead);
+          btn.querySelector('.poll-opt-fill').style.width = o.pct + '%';
+          btn.querySelector('.poll-opt-count').textContent = String(o.count);
+          btn.querySelector('.poll-opt-names').textContent = o.names.join(', ');
+        });
+        var line = document.getElementById('pollVotersLine');
+        if (line) line.textContent = pollVotersText(v.total);
+      }
+
+      function togglePollVote(pollId, optId, btn) {
+        var poll = (event.polls || []).filter(function (p) { return p.id === pollId; })[0];
+        if (!poll || poll.closedAt || !myPollName()) return;
+        var ids = pollMyVotes(poll);
+        var i = ids.indexOf(optId);
+        if (i === -1) ids.push(optId); else ids.splice(i, 1);
+        pollLocalVotes = { pollId: poll.id, ids: ids };
+        updatePollInPlace(poll);
+        if (btn && i === -1) {
+          btn.classList.remove('pop');
+          void btn.offsetWidth;
+          btn.classList.add('pop');
+        }
+        clearTimeout(pollSaveTimer);
+        pollSaveTimer = setTimeout(savePollVotes, 450);
+      }
+      async function savePollVotes() {
+        clearTimeout(pollSaveTimer);
+        pollSaveTimer = null;
+        if (!pollLocalVotes) return;
+        if (pollSaving) { pollSaveTimer = setTimeout(savePollVotes, 300); return; }
+        var pending = pollLocalVotes;
+        pollSaving = true;
+        try {
+          var ev = await SeevaData.setPollVotes(event.id, pending.pollId, myPollName(), pending.ids);
+          if (pollLocalVotes === pending) pollLocalVotes = null;
+          if (ev) event = ev;
+          if (!pollLocalVotes) refreshPolls(false);
+        } catch (err) {
+          if (pollLocalVotes === pending) pollLocalVotes = null;
+          refreshPolls(false);
+          SeevaUI.alert('Non sono riuscito a salvare il voto (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+        } finally {
+          pollSaving = false;
+        }
+      }
+      // Se si esce dalla pagina subito dopo un tocco, il voto parte lo stesso.
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'hidden' && pollLocalVotes && !pollSaving) savePollVotes();
+      });
+      window.addEventListener('pagehide', function () {
+        if (pollLocalVotes && !pollSaving) savePollVotes();
+      });
+
+      function bindPolls() {
+        var wrap = document.getElementById('pollsWrap');
+        if (!wrap) return;
+        var card = document.getElementById('pollCard');
+        if (card) {
+          var pollId = card.getAttribute('data-poll-id');
+          Array.prototype.forEach.call(card.querySelectorAll('.poll-opt:not(.is-static)'), function (btn) {
+            btn.addEventListener('click', function () { togglePollVote(pollId, btn.getAttribute('data-poll-opt'), btn); });
+          });
+          var addBtn = document.getElementById('pollAddBtn');
+          if (addBtn) addBtn.addEventListener('click', function () {
+            pollAddOpen = true;
+            refreshPolls(true);
+            var inp = document.getElementById('pollAddInput');
+            if (inp) { try { inp.focus(); } catch (err) { /* ok */ } }
+          });
+          var addInput = document.getElementById('pollAddInput');
+          var addSave = document.getElementById('pollAddSaveBtn');
+          if (addInput && addSave) {
+            addInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); addSave.click(); } });
+            addInput.addEventListener('blur', function () {
+              // Campo lasciato vuoto: torna la riga "+ Aggiungi un'opzione".
+              setTimeout(function () {
+                if (!pollAddOpen || addSave.disabled) return;
+                if (document.getElementById('pollAddInput') !== addInput) return;
+                if ((addInput.value || '').trim() || document.activeElement === addSave || document.activeElement === addInput) return;
+                pollAddOpen = false;
+                refreshPolls(true);
+              }, 200);
+            });
+            addSave.addEventListener('click', async function () {
+              var txt = (addInput.value || '').trim();
+              if (!txt) { addInput.focus(); return; }
+              if (addSave.disabled) return;
+              var curPoll = openPollOf(event);
+              if (curPoll && (curPoll.options || []).some(function (o) { return (o.text || '').trim().toLowerCase() === txt.toLowerCase(); })) {
+                SeevaUI.alert('Questa opzione c\'è già: votala dall\'elenco.');
+                return;
+              }
+              addSave.disabled = true;
+              addSave.textContent = '...';
+              if (pollLocalVotes) await savePollVotes();
+              var r;
+              try {
+                r = await SeevaData.addPollOption(event.id, pollId, myPollName(), txt);
+                if (r.event) event = r.event;
+              } catch (err) {
+                addSave.disabled = false;
+                addSave.textContent = 'Aggiungi';
+                SeevaUI.alert('Non sono riuscito ad aggiungerla (' + SeevaData.friendlyErrorMessage(err) + ').');
+                return;
+              }
+              pollAddOpen = false;
+              refreshPolls(true);
+              var newBtn = r.optionId ? document.querySelector('[data-poll-opt="' + r.optionId + '"]') : null;
+              if (newBtn) newBtn.classList.add('just-added');
+              if (SeevaUI.toast) SeevaUI.toast('Opzione aggiunta: ora puoi votarla');
+            });
+          }
+          var closeBtn = document.getElementById('pollCloseBtn');
+          if (closeBtn) closeBtn.addEventListener('click', function () {
+            var poll = openPollOf(event);
+            if (poll) openClosePollPopup(poll);
+          });
+        }
+        Array.prototype.forEach.call(wrap.querySelectorAll('[data-toggle-poll]'), function (b) {
+          b.addEventListener('click', function () {
+            var id = b.getAttribute('data-toggle-poll');
+            expandedClosedPolls[id] = !expandedClosedPolls[id];
+            refreshPolls(true);
+          });
+        });
+        Array.prototype.forEach.call(wrap.querySelectorAll('[data-delete-poll]'), function (b) {
+          b.addEventListener('click', async function () {
+            if (!await SeevaUI.ask('Eliminare questo sondaggio? Spariscono anche tutti i voti.')) return;
+            try {
+              event = await SeevaData.deleteEventPoll(event.id, b.getAttribute('data-delete-poll'));
+            } catch (err) {
+              SeevaUI.alert('Non sono riuscito a eliminarlo (' + SeevaData.friendlyErrorMessage(err) + ').');
+              return;
+            }
+            render();
+          });
+        });
+      }
+
+      function openCreatePollPopup() {
+        var phone = document.querySelector('.phone');
+        if (!phone) return;
+        if (openPollOf(event)) {
+          var c = document.getElementById('pollCard');
+          if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
+        var overlay = document.createElement('div');
+        overlay.className = 'signup-overlay';
+        overlay.innerHTML = ''
+          + '<div class="signup-modal poll-modal" style="text-align:left;">'
+          + '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">'
+          + '<div class="signup-modal-title" style="margin:0;">Nuovo sondaggio</div>'
+          + '<div class="list-delete" id="pollNewCloseBtn">Chiudi ✕</div></div>'
+          + '<div class="signup-modal-text" style="text-align:left; margin-bottom:12px;">Arriva una notifica agli invitati (tranne chi ha detto che non c\'è). Ognuno può votare più opzioni e aggiungerne di nuove.</div>'
+          + '<div class="poll-field-label">Domanda</div>'
+          + '<div class="field"><input type="text" id="pollNewQuestion" maxlength="140" placeholder="Es. Che cucina proviamo?"></div>'
+          + '<div class="poll-field-label">Opzioni</div>'
+          + '<div id="pollNewOptions"></div>'
+          + '<button type="button" class="poll-add" id="pollNewAddOpt">+ Aggiungi un\'opzione</button>'
+          + '<div class="field-hint" id="pollNewError" style="color:var(--cancel-ink); min-height:16px; margin-top:6px;"></div>'
+          + '<button type="button" class="primary-btn" id="pollNewSaveBtn" style="margin-top:8px; margin-bottom:0;">Crea sondaggio</button>'
+          + '</div>';
+        function close() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+        phone.appendChild(overlay);
+        var optsEl = overlay.querySelector('#pollNewOptions');
+        var addOptBtn = overlay.querySelector('#pollNewAddOpt');
+        var errorEl = overlay.querySelector('#pollNewError');
+        var saveBtn = overlay.querySelector('#pollNewSaveBtn');
+        var examples = ['Es. Giapponese', 'Es. Messicano', 'Es. Indiano'];
+        function optionRows() { return optsEl.querySelectorAll('.poll-new-opt'); }
+        function syncRemoveButtons() {
+          var rows = optionRows();
+          Array.prototype.forEach.call(rows, function (r) { r.querySelector('.poll-new-del').style.display = rows.length > 2 ? '' : 'none'; });
+          addOptBtn.style.display = rows.length >= 15 ? 'none' : '';
+        }
+        function addOptionRow(focus) {
+          var n = optionRows().length;
+          var row = document.createElement('div');
+          row.className = 'poll-new-opt';
+          row.innerHTML = '<div class="field"><input type="text" maxlength="80" placeholder="' + (examples[n] || 'Un\'altra opzione') + '"></div>'
+            + '<button type="button" class="poll-new-del" aria-label="Togli opzione">✕</button>';
+          row.querySelector('.poll-new-del').addEventListener('click', function () {
+            if (optionRows().length <= 2) return;
+            row.parentNode.removeChild(row);
+            syncRemoveButtons();
+          });
+          row.querySelector('input').addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            var rows = optionRows();
+            if (rows[rows.length - 1] === row && rows.length < 15) addOptionRow(true);
+            else { var next = row.nextElementSibling; if (next) next.querySelector('input').focus(); }
+          });
+          optsEl.appendChild(row);
+          syncRemoveButtons();
+          if (focus) row.querySelector('input').focus();
+        }
+        addOptionRow(false); addOptionRow(false);
+        addOptBtn.addEventListener('click', function () { addOptionRow(true); });
+        overlay.querySelector('#pollNewCloseBtn').addEventListener('click', close);
+        setTimeout(function () { try { overlay.querySelector('#pollNewQuestion').focus(); } catch (err) { /* ok */ } }, 50);
+        saveBtn.addEventListener('click', async function () {
+          var q = (overlay.querySelector('#pollNewQuestion').value || '').trim();
+          var opts = Array.prototype.map.call(optionRows(), function (r) { return (r.querySelector('input').value || '').trim(); }).filter(Boolean);
+          var seen = {};
+          opts = opts.filter(function (o) { var k = o.toLowerCase(); if (seen[k]) return false; seen[k] = 1; return true; });
+          if (!q) { errorEl.textContent = 'Scrivi la domanda.'; return; }
+          if (opts.length < 2) { errorEl.textContent = 'Servono almeno 2 opzioni diverse.'; return; }
+          if (saveBtn.disabled) return;
+          saveBtn.disabled = true;
+          saveBtn.textContent = 'Creo...';
+          errorEl.textContent = '';
+          try {
+            event = await SeevaData.createEventPoll(event.id, q, opts);
+          } catch (err) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Crea sondaggio';
+            errorEl.textContent = SeevaData.friendlyErrorMessage(err);
+            return;
+          }
+          close();
+          render();
+          var card = document.getElementById('pollCard');
+          if (card) {
+            card.classList.add('just-created');
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+          if (SeevaUI.toast) SeevaUI.toast('Sondaggio creato: gli invitati ricevono la notifica');
+        });
+      }
+
+      function openClosePollPopup(poll) {
+        var phone = document.querySelector('.phone');
+        if (!phone) return;
+        var v = pollView(poll);
+        var sorted = v.opts.slice().sort(function (a, b) { return b.count - a.count; });
+        var leaders = sorted.filter(function (o) { return o.lead; });
+        var selected = leaders.length === 1 ? leaders[0].id : '';
+        var overlay = document.createElement('div');
+        overlay.className = 'signup-overlay';
+        function rowsHTML() {
+          return sorted.map(function (o) {
+            return '<button type="button" class="poll-pick' + (selected === o.id ? ' is-on' : '') + '" data-pick="' + SeevaData.escapeHTML(o.id) + '">'
+              + '<span class="poll-pick-dot"></span><span class="poll-pick-text" data-no-i18n>' + SeevaData.escapeHTML(o.text) + '</span>'
+              + '<span class="poll-pick-count">' + (o.count === 1 ? t('1 voto') : t('{n} voti', { n: o.count })) + '</span></button>';
+          }).join('')
+            + '<button type="button" class="poll-pick' + (selected === '' ? ' is-on' : '') + '" data-pick=""><span class="poll-pick-dot"></span><span class="poll-pick-text">Nessuna, chiudilo e basta</span></button>';
+        }
+        overlay.innerHTML = ''
+          + '<div class="signup-modal poll-modal" style="text-align:left;">'
+          + '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">'
+          + '<div class="signup-modal-title" style="margin:0;">Chiudi il sondaggio</div>'
+          + '<div class="list-delete" id="pollEndCloseBtn">Annulla ✕</div></div>'
+          + '<div class="signup-modal-text" style="text-align:left; margin-bottom:12px;">Nessuno potrà più votare. Quale opzione avete deciso? Resta in evidenza nella pagina dell\'evento.</div>'
+          + '<div id="pollPickList">' + rowsHTML() + '</div>'
+          + '<button type="button" class="primary-btn" id="pollEndSaveBtn" style="margin-top:12px; margin-bottom:0;">Chiudi il sondaggio</button>'
+          + '<div style="text-align:center; margin-top:12px;"><span class="signup-skip-link" id="pollEndDeleteBtn">Elimina il sondaggio</span></div>'
+          + '</div>';
+        function close() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+        phone.appendChild(overlay);
+        var list = overlay.querySelector('#pollPickList');
+        function bindPicks() {
+          Array.prototype.forEach.call(list.querySelectorAll('[data-pick]'), function (b) {
+            b.addEventListener('click', function () {
+              selected = b.getAttribute('data-pick');
+              Array.prototype.forEach.call(list.querySelectorAll('[data-pick]'), function (x) { x.classList.toggle('is-on', x === b); });
+            });
+          });
+        }
+        bindPicks();
+        overlay.querySelector('#pollEndCloseBtn').addEventListener('click', close);
+        overlay.querySelector('#pollEndDeleteBtn').addEventListener('click', async function () {
+          if (!await SeevaUI.ask('Eliminare questo sondaggio? Spariscono anche tutti i voti.')) return;
+          try {
+            event = await SeevaData.deleteEventPoll(event.id, poll.id);
+          } catch (err) {
+            SeevaUI.alert('Non sono riuscito a eliminarlo (' + SeevaData.friendlyErrorMessage(err) + ').');
+            return;
+          }
+          close();
+          render();
+        });
+        var saveBtn = overlay.querySelector('#pollEndSaveBtn');
+        saveBtn.addEventListener('click', async function () {
+          if (saveBtn.disabled) return;
+          saveBtn.disabled = true;
+          saveBtn.textContent = 'Chiudo...';
+          if (pollLocalVotes) await savePollVotes();
+          try {
+            event = await SeevaData.closeEventPoll(event.id, poll.id, selected || null);
+          } catch (err) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Chiudi il sondaggio';
+            SeevaUI.alert('Non sono riuscito a chiuderlo (' + SeevaData.friendlyErrorMessage(err) + ').');
+            return;
+          }
+          close();
+          expandedClosedPolls[poll.id] = true;
+          render();
+          if (SeevaUI.toast) SeevaUI.toast('Sondaggio chiuso');
+        });
+      }
+
+      function render() {
+        var info = SeevaData.computeEventStatus(event);
+        var isConfirmedSimple = (info.status === 'done' || info.status === 'passato') && !!info.bestOption;
+
+        // Ogni evento ha ormai il suo link di invito (event.shareToken): basta
+        // condividere l'indirizzo diretto della pagina, chi lo apre senza
+        // essere già riconosciuto viene mandato da solo a "chi sei tra questi
+        // nomi" (vedi il redirect più sopra, sul gate 'block').
+        // Fil, 2026-07-20: prima era window.location.href, quindi chi
+        // organizzava da un segnalibro/PWA sul vecchio dominio Vercel
+        // copiava e spediva in giro link su quel dominio vecchio — sempre
+        // SeevaData.SITE_URL (il dominio vero), non da dove si sta
+        // guardando la pagina in quel momento.
+        var shareUrl = SeevaData.SITE_URL + window.location.pathname + window.location.search;
+
+        // il link da condividere lo vede solo chi organizza, e solo finché
+        // ha ancora senso invitare gente: una volta confermato (o passato)
+        // non serve più condividere nulla (Fil, 2026-07-07). La bolla vera
+        // e propria (#shareFab) è statica nell'HTML, non generata qui: si
+        // mostra/nasconde soltanto, vedi subito sotto.
+        // Fil, 2026-10-03: anche sugli eventi confermati, fino al giorno
+        // dell'evento -- gli eventi a data fissa nascono confermati e
+        // l'organizzatore deve poter continuare a girare l'invito su WhatsApp.
+        var showShareFab = isOrganizer && info.status !== 'passato' && info.status !== 'cancelled';
+        var shareFabEl = document.getElementById('shareFab');
+        if (shareFabEl) shareFabEl.style.display = 'none'; // sostituita dal pulsante Condividi in vista (2026-10-26)
+
+        // Modifica/elimina ora vivono nel menu ⋮ dell'header (vedi
+        // setupHeaderMenu più sotto, legato una sola volta): qui si aggiorna
+        // solo se il menu deve essere visibile, stesso criterio di prima
+        // (organizzatore, evento non ancora passato). "Rimuovi dalla home"
+        // (Fil, 2026-07-20) apre lo stesso menu ⋮ anche a chi NON organizza
+        // (prima era solo per l'organizzatore): le voci Modifica/Elimina
+        // restano riservate a lui, per questo vanno nascoste esplicitamente
+        // ora che il menu può comparire anche per un semplice invitato.
+        var canRemoveFromHome = !isOrganizer && SeevaData.hasAccount();
+        var eventMenuWrap = document.getElementById('eventMenuWrap');
+        if (eventMenuWrap) eventMenuWrap.style.display = ((isOrganizer && info.status !== 'passato') || canRemoveFromHome) ? '' : 'none';
+
+        var menuEditLinkEl = document.getElementById('menuEditLink');
+        if (menuEditLinkEl) menuEditLinkEl.style.display = isOrganizer ? '' : 'none';
+        var menuDeleteBtnEl = document.getElementById('menuDeleteBtn');
+        if (menuDeleteBtnEl) menuDeleteBtnEl.style.display = isOrganizer ? '' : 'none';
+        var menuRemoveFromHomeBtnEl = document.getElementById('menuRemoveFromHomeBtn');
+        if (menuRemoveFromHomeBtnEl) menuRemoveFromHomeBtnEl.style.display = canRemoveFromHome ? '' : 'none';
+
+        var menuToggleItemsBtnEl = document.getElementById('menuToggleItemsBtn');
+        if (menuToggleItemsBtnEl) {
+          menuToggleItemsBtnEl.style.display = isOrganizer ? '' : 'none';
+          menuToggleItemsBtnEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M8 8V6a4 4 0 0 1 8 0v2"></path><rect x="4" y="8" width="16" height="13" rx="3"></rect><rect x="9" y="8" width="6" height="4" rx="1"></rect></svg> ' + (event.itemsEnabled ? 'Disattiva chi porta cosa' : 'Attiva chi porta cosa');
+        }
+
+        var menuToggleExpensesBtnEl = document.getElementById('menuToggleExpensesBtn');
+        if (menuToggleExpensesBtnEl) {
+          menuToggleExpensesBtnEl.style.display = isOrganizer ? '' : 'none';
+          menuToggleExpensesBtnEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v10"></path><path d="M9 9.5c0-1.4 1.3-2.5 3-2.5s3 1.1 3 2.5-1.3 2.2-3 2.5c-1.7 0.3-3 1.1-3 2.5s1.3 2.5 3 2.5 3-1.1 3-2.5"></path></svg> ' + (event.expensesEnabled ? 'Disattiva divisione spese' : 'Attiva divisione spese');
+        }
+
+        // Tap per vederla a schermo intero (Fil, 2026-07-10): cursor:zoom-in
+        // per far capire che è cliccabile, vedi openPhotoLightbox più sotto.
+        var photoHTML = event.photoUrl
+          ? '<img id="eventPhotoImg" src="' + SeevaData.escapeHTML(event.photoUrl) + '" alt="" decoding="async" fetchpriority="high" style="width:100%; height:160px; object-fit:cover; border-radius:18px; margin-bottom:16px; box-shadow:0 6px 18px rgba(58,50,90,0.14); cursor:zoom-in;">'
+          : '';
+
+        // Con più location proposte, quella "vera" da mostrare qui non è più
+        // event.locationAddress (resta vuoto apposta, vedi crea.html) ma
+        // quella confermata, o finché non lo è quella in testa ai voti —
+        // stessa idea del "miglior giorno" (Fil, 2026-07-21). Con 0 o 1 sola
+        // location tutto resta identico a sempre.
+        var mapsUrl = SeevaData.buildMapsUrl(event);
+        var resolvedLocation = SeevaData.resolveEventLocation(event);
+        var isMultiLocation = (event.locationOptions || []).length > 1;
+        var locationNotConfirmedYet = isMultiLocation && !event.confirmedLocationOptionId;
+        // Tessera compatta invece della riga di testo (Fil, 2026-08-23:
+        // "dove" è tra le prime tre cose che si vogliono sapere — deve
+        // essere un riquadro come gli altri, non una riga persa nel testo).
+        // <a> attorno a tutta la tessera quando c'è una mappa da aprire
+        // (non un onclick con l'URL incollato dentro l'attributo: più
+        // sicuro, e funziona anche se JS fosse lento a legarsi).
+        // is-location (Fil, 2026-08-25): "un colore in base a quello che
+        // è" — solo l'icona, non tutta la tessera, e un tono diverso da
+        // quello (già in uso altrove) di "in testa ai voti"/stato.
+        var locationTileInner = ''
+          + '<div class="info-tile-icon is-location"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z"></path><circle cx="12" cy="9" r="2.5"></circle></svg></div>'
+          + '<div class="info-tile-body">'
+          + '<div class="info-tile-label">Dove</div>'
+          + '<div class="info-tile-value">' + SeevaData.escapeHTML(resolvedLocation.address) + '</div>'
+          + (locationNotConfirmedYet ? '<div style="font-size:11px; color:var(--ink-soft); margin-top:1px;">In testa ai voti, non ancora definitiva</div>' : '')
+          + '</div>';
+        // Riga "Dove" dentro la card unica Quando/Dove (Fil, 2026-10-26).
+        var whereRowInner = ''
+          + '<span class="event-info-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z"></path><circle cx="12" cy="9" r="2.5"></circle></svg></span>'
+          + '<span class="event-info-body"><span class="event-info-main">' + SeevaData.escapeHTML(resolvedLocation.address || '') + '</span>'
+          + (locationNotConfirmedYet ? '<span class="event-info-sub">In testa ai voti, non ancora definitiva</span>' : (mapsUrl ? '<span class="event-info-sub">Apri la mappa</span>' : ''))
+          + '</span>' + (mapsUrl ? '<span class="who-coming-chevron">›</span>' : '');
+        var whereRowHTML = !resolvedLocation.address ? ''
+          : mapsUrl
+            ? '<a class="event-info-row" href="' + SeevaData.escapeHTML(mapsUrl) + '" target="_blank" rel="noopener">' + whereRowInner + '</a>'
+            : '<div class="event-info-row">' + whereRowInner + '</div>';
+        var locationHTML = !resolvedLocation.address ? ''
+          : mapsUrl
+            ? '<a class="info-tile is-clickable" href="' + SeevaData.escapeHTML(mapsUrl) + '" target="_blank" rel="noopener" style="text-decoration:none; color:inherit;">' + locationTileInner + '</a>'
+            : '<div class="info-tile">' + locationTileInner + '</div>';
+
+        // Solo per chi organizza, solo su un evento annullato: rilancia lo
+        // stesso evento (nome, descrizione, foto, luogo) portando dritti alla
+        // creazione, dove restano solo le date e gli invitati/quota da
+        // scegliere di nuovo (non aveva funzionato con quelli di prima).
+        var repeatBoxHTML = (isOrganizer && info.status === 'cancelled')
+          ? '<div class="repeat-btn" id="repeatEventBtn" style="margin-bottom:20px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M17 2.1l4 4-4 4"></path><path d="M3 12.6v-2a4 4 0 0 1 4-4h14"></path><path d="M7 21.9l-4-4 4-4"></path><path d="M21 11.4v2a4 4 0 0 1-4 4H3"></path></svg>Ripeti questo evento con nuove date</div>'
+          : '';
+
+        // Fil, 2026-09-13 ("si può semplificare ancora?"): il vecchio banner
+        // fisso ("Stai partecipando come ospite") ricompariva identico ad
+        // OGNI apertura della pagina -- troppa insistenza per chi ha appena
+        // risposto in due tap. Ora due pezzi separati:
+        // 1) guestExitLinkHTML, sempre presente ma minimo (solo testo): resta
+        //    l'unica via d'uscita per un ospite bloccato qui (niente navbar,
+        //    niente freccia indietro, vedi sopra), ma senza il tono da invito
+        //    promozionale.
+        // 2) guestNudgeHTML, la vera proposta di crearsi un profilo: stesso
+        //    trattamento già usato per l'invito a installare l'app in Home
+        //    (una tantum, non ad ogni visita) -- localStorage ricorda se
+        //    l'ospite l'ha già vista, per QUESTO dispositivo.
+        var guestExitLinkHTML = isLockedGuest
+          ? '<div style="text-align:center; margin-bottom:14px;"><a href="profilo.html" style="font-size:12.5px; color:var(--ink-soft); text-decoration:none;">← Il tuo profilo</a></div>'
+          : '';
+
+        var GUEST_NUDGE_SEEN_KEY = 'seeva:guestAppNudgeSeen';
+        var showGuestNudge = isLockedGuest;
+        if (showGuestNudge) {
+          try { showGuestNudge = !localStorage.getItem(GUEST_NUDGE_SEEN_KEY); } catch (err) { /* niente localStorage: mostrala comunque */ }
+        }
+        if (showGuestNudge) {
+          try { localStorage.setItem(GUEST_NUDGE_SEEN_KEY, '1'); } catch (err) { /* ignora */ }
+        }
+        var guestNudgeHTML = showGuestNudge
+          ? '<div class="share-box" style="text-align:center; margin-bottom:16px;">'
+            + '<div class="share-label" style="margin-bottom:10px;">Ti sei aggiunto come ospite</div>'
+            + '<div class="card-date" style="margin:0 0 10px;">Con un profilo ritrovi questo e i prossimi eventi in un posto solo, ci vuole un minuto.</div>'
+            + '<a class="primary-btn" href="profilo.html" style="display:block; text-decoration:none; margin-bottom:0;">Crea il tuo profilo →</a>'
+            + '</div>'
+          : '';
+
+        // "Chi viene" (Fil, 2026-08-23, terzo giro sulla pagina evento):
+        // "quando mi invitano voglio sapere subito dove/cosa/quando — chi
+        // viene lo guardo dopo". Invitati + grafico dei giorni non stanno
+        // più in bella vista in mezzo alla pagina: una tessera compatta
+        // (avatar + "N di M disponibili") che apre un popup con entrambi
+        // dentro, stesso popup già usato per gestire le liste amici
+        // (.signup-overlay/.signup-modal, vedi amici.html).
+        // Su un evento confermato (non passato) l'elenco "Invitati" era
+        // nascosto (Fil, 2026-10-03); rimesso il 2026-10-10 (Fil: "lista
+        // completa"): stessa tessera "Chi viene", stati sulla data fissata.
+        var roster = info.status === 'passato' ? { html: '', rows: [] } : buildInviteesRosterHTML();
+        var inviteesRosterHTML = roster.html;
+
+        // Niente grafico "Chi c'è per ogni giorno" quando c'è una sola data
+        // proposta (Fil, 2026-09-11, bug segnalato dall'app: "quando è un
+        // solo giorno non metterlo") -- con un'unica data non c'è niente da
+        // confrontare, la barra sarebbe sempre e sola "leader" (vedi
+        // isLeader in buildDayBreakdownHTML, già condizionato a
+        // dateOptions.length > 1).
+        var breakdownSectionHTML = (isConfirmedSimple || event.dateOptions.length <= 1) ? '' : ''
+          + '<div class="section-title">Chi c\'è per ogni giorno</div>'
+          + buildDayBreakdownHTML();
+
+        var whoComingTileHTML = '';
+        var whoComingModalHTML = '';
+        if (roster.rows.length) {
+          var availableRows = roster.rows.filter(function (r) { return r.statusKey === 'available'; });
+          var avatarSource = availableRows.length ? availableRows : roster.rows;
+          var AVATAR_TILE_COLORS = ['#FF7A29', '#6B3F73', '#9C6BA3', '#4F8B5C'];
+          var avatarsHTML = avatarSource.slice(0, 3).map(function (r, i) {
+            var initial = (r.name || '?').trim().charAt(0).toUpperCase() || '?';
+            // Foto vera se c'è (2026-10-14), altrimenti l'iniziale colorata.
+            var photo = attendeeAvatars[(r.name || '').trim().toLowerCase()];
+            if (photo) return '<span style="background:var(--card);"><img src="' + SeevaData.escapeHTML(photo) + '" alt="" loading="lazy"></span>';
+            return '<span style="background:' + AVATAR_TILE_COLORS[i % AVATAR_TILE_COLORS.length] + ';">' + SeevaData.escapeHTML(initial) + '</span>';
+          }).join('');
+          // Stessa riga "foto + conteggi" degli eventi confermati (2026-10-26).
+          whoComingTileHTML = ''
+            + '<div class="section-title">Partecipanti</div>'
+            + '<div class="people-row is-clickable" id="whoComingTile">'
+            + '<div class="facepile">' + avatarsHTML.replace(/<span /g, '<span class="face" ') + '</div>'
+            + '<div class="people-counts">' + t('{a} di {b} ci sono', { a: availableRows.length, b: roster.rows.length }) + '</div>'
+            + '<div class="who-coming-chevron">›</div>'
+            + '</div>';
+          whoComingModalHTML = ''
+            + '<div class="signup-overlay" id="whoComingModal" style="display:none;">'
+            + '<div class="signup-modal" style="text-align:left; max-height:74vh; overflow-y:auto;">'
+            + '<div class="list-header" style="margin-bottom:14px;">'
+            + '<div class="card-title">Partecipanti</div>'
+            + '<div class="list-delete" id="whoComingCloseBtn">Chiudi ✕</div>'
+            + '</div>'
+            + inviteesRosterHTML
+            + breakdownSectionHTML
+            + '</div></div>';
+        }
+
+        // ---------- bacheca commenti (Fil, 2026-09-13, "siì ci sono
+        // ma..." + "si può fare una chat dentro un evento?") ----------
+        // A differenza di "Chi viene" qui sopra, questa tessera c'è
+        // sempre -- anche a zero commenti, anche prima che l'evento sia
+        // confermato: deve funzionare fin dalla fase di scelta della
+        // data (Fil), non solo a evento deciso. Stesso popup
+        // .signup-overlay/.signup-modal di "Chi viene", stesso trattamento
+        // "fuori da contentEl" (vedi commentsModalWrap qui sotto e nell'HTML
+        // statico) per lo stesso motivo del blur a schermo intero.
+        var allComments = event.comments || [];
+        var commentsSeenKey = 'seeva:commentsSeen:' + event.id;
+        var commentsSeenCount = 0;
+        try { commentsSeenCount = parseInt(localStorage.getItem(commentsSeenKey), 10) || 0; } catch (err) { /* ignora */ }
+        var commentsUnseenCount = Math.max(0, allComments.length - commentsSeenCount);
+        var COMMENT_AVATAR_COLORS = ['#FF7A29', '#6B3F73', '#9C6BA3', '#4F8B5C'];
+
+        function commentAvatarColor(name) {
+          var code = (name || '?').trim().toLowerCase().charCodeAt(0) || 0;
+          return COMMENT_AVATAR_COLORS[code % COMMENT_AVATAR_COLORS.length];
+        }
+
+        var commentsTileSubHTML = allComments.length
+          ? (allComments.length === 1 ? t('1 commento · tocca per leggere') : t('{n} commenti · tocca per leggere', { n: allComments.length }))
+          : 'Ancora nessuno · tocca per scrivere il primo';
+        var commentsTileHTML = ''
+          + '<div class="who-coming-tile" id="commentsTile">'
+          + '<div class="comments-tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M21 11.5a8.4 8.4 0 0 1-8.4 8.4 8.3 8.3 0 0 1-3.8-.9L3 21l1.9-5.8a8.3 8.3 0 0 1-.9-3.8A8.4 8.4 0 0 1 12.6 3a8.4 8.4 0 0 1 8.4 8.4z"></path></svg></div>'
+          + '<div class="who-coming-body">'
+          + '<div class="who-coming-title">Commenti' + (commentsUnseenCount ? ' <span class="badge new">' + (commentsUnseenCount === 1 ? t('1 nuovo') : t('{n} nuovi', { n: commentsUnseenCount })) + '</span>' : '') + '</div>'
+          + '<div class="who-coming-sub">' + commentsTileSubHTML + '</div>'
+          + '</div>'
+          + '<div class="who-coming-chevron">›</div>'
+          + '</div>';
+
+        var commentRowsHTML = allComments.length
+          ? allComments.map(function (c) {
+              var canDelete = isOrganizer || (guestName && c.authorName && c.authorName.trim().toLowerCase() === guestName.trim().toLowerCase());
+              var initial = (c.authorName || '?').trim().charAt(0).toUpperCase() || '?';
+              var when;
+              try { when = new Date(c.createdAt).toLocaleString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).replace('.', ''); } catch (err) { when = ''; }
+              return ''
+                + '<div class="comment-row" data-comment-id="' + c.id + '">'
+                + '<div class="comment-avatar" style="background:' + commentAvatarColor(c.authorName) + ';">' + SeevaData.escapeHTML(initial) + '</div>'
+                + '<div class="comment-body">'
+                + '<div class="comment-head"><span class="comment-name">' + SeevaData.escapeHTML(c.authorName || '?') + '</span><span class="comment-time">' + SeevaData.escapeHTML(when) + '</span></div>'
+                + '<div class="comment-text" data-no-i18n>' + SeevaData.escapeHTML(c.message) + '</div>'
+                + (c.isFromResponse ? '<span class="comment-tag">Dalla risposta</span>' : '')
+                + (canDelete ? '<div class="comment-delete" data-delete-comment-id="' + c.id + '">Cancella</div>' : '')
+                + '</div>'
+                + '</div>';
+            }).join('')
+          : '<div class="empty-hint">Ancora nessun commento: scrivi il primo tu.</div>';
+
+        // Chi non ha ancora un nome (raro: vedi buildAvailabilitySectionHTML
+        // più sopra, stesso caso) legge i commenti ma non può scriverne --
+        // stesso trattamento "serve un nome dal profilo" usato là.
+        var commentComposerHTML = guestName
+          ? '<div class="comment-composer">'
+            + '<input type="text" class="comment-input" id="commentInput" placeholder="Scrivi un commento..." maxlength="500">'
+            + '<button type="button" class="comment-send" id="commentSendBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>'
+            + '</div>'
+          : '<div class="card-date" style="margin-top:10px;">Imposta prima un nome dal tuo profilo per poter scrivere.</div>';
+
+        var commentsModalHTML = ''
+          + '<div class="signup-overlay" id="commentsModal" style="display:none;">'
+          + '<div class="signup-modal" style="text-align:left; max-height:78vh; display:flex; flex-direction:column;">'
+          + '<div class="list-header" style="margin-bottom:4px; flex-shrink:0;">'
+          + '<div class="card-title">Commenti</div>'
+          + '<div class="list-delete" id="commentsCloseBtn">Chiudi ✕</div>'
+          + '</div>'
+          + '<div class="comment-list" id="commentList" style="overflow-y:auto;">' + commentRowsHTML + '</div>'
+          + '<div class="form-error" id="commentError" style="flex-shrink:0;"></div>'
+          + commentComposerHTML
+          + '</div></div>';
+
+        var manualConfirmSectionHTML = buildManualConfirmSectionHTML(info);
+
+        // In pareggio (Fil, 2026-07-19) la scelta del giorno non è più un
+        // dettaglio in fondo alla pagina: è l'unica cosa bloccante rimasta,
+        // quindi la sezione (titolo "Pareggio: scegli tu la data" + tasti
+        // Conferma/Annulla) sale subito sotto "Invitati", prima di
+        // conferma/disponibilità/spese/"chi c'è per ogni giorno". Nel caso
+        // normale (non pareggio) resta invece in fondo, come sempre — è lì
+        // che vive manualConfirmBottomHTML più sotto in contentEl.innerHTML.
+        var isTieState = info.status === 'tie';
+        var manualConfirmTopHTML = isTieState ? manualConfirmSectionHTML : '';
+        var manualConfirmBottomHTML = isTieState ? '' : manualConfirmSectionHTML;
+
+        // Su un evento già annullato non ha più senso lasciar scegliere una
+        // data (bug segnalato da Fil, 2026-07-10: "mi fa selezionare la
+        // data" su un evento già annullato) — stesso trattamento "chiuso" di
+        // isConfirmedSimple, solo col messaggio giusto per lo stato.
+        var claimCandidates = isConfirmedSimple ? null : findClaimCandidates();
+        availabilityIsCompactTile = false; // riazzerato: il percorso "claim" qui sotto non passa da buildAvailabilitySectionHTML
+        var availabilityHTML = isConfirmedSimple ? ''
+          : info.status === 'cancelled' ? ''
+          : (claimCandidates ? buildClaimPromptHTML(claimCandidates) : buildAvailabilitySectionHTML());
+        // Bug Fil, 2026-09-13: "In testa ai voti" presuppone un confronto tra
+        // più date proposte — a data singola bestOption vince sempre e
+        // subito (è l'unica opzione, 0 voti compresi), quindi la card
+        // diceva "in testa ai voti" per una data che non sta "vincendo" su
+        // niente. La data è già mostrata subito sotto in "Quando" con
+        // Ci sono/Non ci sono: qui, a data singola, non serve ripeterla.
+        // Fil, 2026-09-26: sbagliato togliere tutta la card -- andava tolta
+        // solo la frase. Senza card chi apriva l'invito non vedeva più né
+        // data né ora da nessuna parte ("Ci sarai?" non dice quando). Ora la
+        // card c'è sempre, a data singola solo con la data (+ ora), vedi
+        // buildLeadingDateSummaryHTML.
+        var confirmedSummaryHTML = isConfirmedSimple ? buildConfirmedSummaryHTML(info)
+          : (info.status === 'waiting' || info.status === 'almost') ? buildLeadingDateSummaryHTML(info)
+          : '';
+
+        // "Dove" affiancata a "Tu" in una riga sola, stile riquadri Home
+        // (Fil, 2026-08-25: "sembra tutto troppo in colonna") — solo quando
+        // ENTRAMBE sono tessere compatte (availabilityIsCompactTile, vedi
+        // sopra): se "Tu" è ancora un form da compilare resta a piena
+        // larghezza come sempre, affiancarla a "Dove" non avrebbe senso.
+        // Quando + Dove in una card sola (Fil, 2026-10-26), poi la tua
+        // risposta a piena larghezza.
+        var infoCardHTML = (confirmedSummaryHTML || whereRowHTML)
+          ? '<div class="event-info-card">' + confirmedSummaryHTML + whereRowHTML + '</div>' : '';
+        var locationAndAvailabilityHTML = infoCardHTML + availabilityHTML;
+
+        // "📅 I giorni in cui ci sei" nel menu ⋮ (Fil, 2026-07-19): stessa
+        // condizione della vecchia versione inline (branch "sei tu che
+        // organizzi" in buildAvailabilitySectionHTML), verificata qui perché
+        // la voce di menu è statica fuori da contentEl e la sua visibilità
+        // va aggiornata ad ogni render() come per eventMenuWrap più sopra.
+        var menuEditAvailabilityBtn = document.getElementById('menuEditAvailabilityBtn');
+        if (menuEditAvailabilityBtn) {
+          var showMenuEditAvailability = isOrganizer && !editingAvailability && !isConfirmedSimple
+            && info.status !== 'cancelled' && !claimCandidates
+            && !organizerHasCustomAvailability(findExistingParticipant());
+          menuEditAvailabilityBtn.style.display = showMenuEditAvailability ? '' : 'none';
+        }
+        var menuAddPeopleBtnEl = document.getElementById('menuAddPeopleBtn');
+        if (menuAddPeopleBtnEl) menuAddPeopleBtnEl.style.display = 'none'; // ora pulsante "Invita" in vista (2026-10-26)
+        var menuNudgeBtnEl = document.getElementById('menuNudgeBtn');
+        if (menuNudgeBtnEl) {
+          var pendingCount = (roster.rows || []).filter(function (r) { return r.statusKey === 'pending'; }).length;
+          menuNudgeBtnEl.style.display = 'none'; // ora pulsante "Sollecita" in vista (2026-10-26)
+        }
+        var menuAnnounceBtnEl = document.getElementById('menuAnnounceBtn');
+        if (menuAnnounceBtnEl) menuAnnounceBtnEl.style.display = 'none'; // ora pulsante "Avviso" in vista (2026-10-26)
+        var featureCardsHTML = buildFeatureCardsHTML(info);
+
+        // Fil, 2026-07-19: "chi c'è" e "quando sei disponibile" spostati
+        // subito dopo le info dell'evento (prima erano in fondo alla
+        // pagina) — chi deve rispondere non scorre più oltre invitati e
+        // grafica dei giorni. La grafica "chi c'è per ogni giorno" e il
+        // box di conferma manuale dell'organizzatore restano in fondo:
+        // sono dettagli/strumenti, non la prima cosa che un ospite deve
+        // fare aprendo la pagina. Eccezione: in pareggio manualConfirmTopHTML
+        // (vedi sopra) sale subito sotto Invitati, perché lì è l'unica cosa
+        // bloccante rimasta, non un dettaglio.
+        var cancelledMessageHTML = info.status !== 'cancelled' ? '' : '<div class="card-date" style="margin:2px 2px 16px; color:var(--cancel-ink);">'
+          + (info.cancelledManually
+              ? 'L\'organizzatore ha annullato l\'evento.'
+              : 'Hanno risposto tutti gli invitati ma nessuno c\'era: l\'evento si è annullato automaticamente.')
+          + ' Resta visibile qui per una settimana, poi viene eliminato.</div>';
+
+        // Ordine ripensato (Fil, 2026-08-23, terzo giro sulla pagina evento:
+        // "a colpo d'occhio super complicata, lontana dallo stile della
+        // Home"): dove/cosa si tratta/quando sono le prime tre cose che si
+        // vogliono sapere aprendo un invito — restano tutte visibili subito,
+        // in cima, senza dover toccare nulla. "Chi viene" (chi risponde, chi
+        // manca) è un dettaglio che si guarda dopo, non prima: sceso in una
+        // tessera sola (whoComingTileHTML qui sopra) che apre un popup — il
+        // popup vero (whoComingModalHTML) non è più qui dentro, vedi sotto —
+        // al posto della lista intera sempre in vista di prima.
+        // "Ti ha invitato X" (Michi, 2026-10-06: "non si vede il nome di chi
+        // ti ha invitato all'evento"). Gli inviti partono sempre da chi
+        // organizza (createdBy); a chi organizza non serve.
+        // Intestazione vera (Fil, 2026-10-26): foto (o banner colorato con
+        // un'emoji scelta dal nome), titolo grande, chi organizza.
+        var orgName = event.createdBy || '';
+        var orgPhoto = attendeeAvatars[orgName.trim().toLowerCase()];
+        var orgFaceHTML = orgPhoto
+          ? '<span class="face"><img src="' + SeevaData.escapeHTML(orgPhoto) + '" alt=""></span>'
+          : '<span class="face" style="background:#6B3F73;">' + SeevaData.escapeHTML((orgName.trim().charAt(0) || '?').toUpperCase()) + '</span>';
+        var heroBannerHTML = event.photoUrl ? photoHTML
+          : '<div class="event-hero-banner"><span>' + eventEmojiFor(event.name) + '</span></div>';
+        var invitedByHTML = ''
+          + '<div class="event-hero">'
+          + heroBannerHTML
+          + '<h1 class="event-hero-title" id="eventHeroTitle" data-no-i18n>' + SeevaData.escapeHTML(event.name) + '</h1>'
+          + (orgName ? '<div class="event-hero-org">' + orgFaceHTML
+              + (isOrganizer ? '<span>Organizzi tu</span>' : '<span>Organizza <b data-no-i18n>' + SeevaData.escapeHTML(orgName) + '</b></span>')
+              + '</div>' : '')
+          + '</div>';
+
+        // Avvisi dell'organizzatore (Fil, 2026-10-07): fissi in cima, il più
+        // recente per primo. Chi organizza può toglierli (✕).
+        var announcementsHTML = (event.announcements || []).map(function (a) {
+          var when = '';
+          try { when = new Date(a.createdAt).toLocaleString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).replace('.', ''); } catch (err) { when = ''; }
+          return '<div class="announce-card">'
+            + '<div class="announce-head"><span>📣 Avviso' + (a.authorName ? ' da <b>' + SeevaData.escapeHTML(a.authorName) + '</b>' : '') + (when ? ' · ' + SeevaData.escapeHTML(when) : '') + '</span>'
+            + (isOrganizer ? '<span class="announce-del" data-delete-announcement-id="' + SeevaData.escapeHTML(a.id) + '" role="button" aria-label="Togli avviso">✕</span>' : '')
+            + '</div>'
+            + '<div class="announce-text" data-no-i18n>' + SeevaData.escapeHTML(a.message) + '</div>'
+            + '</div>';
+        }).join('');
+
+        // Pagina evento uguale per tutti (Fil, 2026-10-26, proposta 5 del
+        // documento UX): foto e titolo, Quando, Dove, la tua risposta,
+        // Partecipanti, poi i dettagli (descrizione). Le azioni più utili
+        // per chi organizza non sono più nascoste nel menu ⋮: pulsanti in
+        // vista sotto il titolo (Invita, Sollecita, Condividi, Avviso). Le
+        // voci di menu restano nell'HTML (nascoste) e i pulsanti le
+        // "premono", così la logica di ognuna resta una sola.
+        var orgIsOpen = isOrganizer && info.status !== 'cancelled' && info.status !== 'passato';
+        var orgPendingCount = (roster.rows || []).filter(function (r) { return r.statusKey === 'pending' || r.statusKey === 'maybe'; }).length; // anche i Forse (Fil, 2026-10-26)
+        function orgActionBtn(id, svgInner, label, extra) {
+          return '<button type="button" class="org-action" id="' + id + '">'
+            + '<span class="org-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">' + svgInner + '</svg>' + (extra || '') + '</span>'
+            + '<span class="org-action-label">' + label + '</span>'
+            + '</button>';
+        }
+        var orgActionsHTML = !isOrganizer || info.status === 'cancelled' ? '' : ''
+          + '<div class="org-actions">'
+          + (orgIsOpen ? orgActionBtn('orgInviteBtn', '<circle cx="9" cy="8.5" r="3"></circle><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"></path><line x1="18" y1="8" x2="18" y2="14"></line><line x1="15" y1="11" x2="21" y2="11"></line>', 'Invita') : '')
+          + (orgIsOpen && orgPendingCount > 0 ? orgActionBtn('orgNudgeBtn', '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>', 'Sollecita', '<span class="org-action-count">' + orgPendingCount + '</span>') : '')
+          + (orgIsOpen ? orgActionBtn('orgShareBtn', '<circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"></line>', 'Condividi') : '')
+          + (orgIsOpen && !openPollOf(event) && SeevaData.hasAccount() ? orgActionBtn('orgPollBtn', '<line x1="4" y1="20" x2="20" y2="20"></line><rect x="5" y="11" width="3.2" height="6" rx="1"></rect><rect x="10.4" y="6" width="3.2" height="11" rx="1"></rect><rect x="15.8" y="9" width="3.2" height="8" rx="1"></rect>', 'Sondaggio') : '')
+          + orgActionBtn('orgAnnounceBtn', '<path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"></path><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M18.5 5.5a9 9 0 0 1 0 13"></path>', 'Avviso')
+          + '</div>';
+
+        // Descrizione (testo o vocale) sotto Partecipanti: prima vengono
+        // quando, dove e la tua risposta.
+        var detailsHTML = event.descriptionAudioUrl
+          ? '<div class="event-desc-card"><audio controls src="' + SeevaData.escapeHTML(event.descriptionAudioUrl) + '" style="width:100%;"></audio></div>'
+          : (event.description ? '<div class="event-desc-card event-details-text" data-no-i18n>' + SeevaData.escapeHTML(event.description) + '</div>' : '');
+
+        // "È andata?" (Fil, 2026-10-26): solo a chi organizza, su un evento
+        // passato di cui non ha ancora detto se si è svolto. Sì = resta tra
+        // gli eventi svolti; No = annullato, senza avvisare nessuno.
+        var showOutcomeCard = isOrganizer && info.status === 'passato'
+          && event.tookPlace !== true && event.tookPlace !== false && !event.manuallyCancelled;
+        var outcomeCardHTML = !showOutcomeCard ? '' : ''
+          + '<div class="outcome-card">'
+          + '<div class="outcome-title">Com\'è andata? Si è svolto?</div>'
+          + '<div class="outcome-sub">Lo vedi solo tu: serve a tenere in ordine i tuoi eventi.</div>'
+          + '<div class="rsvp-seg">'
+          + '<button type="button" class="rsvp-seg-btn is-yes" id="outcomeYesBtn">✓ Sì</button>'
+          + '<button type="button" class="rsvp-seg-btn is-no" id="outcomeNoBtn">✕ No</button>'
+          + '</div></div>';
+
+        contentEl.innerHTML = ''
+          + guestExitLinkHTML
+          + guestNudgeHTML
+          + invitedByHTML
+          + outcomeCardHTML
+          + orgActionsHTML
+          + announcementsHTML
+          + cancelledMessageHTML
+          + repeatBoxHTML
+          + locationAndAvailabilityHTML
+          + (isConfirmedSimple ? confirmedParts.answer + confirmedParts.people : '')
+          + manualConfirmTopHTML
+          + (isConfirmedSimple && confirmedParts.people ? '' : whoComingTileHTML)
+          + '<div id="pollsWrap">' + buildPollsHTML(info) + '</div>'
+          + detailsHTML
+          + commentsTileHTML
+          + '<div id="featureCardsWrap">' + featureCardsHTML + '</div>'
+          + manualConfirmBottomHTML;
+
+        // Fuori da contentEl apposta (bug segnalato dall'app, Fil,
+        // 2026-08-25): vedi il commento su #whoComingModalWrap nell'HTML —
+        // dentro .content lo sfondo sfocato non copriva l'header.
+        var whoComingModalWrap = document.getElementById('whoComingModalWrap');
+        if (whoComingModalWrap) whoComingModalWrap.innerHTML = whoComingModalHTML;
+
+        var commentsModalWrap = document.getElementById('commentsModalWrap');
+        if (commentsModalWrap) commentsModalWrap.innerHTML = commentsModalHTML;
+
+        // rianima/rende cliccabile il contenuto appena creato
+        if (window.SeevaUI) window.SeevaUI.refresh();
+
+        bindEvents();
+        bindPolls();
+        var orgPollBtnEl = document.getElementById('orgPollBtn');
+        if (orgPollBtnEl) orgPollBtnEl.addEventListener('click', function (e) { e.stopPropagation(); openCreatePollPopup(); });
+        var orgActionsEl = contentEl.querySelector('.org-actions');
+        if (orgActionsEl && orgActionsEl.children.length >= 5) orgActionsEl.classList.add('is-crowded');
+        var outcomeYesBtn = document.getElementById('outcomeYesBtn');
+        if (outcomeYesBtn) outcomeYesBtn.addEventListener('click', function () { saveOutcome(true, false); });
+        var outcomeNoBtn = document.getElementById('outcomeNoBtn');
+        if (outcomeNoBtn) outcomeNoBtn.addEventListener('click', function () { saveOutcome(false, false); });
+        [['orgInviteBtn', 'menuAddPeopleBtn'], ['orgNudgeBtn', 'menuNudgeBtn'], ['orgShareBtn', 'shareFab'], ['orgAnnounceBtn', 'menuAnnounceBtn']].forEach(function (pair) {
+          var b = document.getElementById(pair[0]);
+          if (b) b.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var target = document.getElementById(pair[1]);
+            if (target) target.click();
+          });
+        });
+        Array.prototype.forEach.call(contentEl.querySelectorAll('[data-delete-announcement-id]'), function (btn) {
+          btn.addEventListener('click', async function () {
+            if (!await SeevaUI.ask('Togliere questo avviso dalla pagina dell\'evento? (Chi l\'ha già ricevuto come notifica lo ha comunque letto.)')) return;
+            try {
+              await SeevaData.deleteEventAnnouncement(btn.getAttribute('data-delete-announcement-id'));
+            } catch (err) {
+              SeevaUI.alert('Non sono riuscito a toglierlo (' + SeevaData.friendlyErrorMessage(err) + ').');
+              return;
+            }
+            event = await SeevaData.getEventById(event.id);
+            render();
+          });
+        });
+        bindDayBars();
+        bindDayBarsScroll();
+        bindHeroTitleObserver();
+      }
+
+      /* Il titolo piccolo nell'header compare solo quando quello grande
+         dell'intestazione è uscito dallo schermo (come nelle grandi app). */
+      var heroObserver = null;
+      function bindHeroTitleObserver() {
+        var big = document.getElementById('eventHeroTitle');
+        var small = document.getElementById('eventTitle');
+        if (!big || !small || !('IntersectionObserver' in window)) return;
+        if (heroObserver) heroObserver.disconnect();
+        small.classList.add('is-hidden');
+        heroObserver = new IntersectionObserver(function (entries) {
+          small.classList.toggle('is-hidden', entries[0].isIntersecting);
+        });
+        heroObserver.observe(big);
+      }
+
+      /* Emoji per il banner quando l'evento non ha una foto. */
+      function eventEmojiFor(name) {
+        var n = (name || '').toLowerCase();
+        var map = [
+          [/compleann|birthday|auguri/, '🎂'], [/pizz/, '🍕'], [/aperi|spritz|drink|cocktail/, '🍹'],
+          [/cena|pranzo|grigliat|barbecue|bbq|mangia|ristorant/, '🍽️'], [/calcett|partita|calcio|padel|tennis|sport|palestra|corsa/, '⚽'],
+          [/cinema|film/, '🎬'], [/mare|spiaggia/, '🏖️'], [/montagna|sci\b|trekking|escursion/, '🏔️'], [/viaggio|vacanz|weekend|gita|trip/, '✈️'],
+          [/concerto|musica|live/, '🎶'], [/caff[eè]|colazione|brunch/, '☕'], [/vino|degustaz|cantina/, '🍷'], [/birra|pub/, '🍺'],
+          [/gioc|board|carte|poker/, '🎲'], [/laurea/, '🎓'], [/matrimon/, '💍'], [/natale/, '🎄'], [/halloween/, '🎃']
+        ];
+        for (var i = 0; i < map.length; i++) if (map[i][0].test(n)) return map[i][1];
+        return '🎉';
+      }
+
+      /* Esito dell'evento (Fil, 2026-10-26), dalla card "Com'è andata?" o
+         dai pulsanti della notifica (?esito=yes|no, fromNotification:
+         niente domanda di conferma, l'ha già toccato apposta). */
+      async function saveOutcome(tookPlace, fromNotification) {
+        if (!tookPlace && !fromNotification) {
+          var sure = await SeevaUI.ask('Segnare "' + event.name + '" come non svolto? Diventa annullato, ma non arriva nessun avviso agli invitati.');
+          if (!sure) return;
+        }
+        try {
+          event = await SeevaData.setEventOutcome(event.id, tookPlace);
+        } catch (err) {
+          SeevaUI.alert('Non sono riuscito a salvare (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+          return;
+        }
+        render();
+        if (window.SeevaUI && SeevaUI.toast) SeevaUI.toast(tookPlace ? 'Segnato come svolto ✓' : 'Segnato come non svolto');
+      }
+
+      // Overlay a piena pagina con la foto ingrandita: un tap ovunque sopra
+      // (l'immagine inclusa, vedi il CSS "cursor:zoom-out") la richiude.
+      function openPhotoLightbox(url) {
+        if (!url) return;
+        var overlay = document.createElement('div');
+        overlay.className = 'photo-lightbox';
+        overlay.innerHTML = '<img src="' + SeevaData.escapeHTML(url) + '" alt="">';
+        overlay.addEventListener('click', function () { overlay.remove(); });
+        document.body.appendChild(overlay);
+      }
+
+      /* Chiude l'evento su una data precisa: usato sia dal tasto "Conferma"
+         quando c'è una sola data papabile, sia dal bottone "Conferma
+         evento" dentro il popup di scelta giorno (openConfirmDayPopup, qui
+         sotto). btnEl è il bottone da rietichettare/disabilitare durante la
+         chiamata; onDone (opzionale) gira solo in caso di successo, prima
+         di render() — serve a openConfirmDayPopup per chiudersi. */
+      async function confirmDateOption(optionId, btnEl, onDone) {
+        var label = SeevaData.formatDateLabel(
+          (event.dateOptions.filter(function (o) { return o.id === optionId; })[0] || {}).dateISO || ''
+        );
+        var sure = await SeevaUI.ask('Confermare "' + label + '"? Questa data diventa subito quella definitiva dell\'evento, anche se non tutti hanno ancora risposto. Non si può annullare da qui.');
+        if (!sure) return;
+
+        // Se ci sono più location proposte, va risolta insieme alla data
+        // (Fil, 2026-07-21): automatica se una è chiaramente in testa ai
+        // voti, a scelta dell'organizzatore solo in caso di pareggio —
+        // stesso principio della data, stesso popup a quadrati qui sotto.
+        if ((event.locationOptions || []).length > 1) {
+          var locInfo = SeevaData.computeLocationLeader(event);
+          if (locInfo.tiedOptions.length > 1) {
+            openConfirmLocationPopup(locInfo.tiedOptions, function (locationOptionId) {
+              finishConfirmDate(optionId, locationOptionId, btnEl, onDone);
+            });
+            return;
+          }
+          finishConfirmDate(optionId, locInfo.bestOption ? locInfo.bestOption.id : null, btnEl, onDone);
+          return;
+        }
+
+        finishConfirmDate(optionId, null, btnEl, onDone);
+      }
+
+      async function finishConfirmDate(optionId, locationOptionId, btnEl, onDone) {
+        var originalText = btnEl.textContent;
+        btnEl.textContent = 'Confermo...';
+        btnEl.disabled = true;
+        try {
+          event = await SeevaData.confirmEventDate(event.id, optionId, locationOptionId);
+        } catch (err) {
+          btnEl.textContent = originalText;
+          btnEl.disabled = false;
+          SeevaUI.alert('Non sono riuscito a confermare (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+          return;
+        }
+        if (onDone) onDone();
+        render();
+      }
+
+      /* Popup "pareggio, quale location confermi?" (Fil, 2026-07-21): si apre
+         SOLO se, al momento di confermare la data, più location risultano
+         appaiate al primo posto dei voti — altrimenti la location si risolve
+         da sola (vedi confirmDateOption). Stessa struttura/stile del popup
+         di scelta giorno qui sopra (openConfirmDayPopup), a scelta singola,
+         ma non conferma da sé: richiama onChosen(locationOptionId) e lascia
+         che sia confirmDateOption a finire il salvataggio vero. */
+      function openConfirmLocationPopup(options, onChosen) {
+        var phone = document.querySelector('.phone');
+        if (!phone) return;
+
+        var selectedId = null;
+        var overlay = document.createElement('div');
+        overlay.className = 'signup-overlay';
+
+        function closePopup() {
+          if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        }
+
+        var cardsHTML = options.map(function (opt) {
+          var count = (event.participants || []).filter(function (p) {
+            return (p.availableLocationOptionIds || []).indexOf(opt.id) !== -1;
+          }).length;
+          return '<div class="chip day-card" data-location-option-id="' + opt.id + '" style="width:100%; height:auto; padding:10px 12px; text-align:left;">'
+            + '<div class="day-num" style="font-size:13px; font-weight:600;">' + SeevaData.escapeHTML(opt.address) + '</div>'
+            + '<div class="day-bar-badge" style="margin:4px 0 0;"><span aria-hidden="true" style="display:inline-flex;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7"></path></svg></span>' + count + '</div>'
+            + '</div>';
+        }).join('');
+
+        overlay.innerHTML = ''
+          + '<div class="signup-modal confirm-day-modal">'
+          + '<div class="signup-modal-title">Pareggio: quale location confermi?</div>'
+          + '<div class="day-grid" style="grid-template-columns:1fr;">' + cardsHTML + '</div>'
+          + '<button type="button" class="primary-btn" id="confirmLocationSubmitBtn" disabled>Conferma location</button>'
+          + '<div style="text-align:center;"><span class="signup-skip-link" id="confirmLocationCancelLink">Annulla</span></div>'
+          + '</div>';
+
+        var submitBtn = overlay.querySelector('#confirmLocationSubmitBtn');
+        var cards = overlay.querySelectorAll('[data-location-option-id]');
+
+        cards.forEach(function (card) {
+          card.addEventListener('click', function () {
+            selectedId = card.getAttribute('data-location-option-id');
+            cards.forEach(function (c) { c.classList.toggle('selected', c === card); });
+            if (submitBtn) submitBtn.disabled = false;
+          });
+        });
+
+        if (submitBtn) {
+          submitBtn.addEventListener('click', function () {
+            if (!selectedId) return;
+            closePopup();
+            onChosen(selectedId);
+          });
+        }
+
+        var cancelLink = overlay.querySelector('#confirmLocationCancelLink');
+        if (cancelLink) cancelLink.addEventListener('click', closePopup);
+
+        var modalEl = overlay.querySelector('.confirm-day-modal');
+        if (modalEl) modalEl.addEventListener('click', function (e) { e.stopPropagation(); });
+
+        overlay.addEventListener('click', closePopup);
+        phone.appendChild(overlay);
+      }
+
+      /* Popup "quale giorno confermi?" (evento.html, Fil 2026-07-19): si
+         apre dal tasto "Conferma" quando c'è più di una data papabile
+         (altrimenti si conferma subito, vedi bindEvents). Stessa griglia a
+         quadrati 3 per riga di "Quando sei disponibile?" (.day-grid/
+         .day-card), ma a scelta singola invece che multipla, e con in più
+         il conteggio amici disponibili per ogni giorno (.day-bar-badge, lo
+         stesso pallino "👤 N" delle barre più sotto in pagina). Stesso
+         overlay/modale (.signup-overlay/.signup-modal) del popup "Evento
+         confermato!" — qui però interattivo, quindi il tap sul modale non
+         deve chiuderlo (solo il tap sullo sfondo, o "Annulla"). */
+      function openConfirmDayPopup(options) {
+        var phone = document.querySelector('.phone');
+        if (!phone) return;
+
+        var selectedId = null;
+        var overlay = document.createElement('div');
+        overlay.className = 'signup-overlay';
+
+        function closePopup() {
+          if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        }
+
+        // Costruito una volta sola: prima la selezione di un giorno faceva
+        // ricreare tutto il popup da capo (overlay.innerHTML riassegnato ad
+        // ogni tap), il che rifaceva ripartire l'animazione di apertura
+        // .signup-modal ("signupModalIn") e dava l'effetto "si ricarica"
+        // notato da Fil (2026-07-19). Ora il tap su un giorno tocca solo la
+        // classe "selected" sulle card e lo stato del bottone, senza
+        // toccare il resto del DOM.
+        var cardsHTML = options.map(function (opt) {
+          var count = (event.participants || []).filter(function (p) {
+            return (p.availableDateOptionIds || []).indexOf(opt.id) !== -1;
+          }).length;
+          var parts = shortDateParts(opt.dateISO);
+          return '<div class="chip day-card" data-day-option-id="' + opt.id + '">'
+            + '<div class="day-dow">' + SeevaData.escapeHTML(parts.dow) + '</div>'
+            + '<div class="day-num">' + SeevaData.escapeHTML(parts.day) + '</div>'
+            + '<div class="day-month">' + SeevaData.escapeHTML(parts.month) + '</div>'
+            + '<div class="day-bar-badge" style="margin:4px auto 0; width:fit-content;"><span aria-hidden="true" style="display:inline-flex;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7"></path></svg></span>' + count + '</div>'
+            + '</div>';
+        }).join('');
+
+        overlay.innerHTML = ''
+          + '<div class="signup-modal confirm-day-modal">'
+          + '<div class="signup-modal-title">Quale giorno confermi?</div>'
+          + '<div class="day-grid">' + cardsHTML + '</div>'
+          + '<button type="button" class="primary-btn" id="confirmDaySubmitBtn" disabled>Conferma evento</button>'
+          + '<div style="text-align:center;"><span class="signup-skip-link" id="confirmDayCancelLink">Annulla</span></div>'
+          + '</div>';
+
+        var submitBtn = overlay.querySelector('#confirmDaySubmitBtn');
+        var dayCards = overlay.querySelectorAll('[data-day-option-id]');
+
+        dayCards.forEach(function (card) {
+          card.addEventListener('click', function () {
+            selectedId = card.getAttribute('data-day-option-id');
+            dayCards.forEach(function (c) {
+              c.classList.toggle('selected', c === card);
+            });
+            if (submitBtn) submitBtn.disabled = false;
+          });
+        });
+
+        if (submitBtn) {
+          submitBtn.addEventListener('click', function () {
+            if (!selectedId) return;
+            confirmDateOption(selectedId, submitBtn, closePopup);
+          });
+        }
+
+        var cancelLink = overlay.querySelector('#confirmDayCancelLink');
+        if (cancelLink) cancelLink.addEventListener('click', closePopup);
+
+        var modalEl = overlay.querySelector('.confirm-day-modal');
+        if (modalEl) modalEl.addEventListener('click', function (e) { e.stopPropagation(); });
+
+        overlay.addEventListener('click', closePopup);
+        phone.appendChild(overlay);
+      }
+
+      function bindEvents() {
+        var eventPhotoImg = document.getElementById('eventPhotoImg');
+        if (eventPhotoImg) {
+          eventPhotoImg.addEventListener('click', function () {
+            openPhotoLightbox(event.photoUrl);
+          });
+        }
+
+        // Tocca la data confermata per aggiungerla al calendario del
+        // telefono (Fil, 2026-07-20): genera un .ics al volo (con l'orario
+        // se l'evento ce l'ha, altrimenti "tutto il giorno", vedi
+        // buildEventICS in data.js) e lo apre -- su iOS/Android questo
+        // basta di solito a far comparire la schermata "Aggiungi evento"
+        // del calendario nativo, senza scaricare davvero un file visibile.
+        var confirmedDateCard = document.getElementById('confirmedDateCard');
+        if (confirmedDateCard) {
+          confirmedDateCard.addEventListener('click', function () {
+            var info = SeevaData.computeEventStatus(event);
+            if (!info.bestOption) return;
+            addEventToCalendar(info.bestOption.dateISO);
+          });
+        }
+
+        // Data fissa non ancora confermata ma hai detto "Ci sono" (Fil,
+        // 2026-10-04): il calendario lo puoi aggiungere subito.
+        var addToCalLink = document.getElementById('addToCalLink');
+        if (addToCalLink) {
+          addToCalLink.addEventListener('click', function () {
+            addEventToCalendar(event.dateOptions[0].dateISO);
+          });
+        }
+
+        // "Conferma" (evento.html, Fil 2026-07-19): con una sola data
+        // papabile chiude subito, con più di una apre il popup a quadrati
+        // per scegliere quale (vedi openConfirmDayPopup più sotto).
+        var manualConfirmBtn = document.getElementById('manualConfirmBtn');
+        if (manualConfirmBtn) {
+          manualConfirmBtn.addEventListener('click', function () {
+            var info = SeevaData.computeEventStatus(event);
+            var isTie = info.status === 'tie';
+            var optionsToShow = isTie ? info.tiedOptions : (event.dateOptions || []);
+            if (optionsToShow.length === 1) {
+              confirmDateOption(optionsToShow[0].id, manualConfirmBtn);
+            } else if (optionsToShow.length > 1) {
+              openConfirmDayPopup(optionsToShow);
+            }
+          });
+        }
+
+        // "Annulla evento" a mano (Fil, 2026-07-19): l'organizzatore non deve
+        // aspettare che rispondano proprio tutti gli invitati se l'evento è
+        // chiaramente morto.
+        var cancelEventManuallyLink = document.getElementById('cancelEventManuallyLink');
+        if (cancelEventManuallyLink) {
+          cancelEventManuallyLink.addEventListener('click', async function () {
+            var sure = await SeevaUI.ask('Annullare "' + event.name + '"? Chi aveva già risposto "Ci sono" riceverà un avviso. Potrai sempre ripeterlo con nuove date in seguito.');
+            if (!sure) return;
+
+            var originalText = cancelEventManuallyLink.textContent;
+            cancelEventManuallyLink.textContent = 'Annullo...';
+            try {
+              event = await SeevaData.cancelEventManually(event.id);
+            } catch (err) {
+              cancelEventManuallyLink.textContent = originalText;
+              SeevaUI.alert('Non sono riuscito ad annullare (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+              return;
+            }
+            render();
+          });
+        }
+
+        // "Non potrò esserci" su un evento già confermato: azzera la propria
+        // disponibilità e avvisa l'organizzatore; se con te tolto la data non
+        // resta più nessuno disponibile, l'evento si riapre da solo per
+        // tutti (vedi withdrawFromEvent in data.js). Nessuna conferma
+        // testuale sul perché: basta il conferma/annulla del browser
+        // (Fil, 2026-07-17).
+        var withdrawLink = document.getElementById('withdrawFromEventLink');
+        if (withdrawLink) {
+          withdrawLink.addEventListener('click', async function () {
+            var sure = await SeevaUI.ask('Segnalare che non potrai esserci per "' + event.name + '"? L\'organizzatore riceverà una notifica.');
+            if (!sure) return;
+
+            var originalText = withdrawLink.textContent;
+            withdrawLink.textContent = 'Segnalo...';
+            try {
+              event = await SeevaData.withdrawFromEvent(event.id, guestName);
+            } catch (err) {
+              withdrawLink.textContent = originalText;
+              SeevaUI.alert('Non sono riuscito a segnalarlo (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+              return;
+            }
+            render();
+          });
+        }
+
+        // "Ci sarò dopotutto": stesso meccanismo di una risposta normale,
+        // solo richiamato da dentro la vista confermata (che altrimenti non
+        // mostra più i pulsanti di risposta una volta raggiunta la quota).
+        var rejoinLink = document.getElementById('rejoinEventLink');
+        if (rejoinLink) {
+          rejoinLink.addEventListener('click', async function () {
+            var info = SeevaData.computeEventStatus(event);
+            if (!info.bestOption) return;
+
+            var originalText = rejoinLink.textContent;
+            rejoinLink.textContent = 'Aggiorno...';
+            try {
+              // La preferenza sulla location non c'entra col "ci sarò
+              // dopotutto": si riusa quella che aveva già dato (se ne aveva
+              // data una), non si tocca qui.
+              var existingLocIds = (findExistingParticipant() || {}).availableLocationOptionIds || [];
+              var noteEl = document.getElementById('confirmedNoteInput');
+              var noteVal = noteEl ? noteEl.value.trim() : undefined;
+              event = await SeevaData.upsertParticipant(event.id, guestName, [info.bestOption.id], existingLocIds, noteVal);
+            } catch (err) {
+              rejoinLink.textContent = originalText;
+              SeevaUI.alert('Non sono riuscito ad aggiornare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+              return;
+            }
+            render();
+          });
+        }
+
+        var maybeLink = document.getElementById('maybeEventLink');
+        if (maybeLink) {
+          maybeLink.addEventListener('click', async function () {
+            var originalText = maybeLink.textContent;
+            maybeLink.textContent = 'Salvo...';
+            try {
+              var existingLocIds = (findExistingParticipant() || {}).availableLocationOptionIds || [];
+              var noteEl = document.getElementById('confirmedNoteInput');
+              event = await SeevaData.upsertParticipant(event.id, guestName, [], existingLocIds, noteEl ? noteEl.value.trim() : undefined, true);
+            } catch (err) {
+              maybeLink.textContent = originalText;
+              SeevaUI.alert('Non sono riuscito a salvare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+              return;
+            }
+            render();
+          });
+        }
+
+        var declineLink = document.getElementById('declineEventLink');
+        if (declineLink) {
+          declineLink.addEventListener('click', async function () {
+            var originalText = declineLink.textContent;
+            declineLink.textContent = 'Salvo...';
+            try {
+              event = await SeevaData.upsertParticipant(event.id, guestName, [], []);
+            } catch (err) {
+              declineLink.textContent = originalText;
+              SeevaUI.alert('Non sono riuscito a salvare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+              return;
+            }
+            render();
+          });
+        }
+
+        // Il vecchio bottone "Condividi" (dentro il riquadro col link
+        // scritto) è stato tolto (Fil, 2026-08-25): la bolla #shareFab lo
+        // sostituisce, legata una sola volta in setupShareFab() più sotto —
+        // #shareFab è statica come a.back-btn, non va rilegata ad ogni
+        // bindEvents() (che qui gira a ogni render/refresh) o si
+        // accumulerebbero listener duplicati sullo stesso nodo.
+
+        document.querySelectorAll('#dayGrid .chip').forEach(function (chip) {
+          chip.addEventListener('click', function () {
+            // Giorno con lucchetto: primo tocco -> fumetto con "Sblocca",
+            // secondo tocco (o "Sblocca") -> si sblocca e si seleziona.
+            if (chip.getAttribute('data-busy') === '1' && !chip.classList.contains('selected')) {
+              if (openBusyPopChip !== chip) { showBusyPop(chip, true); return; }
+              unlockBusyChip(chip);
+              return;
+            }
+            chip.classList.toggle('selected');
+            if (chip.classList.contains('selected') && chip.getAttribute('data-busy-any')) showBusyPop(chip, false);
+            else hideBusyPop();
+          });
+        });
+
+        document.querySelectorAll('#locationGrid .chip').forEach(function (chip) {
+          chip.addEventListener('click', function () {
+            chip.classList.toggle('selected');
+          });
+        });
+
+        document.querySelectorAll('[data-claim-invitee]').forEach(function (row) {
+          row.addEventListener('click', function () {
+            claimInviteeAs(row.getAttribute('data-claim-invitee'));
+          });
+        });
+        var claimSkipLink = document.getElementById('claimSkipLink');
+        if (claimSkipLink) {
+          claimSkipLink.addEventListener('click', function () {
+            try { sessionStorage.setItem('seeva:claimDismissed:' + event.id, '1'); } catch (err) { /* ignora */ }
+            render();
+          });
+        }
+
+        function selectedLocationIds() {
+          return Array.prototype.map.call(
+            document.querySelectorAll('#locationGrid .chip.selected'),
+            function (c) { return c.getAttribute('data-location-option-id'); }
+          );
+        }
+
+        var confirmBtn = document.getElementById('confirmBtn');
+        if (confirmBtn) {
+          confirmBtn.addEventListener('click', function () {
+            var selectedIds = Array.prototype.map.call(
+              document.querySelectorAll('#dayGrid .chip.selected'),
+              function (c) { return c.getAttribute('data-option-id'); }
+            );
+            saveAvailability(selectedIds, selectedLocationIds(), confirmBtn);
+          });
+        }
+
+        var singleDateYesBtn = document.getElementById('singleDateYesBtn');
+        if (singleDateYesBtn) {
+          singleDateYesBtn.addEventListener('click', async function () {
+            if (!(await confirmBusyYes(event.dateOptions[0].dateISO))) return;
+            var noteEl = document.getElementById('singleDateNoteInput');
+            saveAvailability([singleDateYesBtn.getAttribute('data-option-id')], selectedLocationIds(), singleDateYesBtn, noteEl ? noteEl.value.trim() : '');
+          });
+        }
+
+        var singleDateMaybeBtn = document.getElementById('singleDateMaybeBtn');
+        if (singleDateMaybeBtn) {
+          singleDateMaybeBtn.addEventListener('click', function () {
+            var noteEl = document.getElementById('singleDateNoteInput');
+            saveAvailability([], selectedLocationIds(), singleDateMaybeBtn, noteEl ? noteEl.value.trim() : '', true);
+          });
+        }
+
+        var singleDateNoBtn = document.getElementById('singleDateNoBtn');
+        if (singleDateNoBtn) {
+          singleDateNoBtn.addEventListener('click', function () {
+            // Nessuna nota di arrivo ha senso su "Non ci sono": si ripulisce
+            // anche una nota lasciata in precedenza (Fil, 2026-09-13).
+            saveAvailability([], [], singleDateNoBtn, '');
+          });
+        }
+
+        var neverAvailableBtn = document.getElementById('neverAvailableBtn');
+        if (neverAvailableBtn) {
+          neverAvailableBtn.addEventListener('click', function () {
+            saveAvailability([], [], neverAvailableBtn);
+          });
+        }
+
+        // "La tua risposta" a 3 pulsanti (vedi buildRsvpSegHTML).
+        var rsvpSeg = document.getElementById('rsvpSeg');
+        if (rsvpSeg) {
+          rsvpSeg.querySelectorAll('[data-rsvp]').forEach(function (b) {
+            b.addEventListener('click', function () {
+              if (b.classList.contains('is-active') || rsvpSeg.classList.contains('is-saving')) return;
+              handleRsvpTap(b.getAttribute('data-rsvp'), rsvpSeg.getAttribute('data-ctx'), b);
+            });
+          });
+        }
+
+        // Tocchi la TUA bolla tra gli invitati / chi ci sarà -> ti porto a
+        // "La tua risposta" (o apro il form se l'evento ha più date).
+        document.querySelectorAll('[data-me-chip]').forEach(function (chip) {
+          chip.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var modal = document.getElementById('whoComingModal');
+            if (modal) modal.style.display = 'none';
+            var target = document.getElementById('rsvpSeg');
+            if (!target) {
+              var tile = document.getElementById('changeAvailabilityBtn');
+              if (tile) { editingAvailability = true; render(); }
+              target = document.getElementById('rsvpSeg') || document.getElementById('dayGrid') || document.getElementById('singleDateYesBtn');
+            }
+            if (target) {
+              target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              target.classList.remove('rsvp-flash'); void target.offsetWidth; target.classList.add('rsvp-flash');
+            }
+          });
+        });
+
+        var changeAvailabilityBtn = document.getElementById('changeAvailabilityBtn');
+        if (changeAvailabilityBtn) {
+          changeAvailabilityBtn.addEventListener('click', function () {
+            editingAvailability = true;
+            render();
+          });
+        }
+
+        // Popup "Chi viene" (Fil, 2026-08-23): stesso apri/chiudi già usato
+        // per il popup di gestione liste amici (amici.html) — un div che
+        // passa da display:none a niente, un click sullo sfondo scuro lo
+        // richiude.
+        var whoComingTile = document.getElementById('whoComingTile');
+        var whoComingModal = document.getElementById('whoComingModal');
+        var whoComingCloseBtn = document.getElementById('whoComingCloseBtn');
+        if (whoComingTile && whoComingModal) {
+          whoComingTile.addEventListener('click', function () {
+            whoComingModal.style.display = '';
+          });
+        }
+        if (whoComingCloseBtn && whoComingModal) {
+          whoComingCloseBtn.addEventListener('click', function () {
+            whoComingModal.style.display = 'none';
+          });
+        }
+        if (whoComingModal) {
+          whoComingModal.addEventListener('click', function (e) {
+            if (e.target === whoComingModal) whoComingModal.style.display = 'none';
+          });
+        }
+
+        // ---------- bacheca commenti: apri/chiudi/segna come letti ----------
+        var commentsTile = document.getElementById('commentsTile');
+        var commentsModal = document.getElementById('commentsModal');
+        var commentsCloseBtn = document.getElementById('commentsCloseBtn');
+        if (commentsTile && commentsModal) {
+          commentsTile.addEventListener('click', function () {
+            commentsModal.style.display = '';
+            // "N nuovi" segnato come letto appena apri, non a singolo
+            // messaggio: la prossima volta che riapri la pagina il badge
+            // è già a zero (Fil, 2026-09-13: stesso principio già usato per
+            // il resto -- niente da leggere/spuntare messaggio per messaggio).
+            try { localStorage.setItem(commentsSeenKey, String(allComments.length)); } catch (err) { /* ignora */ }
+          });
+        }
+        if (commentsCloseBtn && commentsModal) {
+          commentsCloseBtn.addEventListener('click', function () {
+            commentsModal.style.display = 'none';
+          });
+        }
+        if (commentsModal) {
+          commentsModal.addEventListener('click', function (e) {
+            if (e.target === commentsModal) commentsModal.style.display = 'none';
+          });
+        }
+
+        // Invio: bottone o Invio da tastiera. Dopo l'invio si richiama
+        // render() (stesso schema di saveAvailability) e si riapre subito
+        // il popup, che altrimenti render() ricrea chiuso da capo.
+        function sendEventComment() {
+          var inputEl = document.getElementById('commentInput');
+          var errorEl = document.getElementById('commentError');
+          var sendBtn = document.getElementById('commentSendBtn');
+          if (!inputEl) return;
+          var text = inputEl.value.trim();
+          if (errorEl) errorEl.textContent = '';
+          if (!text) return;
+          if (sendBtn) sendBtn.disabled = true;
+          SeevaData.postEventComment(event.id, guestName, text).then(function (updated) {
+            event = updated;
+            try { localStorage.setItem(commentsSeenKey, String((event.comments || []).length)); } catch (err) { /* ignora */ }
+            render();
+            var reopened = document.getElementById('commentsModal');
+            if (reopened) reopened.style.display = '';
+            var list = document.getElementById('commentList');
+            if (list) list.scrollTop = list.scrollHeight;
+          }).catch(function (err) {
+            if (sendBtn) sendBtn.disabled = false;
+            var errEl = document.getElementById('commentError');
+            if (errEl) errEl.textContent = 'Non sono riuscito a inviare il commento (' + SeevaData.friendlyErrorMessage(err) + ').';
+          });
+        }
+        var commentSendBtn = document.getElementById('commentSendBtn');
+        if (commentSendBtn) commentSendBtn.addEventListener('click', sendEventComment);
+        var commentInput = document.getElementById('commentInput');
+        if (commentInput) {
+          commentInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); sendEventComment(); }
+          });
+        }
+
+        // Cancella: l'autore o l'organizzatore (data-delete-comment-id
+        // presente solo per loro, vedi commentRowsHTML più sopra -- ma il
+        // controllo vero è comunque lato server, in delete_event_comment).
+        var commentListEl = document.getElementById('commentList');
+        if (commentListEl) {
+          commentListEl.addEventListener('click', async function (e) {
+            var delEl = e.target.closest && e.target.closest('[data-delete-comment-id]');
+            if (!delEl) return;
+            if (!await SeevaUI.ask('Cancellare questo commento?')) return;
+            var commentId = delEl.getAttribute('data-delete-comment-id');
+            SeevaData.deleteEventComment(event.id, commentId, guestName).then(function (updated) {
+              event = updated;
+              try { localStorage.setItem(commentsSeenKey, String((event.comments || []).length)); } catch (err) { /* ignora */ }
+              render();
+              var reopened = document.getElementById('commentsModal');
+              if (reopened) reopened.style.display = '';
+            }).catch(function (err) {
+              SeevaUI.alert('Non sono riuscito a cancellare il commento (' + SeevaData.friendlyErrorMessage(err) + ').');
+            });
+          });
+        }
+
+        var repeatEventBtn = document.getElementById('repeatEventBtn');
+        if (repeatEventBtn) {
+          repeatEventBtn.addEventListener('click', function () {
+            // Riusa esattamente il meccanismo di bozza già esistente in
+            // crea.html (lo stesso della "+ Crea una lista amici"): nome,
+            // descrizione, foto e luogo passano così come sono; date, lista
+            // invitati e quota restano vuote apposta, da scegliere da capo.
+            // Se l'evento aveva più location tra cui votare, si riporta solo
+            // quella confermata (o in testa ai voti) come punto di partenza:
+            // "Ripeti" riparte comunque da zero su tutto il resto, niente
+            // votazione multipla riportata pari pari (Fil, 2026-07-21).
+            var repeatLocation = SeevaData.resolveEventLocation(event);
+            var repeatDraft = {
+              eventName: event.name,
+              description: event.description,
+              locationValue: repeatLocation.address || '',
+              selectedLocation: {
+                address: repeatLocation.address || null,
+                placeId: repeatLocation.placeId || null,
+                lat: (repeatLocation.lat === undefined) ? null : repeatLocation.lat,
+                lng: (repeatLocation.lng === undefined) ? null : repeatLocation.lng
+              },
+              carriedPhotoUrl: event.photoUrl || null,
+              currentStep: 1
+            };
+            try {
+              sessionStorage.setItem('seeva:eventDraft', JSON.stringify(repeatDraft));
+              sessionStorage.setItem('cs-nav-direction', 'forward');
+            } catch (err) { /* ignora: nel peggiore dei casi si riparte da un form vuoto */ }
+
+            var screen = document.querySelector('.screen');
+            if (screen) screen.classList.add('slide-out-left');
+            window.setTimeout(function () { window.location.href = 'crea.html'; }, 160);
+          });
+        }
+
+        bindFeatureCards();
+        refreshOpenSheets();
+      }
+
+      /* ---------- pannelli dal basso: Spese e Chi porta cosa ----------
+         (Fil, 2026-11-01). Si aprono dalle due card; si chiudono con ✕,
+         toccando fuori o trascinando giù dalla maniglia. Il contenuto si
+         ridisegna da solo (refreshExpensesSheet / refreshItemsSheet) senza
+         chiudere il pannello. */
+      function bindFeatureCards() {
+        var ec = document.getElementById('expensesCard');
+        if (ec) ec.addEventListener('click', function () { openSheet('expenses'); });
+        var ic = document.getElementById('itemsCard');
+        if (ic) ic.addEventListener('click', function () { openSheet('items'); });
+      }
+
+      function refreshFeatureCards() {
+        var wrap = document.getElementById('featureCardsWrap');
+        if (!wrap) return;
+        var before = {};
+        wrap.querySelectorAll('.feat-card').forEach(function (c) { var m = c.querySelector('.feat-card-main'); before[c.id] = m ? m.textContent : ''; });
+        wrap.innerHTML = buildFeatureCardsHTML(SeevaData.computeEventStatus(event));
+        if (window.SeevaUI) window.SeevaUI.refresh();
+        bindFeatureCards();
+        // il numero cambiato fa un piccolo "salto", così si nota
+        wrap.querySelectorAll('.feat-card').forEach(function (c) {
+          var m = c.querySelector('.feat-card-main');
+          if (m && before[c.id] !== undefined && before[c.id] !== m.textContent) m.classList.add('bump');
+        });
+      }
+
+      // Un avviso (toast) nato con un pannello aperto resta in alto anche se
+      // il pannello si chiude mentre è ancora visibile (prima "saltava" giù).
+      function ensureSheetAwareToast() {
+        if (!window.SeevaUI || !SeevaUI.toast || SeevaUI.toast._sheetAware) return;
+        var origToast = SeevaUI.toast;
+        SeevaUI.toast = function (msg) {
+          var r = origToast.apply(this, arguments);
+          if (document.documentElement.classList.contains('sheet-open')) {
+            var all = document.querySelectorAll('.toast');
+            if (all.length) all[all.length - 1].classList.add('at-top');
+          }
+          return r;
+        };
+        SeevaUI.toast._sheetAware = true;
+      }
+
+      function sheetEl(kind) { return document.getElementById(kind === 'expenses' ? 'expensesSheet' : 'itemsSheet'); }
+
+      function openSheet(kind) {
+        var el = sheetEl(kind);
+        if (!el) return;
+        ensureSheetAwareToast();
+        if (kind === 'expenses') { expensesSheetOpen = true; refreshExpensesSheet(); }
+        else { itemsSheetOpen = true; refreshItemsSheet(); }
+        el.style.display = '';
+        el.classList.remove('is-closing');
+        var panel = el.querySelector('.sv-sheet');
+        if (panel) { panel.style.transform = ''; panel.scrollTop = 0; }
+        var body = el.querySelector('.sv-sheet-body');
+        if (body) body.scrollTop = 0;
+        document.documentElement.classList.add('sheet-open');
+      }
+
+      function closeSheet(kind) {
+        var el = sheetEl(kind);
+        if (!el || el.style.display === 'none') return;
+        if (kind === 'expenses') expensesSheetOpen = false; else itemsSheetOpen = false;
+        el.classList.add('is-closing');
+        window.setTimeout(function () {
+          el.style.display = 'none';
+          el.classList.remove('is-closing');
+          var panel = el.querySelector('.sv-sheet');
+          if (panel) panel.style.transform = '';
+        }, 220);
+        if (!expensesSheetOpen && !itemsSheetOpen) document.documentElement.classList.remove('sheet-open');
+      }
+
+      ['expenses', 'items'].forEach(function (kind) {
+        var el = sheetEl(kind);
+        if (!el) return;
+        el.addEventListener('click', function (e) { if (e.target === el) closeSheet(kind); });
+        var closeBtn = el.querySelector('[data-sheet-close]');
+        if (closeBtn) closeBtn.addEventListener('click', function () { closeSheet(kind); });
+        // Trascina giù dalla maniglia/intestazione per chiudere.
+        var grab = el.querySelector('.sv-sheet-grab');
+        var panel = el.querySelector('.sv-sheet');
+        if (!grab || !panel) return;
+        var startY = null, dy = 0;
+        grab.addEventListener('touchstart', function (e) { startY = e.touches[0].clientY; dy = 0; panel.style.transition = 'none'; }, { passive: true });
+        grab.addEventListener('touchmove', function (e) {
+          if (startY === null) return;
+          dy = Math.max(0, e.touches[0].clientY - startY);
+          panel.style.transform = 'translateY(' + dy + 'px)';
+        }, { passive: true });
+        grab.addEventListener('touchend', function () {
+          if (startY === null) return;
+          panel.style.transition = '';
+          if (dy > 90) closeSheet(kind); else panel.style.transform = '';
+          startY = null;
+        });
+      });
+
+      function refreshOpenSheets() {
+        if (expensesSheetOpen) refreshExpensesSheet();
+        if (itemsSheetOpen) refreshItemsSheet();
+      }
+
+      function refreshExpensesSheet() {
+        var body = document.getElementById('expensesSheetBody');
+        if (!body) return;
+        body.innerHTML = buildExpensesSheetBodyHTML();
+        if (window.SeevaUI) window.SeevaUI.refresh();
+        var addBtn = document.getElementById('addExpenseBtn');
+        if (addBtn) addBtn.addEventListener('click', function () { openExpenseModal(null); });
+        body.querySelectorAll('[data-edit-expense]').forEach(function (row) {
+          row.addEventListener('click', function () {
+            var id = row.getAttribute('data-edit-expense');
+            var ex = (event.expenses || []).filter(function (e) { return e.id === id; })[0];
+            if (ex) openExpenseModal(ex);
+          });
+        });
+      }
+
+      // Dopo una modifica: dati freschi, card e pannelli aggiornati, senza
+      // ridisegnare tutta la pagina.
+      async function reloadEventAndFeatures(justChangedItemId) {
+        try { event = await SeevaData.getEventById(event.id); } catch (err) { /* resta la copia di prima */ }
+        refreshFeatureCards();
+        if (expensesSheetOpen) refreshExpensesSheet();
+        if (itemsSheetOpen) refreshItemsSheet(justChangedItemId);
+        justAddedExpenseId = null;
+      }
+
+      // Ridisegna il contenuto del pannello "chi porta cosa" con la stessa
+      // animazione FLIP di prima (le righe scivolano al posto nuovo invece
+      // di sparire e riapparire).
+      function refreshItemsSheet(justChangedId) {
+        var body = document.getElementById('itemsSheetBody');
+        if (!body) return;
+        var firstRects = {};
+        body.querySelectorAll('.item-swipe-wrap[data-item-id]').forEach(function (rowEl) {
+          firstRects[rowEl.getAttribute('data-item-id')] = rowEl.getBoundingClientRect().top;
+        });
+        var keepText = '';
+        var oldInput = document.getElementById('newItemInput');
+        if (oldInput) keepText = oldInput.value;
+        body.innerHTML = buildItemsSheetBodyHTML(justChangedId);
+        if (window.SeevaUI) window.SeevaUI.refresh();
+        bindItemsSheet();
+        var newInput = document.getElementById('newItemInput');
+        if (newInput && keepText) newInput.value = keepText;
+        body.querySelectorAll('.item-swipe-wrap[data-item-id]').forEach(function (rowEl) {
+          var id = rowEl.getAttribute('data-item-id');
+          var firstTop = firstRects[id];
+          if (firstTop === undefined) return;
+          var dy = firstTop - rowEl.getBoundingClientRect().top;
+          if (Math.abs(dy) < 1) return;
+          rowEl.style.transition = 'none';
+          rowEl.style.transform = 'translateY(' + dy + 'px)';
+          rowEl.getBoundingClientRect();
+          rowEl.style.transition = 'transform 0.28s cubic-bezier(.22,1,.36,1)';
+          rowEl.style.transform = '';
+        });
+      }
+
+      function bindItemsSheet() {
+        var addItemBtn = document.getElementById('addItemBtn');
+        var newItemInput = document.getElementById('newItemInput');
+        async function addItem() {
+          var text = (newItemInput.value || '').trim();
+          if (!text) { newItemInput.focus(); return; }
+          addItemBtn.disabled = true;
+          try {
+            await SeevaData.addEventItem(event.id, text);
+          } catch (err) {
+            addItemBtn.disabled = false;
+            SeevaUI.alert('Non sono riuscito ad aggiungere la voce (' + SeevaData.friendlyErrorMessage(err) + ').');
+            return;
+          }
+          newItemInput.value = '';
+          await reloadEventAndFeatures();
+          var again = document.getElementById('newItemInput');
+          if (again) { try { again.focus({ preventScroll: true }); } catch (err) { /* ignora */ } }
+        }
+        if (addItemBtn) addItemBtn.addEventListener('click', addItem);
+        if (newItemInput) newItemInput.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); addItem(); }
+        });
+
+        document.querySelectorAll('#itemsSheetBody .item-row-card[data-item-action]').forEach(function (el) {
+          var action = el.getAttribute('data-item-action');
+          if (action === 'none') return;
+          el.addEventListener('click', async function (e) {
+            if (e.target.closest('[data-item-cost]')) return; // il "€" ha il suo tocco
+            var id = el.getAttribute('data-item-id');
+            if (action === 'claim') {
+              var got = false;
+              try {
+                got = await SeevaData.claimEventItem(id);
+              } catch (err) {
+                SeevaUI.alert('Non sono riuscito a prenotarla (' + SeevaData.friendlyErrorMessage(err) + ').');
+                return;
+              }
+              if (!got) SeevaUI.alert('Qualcun altro l\'ha già presa un attimo fa.');
+            } else {
+              var it = (event.items || []).filter(function (x) { return x.id === id; })[0];
+              if (it && it.cost) {
+                var ok = await SeevaUI.ask('Lasciarla libera? Si toglie anche la spesa di ' + SeevaData.formatEuro(it.cost) + ' che avevi segnato.');
+                if (!ok) return;
+              }
+              try {
+                await SeevaData.releaseEventItem(id);
+              } catch (err) {
+                SeevaUI.alert('Non sono riuscito a liberarla (' + SeevaData.friendlyErrorMessage(err) + ').');
+                return;
+              }
+            }
+            await reloadEventAndFeatures(id);
+          });
+        });
+
+        document.querySelectorAll('#itemsSheetBody [data-item-cost]').forEach(function (btn) {
+          btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var id = btn.getAttribute('data-item-cost');
+            var it = (event.items || []).filter(function (x) { return x.id === id; })[0];
+            if (it) openItemCostModal(it);
+          });
+        });
+
+        document.querySelectorAll('#itemsSheetBody .item-swipe-trash[data-remove-item]').forEach(function (el) {
+          el.addEventListener('click', async function () {
+            var id = el.getAttribute('data-remove-item');
+            var sure = await SeevaUI.ask('Eliminare questa voce?');
+            if (!sure) return;
+            try {
+              await SeevaData.deleteEventItem(id);
+            } catch (err) {
+              SeevaUI.alert('Non sono riuscito a eliminarla (' + SeevaData.friendlyErrorMessage(err) + ').');
+              return;
+            }
+            var wrapEl = el.closest('.item-swipe-wrap');
+            if (wrapEl) {
+              wrapEl.style.transition = 'max-height 0.24s ease, opacity 0.24s ease, margin-bottom 0.24s ease';
+              wrapEl.style.maxHeight = wrapEl.offsetHeight + 'px';
+              wrapEl.getBoundingClientRect();
+              wrapEl.style.maxHeight = '0px';
+              wrapEl.style.opacity = '0';
+              wrapEl.style.marginBottom = '0px';
+              await new Promise(function (r) { window.setTimeout(r, 240); });
+            }
+            await reloadEventAndFeatures();
+          });
+        });
+      }
+
+      async function addEventToCalendar(dateISO) {
+            // App Android (Fil, 2026-10-31): apre il calendario del telefono
+            // già compilato. Se non va, si prosegue col vecchio metodo.
+            try {
+              if (await SeevaData.addToNativeCalendar(event, dateISO)) return;
+            } catch (err) {
+              if (window.SeevaUI) window.SeevaUI.toast(t('Non riesco ad aprire il calendario del telefono'));
+              return;
+            }
+            // iPhone (Michi, Pattu 2026-10-03: "non si collega al
+            // calendario"): apro l'indirizzo vero del .ics, iOS mostra da
+            // solo "Aggiungi a Calendario". Android resta com'era.
+            if (SeevaData.isIOS()) {
+              window.location.href = SeevaData.eventIcsUrl(event, dateISO);
+              return;
+            }
+            var ics = SeevaData.buildEventICS(event, dateISO);
+            var blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+            var url = URL.createObjectURL(blob);
+
+            // Fil, 2026-07-20: dopo due tentativi con trattamenti diversi
+            // per iOS/Android (rotti a turno su varianti che non riesco a
+            // testare -- Safari normale, PWA installata in standalone,
+            // Chrome/Samsung Internet), stesso comportamento OVUNQUE:
+            // scarica sempre il file con nome giusto ed estensione .ics, e
+            // lo si dice chiaramente. Meno "magico" di un'apertura diretta
+            // nel calendario, ma prevedibile in ogni contesto, PWA inclusa
+            // (dove aprire una nuova scheda semplicemente non esiste).
+            var safeName = (event.name || 'evento').replace(/[^\w\- ]/g, '').trim() || 'evento';
+            var fileName = safeName + '.ics';
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+
+            if (window.SeevaUI) {
+              window.SeevaUI.toast('Scaricato "' + fileName + '": aprilo dai tuoi Download/File per aggiungerlo al calendario 📅');
+            }
+      }
+
+      async function handleRsvpTap(key, ctx, btnEl) {
+        var seg = document.getElementById('rsvpSeg');
+        var existing = findExistingParticipant();
+        var locIds = (existing && existing.availableLocationOptionIds) || [];
+        if (ctx === 'single') {
+          var optId = event.dateOptions[0].id;
+          if (key === 'yes') { if (!(await confirmBusyYes(event.dateOptions[0].dateISO))) return; return saveAvailability([optId], locIds, btnEl); }
+          if (key === 'maybe') return saveAvailability([], locIds, btnEl, undefined, true);
+          return saveAvailability([], [], btnEl, '');
+        }
+        var info = SeevaData.computeEventStatus(event);
+        if (!info.bestOption) return;
+        var currentlyYes = !!(existing && (existing.availableDateOptionIds || []).indexOf(info.bestOption.id) !== -1);
+        if (key === 'yes' && !(await confirmBusyYes(info.bestOption.dateISO))) return;
+        if (key === 'no' && currentlyYes) {
+          var sure = await SeevaUI.ask('Segnalare che non potrai esserci per "' + event.name + '"? L\'organizzatore riceverà una notifica.');
+          if (!sure) return;
+        }
+        var noteEl = document.getElementById('confirmedNoteInput');
+        var noteVal = noteEl ? noteEl.value.trim() : undefined;
+        var originalText = btnEl.textContent;
+        if (seg) seg.classList.add('is-saving');
+        btnEl.textContent = 'Salvo...';
+        try {
+          if (key === 'yes') event = await SeevaData.upsertParticipant(event.id, guestName, [info.bestOption.id], locIds, noteVal);
+          else if (key === 'maybe') event = await SeevaData.upsertParticipant(event.id, guestName, [], locIds, noteVal, true);
+          else if (currentlyYes) event = await SeevaData.withdrawFromEvent(event.id, guestName);
+          else event = await SeevaData.upsertParticipant(event.id, guestName, [], []);
+        } catch (err) {
+          btnEl.textContent = originalText;
+          if (seg) seg.classList.remove('is-saving');
+          SeevaUI.alert('Non sono riuscito a salvare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+          return;
+        }
+        render();
+      }
+
+      /* Salva su Supabase e torna alla vista compatta: niente più navigazione
+         verso la Home, si resta qui a vedere il riepilogo aggiornato. */
+      async function saveAvailability(selectedIds, selectedLocIds, btnEl, note, maybe) {
+        var formError = document.getElementById('formError');
+        if (formError) formError.textContent = '';
+
+        // Serve per capire, dopo il salvataggio, se è stata proprio questa
+        // risposta a far scattare la conferma (Fil, 2026-07-17): se non lo era
+        // già prima e lo è dopo, chi ha appena risposto ha "chiuso" l'evento
+        // e merita lo stesso popup di festa di chi lo crea, non solo il
+        // riepilogo silenzioso che si vede ricaricando la pagina più tardi.
+        var wasConfirmed = SeevaData.computeEventStatus(event).status === 'done';
+
+        var originalText = btnEl.textContent;
+        btnEl.disabled = true;
+        btnEl.textContent = 'Salvo...';
+
+        try {
+          event = await SeevaData.upsertParticipant(event.id, guestName, selectedIds, selectedLocIds, note, maybe === true);
+        } catch (err) {
+          if (formError) formError.textContent = 'Non sono riuscito a salvare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.';
+          btnEl.disabled = false;
+          btnEl.textContent = originalText;
+          return;
+        }
+
+        editingAvailability = false;
+        render();
+
+        var infoAfter = SeevaData.computeEventStatus(event);
+        if (!wasConfirmed && infoAfter.status === 'done' && infoAfter.bestOption) {
+          showEventConfirmedPopup(infoAfter);
+        }
+      }
+
+      /* Stesso trattamento del popup "evento creato" di crea.html (sfondo
+         sfocato, riepilogo essenziale, si chiude da solo dopo 10s o al primo
+         tocco): qui però non si naviga da nessuna parte dopo, si resta
+         sull'evento (già ridisegnato sotto da render() con lo stato
+         confermato). */
+      function showEventConfirmedPopup(info) {
+        var phone = document.querySelector('.phone');
+        if (!phone) return;
+
+        var overlay = document.createElement('div');
+        overlay.className = 'signup-overlay';
+        overlay.innerHTML = ''
+          + '<div class="signup-modal">'
+          + '<div class="signup-modal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="34" height="34"><path d="M12 3.5l2.1 4.6 5 .5-3.8 3.4 1.1 5-4.4-2.6-4.4 2.6 1.1-5-3.8-3.4 5-.5z"></path></svg></div>'
+          + '<div class="signup-modal-title">Evento confermato!</div>'
+          + '<div class="signup-modal-text" style="margin-bottom:6px;">' + SeevaData.escapeHTML(event.name) + '</div>'
+          + '<div class="signup-modal-text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px; margin-right:3px;"><rect x="3" y="5" width="18" height="16" rx="3"></rect><line x1="16" y1="3" x2="16" y2="7"></line><line x1="8" y1="3" x2="8" y2="7"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>' + SeevaData.escapeHTML(SeevaData.formatDateLabel(info.bestOption.dateISO)) + '</div>'
+          + '</div>';
+
+        var dismissed = false;
+        function dismiss() {
+          if (dismissed) return;
+          dismissed = true;
+          if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        }
+        overlay.addEventListener('click', dismiss);
+        window.setTimeout(dismiss, 10000);
+
+        phone.appendChild(overlay);
+      }
+
+      /* Popup "Aggiungi persone" (Fil, 2026-09-26): stesso campo di crea.html
+         (nome + suggerimenti di chi ha l'app, SeevaUI.attachAccountSearch,
+         + nascosto finché non scrivi), elenco di chi stai aggiungendo con la
+         ✕, poi "Aggiungi". Solo aggiunte: per togliere qualcuno resta
+         Modifica. Ai nuovi con account arriva "Sei stato invitato", agli
+         altri invitati niente (vedi addEventInvitees in data.js). */
+      function openAddPeoplePopup() {
+        var phone = document.querySelector('.phone');
+        if (!phone) return;
+        var esc = SeevaData.escapeHTML;
+        var pending = [];
+        var existingLower = (event.invitees || []).map(function (f) { return (f.name || '').trim().toLowerCase(); });
+        existingLower.push((event.createdBy || '').trim().toLowerCase());
+
+        var overlay = document.createElement('div');
+        overlay.className = 'signup-overlay';
+        overlay.innerHTML = ''
+          + '<div class="signup-modal" style="text-align:left;">'
+          + '<div class="signup-modal-title" style="text-align:center;">Aggiungi persone</div>'
+          + '<div class="field" style="margin-bottom:6px;">'
+          + '<div class="inline-add-row">'
+          + '<input type="text" id="addPeopleInput" placeholder="Nome" autocomplete="off">'
+          + '<button type="button" id="addPeopleAddBtn" class="btn-reveal">+</button>'
+          + '</div>'
+          + '<div id="addPeopleList" style="max-height:34vh; overflow-y:auto;"></div>'
+          + '</div>'
+          + '<div class="form-error" id="addPeopleError"></div>'
+          + '<button type="button" class="primary-btn" id="addPeopleSaveBtn" style="margin-bottom:0;" disabled>Aggiungi</button>'
+          + '<div style="text-align:center; margin-top:12px;"><span class="signup-skip-link" id="addPeopleCancelBtn">Annulla</span></div>'
+          + '</div>';
+        phone.appendChild(overlay);
+
+        var input = overlay.querySelector('#addPeopleInput');
+        var addBtn = overlay.querySelector('#addPeopleAddBtn');
+        var listEl = overlay.querySelector('#addPeopleList');
+        var errorEl = overlay.querySelector('#addPeopleError');
+        var saveBtn = overlay.querySelector('#addPeopleSaveBtn');
+
+        function close() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+        overlay.querySelector('#addPeopleCancelBtn').addEventListener('click', close);
+
+        function renderList() {
+          listEl.innerHTML = pending.map(function (entry, idx) {
+            var marker = '';
+            if (entry.accountId) {
+              var initial = (entry.name.trim().charAt(0) || '?').toUpperCase();
+              marker = entry.avatarUrl
+                ? '<span class="linked-mini-avatar" title="Collegato a un account"><img src="' + esc(entry.avatarUrl) + '" alt="" loading="lazy"></span>'
+                : '<span class="linked-mini-avatar" title="Collegato a un account">' + esc(initial) + '</span>';
+            }
+            return '<div class="settings-row" style="margin-top:8px;">'
+              + '<div class="left" style="display:flex; align-items:center;">' + marker + esc(entry.name) + '</div>'
+              + '<span class="friend-remove" data-remove-idx="' + idx + '">✕</span>'
+              + '</div>';
+          }).join('');
+          saveBtn.disabled = !pending.length;
+          saveBtn.textContent = pending.length > 1 ? t('Aggiungi {n} persone', { n: pending.length }) : t('Aggiungi');
+        }
+
+        function addName() {
+          var name = input.value.trim();
+          if (!name) return;
+          var lower = name.toLowerCase();
+          if (existingLower.indexOf(lower) !== -1) { errorEl.textContent = name + ' è già tra gli invitati.'; return; }
+          if (pending.some(function (e) { return e.name.toLowerCase() === lower; })) { errorEl.textContent = 'Hai già aggiunto ' + name + '.'; return; }
+          errorEl.textContent = '';
+          var isLinked = input.dataset.linkedUsername === name;
+          pending.push({
+            name: name,
+            accountId: isLinked ? (input.dataset.linkedAccountId || null) : null,
+            avatarUrl: isLinked ? (input.dataset.linkedAvatarUrl || null) : null
+          });
+          input.value = '';
+          addBtn.classList.remove('is-visible');
+          delete input.dataset.linkedAccountId;
+          delete input.dataset.linkedUsername;
+          delete input.dataset.linkedAvatarUrl;
+          renderList();
+          input.focus();
+        }
+
+        var search = (window.SeevaUI && SeevaUI.attachAccountSearch) ? SeevaUI.attachAccountSearch(input, function () { addName(); }) : null;
+
+        // Come in crea.html: prima di aggiungere si aspetta che la ricerca
+        // account per il nome scritto sia finita, altrimenti chi scrive
+        // veloce aggiunge "a vuoto" una persona che l'app ce l'ha.
+        async function triggerAdd() {
+          if (!search) { addName(); return; }
+          var label = addBtn.textContent;
+          addBtn.disabled = true;
+          addBtn.textContent = '···';
+          try {
+            await Promise.all([search.flush(), new Promise(function (r) { window.setTimeout(r, 450); })]);
+          } finally {
+            addBtn.disabled = false;
+            addBtn.textContent = label;
+          }
+          addName();
+        }
+
+        input.addEventListener('input', function () {
+          addBtn.classList.toggle('is-visible', input.value.trim().length > 0);
+          errorEl.textContent = '';
+        });
+        input.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); triggerAdd(); }
+        });
+        addBtn.addEventListener('click', triggerAdd);
+        listEl.addEventListener('click', function (e) {
+          var idx = e.target.getAttribute('data-remove-idx');
+          if (idx === null) return;
+          pending.splice(parseInt(idx, 10), 1);
+          renderList();
+        });
+
+        saveBtn.addEventListener('click', async function () {
+          // Nome scritto ma non ancora confermato col +: lo si aggiunge
+          // comunque, è quello che uno si aspetta premendo "Aggiungi".
+          if (input.value.trim()) { await triggerAdd(); if (errorEl.textContent) return; }
+          if (!pending.length) return;
+          saveBtn.disabled = true;
+          saveBtn.textContent = 'Aggiungo...';
+          var result;
+          try {
+            result = await SeevaData.addEventInvitees(event.id, pending.map(function (e) { return { name: e.name, accountId: e.accountId }; }));
+          } catch (err) {
+            saveBtn.disabled = false;
+            renderList();
+            errorEl.textContent = 'Non sono riuscito ad aggiungerli (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.';
+            return;
+          }
+          if (window.SeevaMotion) await SeevaMotion.success(saveBtn); // ✓ sul pulsante (2026-11-02)
+          close();
+          if (result.event) event = result.event;
+          render();
+          var n = (result.added || []).length;
+          if (window.SeevaUI && SeevaUI.toast && n) SeevaUI.toast(n === 1 ? (result.added[0] + ' aggiunto ✓') : (n + ' persone aggiunte ✓'));
+        });
+
+        renderList();
+        window.setTimeout(function () { input.focus(); }, 50);
+      }
+
+      /* Esito del sollecito (Fil, 2026-09-26): a chi è arrivato e, a parte,
+         chi non ha l'app (invitato solo col nome, nessun account collegato:
+         nessuna notifica possibile) con il tasto per mandargli il link a
+         mano — stessa condivisione della bolla #shareFab. */
+      /* Popup "Manda un avviso a tutti" (Fil, 2026-10-07). */
+      function openAnnouncePopup() {
+        var phone = document.querySelector('.phone');
+        if (!phone) return;
+        var overlay = document.createElement('div');
+        overlay.className = 'signup-overlay';
+        overlay.innerHTML = ''
+          + '<div class="signup-modal" style="text-align:left;">'
+          + '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">'
+          + '<div class="signup-modal-title" style="margin:0;">Avviso a tutti</div>'
+          + '<div class="list-delete" id="announceCloseBtn">Chiudi ✕</div></div>'
+          + '<div class="signup-modal-text" style="text-align:left; margin-bottom:10px;">Arriva come notifica a tutti gli invitati (tranne chi ha detto che non c\'è) e resta in cima alla pagina dell\'evento.</div>'
+          + '<textarea class="report-problem-textarea" id="announceText" maxlength="1000" placeholder="Es. Ci troviamo al parcheggio alle 19:30, portate il costume!"></textarea>'
+          + '<div class="field-hint" id="announceError" style="color:var(--cancel-ink); min-height:16px; margin-top:6px;"></div>'
+          + '<button type="button" class="primary-btn" id="announceSendBtn" style="margin-top:10px; margin-bottom:0;">Manda avviso</button>'
+          + '</div>';
+        function close() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+        phone.appendChild(overlay);
+        var textEl = overlay.querySelector('#announceText');
+        var errorEl = overlay.querySelector('#announceError');
+        var sendBtn = overlay.querySelector('#announceSendBtn');
+        overlay.querySelector('#announceCloseBtn').addEventListener('click', close);
+        setTimeout(function () { try { textEl.focus(); } catch (err) { /* ok */ } }, 50);
+        sendBtn.addEventListener('click', async function () {
+          var msg = (textEl.value || '').trim();
+          if (!msg) { errorEl.textContent = 'Scrivi il messaggio.'; return; }
+          if (sendBtn.disabled) return;
+          sendBtn.disabled = true;
+          sendBtn.textContent = 'Invio...';
+          errorEl.textContent = '';
+          var result;
+          try {
+            result = await SeevaData.sendEventAnnouncement(event.id, msg);
+          } catch (err) {
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Manda avviso';
+            errorEl.textContent = SeevaData.friendlyErrorMessage(err);
+            return;
+          }
+          close();
+          event = await SeevaData.getEventById(event.id);
+          render();
+          var unreachable = result.unreachableNames || [];
+          var n = result.notified || 0;
+          var txt = n ? (n === 1 ? t('Avviso mandato a 1 persona.') : t('Avviso mandato a {n} persone.', { n: n })) : t('Avviso salvato nella pagina dell\'evento.');
+          if (unreachable.length) txt += '\n\n' + (unreachable.length === 1 ? t('{names} non ha l\'app: lo vedrà aprendo il link dell\'evento.', { names: unreachable.join(', ') }) : t('{names} non hanno l\'app: lo vedranno aprendo il link dell\'evento.', { names: unreachable.join(', ') }));
+          SeevaUI.alert(txt);
+        });
+      }
+
+      function showNudgeResultPopup(result) {
+        var phone = document.querySelector('.phone');
+        if (!phone) return;
+        var notifiedNames = result.notifiedNames || [];
+        var unreachable = result.unreachableNames || [];
+        var esc = SeevaData.escapeHTML;
+
+        var mainText = notifiedNames.length
+          ? (notifiedNames.length === 1 ? t('Promemoria mandato a 1 persona:') : t('Promemoria mandato a {n} persone:', { n: notifiedNames.length })) + '<br><b>' + notifiedNames.map(esc).join(', ') + '</b>'
+          : 'Nessuno da sollecitare con l\'app.';
+        var unreachableHTML = unreachable.length
+          ? '<div class="signup-modal-text" style="margin-top:12px;">' + (unreachable.length === 1 ? t('<b>{names}</b> non ha l\'app: mandagli tu il link.', { names: unreachable.map(esc).join(', ') }) : t('<b>{names}</b> non hanno l\'app: mandagli tu il link.', { names: unreachable.map(esc).join(', ') })) + '</div>'
+            + '<button type="button" class="primary-btn" id="nudgeShareBtn" style="margin-top:12px; margin-bottom:0;">Condividi il link</button>'
+          : '';
+
+        var overlay = document.createElement('div');
+        overlay.className = 'signup-overlay';
+        overlay.innerHTML = ''
+          + '<div class="signup-modal">'
+          + '<div class="signup-modal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="34" height="34"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg></div>'
+          + '<div class="signup-modal-title">' + (notifiedNames.length ? 'Sollecito inviato' : 'Sollecito') + '</div>'
+          + '<div class="signup-modal-text">' + mainText + '</div>'
+          + unreachableHTML
+          + '<div style="text-align:center; margin-top:12px;"><span class="signup-skip-link" id="nudgeCloseBtn">Chiudi</span></div>'
+          + '</div>';
+
+        function close() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+        phone.appendChild(overlay);
+        var closeBtn = overlay.querySelector('#nudgeCloseBtn');
+        if (closeBtn) closeBtn.addEventListener('click', close);
+        var shareBtn = overlay.querySelector('#nudgeShareBtn');
+        if (shareBtn) {
+          shareBtn.addEventListener('click', function () {
+            var fab = document.getElementById('shareFab');
+            if (fab) fab.click();
+          });
+        }
+      }
+
+      /* ---------- menu ⋮ dell'header: Modifica/Elimina ----------
+         Legato una sola volta (non dentro bindEvents, che invece viene
+         richiamato ad ogni render() perché ricostruisce contentEl da zero):
+         questi elementi sono statici nell'header, fuori da contentEl, quindi
+         un bind ripetuto ad ogni render() si accumulerebbe (più listener
+         sullo stesso bottone, conferme multiple). La sola cosa che cambia ad
+         ogni render() è la visibilità del menu (vedi sopra in render()). */
+      function setupHeaderMenu() {
+        var menuBtn = document.getElementById('eventMenuBtn');
+        var dropdown = document.getElementById('eventMenuDropdown');
+        var editLink = document.getElementById('menuEditLink');
+        var editAvailabilityBtn = document.getElementById('menuEditAvailabilityBtn');
+        var deleteBtn = document.getElementById('menuDeleteBtn');
+        var menuDot = document.getElementById('menuDot');
+        if (!menuBtn || !dropdown) return;
+
+        if (editLink) editLink.setAttribute('href', 'crea.html?edit=' + encodeURIComponent(event.id));
+
+        // "📅 I giorni in cui ci sei" (Fil, 2026-07-19): stesso
+        // comportamento del vecchio bottone inline "✏️ Modifica i giorni in
+        // cui ci sei" — entra in modalità modifica disponibilità e
+        // ridisegna. La visibilità (solo organizzatore, solo se non ha
+        // ancora personalizzato) è gestita in render(), non qui.
+        if (editAvailabilityBtn) {
+          editAvailabilityBtn.addEventListener('click', function () {
+            dropdown.classList.remove('open');
+            editingAvailability = true;
+            render();
+          });
+        }
+
+        // puntino "c'è qualcosa qui", non un fumetto di testo: meno invasivo
+        // per far notare il menu ⋮ la prima volta che un organizzatore
+        // rivede un suo evento (Fil, 2026-07-07). Sparisce per sempre al
+        // primo click sul menu, su qualunque evento (non serve per ognuno).
+        var MENU_DOT_KEY = 'seeva:hintSeen:menuDot';
+        if (menuDot) {
+          try {
+            if (!localStorage.getItem(MENU_DOT_KEY)) menuDot.style.display = '';
+          } catch (e) { /* ignora */ }
+        }
+
+        // Dopo un sollecito la voce del menu mostra ✓ e fra quanto si può
+        // rimandare (15 minuti, come il blocco sul server) — 2026-11-02.
+        function updateNudgeMenuLabel() {
+          var el = document.getElementById('menuNudgeBtn');
+          if (!el) return;
+          if (!el._moLabel) el._moLabel = el.innerHTML;
+          var at = 0;
+          try { at = parseInt(localStorage.getItem('seeva:nudgedAt:' + event.id) || '0', 10) || 0; } catch (err) { /* ignora */ }
+          var left = Math.ceil((at + 15 * 60000 - Date.now()) / 60000);
+          if (at && left > 0) {
+            el.innerHTML = el._moLabel.replace(/<\/svg>[\s\S]*$/, '</svg> ')
+              + '<span class="mo-nudge-done">✓ ' + (left === 1 ? t('Sollecitato · di nuovo tra 1 minuto') : t('Sollecitato · di nuovo tra {n} minuti', { n: left })) + '</span>';
+            el.classList.add('mo-cooling');
+          } else {
+            el.innerHTML = el._moLabel;
+            el.classList.remove('mo-cooling');
+          }
+        }
+
+        menuBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          dropdown.classList.toggle('open');
+          updateNudgeMenuLabel();
+          if (menuDot && menuDot.style.display !== 'none') {
+            menuDot.style.display = 'none';
+            try { localStorage.setItem(MENU_DOT_KEY, '1'); } catch (err) { /* ignora */ }
+          }
+        });
+
+        document.addEventListener('click', function () {
+          dropdown.classList.remove('open');
+        });
+        dropdown.addEventListener('click', function (e) { e.stopPropagation(); });
+
+        var addPeopleBtn = document.getElementById('menuAddPeopleBtn');
+        if (addPeopleBtn) {
+          addPeopleBtn.addEventListener('click', function () {
+            dropdown.classList.remove('open');
+            openAddPeoplePopup();
+          });
+        }
+
+        var nudgeBtn = document.getElementById('menuNudgeBtn');
+        if (nudgeBtn) {
+          nudgeBtn.addEventListener('click', async function () {
+            dropdown.classList.remove('open');
+            if (nudgeBtn.getAttribute('data-busy') === '1') return;
+            var sure = await SeevaUI.ask('Mandare un promemoria a chi non ha ancora risposto e a chi ha detto forse?');
+            if (!sure) return;
+            nudgeBtn.setAttribute('data-busy', '1');
+            var result;
+            try {
+              result = await SeevaData.nudgePendingInvitees(event.id);
+            } catch (err) {
+              SeevaUI.alert('Non sono riuscito a mandare il sollecito (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+              return;
+            } finally {
+              nudgeBtn.removeAttribute('data-busy');
+            }
+            if (result.cooldown) {
+              var mins = Math.max(1, Math.ceil((result.retryAfterSeconds || 60) / 60));
+              SeevaUI.alert(mins === 1 ? t('Hai già sollecitato da poco. Puoi rimandarlo tra 1 minuto.') : t('Hai già sollecitato da poco. Puoi rimandarlo tra {n} minuti.', { n: mins }));
+              return;
+            }
+            try { localStorage.setItem('seeva:nudgedAt:' + event.id, String(Date.now())); } catch (err) { /* ignora */ }
+            showNudgeResultPopup(result);
+          });
+        }
+
+        var announceBtn = document.getElementById('menuAnnounceBtn');
+        if (announceBtn) {
+          announceBtn.addEventListener('click', function () {
+            dropdown.classList.remove('open');
+            openAnnouncePopup();
+          });
+        }
+
+        var toggleItemsBtn = document.getElementById('menuToggleItemsBtn');
+        if (toggleItemsBtn) {
+          toggleItemsBtn.addEventListener('click', async function () {
+            dropdown.classList.remove('open');
+            var nextEnabled = !event.itemsEnabled;
+            var originalText = toggleItemsBtn.textContent;
+            toggleItemsBtn.textContent = nextEnabled ? 'Attivo...' : 'Disattivo...';
+            try {
+              await SeevaData.setEventItemsEnabled(event.id, nextEnabled);
+            } catch (err) {
+              toggleItemsBtn.textContent = originalText;
+              SeevaUI.alert('Non sono riuscito a cambiare la lista "chi porta cosa" (' + SeevaData.friendlyErrorMessage(err) + ').');
+              return;
+            }
+            event = await SeevaData.getEventById(event.id);
+            render();
+          });
+        }
+
+        var toggleExpensesBtn = document.getElementById('menuToggleExpensesBtn');
+        if (toggleExpensesBtn) {
+          toggleExpensesBtn.addEventListener('click', async function () {
+            dropdown.classList.remove('open');
+            var nextEnabled = !event.expensesEnabled;
+            var originalText = toggleExpensesBtn.textContent;
+            toggleExpensesBtn.textContent = nextEnabled ? 'Attivo...' : 'Disattivo...';
+            try {
+              await SeevaData.setEventExpensesEnabled(event.id, nextEnabled);
+            } catch (err) {
+              toggleExpensesBtn.textContent = originalText;
+              SeevaUI.alert('Non sono riuscito a cambiare la divisione spese (' + SeevaData.friendlyErrorMessage(err) + ').');
+              return;
+            }
+            event = await SeevaData.getEventById(event.id);
+            render();
+          });
+        }
+
+        var removeFromHomeBtn = document.getElementById('menuRemoveFromHomeBtn');
+        if (removeFromHomeBtn) {
+          removeFromHomeBtn.addEventListener('click', async function () {
+            dropdown.classList.remove('open');
+
+            // Messaggio diverso a seconda che stia davvero cambiando risposta
+            // (era disponibile per qualche data) o si sia già detto "non
+            // disponibile" e stia solo pulendo la sua home (Fil, 2026-07-20).
+            var existingParticipant = findExistingParticipant();
+            var wasAvailable = !!(existingParticipant && (existingParticipant.availableDateOptionIds || []).length > 0);
+            var sure = await SeevaUI.ask(SeevaData.buildRemoveFromHomeConfirmMessage(event.name, wasAvailable));
+            if (!sure) return;
+
+            var originalText = removeFromHomeBtn.textContent;
+            removeFromHomeBtn.textContent = 'Rimuovo...';
+            try {
+              await SeevaData.removeEventFromHome(event.id);
+            } catch (err) {
+              removeFromHomeBtn.textContent = originalText;
+              SeevaUI.alert('Non sono riuscito a rimuovere l\'evento dalla tua home (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+              return;
+            }
+            // eventi.html da sola (senza ?only=) non è più un posto dove si
+            // atterra navigando nell'app (Fil, 2026-08-23) — e comunque
+            // l'evento appena rimosso/eliminato non ha più una categoria
+            // sensata da cui ripartire. Home.
+            window.location.href = 'index.html';
+          });
+        }
+
+        if (deleteBtn) {
+          deleteBtn.addEventListener('click', async function () {
+            // Non annullabile: conferma esplicita prima di procedere (Fil,
+            // 2026-07-07). Chi aveva risposto disponibile riceve email +
+            // notifica in-app da SeevaData.deleteEvent() stesso.
+            dropdown.classList.remove('open');
+            var sure = await SeevaUI.ask('Eliminare "' + event.name + '"? Chi aveva già risposto "Ci sono" riceverà un avviso. Non si può annullare.');
+            if (!sure) return;
+
+            var originalText = deleteBtn.textContent;
+            deleteBtn.textContent = 'Elimino...';
+            try {
+              await SeevaData.deleteEvent(event.id);
+            } catch (err) {
+              deleteBtn.textContent = originalText;
+              SeevaUI.alert('Non sono riuscito a eliminare l\'evento (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+              return;
+            }
+            // eventi.html da sola (senza ?only=) non è più un posto dove si
+            // atterra navigando nell'app (Fil, 2026-08-23) — e comunque
+            // l'evento appena rimosso/eliminato non ha più una categoria
+            // sensata da cui ripartire. Home.
+            window.location.href = 'index.html';
+          });
+        }
+      }
+      setupHeaderMenu();
+
+      /* ---------- bolla "Condividi" (Fil, 2026-08-25) ----------
+         Legata una sola volta come setupHeaderMenu() qui sopra: #shareFab è
+         statica in evento.html (vedi vicino ad a.back-btn), render() la
+         mostra/nasconde soltanto. Su telefono usa la vera condivisione di
+         sistema (Web Share API) così si apre il foglio con WhatsApp,
+         Messaggi ecc. — richiesto da Fil il 2026-07-05, poi ridisegnato il
+         2026-08-25 ("una bolla come quella viola, solo l'icona, la gente
+         ormai la riconosce"). Non tutti i browser desktop la supportano:
+         lì si ripiega sul copia-negli-appunti, con un toast al posto del
+         vecchio testo "Copiato ✓" (niente più label da cambiare, la bolla
+         ha solo l'icona). shareUrl ricalcolato qui al tap, non catturato
+         da un giro di render() passato: l'URL/query string potrebbero
+         essere cambiati nel frattempo (es. su un giro senza ?id= esplicito). */
+      function setupShareFab() {
+        var shareFab = document.getElementById('shareFab');
+        if (!shareFab) return;
+
+        shareFab.addEventListener('click', function () {
+          var shareUrl = SeevaData.SITE_URL + window.location.pathname + window.location.search;
+
+          // Testo completo (Fil, 2026-10-03): data, luogo, descrizione e link
+          // dentro al testo. Il link va nel "text" e non anche in "url":
+          // con entrambi alcune app (WhatsApp su iPhone) tengono solo il link.
+          var shareText = SeevaData.buildEventShareText(event, shareUrl);
+          if (navigator.share) {
+            navigator.share({ text: shareText })
+              .catch(function () { /* utente ha annullato il foglio di condivisione: nessun errore da mostrare */ });
+            return;
+          }
+
+          var done = function () {
+            if (window.SeevaUI && SeevaUI.toast) SeevaUI.toast('Messaggio copiato ✓');
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(shareText).then(done).catch(function () {
+              var tempInput = document.createElement('textarea');
+              tempInput.value = shareText;
+              tempInput.style.position = 'fixed';
+              tempInput.style.opacity = '0';
+              document.body.appendChild(tempInput);
+              tempInput.select();
+              try { document.execCommand('copy'); done(); } catch (err) { /* ignora */ }
+              document.body.removeChild(tempInput);
+            });
+          }
+        });
+      }
+      setupShareFab();
+
+      /* ---------- popup aggiungi/modifica spesa (rifatto 2026-11-01) ----------
+         Legato una sola volta: vive fuori da contentEl. editingExpenseId
+         null = nuova spesa. Di base: pagato da te, diviso "tra tutti"
+         (splitAll, si aggiorna da solo). "Cambia..." apre i dettagli. */
+      var expenseModal = document.getElementById('expenseModal');
+      var expenseModalTitle = document.getElementById('expenseModalTitle');
+      var expenseModalCloseBtn = document.getElementById('expenseModalCloseBtn');
+      var expenseDescInput = document.getElementById('expenseDescInput');
+      var expenseAmountInput = document.getElementById('expenseAmountInput');
+      var expensePaidBySelect = document.getElementById('expensePaidBySelect');
+      var expenseIncludeList = document.getElementById('expenseIncludeList');
+      var expenseIncludeField = document.getElementById('expenseIncludeField');
+      var expenseSplitAllCheckbox = document.getElementById('expenseSplitAllCheckbox');
+      var expenseSplitAllHint = document.getElementById('expenseSplitAllHint');
+      var expenseDetails = document.getElementById('expenseDetails');
+      var expenseDetailsToggle = document.getElementById('expenseDetailsToggle');
+      var expenseWhoLine = document.getElementById('expenseWhoLine');
+      var expenseEmojiPreview = document.getElementById('expenseEmojiPreview');
+      var expenseModalError = document.getElementById('expenseModalError');
+      var expenseSaveBtn = document.getElementById('expenseSaveBtn');
+      var expenseDeleteBtn = document.getElementById('expenseDeleteBtn');
+      var editingExpenseId = null;
+
+      function parseEuro(v) {
+        var s = String(v || '').trim().replace(/\s|€/g, '');
+        if (s.indexOf(',') !== -1) s = s.replace(/\./g, '').replace(',', '.');
+        var n = parseFloat(s);
+        return isNaN(n) ? 0 : Math.round(n * 100) / 100;
+      }
+
+      function updateExpenseWhoLine() {
+        var me = (guestName || '').trim().toLowerCase();
+        var payer = expensePaidBySelect.value || '';
+        var group = SeevaData.getExpenseGroupNames(event);
+        var amount = parseEuro(expenseAmountInput.value);
+        var count = expenseSplitAllCheckbox.checked ? (group.length || 1) : document.querySelectorAll('.expense-include-checkbox:checked').length;
+        // Una riga corta (Fil, 2026-11-01: "meno da leggere"): "12,25 € a
+        // testa · paghi tu", oppure "In 2 · paghi tu" finché non c'è l'importo.
+        var payerHTML = payer.trim().toLowerCase() === me ? t('paghi tu') : t('paga {name}', { name: '<span data-no-i18n>' + SeevaData.escapeHTML(payer) + '</span>' });
+        var firstHTML = amount > 0 && count > 0
+          ? t('<b>{amt}</b> a testa', { amt: SeevaData.formatEuro(amount / count) })
+          : t('In {n}', { n: count || 1 });
+        expenseWhoLine.innerHTML = firstHTML + ' · ' + payerHTML;
+        expenseIncludeField.style.display = expenseSplitAllCheckbox.checked ? 'none' : '';
+        expenseSplitAllHint.textContent = '(' + (group.length || 1) + ')';
+      }
+
+      function updateExpenseEmojiPreview() {
+        expenseEmojiPreview.textContent = SeevaData.autoExpenseEmoji(expenseDescInput.value) || '💶';
+      }
+
+      function openExpenseModal(ex) {
+        editingExpenseId = ex ? ex.id : null;
+        expenseModalTitle.textContent = ex ? t('Modifica spesa') : t('Nuova spesa');
+        expenseModalError.textContent = '';
+        expenseDescInput.value = ex ? ex.description : '';
+        expenseAmountInput.value = ex ? String(ex.amount).replace('.', ',') : '';
+        expenseDeleteBtn.style.display = ex ? '' : 'none';
+
+        var candidates = SeevaData.getExpenseCandidateNames(event);
+        var group = SeevaData.getExpenseGroupNames(event);
+        // chi ha pagato in una spesa vecchia resta sceglibile anche se non è più nel gruppo
+        if (ex && ex.paidByName && !candidates.some(function (n) { return n.toLowerCase() === ex.paidByName.toLowerCase(); })) candidates.push(ex.paidByName);
+        expensePaidBySelect.innerHTML = candidates.map(function (n) {
+          return '<option value="' + SeevaData.escapeHTML(n) + '">' + SeevaData.escapeHTML(n) + '</option>';
+        }).join('');
+        var myLower = (guestName || '').toLowerCase();
+        var defaultPaidBy = ex ? ex.paidByName
+          : (candidates.filter(function (n) { return n.toLowerCase() === myLower; })[0] || guestName || candidates[0]);
+        if (defaultPaidBy && !candidates.some(function (n) { return n.toLowerCase() === String(defaultPaidBy).toLowerCase(); })) {
+          expensePaidBySelect.insertAdjacentHTML('afterbegin', '<option value="' + SeevaData.escapeHTML(defaultPaidBy) + '">' + SeevaData.escapeHTML(defaultPaidBy) + '</option>');
+        }
+        expensePaidBySelect.value = defaultPaidBy;
+
+        var splitAll = ex ? !!ex.splitAll : true;
+        expenseSplitAllCheckbox.checked = splitAll;
+        var includedLower = ex ? (ex.shareNames || []).map(function (n) { return n.toLowerCase(); }) : group.map(function (n) { return n.toLowerCase(); });
+        expenseIncludeList.innerHTML = candidates.map(function (n) {
+          var checked = includedLower.indexOf(n.toLowerCase()) !== -1;
+          return '<label class="option-row">'
+            + '<input type="checkbox" class="expense-include-checkbox" value="' + SeevaData.escapeHTML(n) + '"' + (checked ? ' checked' : '') + '>'
+            + '<span class="option-row-title">' + SeevaData.escapeHTML(n) + '</span>'
+            + '</label>';
+        }).join('');
+
+        // Dettagli aperti da soli solo se la spesa non è "standard".
+        var meIsPayer = String(defaultPaidBy || '').toLowerCase() === myLower;
+        var showDetails = !!ex && (!splitAll || !meIsPayer);
+        expenseDetails.style.display = showDetails ? '' : 'none';
+        expenseDetailsToggle.style.display = showDetails ? 'none' : '';
+
+        updateExpenseWhoLine();
+        updateExpenseEmojiPreview();
+        expenseModal.style.display = '';
+        // Tastiera dei numeri subito (dentro il tocco dell'utente, se no
+        // il telefono non la apre).
+        if (!ex) { try { expenseAmountInput.focus(); } catch (err) { /* ignora */ } }
+      }
+
+      function closeExpenseModal() {
+        expenseModal.style.display = 'none';
+        editingExpenseId = null;
+        try { document.activeElement && document.activeElement.blur(); } catch (err) { /* ignora */ }
+      }
+
+      if (expenseModalCloseBtn) expenseModalCloseBtn.addEventListener('click', closeExpenseModal);
+      if (expenseModal) {
+        expenseModal.addEventListener('click', function (e) {
+          if (e.target === expenseModal) closeExpenseModal();
+        });
+      }
+      if (expenseDetailsToggle) expenseDetailsToggle.addEventListener('click', function () {
+        expenseDetails.style.display = '';
+        expenseDetailsToggle.style.display = 'none';
+      });
+      if (expenseAmountInput) {
+        expenseAmountInput.addEventListener('input', updateExpenseWhoLine);
+        expenseAmountInput.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); expenseDescInput.focus(); }
+        });
+      }
+      if (expenseDescInput) {
+        expenseDescInput.addEventListener('input', updateExpenseEmojiPreview);
+        expenseDescInput.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); expenseSaveBtn.click(); }
+        });
+      }
+      if (expensePaidBySelect) expensePaidBySelect.addEventListener('change', updateExpenseWhoLine);
+      if (expenseSplitAllCheckbox) expenseSplitAllCheckbox.addEventListener('change', updateExpenseWhoLine);
+      if (expenseIncludeList) expenseIncludeList.addEventListener('change', updateExpenseWhoLine);
+
+      if (expenseDeleteBtn) {
+        expenseDeleteBtn.addEventListener('click', async function () {
+          if (!editingExpenseId) return;
+          var id = editingExpenseId;
+          var linked = (event.items || []).filter(function (it) { return it.expenseId === id; })[0];
+          var sure = await SeevaUI.ask(linked ? 'Cancellare questa spesa? La voce "' + linked.text + '" resta nella lista, senza costo.' : 'Cancellare questa spesa? Non si può annullare.');
+          if (!sure) return;
+          try {
+            await SeevaData.deleteEventExpense(id);
+          } catch (err) {
+            expenseModalError.textContent = SeevaData.friendlyErrorMessage(err);
+            return;
+          }
+          closeExpenseModal();
+          await reloadEventAndFeatures();
+        });
+      }
+
+      if (expenseSaveBtn) {
+        expenseSaveBtn.addEventListener('click', async function () {
+          var description = expenseDescInput.value.trim();
+          var amount = parseEuro(expenseAmountInput.value);
+          var paidByName = expensePaidBySelect.value || guestName;
+          var splitAll = expenseSplitAllCheckbox.checked;
+          var includedNames = Array.prototype.map.call(
+            document.querySelectorAll('.expense-include-checkbox:checked'),
+            function (cb) { return cb.value; }
+          );
+
+          expenseModalError.textContent = '';
+          if (!amount || amount <= 0) { expenseModalError.textContent = t('Scrivi quanto avete speso.'); expenseAmountInput.focus(); return; }
+          if (!description) { expenseModalError.textContent = t('Scrivi per cosa (es. spesa, benzina).'); expenseDescInput.focus(); return; }
+          if (!splitAll && !includedNames.length) { expenseModalError.textContent = t('Scegli almeno una persona con cui dividere.'); return; }
+
+          var originalText = expenseSaveBtn.textContent;
+          expenseSaveBtn.disabled = true;
+          expenseSaveBtn.textContent = t('Salvo...');
+          var input = { description: description, amount: amount, paidByName: paidByName, includedNames: includedNames, splitAll: splitAll };
+          var wasNew = !editingExpenseId;
+          try {
+            if (editingExpenseId) await SeevaData.updateEventExpense(editingExpenseId, input);
+            else {
+              var added = await SeevaData.addEventExpense(event.id, input);
+              justAddedExpenseId = (added && added.id) || null;
+            }
+          } catch (err) {
+            expenseModalError.textContent = SeevaData.friendlyErrorMessage(err);
+            expenseSaveBtn.disabled = false;
+            expenseSaveBtn.textContent = originalText;
+            return;
+          }
+          if (window.SeevaMotion) await SeevaMotion.success(expenseSaveBtn); // ✓ sul pulsante (2026-11-02)
+          expenseSaveBtn.disabled = false;
+          expenseSaveBtn.textContent = originalText;
+          closeExpenseModal();
+          if (!expensesSheetOpen) openSheet('expenses');
+          await reloadEventAndFeatures();
+          if (wasNew && window.SeevaUI && SeevaUI.toast) SeevaUI.toast(t('Spesa aggiunta ✓'));
+        });
+      }
+
+      /* ---------- "€" su una voce di chi porta cosa ---------- */
+      var itemCostModal = document.getElementById('itemCostModal');
+      var itemCostInput = document.getElementById('itemCostInput');
+      var itemCostWhat = document.getElementById('itemCostWhat');
+      var itemCostError = document.getElementById('itemCostError');
+      var itemCostSaveBtn = document.getElementById('itemCostSaveBtn');
+      var itemCostRemoveBtn = document.getElementById('itemCostRemoveBtn');
+      var itemCostItemId = null;
+      function openItemCostModal(it) {
+        itemCostItemId = it.id;
+        itemCostWhat.textContent = '🎒 ' + it.text;
+        itemCostInput.value = it.cost ? String(it.cost).replace('.', ',') : '';
+        itemCostError.textContent = '';
+        itemCostRemoveBtn.style.display = it.cost ? '' : 'none';
+        itemCostModal.style.display = '';
+        try { itemCostInput.focus(); } catch (err) { /* ignora */ }
+      }
+      function closeItemCostModal() {
+        itemCostModal.style.display = 'none';
+        itemCostItemId = null;
+      }
+      async function saveItemCost(amount) {
+        if (!itemCostItemId) return;
+        var id = itemCostItemId;
+        itemCostSaveBtn.disabled = true;
+        try {
+          await SeevaData.setEventItemCost(id, amount);
+        } catch (err) {
+          itemCostSaveBtn.disabled = false;
+          itemCostError.textContent = SeevaData.friendlyErrorMessage(err);
+          return;
+        }
+        itemCostSaveBtn.disabled = false;
+        closeItemCostModal();
+        await reloadEventAndFeatures(id);
+        if (window.SeevaUI && SeevaUI.toast) SeevaUI.toast(amount ? t('Aggiunta alle spese ✓') : t('Spesa tolta'));
+      }
+      if (itemCostModal) {
+        itemCostModal.addEventListener('click', function (e) { if (e.target === itemCostModal) closeItemCostModal(); });
+        document.getElementById('itemCostCloseBtn').addEventListener('click', closeItemCostModal);
+        itemCostSaveBtn.addEventListener('click', function () {
+          var amount = parseEuro(itemCostInput.value);
+          if (!amount || amount <= 0) { itemCostError.textContent = t('Scrivi quanto hai speso.'); itemCostInput.focus(); return; }
+          saveItemCost(amount);
+        });
+        itemCostInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); itemCostSaveBtn.click(); } });
+        itemCostRemoveBtn.addEventListener('click', function () { saveItemCost(0); });
+      }
+
+      /* ---------- foto profilo per le bolle "chi ci sarà" ----------
+         Caricata una sola volta, solo se l'evento è già confermato/passato
+         (altrimenti le bolle non compaiono e la chiamata sarebbe inutile).
+         Se fallisce, si torna in silenzio alle sole iniziali (vedi
+         buildConfirmedSummaryHTML). */
+      var attendeeAvatars = {};
+      async function loadAttendeeAvatarsIfNeeded() {
+        var info = SeevaData.computeEventStatus(event);
+        var isConf = (info.status === 'done' || info.status === 'passato') && !!info.bestOption;
+        var names = !isConf ? [] : (event.participants || [])
+          .filter(function (p) { return (p.availableDateOptionIds || []).indexOf(info.bestOption.id) !== -1; })
+          .map(function (p) { return p.name; });
+        // Foto di chi organizza per l'intestazione (2026-10-26).
+        if (event.createdBy && names.indexOf(event.createdBy) === -1) names.push(event.createdBy);
+        if (!names.length) return false;
+        var added = false;
+        try {
+          var rows = await SeevaData.getAvatarsForNames(names);
+          rows.forEach(function (r) {
+            if (r.avatarUrl && r.username) { attendeeAvatars[r.username.toLowerCase()] = r.avatarUrl; added = true; }
+          });
+        } catch (err) { /* ignora: le bolle restano con l'iniziale */ }
+        return added;
+      }
+
+      // 2026-10-24 (velocità): prima si aspettavano le foto PRIMA del primo
+      // disegno (una richiesta in più ad ogni apertura di un evento
+      // confermato). Ora si disegna subito e le foto arrivano dopo.
+      render();
+      loadAttendeeAvatarsIfNeeded().then(function (added) { if (added) render(); });
+
+      // Dati veri arrivati dopo il disegno istantaneo: si ridisegna.
+      if (instantEvent) {
+        freshEventPromise.then(function (fresh) {
+          if (!fresh) {
+            titleEl.textContent = 'Evento non trovato';
+            contentEl.innerHTML = '<div class="empty-hint">Questo evento non esiste più (o il link non è più valido).<br><a href="index.html">Torna alla Home →</a></div>';
+            return;
+          }
+          // identico alla copia già mostrata: niente ridisegno
+          if (!instantEvent._partial && JSON.stringify(fresh) === JSON.stringify(instantEvent)) return;
+          event = fresh;
+          titleEl.textContent = event.name;
+          document.title = 'seeva — ' + event.name;
+          render();
+          loadAttendeeAvatarsIfNeeded().then(function (added) { if (added) render(); });
+        }, function () { /* resta la copia: al prossimo aggiornamento si riprova */ });
+      }
+
+      // 2026-10-14: foto anche nella tessera "Chi viene" degli eventi non
+      // ancora confermati -- caricate dopo il primo disegno, poi si ridisegna.
+      (function () {
+        var names = (event.participants || []).map(function (p) { return p.name; })
+          .concat((event.invitees || []).map(function (f) { return f.name; }))
+          .filter(function (n) { return n && !attendeeAvatars[n.trim().toLowerCase()]; });
+        if (!names.length || !SeevaData.getAvatarsForNames) return;
+        SeevaData.getAvatarsForNames(names).then(function (rows) {
+          var added = false;
+          (rows || []).forEach(function (r) {
+            if (r.avatarUrl && r.username && !attendeeAvatars[r.username.toLowerCase()]) { attendeeAvatars[r.username.toLowerCase()] = r.avatarUrl; added = true; }
+          });
+          if (added) render();
+        }, function () { /* ignora: restano le iniziali */ });
+      })();
+
+      // Date già impegnate (#15): caricate dopo il primo disegno, per non
+      // rallentare l'apertura; se ce n'è almeno una si ridisegna.
+      if (SeevaData.hasAccount() && !isLockedGuest && !isOrganizer) {
+        SeevaData.getMyBusyDates(event.id).then(function (m) {
+          busyDates = m || {};
+          var relevant = (event.dateOptions || []).some(function (o) { return busyDates[o.dateISO]; });
+          if (relevant) render();
+        }, function () { /* ignora */ });
+      }
+
+      /* Risposta dai pulsanti della notifica (Fil, 2026-10-03): sw.js apre
+         evento.html?id=...&rsvp=yes|no. Si salva la risposta solo se
+         l'evento è confermato e chi apre è un invitato (non l'organizzatore),
+         poi si toglie il parametro dall'indirizzo così un ricaricamento non
+         la ripete. */
+      // ?esito=yes|no (pulsanti della notifica "Com'è andata?") e
+      // ?commenti=1 (notifica di un nuovo commento: apre la bacheca).
+      var esito = params.get('esito');
+      var openComments = params.get('commenti') === '1';
+      var openPollParam = params.get('sondaggio') === '1';
+      // ?spese=1 / ?porta=1 (notifiche spese e promemoria cosa portare, 2026-11-01)
+      var openExpParam = params.get('spese') === '1';
+      var openItemsParam = params.get('porta') === '1';
+      if (esito || openComments || openPollParam || openExpParam || openItemsParam) {
+        try {
+          var cleanP = new URLSearchParams(window.location.search);
+          cleanP.delete('esito'); cleanP.delete('commenti'); cleanP.delete('sondaggio'); cleanP.delete('spese'); cleanP.delete('porta');
+          history.replaceState(null, '', window.location.pathname + '?' + cleanP.toString());
+        } catch (err) { /* ignora */ }
+      }
+      if ((esito === 'yes' || esito === 'no') && isOrganizer && event.tookPlace !== true && event.tookPlace !== false) {
+        saveOutcome(esito === 'yes', true);
+      }
+      if (openComments) {
+        var ct = document.getElementById('commentsTile');
+        if (ct) ct.click();
+      }
+      if (openExpParam && event.expensesEnabled) openSheet('expenses');
+      else if (openItemsParam && event.itemsEnabled) openSheet('items');
+      // ?sondaggio=1 (notifica di un sondaggio, Fil 2026-10-27): porta al sondaggio.
+      if (openPollParam) {
+        var pc = document.getElementById('pollCard');
+        if (pc) setTimeout(function () { pc.scrollIntoView({ behavior: 'smooth', block: 'center' }); pc.classList.add('just-created'); }, 250);
+      }
+
+      var rsvp = params.get('rsvp');
+      if (rsvp === 'yes' || rsvp === 'no') {
+        try {
+          var cleanParams = new URLSearchParams(window.location.search);
+          cleanParams.delete('rsvp');
+          history.replaceState(null, '', window.location.pathname + '?' + cleanParams.toString());
+        } catch (err) { /* ignora */ }
+        var rsvpInfo = SeevaData.computeEventStatus(event);
+        var rsvpOption = (rsvpInfo.status === 'done' && rsvpInfo.bestOption) ? rsvpInfo.bestOption
+          : ((event.dateOptions || []).length === 1 && rsvpInfo.status !== 'cancelled' && rsvpInfo.status !== 'passato') ? event.dateOptions[0] : null;
+        if (!isOrganizer && guestName && rsvpOption) {
+          try {
+            var rsvpLocIds = (findExistingParticipant() || {}).availableLocationOptionIds || [];
+            event = await SeevaData.upsertParticipant(event.id, guestName, rsvp === 'yes' ? [rsvpOption.id] : [], rsvpLocIds);
+            await loadAttendeeAvatarsIfNeeded();
+            render();
+            if (window.SeevaUI && SeevaUI.toast) SeevaUI.toast(rsvp === 'yes' ? 'Risposta salvata: ci sono ✓' : 'Risposta salvata: non ci sono');
+          } catch (err) {
+            if (window.SeevaUI && SeevaUI.toast) SeevaUI.toast('Non sono riuscito a salvare la risposta: rispondi qui sotto.');
+          }
+        }
+      }
+    })();

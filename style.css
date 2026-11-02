@@ -5319,3 +5319,60 @@ html.sheet-open .toast, .toast.at-top { position: fixed; z-index: 85; top: calc(
   .mo-pill, .mo-tabpill, .poll-opt-fill, .toast { transition: none !important; }
   .mo-d-in, .mo-d-out, .mo-swap, .face.mo-pop, .mo-appear, .bell.mo-ring svg { animation: none !important; }
 }
+
+/* ---------- Guida al primo accesso (2026-11-02), vedi SeevaOnboarding in script.js ---------- */
+.onb { position: fixed; inset: 0; z-index: 10000; background: var(--bg); display: flex; flex-direction: column; overflow: hidden;
+  padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); opacity: 0; transition: opacity .3s ease; }
+.onb.is-in { opacity: 1; }
+.onb.is-out { opacity: 0; transform: scale(1.03); transition: opacity .35s ease, transform .35s ease; }
+.onb-skip { position: absolute; top: calc(14px + env(safe-area-inset-top, 0px)); right: 16px; z-index: 2; border: 0; background: var(--card);
+  color: var(--ink-soft); font: 600 14px 'Inter', sans-serif; padding: 8px 14px; border-radius: 999px; box-shadow: 0 2px 8px rgba(58,50,90,.08); cursor: pointer; }
+.onb-track { flex: 1; display: flex; transition: transform .55s cubic-bezier(.32,1.15,.6,1); min-height: 0; }
+.onb-slide { flex: 0 0 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 28px 10px; text-align: center; }
+.onb-art { height: 230px; width: 100%; max-width: 320px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; margin-bottom: 26px; }
+.onb-title { font-family: 'Fraunces', serif; font-weight: 700; font-size: 27px; color: var(--ink); margin: 0 0 10px; text-wrap: balance; }
+.onb-text { font: 400 16px/1.5 'Inter', sans-serif; color: var(--ink-soft); margin: 0; max-width: 300px; }
+.onb-slide .onb-title, .onb-slide .onb-text { opacity: 0; transform: translateY(14px); filter: blur(4px); transition: all .5s cubic-bezier(.32,1.2,.6,1) .15s; }
+.onb-slide.is-on .onb-title, .onb-slide.is-on .onb-text { opacity: 1; transform: none; filter: none; }
+.onb-slide.is-on .onb-text { transition-delay: .25s; }
+.onb-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 24px 22px; }
+.onb-dots { display: flex; gap: 6px; }
+.onb-dots span { width: 8px; height: 8px; border-radius: 99px; background: var(--track-soft); transition: width .4s cubic-bezier(.32,1.25,.6,1), background .3s ease; }
+.onb-dots span.is-on { width: 24px; background: var(--peach); }
+.onb-next { border: 0; background: var(--peach); color: #fff; font: 600 16px 'Inter', sans-serif; height: 52px; min-width: 130px; padding: 0 26px; border-radius: 26px; cursor: pointer;
+  box-shadow: 0 8px 20px rgba(255,122,41,.35); transition: min-width .45s cubic-bezier(.32,1.25,.6,1), transform .15s ease; }
+.onb-next.is-last { min-width: 170px; }
+.onb-next:active { transform: scale(.97); }
+
+/* disegni */
+.onb-cal { display: grid; grid-template-columns: repeat(7, 34px); gap: 8px; background: var(--card); padding: 18px; border-radius: 22px; box-shadow: var(--shadow); }
+.onb-dow { font: 600 11px 'Inter', sans-serif; color: var(--ink-soft); text-align: center; }
+.onb-day { height: 34px; border-radius: 11px; display: grid; place-items: center; font: 600 14px 'Inter', sans-serif; color: var(--ink); }
+.onb-day.is-on { background: var(--peach); color: #fff; transform: scale(.4); opacity: 0; }
+.onb-slide.is-on .onb-day.is-on { animation: mo-pop .5s cubic-bezier(.32,1.25,.6,1) both; }
+.onb-slide.is-on .onb-day.is-on:nth-of-type(10) { animation-delay: .25s; }
+.onb-slide.is-on .onb-day.is-on:nth-of-type(12) { animation-delay: .45s; }
+.onb-slide.is-on .onb-day.is-on:nth-of-type(13) { animation-delay: .6s; }
+.onb-bars { display: flex; align-items: flex-end; gap: 22px; height: 200px; background: var(--card); padding: 20px 26px 14px; border-radius: 22px; box-shadow: var(--shadow); }
+.onb-bar { width: 52px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; position: relative; gap: 6px; }
+.onb-bar-fill { width: 100%; height: 0; border-radius: 14px; background: var(--lavender-soft); transition: height .8s cubic-bezier(.32,1.2,.6,1) .2s; }
+.onb-bar.is-lead .onb-bar-fill { background: var(--peach); }
+.onb-slide.is-on .onb-bar-fill { height: var(--h); }
+.onb-bar:nth-child(2) .onb-bar-fill { transition-delay: .35s; } .onb-bar:nth-child(3) .onb-bar-fill { transition-delay: .5s; }
+.onb-face { position: absolute; top: 6px; width: 26px; height: 26px; border-radius: 50%; background: #6B3F73; color: #fff; font: 600 12px 'Inter', sans-serif; display: grid; place-items: center; opacity: 0; }
+.onb-slide.is-on .onb-face { animation: mo-pop .5s cubic-bezier(.32,1.25,.6,1) .9s both; }
+.onb-bar-lbl { font: 600 11.5px 'Inter', sans-serif; color: var(--ink-soft); white-space: nowrap; }
+.onb-ok { display: flex; align-items: center; gap: 14px; background: var(--card); padding: 18px 22px; border-radius: 22px; box-shadow: var(--shadow); text-align: left; }
+.onb-ok-check { width: 54px; height: 54px; border-radius: 50%; background: var(--confirmed); display: grid; place-items: center; flex: none; transform: scale(.3); opacity: 0; }
+.onb-slide.is-on .onb-ok-check { animation: mo-pop .55s cubic-bezier(.32,1.25,.6,1) .2s both; }
+.onb-ok-txt b { display: block; font: 700 18px 'Fraunces', serif; color: var(--ink); }
+.onb-ok-txt em { display: block; font: 600 13px 'Inter', sans-serif; font-style: normal; color: var(--confirmed); }
+.onb-chips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.onb-chips span { background: var(--card); border-radius: 999px; padding: 7px 12px; font: 600 13px 'Inter', sans-serif; color: var(--ink); box-shadow: 0 2px 8px rgba(58,50,90,.08); opacity: 0; }
+.onb-slide.is-on .onb-chips span { animation: mo-pop .5s cubic-bezier(.32,1.25,.6,1) both; }
+.onb-slide.is-on .onb-chips span:nth-child(1) { animation-delay: .5s; } .onb-slide.is-on .onb-chips span:nth-child(2) { animation-delay: .62s; } .onb-slide.is-on .onb-chips span:nth-child(3) { animation-delay: .74s; }
+@media (prefers-reduced-motion: reduce) {
+  .onb-track, .onb-bar-fill, .onb-slide .onb-title, .onb-slide .onb-text { transition: none !important; }
+  .onb-day.is-on, .onb-face, .onb-ok-check, .onb-chips span { animation: none !important; opacity: 1; transform: none; }
+}
+@media (max-height: 640px) { .onb-art { height: 180px; margin-bottom: 14px; } .onb-bars { height: 160px; } }
