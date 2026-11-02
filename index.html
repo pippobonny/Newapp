@@ -334,6 +334,7 @@
           SeevaUI.alert('Non sono riuscito a salvare la tua risposta (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
           return;
         }
+        if (window.SeevaMotion) await SeevaMotion.success(btn); // ✓ sul pulsante (2026-11-02)
         if (window.SeevaUI && window.SeevaUI.toast) {
           window.SeevaUI.toast(key === 'yes' ? 'Ci sono ✓ — lo trovi in agenda' : key === 'maybe' ? 'Forse 🤔 — lo trovi in agenda' : 'Non ci sono');
         }
@@ -416,6 +417,7 @@
           // un'icona vera (non più l'emoji 🔔) — trema leggermente quando
           // c'è qualcosa di non letto, si ferma da sola appena letta.
           if (homeBellEl) homeBellEl.classList.toggle('has-unread', unreadCount > 0);
+          if (window.SeevaMotion) SeevaMotion.bell(homeBellEl, unreadCount); // oscilla se ne arrivano di nuove (2026-11-02)
 
           // Notifica arrivata proprio ora, mentre sei sulla Home (Fil,
           // 2026-08-24): il badge presenza la mostra un attimo. Al primo

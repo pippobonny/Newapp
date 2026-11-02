@@ -20,6 +20,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      HAS_STORE_KEY: ${{ secrets.SEEVA_UPLOAD_KEYSTORE != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -31,6 +33,9 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+          # 2026-10-26: Gradle resta salvato tra una costruzione e l'altra
+          # (il 26/10 era fallita proprio scaricandolo da GitHub)
+          cache: gradle
 
       - name: Build del sito (dist/)
         run: |
@@ -44,10 +49,18 @@ jobs:
           node prepara-web.mjs
           npx cap sync android
 
-      - name: Compila l'APK
+      # Se lo scaricamento di Gradle fallisce (succede, è un intoppo di
+      # GitHub), riprova fino a 3 volte prima di arrendersi.
+      - name: Prepara Gradle (con nuovi tentativi)
         working-directory: _app_android/android
         run: |
           chmod +x gradlew
+          for i in 1 2 3; do ./gradlew --version --no-daemon && exit 0; echo "Tentativo $i fallito, riprovo tra 20 secondi"; sleep 20; done
+          exit 1
+
+      - name: Compila l'APK
+        working-directory: _app_android/android
+        run: |
           ./gradlew assembleRelease --no-daemon
           cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/seeva-test.apk"
 
@@ -62,3 +75,32 @@ jobs:
             APK di prova n. ${{ github.run_number }} — commit ${{ github.sha }}
             Da installare sul telefono Android (consenti "origini sconosciute").
           files: seeva-test.apk
+
+      # ---- File per il Play Store (Fil, 2026-10-26) ----
+      # Solo se su GitHub ci sono i due segreti della chiave vera
+      # (SEEVA_UPLOAD_KEYSTORE, SEEVA_UPLOAD_PASSWORD; vedi _chiavi_seeva/LEGGIMI.txt
+      # sul PC di Fil). Senza segreti questi passaggi si saltano e basta.
+      - name: Compila il file per il Play Store (.aab)
+        if: ${{ env.HAS_STORE_KEY == 'true' }}
+        working-directory: _app_android/android
+        env:
+          SEEVA_UPLOAD_PASSWORD: ${{ secrets.SEEVA_UPLOAD_PASSWORD }}
+        run: |
+          echo "${{ secrets.SEEVA_UPLOAD_KEYSTORE }}" | base64 -d > "$RUNNER_TEMP/seeva-upload.keystore"
+          export SEEVA_UPLOAD_KEYSTORE_FILE="$RUNNER_TEMP/seeva-upload.keystore"
+          ./gradlew bundleRelease -PseevaStore --no-daemon
+          rm -f "$RUNNER_TEMP/seeva-upload.keystore"
+          cp app/build/outputs/bundle/release/app-release.aab "$GITHUB_WORKSPACE/seeva-play.aab"
+
+      - name: Pubblica il file per il Play Store
+        if: ${{ env.HAS_STORE_KEY == 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: play-store
+          name: "seeva per il Play Store (.aab)"
+          prerelease: true
+          make_latest: false
+          body: |
+            File da caricare su Google Play Console, n. ${{ github.run_number }} — commit ${{ github.sha }}
+            NON si installa sul telefono: per provare l'app usa seeva-test.apk.
+          files: seeva-play.aab

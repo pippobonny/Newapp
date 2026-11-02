@@ -5235,3 +5235,87 @@ html.sheet-open .toast, .toast.at-top { position: fixed; z-index: 85; top: calc(
 @media (prefers-reduced-motion: reduce) {
   .sv-sheet, .sv-sheet-overlay, .exp-row.is-new, .feat-card-main.bump { animation: none !important; }
 }
+
+/* ==========================================================================
+   Animazioni "seeva motion" (Fil, 2026-11-02) — vedi SeevaMotion in fondo
+   a script.js. Movimenti corti "a molla", contenuto che cambia sfocando.
+   ========================================================================== */
+:root { --mo-spring: cubic-bezier(.32,1.25,.6,1); }
+
+/* 1. pulsante -> cerchio che gira -> ✓ */
+.mo-busy { color: transparent !important; opacity: 1 !important; pointer-events: none; }
+.mo-busy > * { opacity: 0; transition: opacity .15s ease; }
+.mo-busy::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px;
+  border-radius: 50%; border: 2.5px solid var(--mo-ink, #fff); border-right-color: transparent; border-bottom-color: transparent;
+  box-sizing: border-box; animation: mo-spin .7s linear infinite; opacity: .9;
+}
+.mo-shrink { padding-left: 0 !important; padding-right: 0 !important; border-radius: 999px !important; min-width: 0 !important;
+  margin-left: auto !important; margin-right: auto !important; overflow: hidden; white-space: nowrap; }
+.mo-busy.mo-done { background: var(--confirmed) !important; border-color: var(--confirmed) !important; transition: background-color .25s ease, width .45s var(--mo-spring); }
+.mo-busy.mo-done::after {
+  border: 0; animation: mo-check .45s var(--mo-spring) both; width: 22px; height: 22px; margin: -11px 0 0 -11px; opacity: 1;
+  background: center / 22px 22px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
+}
+@keyframes mo-spin { to { transform: rotate(360deg); } }
+@keyframes mo-check { from { transform: scale(.3) rotate(-20deg); opacity: 0; filter: blur(4px); } to { transform: none; opacity: 1; filter: none; } }
+
+/* 2. Ci sono / Forse / Non ci sono: un binario con la scelta che scivola */
+.rsvp-seg.mo-seg { position: relative; gap: 0; padding: 4px; border-radius: 18px; background: var(--track-soft); }
+.rsvp-seg.mo-seg .rsvp-seg-btn { position: relative; z-index: 1; background: transparent !important; border-color: transparent !important; border-radius: 14px; color: var(--ink-soft); transition: color .25s ease, transform .15s ease; }
+.rsvp-seg.mo-seg .rsvp-seg-btn.is-yes.is-active, .rsvp-seg.mo-seg .rsvp-seg-btn.is-no.is-active { color: #fff; }
+.rsvp-seg.mo-seg .rsvp-seg-btn.is-maybe.is-active { color: #3D2244; }
+.mo-pill { position: absolute; z-index: 0; border-radius: 14px; background: var(--confirmed); box-shadow: 0 4px 12px rgba(58,50,90,.14); pointer-events: none; }
+.mo-pill[data-state="maybe"] { background: var(--butter); }
+.mo-pill[data-state="no"] { background: var(--cancel); }
+
+/* 3. barra in basso: macchia morbida dietro l'icona attiva */
+.navbar.seeva-tabbar .mo-tabpill { position: absolute; z-index: 0; border-radius: 14px; background: var(--peach-soft); pointer-events: none; opacity: 0; }
+.navbar.seeva-tabbar .nav-item { position: relative; z-index: 1; }
+.seeva-tabbar .nav-item .icon svg { transition: transform .4s var(--mo-spring); }
+.seeva-tabbar .nav-item.active:not(.nav-create) .icon svg { transform: scale(1.08); }
+
+/* 4. cifre che scorrono */
+.mo-d { display: inline-block; position: relative; }
+.mo-d-in { display: inline-block; }
+.mo-d-out { position: absolute; left: 0; top: 0; }
+.mo-up .mo-d-in { animation: mo-in-up .55s var(--mo-spring) both; }
+.mo-up .mo-d-out { animation: mo-out-up .35s ease both; }
+.mo-down .mo-d-in { animation: mo-in-down .55s var(--mo-spring) both; }
+.mo-down .mo-d-out { animation: mo-out-down .35s ease both; }
+@keyframes mo-in-up { from { transform: translateY(70%); opacity: 0; filter: blur(3px); } to { transform: none; opacity: 1; filter: none; } }
+@keyframes mo-out-up { to { transform: translateY(-70%); opacity: 0; filter: blur(3px); } }
+@keyframes mo-in-down { from { transform: translateY(-70%); opacity: 0; filter: blur(3px); } to { transform: none; opacity: 1; filter: none; } }
+@keyframes mo-out-down { to { transform: translateY(70%); opacity: 0; filter: blur(3px); } }
+.mo-swap { display: inline-block; animation: mo-swap .45s var(--mo-spring) both; }
+@keyframes mo-swap { from { transform: translateY(40%) scale(.9); opacity: 0; filter: blur(4px); } to { transform: none; opacity: 1; filter: none; } }
+
+/* 5. barre dei sondaggi che si muovono anche quando cambiano sul posto */
+.poll-opt-fill { transition: width .6s var(--mo-spring), background-color .3s ease; }
+
+/* 7. facce nuove */
+.face.mo-pop { animation: mo-pop .5s var(--mo-spring) both; }
+@keyframes mo-pop { from { transform: scale(.2) translateY(6px); opacity: 0; filter: blur(3px); } to { transform: none; opacity: 1; filter: none; } }
+
+/* 8. data confermata */
+.mo-appear { animation: mo-appear .6s var(--mo-spring) both; transform-origin: left center; }
+@keyframes mo-appear { from { transform: scale(.85); opacity: 0; filter: blur(6px); } to { transform: none; opacity: 1; filter: none; } }
+
+/* 9. campanella */
+.bell.mo-ring svg { animation: mo-ring .9s ease both; transform-origin: 50% 10%; }
+.bell.mo-ring .bell-badge { animation: mo-pop .5s var(--mo-spring) both; }
+@keyframes mo-ring { 0%{transform:rotate(0)} 15%{transform:rotate(16deg)} 32%{transform:rotate(-13deg)} 48%{transform:rotate(8deg)} 64%{transform:rotate(-5deg)} 80%{transform:rotate(2deg)} 100%{transform:rotate(0)} }
+
+/* Messaggi brevi: nascono piccoli e sfocati e si aprono a molla */
+.toast { filter: blur(6px); transition: transform .45s var(--mo-spring), opacity .25s ease, filter .3s ease; }
+.toast.show { filter: none; }
+.toast:not(.show) { transform: translate(-50%, 24px) scale(.7); }
+
+/* Sollecita: dopo l'invio la voce del menu mostra ✓ e quanto manca */
+.menu-dropdown-item.mo-cooling { opacity: .65; }
+.mo-nudge-done { color: var(--confirmed); font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mo-pill, .mo-tabpill, .poll-opt-fill, .toast { transition: none !important; }
+  .mo-d-in, .mo-d-out, .mo-swap, .face.mo-pop, .mo-appear, .bell.mo-ring svg { animation: none !important; }
+}

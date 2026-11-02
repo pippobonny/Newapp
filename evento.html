@@ -3730,6 +3730,7 @@
             errorEl.textContent = 'Non sono riuscito ad aggiungerli (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.';
             return;
           }
+          if (window.SeevaMotion) await SeevaMotion.success(saveBtn); // ✓ sul pulsante (2026-11-02)
           close();
           if (result.event) event = result.event;
           render();
@@ -3878,9 +3879,29 @@
           } catch (e) { /* ignora */ }
         }
 
+        // Dopo un sollecito la voce del menu mostra ✓ e fra quanto si può
+        // rimandare (15 minuti, come il blocco sul server) — 2026-11-02.
+        function updateNudgeMenuLabel() {
+          var el = document.getElementById('menuNudgeBtn');
+          if (!el) return;
+          if (!el._moLabel) el._moLabel = el.innerHTML;
+          var at = 0;
+          try { at = parseInt(localStorage.getItem('seeva:nudgedAt:' + event.id) || '0', 10) || 0; } catch (err) { /* ignora */ }
+          var left = Math.ceil((at + 15 * 60000 - Date.now()) / 60000);
+          if (at && left > 0) {
+            el.innerHTML = el._moLabel.replace(/<\/svg>[\s\S]*$/, '</svg> ')
+              + '<span class="mo-nudge-done">✓ ' + (left === 1 ? t('Sollecitato · di nuovo tra 1 minuto') : t('Sollecitato · di nuovo tra {n} minuti', { n: left })) + '</span>';
+            el.classList.add('mo-cooling');
+          } else {
+            el.innerHTML = el._moLabel;
+            el.classList.remove('mo-cooling');
+          }
+        }
+
         menuBtn.addEventListener('click', function (e) {
           e.stopPropagation();
           dropdown.classList.toggle('open');
+          updateNudgeMenuLabel();
           if (menuDot && menuDot.style.display !== 'none') {
             menuDot.style.display = 'none';
             try { localStorage.setItem(MENU_DOT_KEY, '1'); } catch (err) { /* ignora */ }
@@ -3922,6 +3943,7 @@
               SeevaUI.alert(mins === 1 ? t('Hai già sollecitato da poco. Puoi rimandarlo tra 1 minuto.') : t('Hai già sollecitato da poco. Puoi rimandarlo tra {n} minuti.', { n: mins }));
               return;
             }
+            try { localStorage.setItem('seeva:nudgedAt:' + event.id, String(Date.now())); } catch (err) { /* ignora */ }
             showNudgeResultPopup(result);
           });
         }
@@ -4261,6 +4283,7 @@
             expenseSaveBtn.textContent = originalText;
             return;
           }
+          if (window.SeevaMotion) await SeevaMotion.success(expenseSaveBtn); // ✓ sul pulsante (2026-11-02)
           expenseSaveBtn.disabled = false;
           expenseSaveBtn.textContent = originalText;
           closeExpenseModal();

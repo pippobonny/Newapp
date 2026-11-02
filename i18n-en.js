@@ -929,6 +929,8 @@
  "Scrivi per cosa (es. spesa, benzina).": "Say what it was for (e.g. shopping, fuel).",
  "Salvo...": "Saving...",
  "Spesa aggiunta ✓": "Expense added ✓",
+ "Sollecitato · di nuovo tra 1 minuto": "Reminder sent · again in 1 minute",
+ "Sollecitato · di nuovo tra {n} minuti": "Reminder sent · again in {n} minutes",
  "Aggiunta alle spese ✓": "Added to expenses ✓",
  "Spesa tolta": "Expense removed",
  "Scrivi quanto hai speso.": "Enter how much you spent.",

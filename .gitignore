@@ -3,3 +3,6 @@ node_modules/
 .DS_Store
 _supabase_da_pubblicare/
 dist/
+
+# Chiave di firma VERA per il Play Store (Fil, 2026-10-26): mai su GitHub
+_chiavi_seeva/

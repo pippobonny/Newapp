@@ -22,6 +22,13 @@ android {
     // chiave non va mai usata per il Play Store: lì servirà una chiave vera,
     // tenuta segreta (fase store). Fissa, così gli aggiornamenti si
     // installano uno sopra l'altro senza perdere l'accesso.
+    // Chiave VERA per il Play Store (Fil, 2026-10-26): "upload key", mai nel
+    // repo. GitHub la ricrea da due segreti (SEEVA_UPLOAD_KEYSTORE in base64 e
+    // SEEVA_UPLOAD_PASSWORD) e la usa SOLO per il file .aab dello store
+    // (./gradlew bundleRelease -PseevaStore). L'APK di prova resta firmato
+    // con la chiave di test, così continua a installarsi sopra il vecchio.
+    def storeKeyFile = System.getenv("SEEVA_UPLOAD_KEYSTORE_FILE")
+    def useStoreKey = project.hasProperty("seevaStore") && storeKeyFile
     signingConfigs {
         test {
             storeFile file("seeva-test.keystore")
@@ -29,13 +36,21 @@ android {
             keyAlias "seevatest"
             keyPassword "seevatest"
         }
+        if (storeKeyFile) {
+            upload {
+                storeFile file(storeKeyFile)
+                storePassword System.getenv("SEEVA_UPLOAD_PASSWORD")
+                keyAlias "seeva-upload"
+                keyPassword System.getenv("SEEVA_UPLOAD_PASSWORD")
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.test
         }
         release {
-            signingConfig signingConfigs.test
+            signingConfig useStoreKey ? signingConfigs.upload : signingConfigs.test
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
