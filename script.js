@@ -1105,7 +1105,7 @@
     } else if (ratio === 0) {
       phrase = total === 1 ? t('👻 Assente all\'ultimo evento') : t('👻 Assente agli ultimi {n} eventi', { n: total });
     } else if (ratio >= 0.7) {
-      phrase = '🌟 L\'anima della compagnia';
+      phrase = t('🌟 Presente a {a} eventi su {b}', { a: presentCount, b: total }); // era "L'anima della compagnia", non si capiva (2026-11-05)
     } else if (ratio >= 0.4) {
       phrase = t('🎉 Presente a {a} eventi su {b}', { a: presentCount, b: total });
     } else {

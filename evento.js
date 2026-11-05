@@ -1038,7 +1038,7 @@
           ? (attendeeNames.length === 1 ? t('1 c\'era') : t('{n} c\'erano', { n: attendeeNames.length }))
           : (attendeeNames.length === 1 ? t('1 c\'è') : t('{n} ci sono', { n: attendeeNames.length })));
         if (maybeNames.length && info.status !== 'passato') countParts.push(t('{n} forse', { n: maybeNames.length }));
-        if (pendingCountForCounts) countParts.push(t('{n} in attesa', { n: pendingCountForCounts }));
+        if (pendingCountForCounts) countParts.push(pendingCountForCounts === 1 ? t('1 deve rispondere') : t('{n} devono rispondere', { n: pendingCountForCounts })); // era "in attesa" (analisi design 2026-11-05)
         var canOpenRoster = info.status !== 'passato';
         confirmedParts = {
           answer: withdrawActionHTML,
@@ -1830,13 +1830,13 @@
         var menuToggleItemsBtnEl = document.getElementById('menuToggleItemsBtn');
         if (menuToggleItemsBtnEl) {
           menuToggleItemsBtnEl.style.display = isOrganizer ? '' : 'none';
-          menuToggleItemsBtnEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M8 8V6a4 4 0 0 1 8 0v2"></path><rect x="4" y="8" width="16" height="13" rx="3"></rect><rect x="9" y="8" width="6" height="4" rx="1"></rect></svg> ' + (event.itemsEnabled ? 'Disattiva chi porta cosa' : 'Attiva chi porta cosa');
+          menuToggleItemsBtnEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M8 8V6a4 4 0 0 1 8 0v2"></path><rect x="4" y="8" width="16" height="13" rx="3"></rect><rect x="9" y="8" width="6" height="4" rx="1"></rect></svg> ' + (event.itemsEnabled ? 'Togli chi porta cosa' : 'Chi porta cosa');
         }
 
         var menuToggleExpensesBtnEl = document.getElementById('menuToggleExpensesBtn');
         if (menuToggleExpensesBtnEl) {
           menuToggleExpensesBtnEl.style.display = isOrganizer ? '' : 'none';
-          menuToggleExpensesBtnEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v10"></path><path d="M9 9.5c0-1.4 1.3-2.5 3-2.5s3 1.1 3 2.5-1.3 2.2-3 2.5c-1.7 0.3-3 1.1-3 2.5s1.3 2.5 3 2.5 3-1.1 3-2.5"></path></svg> ' + (event.expensesEnabled ? 'Disattiva divisione spese' : 'Attiva divisione spese');
+          menuToggleExpensesBtnEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v10"></path><path d="M9 9.5c0-1.4 1.3-2.5 3-2.5s3 1.1 3 2.5-1.3 2.2-3 2.5c-1.7 0.3-3 1.1-3 2.5s1.3 2.5 3 2.5 3-1.1 3-2.5"></path></svg> ' + (event.expensesEnabled ? 'Togli la divisione spese' : 'Dividi le spese');
         }
 
         // Tap per vederla a schermo intero (Fil, 2026-07-10): cursor:zoom-in
@@ -2203,11 +2203,24 @@
         var orgActionsHTML = !isOrganizer || info.status === 'cancelled' ? '' : ''
           + '<div class="org-actions">'
           + (orgIsOpen ? orgActionBtn('orgInviteBtn', '<circle cx="9" cy="8.5" r="3"></circle><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"></path><line x1="18" y1="8" x2="18" y2="14"></line><line x1="15" y1="11" x2="21" y2="11"></line>', 'Invita') : '')
-          + (orgIsOpen && orgPendingCount > 0 ? orgActionBtn('orgNudgeBtn', '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>', 'Sollecita', '<span class="org-action-count">' + orgPendingCount + '</span>') : '')
+          + (orgIsOpen && orgPendingCount > 0 ? orgActionBtn('orgNudgeBtn', '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>', 'Ricorda', '<span class="org-action-count">' + orgPendingCount + '</span>') : '')
           + (orgIsOpen ? orgActionBtn('orgShareBtn', '<circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"></line>', 'Condividi') : '')
           + (orgIsOpen && !openPollOf(event) && SeevaData.hasAccount() ? orgActionBtn('orgPollBtn', '<line x1="4" y1="20" x2="20" y2="20"></line><rect x="5" y="11" width="3.2" height="6" rx="1"></rect><rect x="10.4" y="6" width="3.2" height="11" rx="1"></rect><rect x="15.8" y="9" width="3.2" height="8" rx="1"></rect>', 'Sondaggio') : '')
           + orgActionBtn('orgAnnounceBtn', '<path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"></path><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M18.5 5.5a9 9 0 0 1 0 13"></path>', 'Avviso')
           + '</div>';
+
+        // Spese e "chi porta cosa" in vista (analisi design 2026-11-05):
+        // prima si attivavano solo dal menu ⋮, chi organizza non li
+        // trovava. Scheda sotto Partecipanti, solo per chi organizza e solo
+        // finché non sono attivi; i pulsanti "premono" le voci del menu,
+        // così la logica resta una sola. Per toglierli resta il menu ⋮.
+        var orgAddonsHTML = (!orgIsOpen || (event.expensesEnabled && event.itemsEnabled)) ? '' : ''
+          + '<div class="org-addons">'
+          + '<div class="org-addons-title">Aggiungi all\'evento</div>'
+          + '<div class="org-addons-row">'
+          + (event.expensesEnabled ? '' : '<button type="button" class="org-addon-btn" id="orgAddExpensesBtn">💶 Dividi le spese</button>')
+          + (event.itemsEnabled ? '' : '<button type="button" class="org-addon-btn" id="orgAddItemsBtn">🎒 Chi porta cosa</button>')
+          + '</div></div>';
 
         // Descrizione (testo o vocale) sotto Partecipanti: prima vengono
         // quando, dove e la tua risposta.
@@ -2242,6 +2255,7 @@
           + (isConfirmedSimple ? confirmedParts.answer + confirmedParts.people : '')
           + manualConfirmTopHTML
           + (isConfirmedSimple && confirmedParts.people ? '' : whoComingTileHTML)
+          + orgAddonsHTML
           + '<div id="pollsWrap">' + buildPollsHTML(info) + '</div>'
           + detailsHTML
           + commentsTileHTML
@@ -2270,7 +2284,7 @@
         if (outcomeYesBtn) outcomeYesBtn.addEventListener('click', function () { saveOutcome(true, false); });
         var outcomeNoBtn = document.getElementById('outcomeNoBtn');
         if (outcomeNoBtn) outcomeNoBtn.addEventListener('click', function () { saveOutcome(false, false); });
-        [['orgInviteBtn', 'menuAddPeopleBtn'], ['orgNudgeBtn', 'menuNudgeBtn'], ['orgShareBtn', 'shareFab'], ['orgAnnounceBtn', 'menuAnnounceBtn']].forEach(function (pair) {
+        [['orgInviteBtn', 'menuAddPeopleBtn'], ['orgNudgeBtn', 'menuNudgeBtn'], ['orgShareBtn', 'shareFab'], ['orgAnnounceBtn', 'menuAnnounceBtn'], ['orgAddExpensesBtn', 'menuToggleExpensesBtn'], ['orgAddItemsBtn', 'menuToggleItemsBtn']].forEach(function (pair) {
           var b = document.getElementById(pair[0]);
           if (b) b.addEventListener('click', function (e) {
             e.stopPropagation();

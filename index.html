@@ -217,7 +217,7 @@
           html += '<a class="hm-agenda-btn" href="eventi.html?only=agenda">Apri l\'agenda</a>';
         }
         if (cancelledCount > 0) {
-          html += '<div class="hm-foot"><a href="eventi.html?only=annullati">' + esc(cancelledCount === 1 ? t('1 annullato o a cui non vai') : t('{n} annullati o a cui non vai', { n: cancelledCount })) + '</a></div>';
+          html += '<div class="hm-foot"><a href="eventi.html?only=annullati">' + esc(cancelledCount === 1 ? t('Vedi 1 evento annullato o rifiutato ›') : t('Vedi {n} eventi annullati o rifiutati ›', { n: cancelledCount })) + '</a></div>';
         }
         // 2026-10-26: swapHTML (data.js) — la prima volta sostituisce le
         // sagome con l'animazione di entrata, dopo aggiorna in silenzio e
