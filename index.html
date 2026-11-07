@@ -200,10 +200,21 @@
         var weekEnd = new Date(); weekEnd.setDate(weekEnd.getDate() + 7);
         var weekEndISO = weekEnd.getFullYear() + '-' + ('0' + (weekEnd.getMonth() + 1)).slice(-2) + '-' + ('0' + weekEnd.getDate()).slice(-2);
         var thisWeek = upcoming.filter(function (i) { return i.dateISO && i.dateISO <= weekEndISO; });
-        var rows = thisWeek.length ? thisWeek : upcoming.slice(0, 1);
-        if (rows.length) {
-          html += '<div class="hm-week-title">' + esc(thisWeek.length ? 'In programma questa settimana' : 'Il prossimo') + '</div>'
-            + '<div class="hm-rows">' + rows.map(rowHTML).join('') + '</div>';
+        var later = upcoming.filter(function (i) { return thisWeek.indexOf(i) === -1; });
+        if (thisWeek.length) {
+          html += '<div class="hm-week-title">' + esc('In programma questa settimana') + '</div>'
+            + '<div class="hm-rows">' + thisWeek.map(rowHTML).join('') + '</div>';
+        }
+        // 2026-11-07 (segnalazione bonni): oltre la settimana si vedono i
+        // prossimi 5, e gli eventi con date ancora da decidere hanno la loro
+        // sezione (prima non comparivano mai in Home).
+        if (later.length) {
+          html += '<div class="hm-week-title">' + esc('Prossimi eventi') + '</div>'
+            + '<div class="hm-rows">' + later.slice(0, AGENDA_MAX).map(rowHTML).join('') + '</div>';
+        }
+        if (mine.undecided.length) {
+          html += '<div class="hm-week-title">' + esc('Da decidere') + '</div>'
+            + '<div class="hm-rows">' + mine.undecided.slice(0, AGENDA_MAX).map(undecidedRowHTML).join('') + '</div>';
         }
 
         if (!todo.length && !upcoming.length && !mine.undecided.length) {
@@ -275,6 +286,20 @@
           + '<span class="hm-row-date' + (rel ? ' is-soon' : '') + '">' + esc(rel || (dp.dow + ' ' + dp.day)) + '</span>'
           + '<span class="hm-row-name" data-no-i18n>' + esc(ev.name) + '</span>'
           + status + '</a>';
+      }
+
+      function undecidedRowHTML(item) {
+        var esc = SeevaData.escapeHTML;
+        var ev = item.event;
+        var label = '';
+        if (item.dateISO) {
+          var dp = SeevaData.dayParts(item.dateISO);
+          label = t('dal') + ' ' + dp.day + ' ' + dp.mon;
+        }
+        return '<a class="hm-row" href="evento.html?id=' + encodeURIComponent(ev.id) + '">'
+          + '<span class="hm-row-date">' + esc(label) + '</span>'
+          + '<span class="hm-row-name" data-no-i18n>' + esc(ev.name) + '</span>'
+          + '<span class="hm-row-st is-maybe">' + esc(t('Da decidere')) + '</span></a>';
       }
 
       function bindSwipeDots() {
