@@ -54,6 +54,18 @@
  "Apri il menu ⋮ del browser (di solito in alto a destra) e tocca": "Open the browser menu ⋮ (usually top right) and tap",
  "Arriva come notifica a tutti gli invitati (tranne chi ha detto che non c'è) e resta in cima alla pagina dell'evento.": "It reaches all guests as a notification (except those who said they're not coming) and stays at the top of the event page.",
  "Attiva chi porta cosa": "Turn on who brings what",
+ "1 deve rispondere": "1 still to reply",
+ "{n} devono rispondere": "{n} still to reply",
+ "Ricorda": "Remind",
+ "Togli chi porta cosa": "Turn off who brings what",
+ "Dividi le spese": "Split costs",
+ "Togli la divisione spese": "Turn off expense splitting",
+ "Aggiungi all'evento": "Add to the event",
+ "💶 Dividi le spese": "💶 Split costs",
+ "+ Fai votare il posto": "+ Let people vote on the place",
+ "Vedi 1 evento annullato o rifiutato ›": "See 1 cancelled or declined event ›",
+ "Vedi {n} eventi annullati o rifiutati ›": "See {n} cancelled or declined events ›",
+ "🌟 Presente a {a} eventi su {b}": "🌟 Made it to {a} of {b} events",
  "Attiva divisione spese": "Turn on expense splitting",
  "Attiva le notifiche": "Turn on notifications",
  "Attiva notifiche": "Turn on notifications",
@@ -126,6 +138,7 @@
  "Creo l'evento...": "Creating event...",
  "Da confermare, confermati o annullati: lo stato di ogni evento a colpo d'occhio, sempre aggiornato.": "To be confirmed, confirmed or cancelled: every event's status at a glance, always up to date.",
  "Da decidere": "To be decided",
+ "Prossimi eventi": "Upcoming events",
  "Da prendere": "Still needed",
  "Da rispondere": "To answer",
  "Dalla proposta alla serata organizzata, senza ripetere le stesse domande a ogni amico.": "From the idea to the night out, without asking every friend the same questions.",
@@ -768,7 +781,6 @@
  "Tra tutti": "Everyone",
  "💶 Ognuno segna cosa spende, seeva fa i conti.": "💶 Everyone adds what they spend, seeva does the maths.",
  "🎒 Ognuno sceglie cosa portare.": "🎒 Everyone picks what to bring.",
- "Prossimi eventi": "Upcoming events",
  " a mezzanotte": " at midnight",
  " alle {hm}": " at {hm}",
  "🔥 Presente all'ultimo evento": "🔥 Made it to the last event",
@@ -930,6 +942,21 @@
  "Scrivi per cosa (es. spesa, benzina).": "Say what it was for (e.g. shopping, fuel).",
  "Salvo...": "Saving...",
  "Spesa aggiunta ✓": "Expense added ✓",
+ "Proponi le date": "Suggest some dates",
+ "Crei l'evento e scegli i giorni possibili. Bastano pochi secondi.": "Create the event and pick the possible days. It only takes a few seconds.",
+ "Gli amici votano": "Friends vote",
+ "Ognuno tocca i giorni in cui c'è. Niente chat infinite per mettersi d'accordo.": "Everyone taps the days they're free. No endless group chats to agree.",
+ "seeva conferma da solo": "seeva confirms it for you",
+ "Quando una data mette d'accordo il gruppo, l'evento è confermato. Poi dividete le spese, chi porta cosa e i sondaggi.": "When a date works for the group, the event is confirmed. Then split costs, sort out who brings what and run polls.",
+ "Salta": "Skip",
+ "Avanti": "Next",
+ "Inizia": "Get started",
+ "Benvenuto in seeva": "Welcome to seeva",
+ "Confermato · 6 ci sono": "Confirmed · 6 going",
+ "Ven 14 novembre": "Fri 14 November",
+ "Sondaggi": "Polls",
+ "Sollecitato · di nuovo tra 1 minuto": "Reminder sent · again in 1 minute",
+ "Sollecitato · di nuovo tra {n} minuti": "Reminder sent · again in {n} minutes",
  "Aggiunta alle spese ✓": "Added to expenses ✓",
  "Spesa tolta": "Expense removed",
  "Scrivi quanto hai speso.": "Enter how much you spent.",
@@ -947,6 +974,12 @@
   window.SEEVA_EN_FRAGS = [["a un evento già confermato: tornerà \"in attesa\", e tutti i partecipanti (anche chi aveva già risposto) riceveranno un avviso per votare di nuovo. Continuare?", "to an event that's already confirmed: it will go back to \"pending\", and all guests (including those who already replied) will be asked to vote again. Continue?"], ["\"? Questa data diventa subito quella definitiva dell'evento, anche se non tutti hanno ancora risposto. Non si può annullare da qui.", "\"? This date immediately becomes the event's final date, even if not everyone has replied yet. This can't be undone from here."], ["\" è tornato in attesa: l'organizzatore ha aggiunto nuove opzioni, la tua risposta di prima non basta più — vota di nuovo.", "\" is pending again: the organiser added new options, so your earlier answer isn't enough any more — vote again."], ["\" dalla tua home risulterai non disponibile per tutti gli invitati. L'azione non si può annullare: continuare?", "\" from your home you'll show as not available to all guests. This can't be undone: continue?"], ["\"? Chi aveva già risposto disponibile riceverà un avviso. Potrai sempre ripeterlo con nuove date in seguito.", "\"? Anyone who said they were available will be notified. You can always repeat it with new dates later."], ["\"? Chi aveva già risposto disponibile riceverà un avviso. Non si può annullare.", "\"? Anyone who said they were available will be notified. This can't be undone."], ["\" dalla tua home? Non potrai più vederlo qui, l'azione non si può annullare.", "\" from your home? You won't see it here any more, and this can't be undone."], ["\": aprilo dai tuoi Download/File per aggiungerlo al calendario 📅", "\": open it from your Downloads/Files to add it to your calendar 📅"], ["! Scegli un nome utente e la tua data di nascita per finire.", "! Choose a username and enter your date of birth to finish."], ["e quel giorno non c’eri. L’abbiamo messo tra gli annullati.", "and you weren't free that day. We've moved it to cancelled."], ["Resta visibile qui per una settimana, poi viene eliminato.", "It stays visible here for a week, then it's deleted."], ["Non sono riuscito a cambiare la lista \"chi porta cosa\" (", "Couldn't change the \"who brings what\" list ("], ["Non sono riuscito a rimuovere l'evento dalla tua home (", "Couldn't remove the event from your home ("], ["\" è stata tolta una data a cui avevi detto di esserci:", "\" a date you'd said you were in for has been removed:"], ["Non sono riuscito a salvare la tua disponibilità (", "Couldn't save your availability ("], ["Non sono riuscito a cambiare la divisione spese (", "Couldn't change expense splitting ("], ["Non sono riuscito ad aggiornare la tua risposta (", "Couldn't update your answer ("], ["Hai già sollecitato da poco. Puoi rimandarlo tra", "You sent a reminder recently. You can send another in"], ["l'app: lo vedranno aprendo il link dell'evento.", "the app: they'll see it when they open the event link."], ["Non sono riuscito ad aprire l'accesso Google (", "Couldn't open Google sign-in ("], ["Non sono riuscito a salvare la tua risposta (", "Couldn't save your answer ("], ["Non sono riuscito a cancellare il commento (", "Couldn't delete the comment ("], ["Non sono riuscito a salvare il nome utente:", "Couldn't save the username:"], ["Non sono riuscito a inviare la richiesta (", "Couldn't send the request ("], ["Non sono riuscito a mandare il sollecito (", "Couldn't send the reminder ("], ["\"? L'organizzatore riceverà una notifica.", "\"? The organiser will be notified."], ["Non sono riuscito a cancellare la spesa (", "Couldn't delete the expense ("], ["Non sono riuscito a caricare il profilo (", "Couldn't load the profile ("], ["Non sono riuscito a eliminare l'account (", "Couldn't delete the account ("], ["Non sono riuscito a inviare il commento (", "Couldn't send the comment ("], ["Non sono riuscito ad aggiungere l'amico (", "Couldn't add the friend ("], ["Non sono riuscito ad aggiungere la voce (", "Couldn't add the item ("], ["\" è stato modificato dall'organizzatore.", "\" has been changed by the organiser."], ["Non sono riuscito a eliminare l'evento (", "Couldn't delete the event ("], ["Non sono riuscito a eliminare la lista (", "Couldn't delete the list ("], ["vuole aggiungerti alla sua lista amici \"", "wants to add you to their friends list \""], ["\" è stato eliminato dall'organizzatore.", "\" has been deleted by the organiser."], ["Non sono riuscito a rimuovere l'amico (", "Couldn't remove the friend ("], ["Non sono riuscito a salvare l'evento (", "Couldn't save the event ("], ["Segnalare che non potrai esserci per \"", "Let them know you can't make it to \""], ["Non riesco a caricare i tuoi eventi (", "I can't load your events ("], ["Non riesco a caricare questo evento (", "I can't load this event ("], ["Non sono riuscito a creare la lista (", "Couldn't create the list ("], [" date proposte, in attesa di conferma", " dates suggested, waiting for confirmation"], ["Non sono riuscito a salvare il voto (", "Couldn't save your vote ("], ["Non riesco a caricare le notifiche (", "I can't load notifications ("], ["Non sono riuscito ad aggiungerli (", "Couldn't add them ("], ["disponibili · tocca per i dettagli", "available · tap for details"], ["Non sono riuscito ad aggiungerla (", "Couldn't add it ("], ["Nessuno di questi, continua come", "None of these, continue as"], ["Non riesco a caricare le liste (", "I can't load the lists ("], ["Non sono riuscito a collegarti (", "Couldn't link you ("], ["Non sono riuscito a confermare (", "Couldn't confirm ("], ["Non sono riuscito a eliminarla (", "Couldn't delete it ("], ["Non sono riuscito a prenotarla (", "Couldn't claim it ("], ["Non sono riuscito a rispondere (", "Couldn't reply ("], ["Non sono riuscito a segnalarlo (", "Couldn't report it ("], ["Non sono riuscito ad annullare (", "Couldn't cancel ("], ["Non sono riuscito a eliminarlo (", "Couldn't delete it ("], ["Non sono riuscito a liberarla (", "Couldn't free it up ("], ["Non sono riuscito a toglierlo (", "Couldn't remove it ("], ["Non sono riuscito a chiuderlo (", "Couldn't close it ("], ["Non sono riuscito a inviarla (", "Couldn't send it ("], ["è entrato/a nel tuo evento \"", "joined your event \""], ["l'app: mandagli tu il link.", "the app: send them the link yourself."], ["ti ha invitato all'evento \"", "invited you to the event \""], ["In tutto saranno invitate", "In total, invited:"], ["⚠️ Giorni già impegnati —", "⚠️ Days already taken —"], ["⚠️ Quel giorno hai anche", "⚠️ That day you also have"], [" (non ancora confermato)", " (not confirmed yet)"], ["· non ancora definitiva", "· not final yet"], ["è già tra gli invitati.", "is already a guest."], ["nella barra di Safari.", "in the Safari toolbar."], ["è quasi risolto: manca", "is nearly sorted: still missing"], ["⚠️ Quel giorno hai già", "⚠️ That day you already have"], ["🔒 Quel giorno hai già", "🔒 That day you already have"], ["Promemoria mandato a", "Reminder sent to"], ["Quel giorno hai già:", "That day you already have:"], ["Non sono riuscito a", "Couldn't"], ["Quel giorno hai già", "That day you already have"], ["· tocca per leggere", "· tap to read"], [": la data scelta è", ": the chosen date is"], ["Dettagli su seeva:", "Details on seeva:"], ["Non sono riuscito:", "Couldn't do it:"], ["persone aggiunte ✓", "people added ✓"], ["Nuova proposta di", "New event by"], ["Avviso mandato a", "Message sent to"], ["Hai già aggiunto", "You've already added"], ["Sei entrato come", "You joined as"], ["Stai aggiungendo", "You're adding"], ["ti ha invitato a", "invited you to"], ["· si vota fino a", "· voting until"], ["Disponibile per", "Available for"], ["Mostra altri ·", "Show more ·"], ["Si vota fino a", "Voting open until"], ["hanno risposto", "replied"], ["Ti ha invitato", "Invited by"], ["Da decidere ·", "To be decided ·"], ["— vota la tua", "— vote for your"], ["Confermare \"", "Confirm \""], ["Rimuovendo \"", "By removing \""], ["· diviso tra", "· split between"], ["). Riprova.", "). Please try again."], ["Annullare \"", "Cancel \""], ["Eliminare \"", "Delete \""], ["Rimuovere \"", "Remove \""], ["Scaricato \"", "Downloaded \""], ["— organizza", "— organised by"], ["📣 Avviso da", "📣 Message from"], ["aggiunto ✓", "added ✓"], ["Pagato da", "Paid by"], ["deve dare", "owes"], ["non hanno", "don't have"], ["· e altri", "· and others"], [" persone.", " people."], [" persona.", " person."], [" persone:", " people:"], [" persona:", " person:"], ["📣 Avviso", "📣 Message"], [" minuti.", " minutes."], [" minuto.", " minute."], ["non ha", "doesn't have"], ["· ore", "· at"], ["Per \"", "For \""]];
   var P = window.SEEVA_EN_PATTERNS = window.SEEVA_EN_PATTERNS || [];
   P.push([new RegExp("^Ciao, (.+)$"), "Hi, $1"]);
+  // "X" è stato modificato dall'organizzatore: orario e luogo. (2026-11-02)
+  P.push([new RegExp("^\"(.+)\" è stato modificato dall'organizzatore: (.+)\\.$"), function (m, name, what) {
+    var W = { 'nome': 'name', 'date': 'dates', 'orario': 'time', 'luogo': 'place', 'luoghi proposti': 'place options', 'descrizione': 'description', 'foto': 'photo', 'invito': 'invite', 'e altro': 'and more' };
+    what = what.replace(/luoghi proposti|descrizione|orario|luogo|nome|date|foto|invito|e altro/g, function (w) { return W[w]; }).replace(/ e /g, ' and ');
+    return '"' + name + '" has been changed by the organiser: ' + what + '.';
+  }]);
   P.push([new RegExp("^Ciao (.+)!$"), "Hi $1!"]);
   P.push([new RegExp("^seeva — (.+)$"), "seeva — $1"]);
   P.push([new RegExp("^(.+) ha risposto: ci sarà per «(.+)»\\.$"), "$1 is in for \"$2\"."]);
