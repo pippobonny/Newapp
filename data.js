@@ -989,6 +989,28 @@
         else capPlugins.App.exitApp();
       });
     }
+    /* Link d'invito (https://seeva.it/evento.html?id=…, /lista-invito…):
+       Android/iOS aprono l'app, qui si va alla stessa pagina + query
+       (2026-11-09). Solo seeva.it; avvio a freddo con getLaunchUrl. */
+    var lastDeepLink = '';
+    var handleDeepLink = function (url) {
+      var m = String(url || '').match(/^https?:\/\/(?:www\.)?seeva\.it\/([^?#]*)([?#].*)?$/i);
+      if (!m) return;
+      var page = m[1].replace(/\/+$/, '');
+      if (!/^(evento|lista-invito)(\.html)?$/i.test(page)) return;
+      var target = '/' + page.replace(/\.html$/i, '').toLowerCase() + '.html' + (m[2] || '');
+      var here = global.location.pathname + global.location.search + global.location.hash;
+      if (target === here || target === lastDeepLink) return;
+      lastDeepLink = target;
+      setTimeout(function () { lastDeepLink = ''; }, 3000);
+      global.location.href = target;
+    };
+    if (capPlugins.App && typeof capPlugins.App.addListener === 'function') {
+      capPlugins.App.addListener('appUrlOpen', function (ev) { handleDeepLink(ev && ev.url); });
+    }
+    if (capPlugins.App && typeof capPlugins.App.getLaunchUrl === 'function') {
+      try { Promise.resolve(capPlugins.App.getLaunchUrl()).then(function (r) { handleDeepLink(r && r.url); }, function () {}); } catch (err) { /* ignora */ }
+    }
     if (capPlugins.Share && global.navigator && !global.navigator.share) {
       global.navigator.share = function (data) {
         data = data || {};
