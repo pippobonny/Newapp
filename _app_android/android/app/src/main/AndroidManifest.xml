@@ -18,6 +18,16 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Link d'invito (2026-11-09): i link https://seeva.it/evento.html... aprono l'app.
+                 Servono https://seeva.it/.well-known/assetlinks.json con lo SHA-256 di Play App Signing. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="seeva.it" android:pathPrefix="/evento" />
+                <data android:scheme="https" android:host="seeva.it" android:pathPrefix="/lista-invito" />
+            </intent-filter>
         </activity>
 
         <!-- Notifiche (Fil, 2026-10-26): icona piccola bianca "sv" nella barra di stato e colore seeva -->

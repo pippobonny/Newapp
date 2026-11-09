@@ -58,7 +58,7 @@ async function walk(dir) {
     const abs = path.join(dir, ent.name);
     const rel = path.relative(SRC, abs);
     if (ent.isDirectory()) {
-      if (SKIP_DIRS.has(ent.name) || ent.name.startsWith('_') || ent.name.startsWith('.')) continue;
+      if (SKIP_DIRS.has(ent.name) || ent.name.startsWith('_') || (ent.name.startsWith('.') && ent.name !== '.well-known')) continue;
       await walk(abs);
       continue;
     }
