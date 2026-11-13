@@ -759,3 +759,4 @@ Tra tutti ⇒ Everyone
 💶 Ognuno segna cosa spende, seeva fa i conti. ⇒ 💶 Everyone adds what they spend, seeva does the maths.
 🎒 Ognuno sceglie cosa portare. ⇒ 🎒 Everyone picks what to bring.
 Prossimi eventi ⇒ Upcoming events
+Data ⇒ Date

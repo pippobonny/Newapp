@@ -172,3 +172,6 @@ paghi tu ⇒ you pay
 paga {name} ⇒ {name} pays
 <b>{amt}</b> a testa ⇒ <b>{amt}</b> each
 In {n} ⇒ {n} people
+Nessuno ancora ⇒ Nobody yet
+1 persona ⇒ 1 person
+{n} persone ⇒ {n} people

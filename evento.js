@@ -920,7 +920,7 @@
               ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><rect x="3" y="4" width="18" height="5" rx="1.5"></rect><path d="M5 9v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9"></path><line x1="10" y1="13" x2="14" y2="13"></line></svg>'
               : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><rect x="3" y="5" width="18" height="16" rx="3"></rect><line x1="16" y1="3" x2="16" y2="7"></line><line x1="8" y1="3" x2="8" y2="7"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>') + '</div>'
           + '<div>'
-          + '<div class="confirmed-date-label">' + (info.status === 'passato' ? 'Si è tenuto' : 'Confermato') + '</div>'
+          + '<div class="confirmed-date-label">' + (info.status === 'passato' ? 'Si è tenuto' : (info.noConfirmation ? 'Data' : 'Confermato')) + '</div>'
           + '<div class="confirmed-date-value">' + SeevaData.escapeHTML(SeevaData.formatDateTimeLabel(info.bestOption.dateISO, event.eventTime)) + '</div>'
           + (canAddToCalendar ? '<div class="confirmed-date-add-cal">＋ Aggiungi al calendario</div>' : '')
           + '</div>'
@@ -3359,7 +3359,7 @@
         render();
 
         var infoAfter = SeevaData.computeEventStatus(event);
-        if (!wasConfirmed && infoAfter.status === 'done' && infoAfter.bestOption) {
+        if (!wasConfirmed && infoAfter.status === 'done' && !infoAfter.noConfirmation && infoAfter.bestOption) {
           showEventConfirmedPopup(infoAfter);
         }
       }

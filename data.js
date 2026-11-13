@@ -2356,9 +2356,9 @@
       // date proposte (vedi evento.html). Anche questi due in parallelo.
       var organizerName = (input.createdBy || '').trim();
       var step2 = await Promise.all([
-        createdOptionIds.length === 1
-          ? supabase.from('events').update({ confirmed_date_option_id: createdOptionIds[0] }).eq('id', eventId)
-          : NONE,
+        // Data unica (Filippo, 2026-11-13): niente più "confermato" scritto sul
+        // DB. L'evento esiste e basta; lo stato si ricava da computeEventStatus.
+        NONE,
         (organizerName && createdOptionIds.length)
           ? supabase.from('participants').insert({
               event_id: eventId,
@@ -2470,7 +2470,15 @@
         // rispondere.
         var meN = (event.participants || []).filter(function (p) { return (p.name || '').trim().toLowerCase() === myUsername; })[0];
         var whenN = info.bestOption ? shortDateLabel(info.bestOption.dateISO) : '';
-        if (iAmOrganizer || (meN && (meN.maybe || (info.bestOption && (meN.availableDateOptionIds || []).indexOf(info.bestOption.id) !== -1)))) {
+        if (info.noConfirmation) {
+          // Data unica: niente "confermato". Resta solo l'invito a chi non ha ancora risposto.
+          if (!meN && !iAmOrganizer) {
+            notifications.push({
+              icon: 'new', emoji: '📅', time: ts, eventId: event.id,
+              text: whenN ? T('Nuovo invito: <b>{name}</b>, {when}. Ci sei?', { name: escapeHTML(event.name), when: escapeHTML(whenN) }) : T('Nuovo invito: <b>{name}</b>. Ci sei?', { name: escapeHTML(event.name) })
+            });
+          }
+        } else if (iAmOrganizer || (meN && (meN.maybe || (info.bestOption && (meN.availableDateOptionIds || []).indexOf(info.bestOption.id) !== -1)))) {
           notifications.push({
             // Ora della conferma vera (events.confirmed_at, 2026-11-02): prima
             // risaliva in cima a ogni nuova risposta di qualcuno.
@@ -2870,8 +2878,8 @@
     if ((mustReopen || !current.confirmedDateOptionId) && !current.manuallyCancelled) {
       var leftOptsRes = await supabase.from('date_options').select('id').eq('event_id', eventId);
       if (!leftOptsRes.error && leftOptsRes.data && leftOptsRes.data.length === 1) {
-        var fixRes = await supabase.from('events').update({ confirmed_date_option_id: leftOptsRes.data[0].id }).eq('id', eventId);
-        if (fixRes.error) throw new Error(fixRes.error.message);
+        // Data unica (Filippo, 2026-11-13): niente più conferma scritta sul
+        // DB, si segna solo che l'evento resta a data fissa (nessun "rivota").
         reconfirmedFixed = true;
       }
     }
@@ -3675,11 +3683,24 @@
     var votePastDeadline = !!voteDeadline && Date.now() >= voteDeadline.getTime();
     var noVotes = false;
 
+    // Data unica (Filippo, 2026-11-13): l'evento non ha un "confermato/non
+    // confermato", esiste e basta (a meno che l'organizzatore lo annulli).
+    // Internamente resta status 'done' con l'unica data come riferimento, così
+    // agenda, passato, spese e "c'era/non c'era" funzionano senza
+    // confirmed_date_option_id. Prima del 4 ottobre 2026 restano le vecchie
+    // regole (a meno che sia già confermato sul DB).
+    var allOpts = event.dateOptions || [];
+    var noConfirmation = allOpts.length === 1 && !event.manuallyCancelled &&
+      (!!confirmedOption || allOpts[0].dateISO >= '2026-10-04');
+
     var status = 'waiting';
     var cancelledManually = false;
     if (confirmedOption) {
       status = 'done';
       bestOption = confirmedOption;
+    } else if (noConfirmation) {
+      status = 'done';
+      bestOption = allOpts[0];
     } else if (event.manuallyCancelled) {
       status = 'cancelled';
       cancelledManually = true;
@@ -3773,6 +3794,7 @@
 
     return {
       status: status,
+      noConfirmation: noConfirmation,
       cancelledManually: cancelledManually,
       voteDeadlineISO: voteDeadlineISO,
       voteDeadline: voteDeadline,
@@ -3804,8 +3826,11 @@
      davvero. */
 
   function getConfirmedParticipantNames(event) {
-    if (!event || !event.confirmedDateOptionId) return [];
-    var confirmedId = event.confirmedDateOptionId;
+    if (!event) return [];
+    // Data unica: l'unica data fa da riferimento anche senza confirmed_date_option_id.
+    var confirmedId = event.confirmedDateOptionId ||
+      ((event.dateOptions || []).length === 1 ? event.dateOptions[0].id : null);
+    if (!confirmedId) return [];
     return (event.participants || [])
       .filter(function (p) { return (p.availableDateOptionIds || []).indexOf(confirmedId) !== -1; })
       .map(function (p) { return p.name; });
@@ -3995,7 +4020,7 @@
       var n = (ev.dateOptions || []).length;
       statusLine = (n === 1 ? T('Da decidere · 1 data') : T('Da decidere · {n} date', { n: n })) + (info.voteDeadlineLabel && info.status !== 'tie' ? T(' · si vota fino a {when}', { when: info.voteDeadlineLabel }) : '');
     } else {
-      statusLine = T('Confermato') + (t ? T(' · ore {t}', { t: t }) : '') + (loc ? ' · ' + loc : '');
+      statusLine = (info.noConfirmation ? goingCountLabel(info) : T('Confermato')) + (t ? T(' · ore {t}', { t: t }) : '') + (loc ? ' · ' + loc : '');
     }
     if (ev.createdBy && item.myKey !== 'organizer' && (item.kind || item.reason)) statusLine += T(' · da {who}', { who: ev.createdBy });
 
@@ -4358,6 +4383,13 @@
     return { balances: list, settlements: settlements };
   }
 
+  /* Data unica (Filippo, 2026-11-13): al posto di "Confermato" si mostra solo
+     chi ci sarà. info.count = disponibili, organizzatore incluso. */
+  function goingCountLabel(info) {
+    var n = info.count || 0;
+    return n === 0 ? T('Nessuno ancora') : (n === 1 ? T('1 persona') : T('{n} persone', { n: n }));
+  }
+
   var STATUS_LABELS = {
     waiting: 'In attesa',
     almost: 'Quasi pieno',
@@ -4439,7 +4471,7 @@
       + '<div class="card-date">' + escapeHTML(info.dateLabel) + '</div>'
       + '</div>'
       + '</div>'
-      + '<div class="badge ' + info.status + '" data-event-id="' + escapeHTML(event.id) + '">' + STATUS_LABELS[info.status] + '</div>'
+      + '<div class="badge ' + info.status + '" data-event-id="' + escapeHTML(event.id) + '">' + (info.status === 'done' && info.noConfirmation ? goingCountLabel(info) : STATUS_LABELS[info.status]) + '</div>'
       + '</div>'
       + progressHTML
       + repeatBtnHTML
