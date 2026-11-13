@@ -3690,8 +3690,30 @@
     // confirmed_date_option_id. Prima del 4 ottobre 2026 restano le vecchie
     // regole (a meno che sia già confermato sul DB).
     var allOpts = event.dateOptions || [];
-    var noConfirmation = allOpts.length === 1 && !event.manuallyCancelled &&
+    // Se hanno risposto tutti gli invitati e nessuno (a parte chi organizza) ci
+    // sarà, l'evento si annulla da solo come sempre (ripristinato 2026-11-13):
+    // vale solo per le date uniche senza confirmed_date_option_id.
+    var allSaidNo = !confirmedOption && allOpts.length === 1 &&
+      totalInvited !== null && totalResponded >= totalInvited && activeNonOrganizerCount === 0;
+    var noConfirmation = allOpts.length === 1 && !event.manuallyCancelled && !allSaidNo &&
       (!!confirmedOption || allOpts[0].dateISO >= '2026-10-04');
+
+    // Più date, conferma automatica a maggioranza (Filippo, 2026-11-13): se
+    // PIÙ DELLA METÀ degli invitati totali (organizzatore compreso) è
+    // disponibile per lo stesso giorno, l'evento è confermato su quel giorno.
+    // Vince chi ha più sì, a parità la data più vicina. Si ricalcola a ogni
+    // risposta (nessuna scrittura sul DB): se i voti cambiano l'evento si
+    // riapre o passa a un altro giorno. La conferma manuale ha la precedenza.
+    var majorityOption = null;
+    if (isMultiDate && !confirmedOption && !event.manuallyCancelled && totalInvited !== null) {
+      var orgIsPart = participants.some(function (p) { return (p.name || '').trim().toLowerCase() === organizerLower; });
+      var totalPeople = Math.max(totalInvited + (orgIsPart ? 1 : 0), participants.length);
+      var bestVotes = 0;
+      candidateOptions.slice().sort(function (a, b) { return a.dateISO < b.dateISO ? -1 : (a.dateISO > b.dateISO ? 1 : 0); }).forEach(function (o) {
+        var v = participants.filter(function (p) { return (p.availableDateOptionIds || []).indexOf(o.id) !== -1; }).length;
+        if (v * 2 > totalPeople && v > bestVotes) { bestVotes = v; majorityOption = o; }
+      });
+    }
 
     var status = 'waiting';
     var cancelledManually = false;
@@ -3701,6 +3723,9 @@
     } else if (noConfirmation) {
       status = 'done';
       bestOption = allOpts[0];
+    } else if (majorityOption) {
+      status = 'done';
+      bestOption = majorityOption;
     } else if (event.manuallyCancelled) {
       status = 'cancelled';
       cancelledManually = true;
@@ -3830,6 +3855,11 @@
     // Data unica: l'unica data fa da riferimento anche senza confirmed_date_option_id.
     var confirmedId = event.confirmedDateOptionId ||
       ((event.dateOptions || []).length === 1 ? event.dateOptions[0].id : null);
+    if (!confirmedId) {
+      // Più date confermate a maggioranza (nessun id sul DB).
+      var infoC = computeEventStatus(event);
+      if ((infoC.status === 'done' || infoC.status === 'passato') && infoC.bestOption) confirmedId = infoC.bestOption.id;
+    }
     if (!confirmedId) return [];
     return (event.participants || [])
       .filter(function (p) { return (p.availableDateOptionIds || []).indexOf(confirmedId) !== -1; })
