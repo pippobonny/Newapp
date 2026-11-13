@@ -2779,7 +2779,12 @@
         if (!hadRemoved) continue;
         var strippedIds = (part.availableDateOptionIds || []).filter(function (id) { return removedOptionIds.indexOf(id) === -1; });
         if (partLower === organizerLower) continue; // l'organizzatore si gestisce a parte sotto, insieme all'aggiunta delle nuove date
-        var stripRes = await supabase.from('participants').update({ available_date_option_ids: strippedIds }).eq('event_id', eventId).ilike('name', part.name);
+        // array vuoto nel DB = "non ci sono mai" (rifiuto): se aveva detto sì solo
+        // alle date tolte, non ha rifiutato nulla, quindi la sua riga sparisce
+        // e torna "senza risposta" (qui hadRemoved garantisce array non vuoto prima)
+        var stripRes = strippedIds.length
+          ? await supabase.from('participants').update({ available_date_option_ids: strippedIds }).eq('event_id', eventId).ilike('name', part.name)
+          : await supabase.from('participants').delete().eq('event_id', eventId).ilike('name', part.name);
         if (stripRes.error) throw new Error(stripRes.error.message);
       }
     }
