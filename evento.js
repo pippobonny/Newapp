@@ -954,6 +954,21 @@
         // vede nulla, non ha senso proporgli di "rientrare" in qualcosa a cui
         // non ha mai partecipato.
         var withdrawActionHTML = '';
+        // Voto sul luogo anche a evento "confermato" / data unica (bug Capodanno,
+        // 2026-11-18): dal 13/11 la data unica è subito 'done', e in questa
+        // vista non c'era più la griglia dei luoghi -> nessuno poteva votare.
+        // Chi ha già risposto salva al tocco (data-autosave), chi deve ancora
+        // rispondere la sceglie e viene salvata con Ci sono / Forse.
+        var locVoteHTML = '';
+        if (info.status === 'done' && guestName && (event.locationOptions || []).length > 1 && !event.confirmedLocationOptionId) {
+          var meForLoc = findExistingParticipant();
+          var meSaidNo = meForLoc && (meForLoc.availableDateOptionIds || []).length === 0 && !meForLoc.maybe;
+          if (!meSaidNo && !(isOrganizer && !meForLoc)) {
+            locVoteHTML = buildLocationChipGridHTML(meForLoc ? (meForLoc.availableLocationOptionIds || []) : [])
+              .replace('id="locationGrid"', 'id="locationGrid"' + (meForLoc ? ' data-autosave="1"' : ''));
+          }
+        }
+        if (isOrganizer) withdrawActionHTML = locVoteHTML;
         if (info.status === 'done' && !isOrganizer && guestName) {
           var mine = guestName.toLowerCase();
           var iAmAttending = attendeeNames.some(function (n) { return n.toLowerCase() === mine; });
@@ -964,7 +979,8 @@
             withdrawActionHTML = ''
               + '<div class="section-title">La tua risposta</div>'
               + buildBusyNoteHTML(info.bestOption.dateISO)
-              + buildRsvpSegHTML(confirmedKey, !isOrganizer, 'confirmed');
+              + buildRsvpSegHTML(confirmedKey, !isOrganizer, 'confirmed')
+              + locVoteHTML;
           } else if ((event.invitees || []).some(function (f) { return (f.name || '').trim().toLowerCase() === mine; }) || event.openInvite) {
             // Non ha ancora risposto: invitato aggiunto dopo (Fil,
             // 2026-09-26) o evento a data fissa confermato da subito (Fil,
@@ -972,6 +988,7 @@
             withdrawActionHTML = ''
               + '<div class="section-title">Ci sarai?</div>'
               + buildBusyNoteHTML(info.bestOption.dateISO)
+              + locVoteHTML
               + noteFieldHTML
               + buildRsvpSegHTML(null, true, 'confirmed');
           }
@@ -2743,8 +2760,26 @@
         });
 
         document.querySelectorAll('#locationGrid .chip').forEach(function (chip) {
-          chip.addEventListener('click', function () {
+          chip.addEventListener('click', async function () {
             chip.classList.toggle('selected');
+            var grid = document.getElementById('locationGrid');
+            if (!grid || grid.getAttribute('data-autosave') !== '1' || grid.getAttribute('data-saving') === '1') return;
+            var me = findExistingParticipant();
+            if (!me) return;
+            grid.setAttribute('data-saving', '1');
+            try {
+              var ids = Array.prototype.map.call(
+                grid.querySelectorAll('.chip.selected'),
+                function (c) { return c.getAttribute('data-location-option-id'); }
+              );
+              var hasDates = (me.availableDateOptionIds || []).length > 0;
+              event = await SeevaData.upsertParticipant(event.id, guestName, me.availableDateOptionIds || [], ids, undefined, (!hasDates && me.maybe) ? true : undefined);
+              render();
+            } catch (err) {
+              chip.classList.toggle('selected');
+              grid.removeAttribute('data-saving');
+              SeevaUI.alert('Non sono riuscito a salvare il tuo voto (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+            }
           });
         });
 
@@ -3296,6 +3331,12 @@
         var seg = document.getElementById('rsvpSeg');
         var existing = findExistingParticipant();
         var locIds = (existing && existing.availableLocationOptionIds) || [];
+        if (document.getElementById('locationGrid')) {
+          locIds = Array.prototype.map.call(
+            document.querySelectorAll('#locationGrid .chip.selected'),
+            function (c) { return c.getAttribute('data-location-option-id'); }
+          );
+        }
         if (ctx === 'single') {
           var optId = event.dateOptions[0].id;
           if (key === 'yes') { if (!(await confirmBusyYes(event.dateOptions[0].dateISO))) return; return saveAvailability([optId], locIds, btnEl); }
