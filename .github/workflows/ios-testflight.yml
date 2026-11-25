@@ -9,7 +9,8 @@
 # Si può anche lanciare a mano da Actions > "App iPhone" > Run workflow.
 #
 # Segreti da mettere su GitHub (Settings > Secrets and variables > Actions),
-# li prepara Virgi dal suo Mac (vedi PDF "seeva - cose da fare per Virgi"):
+# caricati da Claude il 25/11/2026 dall'account Apple di Filippo (file in
+# _store_apple/segreti-apple/, fuori da git; script API: _store_apple/script/asc.py):
 #   APPLE_TEAM_ID             Team ID (10 caratteri) dell'account Apple Developer
 #   IOS_DIST_CERT_P12         certificato "Apple Distribution" .p12, in base64
 #   IOS_DIST_CERT_PASSWORD    password scelta quando si è esportato il .p12
@@ -150,7 +151,12 @@ jobs:
             -exportPath "$RUNNER_TEMP/export" \
             -authenticationKeyPath "$RUNNER_TEMP/asc/AuthKey_$ASC_KEY_ID.p8" \
             -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID" | tail -n 40
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" 2>&1 | tee "$RUNNER_TEMP/export.log" | tail -n 40 || {
+              if grep -q "Error Downloading App Information" "$RUNNER_TEMP/export.log"; then
+                echo "::error::Manca l'app su App Store Connect: crearla a mano (App > + > Nuova app, bundle it.seeva.app, SKU seeva-ios), poi rilanciare."
+              fi
+              exit 1
+            }
           echo "Inviata: build n. ${{ github.run_number }}. Tra 10-30 minuti la trovi su TestFlight."
 
       - name: Pulizia
