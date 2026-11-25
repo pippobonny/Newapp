@@ -9,3 +9,9 @@ _chiavi_seeva/
 
 # Screenshot App Store: si rigenerano con _store_apple/script/componi-screenshot-iphone.py (2026-11-25)
 _store_apple/screenshot/
+
+# Chiavi e certificati Apple (2026-11-25): mai su GitHub
+_store_apple/segreti-apple/
+*.p8
+*.p12
+*.mobileprovision
