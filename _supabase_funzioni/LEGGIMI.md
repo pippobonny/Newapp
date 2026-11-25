@@ -90,3 +90,6 @@ Novità: push ed email in italiano o inglese secondo `accounts.lang`
   riepilogo dei conti del giorno prima a tutti quelli nei conti.
 - `send-event-reminders` v12: "Com'è andata?" ora si segna come chiesto solo se la push è partita davvero;
   se nessun telefono è raggiungibile si riprova le mattine dopo, fino a 3 giorni dall'evento.
+
+## Solleciti automatici (2026-11-25) — ATTIVI dal 2026-11-25 (cron auto-nudges-hourly, minuto 20)
+- `send-auto-nudges/` (funzione, verify_jwt true) + `2026-11-25_solleciti_automatici.sql` (colonna accounts.auto_nudges_off, tabella event_auto_nudges, funzione claim_auto_nudge, cron orario). Max 3 solleciti a persona per evento, ogni 24 ore, 9-20 ora di Roma, solo push. Per attivare: eseguire l'SQL, pubblicare la funzione, prima prova con body {"dry":true}.
