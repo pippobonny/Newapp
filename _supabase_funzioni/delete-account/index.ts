@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { revokeAppleSignIn, userHasAppleIdentity } from "./apple-revoke.ts";
 
 /* Cancella per sempre l'account di CHI CHIAMA (mai un id passato dal client:
    il chiamante è sempre e solo quello del token Authorization della sessione
@@ -34,7 +35,14 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
    fidarci di un id mandato dal client.
 
    2026-10-14: copia salvata in cartella (prima esisteva solo su Supabase),
-   identica alla versione pubblicata (v1). */
+   identica alla versione pubblicata (v1).
+
+   2026-11-25 (v4, NON ANCORA PUBBLICATA): revoca di "Accedi con Apple"
+   (requisito App Store). Se il body contiene appleAuthorizationCode (lo manda
+   l'app iPhone) e l'utente è entrato con Apple, prima di cancellare si chiede
+   ad Apple di revocare il collegamento (vedi apple-revoke.ts). Mai bloccante:
+   senza segreti APPLE_* o se Apple non risponde, l'eliminazione prosegue.
+   Da pubblicare INSIEME ad apple-revoke.ts, verify_jwt = true come prima. */
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -72,6 +80,21 @@ Deno.serve(async (req: Request) => {
 
     if (userId === DELETED_USER_ACCOUNT_ID) return errRes("Operazione non permessa", 400);
 
+    // Body facoltativo: { appleAuthorizationCode?: string } (solo app iPhone)
+    let body: { appleAuthorizationCode?: string } = {};
+    try { body = await req.json(); } catch (_e) { body = {}; }
+
+    // Revoca Apple PRIMA di cancellare (dopo non sapremmo più chi era).
+    // Non lancia mai errori: l'esito finisce solo nei log e nella risposta.
+    const apple = await revokeAppleSignIn({
+      authorizationCode: body && body.appleAuthorizationCode,
+      userUsesApple: userHasAppleIdentity(userRes.user),
+      getEnv: (name) => Deno.env.get(name)
+    });
+    if (apple.status !== "skipped" || userHasAppleIdentity(userRes.user)) {
+      console.log("delete-account apple revoke:", JSON.stringify(apple));
+    }
+
     const steps = await Promise.all([
       admin.from("event_expense_shares").update({ account_id: null }).eq("account_id", userId),
       admin.from("event_expenses").update({ paid_by_account_id: null }).eq("paid_by_account_id", userId),
@@ -86,7 +109,7 @@ Deno.serve(async (req: Request) => {
     const { error: deleteErr } = await admin.auth.admin.deleteUser(userId);
     if (deleteErr) return errRes(deleteErr.message, 500);
 
-    return new Response(JSON.stringify({ ok: true }), {
+    return new Response(JSON.stringify({ ok: true, appleRevoke: apple.status }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });

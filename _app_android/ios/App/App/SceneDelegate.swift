@@ -85,8 +85,16 @@ public class SeevaAppleSignInPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizatio
             call.reject("Apple non ha restituito il token di accesso")
             return
         }
+        // authorizationCode (2026-11-25): codice usa-e-getta (5 minuti) che
+        // serve alla funzione delete-account per revocare Apple quando si
+        // elimina l'account (requisito App Store).
+        var authCode = ""
+        if let codeData = credential.authorizationCode {
+            authCode = String(data: codeData, encoding: .utf8) ?? ""
+        }
         call.resolve([
             "identityToken": token,
+            "authorizationCode": authCode,
             "user": credential.user,
             "email": credential.email ?? "",
             "givenName": credential.fullName?.givenName ?? "",

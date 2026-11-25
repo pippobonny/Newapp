@@ -728,7 +728,17 @@
      più a niente: la chiudiamo qui stesso invece di lasciarlo fare al
      chiamante. */
   async function deleteOwnAccount() {
-    var res = await supabase.functions.invoke('delete-account', { body: {} });
+    var body = {};
+    // App iPhone + account entrato con Apple (2026-11-25): Apple chiede di
+    // revocare il collegamento quando si elimina l'account. Si riapre il
+    // riquadro Apple per avere un codice usa-e-getta che la funzione
+    // delete-account scambia con Apple. MAI bloccante: se la persona chiude
+    // il riquadro o qualcosa va storto, l'account si elimina lo stesso.
+    try {
+      var appleCode = await getAppleCodeForRevoke();
+      if (appleCode) body.appleAuthorizationCode = appleCode;
+    } catch (err) { /* si prosegue senza revoca */ }
+    var res = await supabase.functions.invoke('delete-account', { body: body });
     if (res.error) throw new Error(await extractFunctionErrorMessage(res, 'Impossibile eliminare l\'account'));
     await logOut();
   }
@@ -1653,6 +1663,27 @@
   }
   function isAppleSignInAvailable() {
     return !!appleSignInPlugin();
+  }
+  /* Per la revoca Apple all'eliminazione account (vedi deleteOwnAccount):
+     solo nell'app iPhone e solo se l'utente Supabase ha un'identità Apple.
+     Ritorna il codice o null (mai errori). */
+  async function getAppleCodeForRevoke() {
+    var P = appleSignInPlugin();
+    if (!P) return null;
+    try {
+      var u = await supabase.auth.getUser();
+      var user = u && u.data && u.data.user;
+      if (!user) return null;
+      var ids = Array.isArray(user.identities) ? user.identities : [];
+      var am = user.app_metadata || {};
+      var usesApple = ids.some(function (i) { return i && i.provider === 'apple'; }) ||
+        am.provider === 'apple' || (Array.isArray(am.providers) && am.providers.indexOf('apple') !== -1);
+      if (!usesApple) return null;
+      var r = await P.signIn({});
+      return (r && r.authorizationCode) ? String(r.authorizationCode) : null;
+    } catch (err) {
+      return null;
+    }
   }
   async function sha256Hex(text) {
     var buf = await global.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));

@@ -71,6 +71,10 @@
 	<string>seeva usa la fotocamera solo se vuoi scattare la tua foto profilo.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>seeva apre le tue foto solo per scegliere la foto profilo.</string>
+	<!-- Descrizione vocale dell'evento (crea.html, getUserMedia audio): senza
+	     questa frase iOS chiude l'app appena si tocca il microfono (2026-11-25) -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>seeva usa il microfono solo se vuoi dettare a voce la descrizione di un evento.</string>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 </dict>

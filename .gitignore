@@ -6,3 +6,6 @@ dist/
 
 # Chiave di firma VERA per il Play Store (Fil, 2026-10-26): mai su GitHub
 _chiavi_seeva/
+
+# Screenshot App Store: si rigenerano con _store_apple/script/componi-screenshot-iphone.py (2026-11-25)
+_store_apple/screenshot/

@@ -93,3 +93,16 @@ Novità: push ed email in italiano o inglese secondo `accounts.lang`
 
 ## Solleciti automatici (2026-11-25) — ATTIVI dal 2026-11-25 (cron auto-nudges-hourly, minuto 20)
 - `send-auto-nudges/` (funzione, verify_jwt true) + `2026-11-25_solleciti_automatici.sql` (colonna accounts.auto_nudges_off, tabella event_auto_nudges, funzione claim_auto_nudge, cron orario). Max 3 solleciti a persona per evento, ogni 24 ore, 9-20 ora di Roma, solo push. Per attivare: eseguire l'SQL, pubblicare la funzione, prima prova con body {"dry":true}.
+
+## 2026-11-25 — delete-account v4: revoca "Accedi con Apple" (NON ancora pubblicata)
+
+- Requisito App Store: chi elimina l'account ed era entrato con Apple va scollegato anche da Apple.
+- App iPhone: prima di eliminare riapre il riquadro Apple (data.js `getAppleCodeForRevoke`) e manda
+  `{ appleAuthorizationCode }` a `delete-account`. Il plugin nativo ora restituisce anche `authorizationCode`.
+- `delete-account/apple-revoke.ts`: client_secret JWT ES256 con la chiave .p8 → `auth/token` → `auth/revoke`.
+  Mai bloccante: senza segreti, senza codice o se Apple non risponde, l'account si elimina lo stesso
+  (risposta `{ ok: true, appleRevoke: "revoked" | "skipped" | "failed" }`, esito nei log).
+- Da fare quando c'è l'account Apple: segreti Supabase `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_KEY_P8`
+  (facoltativo `APPLE_CLIENT_ID`, di base `it.seeva.app`), poi pubblicare `delete-account` con **entrambi i file**
+  (index.ts + apple-revoke.ts), verify_jwt = true come prima. La versione online (v3) è identica alla v1 qui sopra.
+- Provata in locale con chiave finta e risposte Apple simulate (firma valida, casi saltati/errore senza eccezioni).
