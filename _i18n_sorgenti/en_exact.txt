@@ -760,3 +760,8 @@ Tra tutti ⇒ Everyone
 🎒 Ognuno sceglie cosa portare. ⇒ 🎒 Everyone picks what to bring.
 Prossimi eventi ⇒ Upcoming events
 Data ⇒ Date
+📍 Vota il luogo ⇒ 📍 Vote for the place
+Tocca i luoghi che ti vanno bene (puoi sceglierne più di uno). ⇒ Tap the places that work for you (you can pick more than one).
+Conferma luoghi ⇒ Confirm places
+Luoghi scelti: ora rispondi con Ci sono o Forse per salvarli ⇒ Places chosen: now answer with I'm in or Maybe to save them
+Salvato ✓ ⇒ Saved ✓

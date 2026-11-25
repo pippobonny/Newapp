@@ -864,7 +864,7 @@
          multipla (puoi andar bene con più di una location), sottomessa
          insieme alla disponibilità sui giorni con lo stesso bottone
          "Conferma disponibilità" (vedi saveAvailability). */
-      function buildLocationChipGridHTML(preselectedLocationIds) {
+      function buildLocationChipGridHTML(preselectedLocationIds, voteMode) {
         if ((event.locationOptions || []).length < 2) return '';
         var cardsHTML = event.locationOptions.map(function (opt) {
           var selected = preselectedLocationIds.indexOf(opt.id) !== -1;
@@ -874,8 +874,11 @@
             + '</div>';
         }).join('');
         return ''
-          + '<div class="section-title">Quale location ti va bene?</div>'
-          + '<div class="day-grid" id="locationGrid" style="grid-template-columns:1fr;">' + cardsHTML + '</div>';
+          + (voteMode
+              ? '<div class="section-title">📍 Vota il luogo</div><div class="card-date" style="margin:0 2px 8px;">Tocca i luoghi che ti vanno bene (puoi sceglierne più di uno).</div>'
+              : '<div class="section-title">Quale location ti va bene?</div>')
+          + '<div class="day-grid" id="locationGrid" style="grid-template-columns:1fr;">' + cardsHTML + '</div>'
+          + (voteMode ? '<button type="button" class="primary-btn" id="locConfirmBtn" style="margin-top:10px;">Conferma luoghi</button>' : '');
       }
 
       /* Giorno/numero/mese abbreviati per le card quadrate della griglia
@@ -964,7 +967,7 @@
           var meForLoc = findExistingParticipant();
           var meSaidNo = meForLoc && (meForLoc.availableDateOptionIds || []).length === 0 && !meForLoc.maybe;
           if (!meSaidNo && !(isOrganizer && !meForLoc)) {
-            locVoteHTML = buildLocationChipGridHTML(meForLoc ? (meForLoc.availableLocationOptionIds || []) : [])
+            locVoteHTML = buildLocationChipGridHTML(meForLoc ? (meForLoc.availableLocationOptionIds || []) : [], true)
               .replace('id="locationGrid"', 'id="locationGrid"' + (meForLoc ? ' data-autosave="1"' : ''));
           }
         }
@@ -978,17 +981,17 @@
             var confirmedKey = iAmAttending ? 'yes' : (myParticipant && myParticipant.maybe ? 'maybe' : 'no');
             withdrawActionHTML = ''
               + '<div class="section-title">La tua risposta</div>'
+              + locVoteHTML
               + buildBusyNoteHTML(info.bestOption.dateISO)
-              + buildRsvpSegHTML(confirmedKey, !isOrganizer, 'confirmed')
-              + locVoteHTML;
+              + buildRsvpSegHTML(confirmedKey, !isOrganizer, 'confirmed');
           } else if ((event.invitees || []).some(function (f) { return (f.name || '').trim().toLowerCase() === mine; }) || event.openInvite) {
             // Non ha ancora risposto: invitato aggiunto dopo (Fil,
             // 2026-09-26) o evento a data fissa confermato da subito (Fil,
             // 2026-10-03). Ci sono / Forse / Non ci sono.
             withdrawActionHTML = ''
               + '<div class="section-title">Ci sarai?</div>'
-              + buildBusyNoteHTML(info.bestOption.dateISO)
               + locVoteHTML
+              + buildBusyNoteHTML(info.bestOption.dateISO)
               + noteFieldHTML
               + buildRsvpSegHTML(null, true, 'confirmed');
           }
@@ -2782,6 +2785,33 @@
             }
           });
         });
+
+        // Tasto "Conferma luoghi" (Fil, 2026-11-25): il voto si salva già al
+        // tocco, ma senza un tasto non si capiva. Qui salva (se ha già
+        // risposto) e dice "Salvato"; altrimenti spiega come finire.
+        var locConfirmBtn = document.getElementById('locConfirmBtn');
+        if (locConfirmBtn) {
+          locConfirmBtn.addEventListener('click', async function () {
+            var grid = document.getElementById('locationGrid');
+            var me = findExistingParticipant();
+            if (!grid || grid.getAttribute('data-autosave') !== '1' || !me) {
+              SeevaUI.toast('Luoghi scelti: ora rispondi con Ci sono o Forse per salvarli');
+              return;
+            }
+            if (grid.getAttribute('data-saving') === '1') return;
+            grid.setAttribute('data-saving', '1');
+            try {
+              var ids = Array.prototype.map.call(grid.querySelectorAll('.chip.selected'), function (c) { return c.getAttribute('data-location-option-id'); });
+              var hasDates = (me.availableDateOptionIds || []).length > 0;
+              event = await SeevaData.upsertParticipant(event.id, guestName, me.availableDateOptionIds || [], ids, undefined, (!hasDates && me.maybe) ? true : undefined);
+              render();
+              SeevaUI.toast('Salvato ✓');
+            } catch (err) {
+              grid.removeAttribute('data-saving');
+              SeevaUI.alert('Non sono riuscito a salvare il tuo voto (' + SeevaData.friendlyErrorMessage(err) + '). Riprova.');
+            }
+          });
+        }
 
         document.querySelectorAll('[data-claim-invitee]').forEach(function (row) {
           row.addEventListener('click', function () {

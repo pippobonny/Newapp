@@ -175,3 +175,5 @@ In {n} ⇒ {n} people
 Nessuno ancora ⇒ Nobody yet
 1 persona ⇒ 1 person
 {n} persone ⇒ {n} people
+Annullati e non ci vai: 1 evento › ⇒ Cancelled and not going: 1 event ›
+Annullati e non ci vai: {n} eventi › ⇒ Cancelled and not going: {n} events ›

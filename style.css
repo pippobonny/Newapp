@@ -5406,3 +5406,8 @@ html.sheet-open .toast, .toast.at-top { position: fixed; z-index: 85; top: calc(
   -webkit-tap-highlight-color: transparent;
 }
 .org-addon-btn:active { transform: scale(.97); }
+
+/* 2026-11-25: il link agli annullati era piccolo e grigio, "nascosto" (Fil):
+   ora è un bottone ben visibile in fondo alla Home. */
+.hm-foot.hm-foot-cancelled { margin: 16px 0 8px; }
+.hm-foot.hm-foot-cancelled a { display: block; width: 100%; text-align: center; box-sizing: border-box; font-size: 14px; font-weight: 600; color: var(--ink); background: var(--card); box-shadow: 0 2px 8px rgba(58,50,90,0.10); padding: 12px 14px; border-radius: 14px; }

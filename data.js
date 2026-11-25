@@ -290,9 +290,41 @@
     if (!calendarPluginRef) calendarPluginRef = C.registerPlugin('SeevaCalendar');
     return calendarPluginRef;
   }
+  // 2026-11-25: se l'APK installato è vecchio (senza il plugin SeevaCalendar)
+  // il pulsante cadeva nel download del .ics, che nella WebView non fa nulla
+  // ("file scaricato, aprilo..."). Ora, nell'app Android, senza plugin si apre
+  // il link "nuovo evento" di Google Calendar (si apre fuori dall'app).
+  function googleCalendarUrl(event, dateISO, timeLabel) {
+    var y = Number(dateISO.slice(0, 4)), m = Number(dateISO.slice(5, 7)) - 1, d = Number(dateISO.slice(8, 10));
+    function p2(n) { return ('0' + n).slice(-2); }
+    function ymd(dt) { return dt.getFullYear() + p2(dt.getMonth() + 1) + p2(dt.getDate()); }
+    var dates;
+    if (timeLabel) {
+      var hm = timeLabel.split(':');
+      var b = new Date(y, m, d, Number(hm[0]), Number(hm[1]));
+      var e = new Date(b.getTime() + 3600000);
+      dates = ymd(b) + 'T' + p2(b.getHours()) + p2(b.getMinutes()) + '00/' + ymd(e) + 'T' + p2(e.getHours()) + p2(e.getMinutes()) + '00';
+    } else {
+      dates = ymd(new Date(y, m, d)) + '/' + ymd(new Date(y, m, d + 1));
+    }
+    var loc = resolveEventLocation(event);
+    var details = (event.description ? event.description + '\n\n' : '') + T('Dettagli su seeva: {url}', { url: SITE_URL + '/evento.html?id=' + event.id });
+    return 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+      + '&text=' + encodeURIComponent(event.name || '')
+      + '&dates=' + dates
+      + '&details=' + encodeURIComponent(details)
+      + '&location=' + encodeURIComponent((loc && loc.address) || '');
+  }
   async function addToNativeCalendar(event, dateISO) {
     var P = nativeCalendarPlugin();
-    if (!P) return false;
+    var C0 = global.Capacitor;
+    if (!P) {
+      if (isNativeApp() && C0 && typeof C0.getPlatform === 'function' && C0.getPlatform() === 'android') {
+        global.open(googleCalendarUrl(event, dateISO, formatTimeLabel(event.eventTime)), '_blank');
+        return true;
+      }
+      return false;
+    }
     var y = Number(dateISO.slice(0, 4)), m = Number(dateISO.slice(5, 7)) - 1, d = Number(dateISO.slice(8, 10));
     var timeLabel = formatTimeLabel(event.eventTime);
     var begin, end, allDay = !timeLabel;

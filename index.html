@@ -173,6 +173,7 @@
       var homeSaving = false;
       var TO_ANSWER_MAX = 4;
       var AGENDA_MAX = 5;
+      var HOME_TARGET = 5;   // 2026-11-25: la home mostra sempre circa 5 eventi (i più vicini)
 
       function sectionHead(title, count, moreHref, moreLabel) {
         return '<div class="hm-section-head"><div class="hm-section-title">' + SeevaData.escapeHTML(title)
@@ -210,7 +211,7 @@
         // sezione (prima non comparivano mai in Home).
         if (later.length) {
           html += '<div class="hm-week-title">' + esc('Prossimi eventi') + '</div>'
-            + '<div class="hm-rows">' + later.slice(0, AGENDA_MAX).map(rowHTML).join('') + '</div>';
+            + '<div class="hm-rows">' + later.slice(0, Math.max(HOME_TARGET - thisWeek.length, 2)).map(rowHTML).join('') + '</div>';
         }
         if (mine.undecided.length) {
           html += '<div class="hm-week-title">' + esc('Da decidere') + '</div>'
@@ -228,7 +229,7 @@
           html += '<a class="hm-agenda-btn" href="eventi.html?only=agenda">Apri l\'agenda</a>';
         }
         if (cancelledCount > 0) {
-          html += '<div class="hm-foot"><a href="eventi.html?only=annullati">' + esc(cancelledCount === 1 ? t('Vedi 1 evento annullato o rifiutato ›') : t('Vedi {n} eventi annullati o rifiutati ›', { n: cancelledCount })) + '</a></div>';
+          html += '<div class="hm-foot hm-foot-cancelled"><a href="eventi.html?only=annullati">' + esc(cancelledCount === 1 ? t('Annullati e non ci vai: 1 evento ›') : t('Annullati e non ci vai: {n} eventi ›', { n: cancelledCount })) + '</a></div>';
         }
         // 2026-10-26: swapHTML (data.js) — la prima volta sostituisce le
         // sagome con l'animazione di entrata, dopo aggiorna in silenzio e
