@@ -1657,7 +1657,12 @@
   var appleSignInPluginRef = null;
   function appleSignInPlugin() {
     var C = global.Capacitor;
-    if (!isNativeApp() || !C || typeof C.getPlatform !== 'function' || C.getPlatform() !== 'ios' || typeof C.registerPlugin !== 'function') return null;
+    // 2026-11-26: il pulsante si vede solo con la classe seeva-ios, quindi se la
+    // classe c'è il plugin si prova comunque (prima, in certi casi, dava
+    // "funziona solo nell'app per iPhone" pur essendo nell'app).
+    var iosClass = !!(global.document && global.document.documentElement && global.document.documentElement.classList.contains('seeva-ios'));
+    var isIos = !!(C && typeof C.getPlatform === 'function' && C.getPlatform() === 'ios');
+    if (!C || typeof C.registerPlugin !== 'function' || !((isNativeApp() && isIos) || iosClass)) return null;
     if (!appleSignInPluginRef) appleSignInPluginRef = C.registerPlugin('SeevaAppleSignIn');
     return appleSignInPluginRef;
   }
@@ -1691,7 +1696,7 @@
   }
   async function signInWithApple() {
     var P = appleSignInPlugin();
-    if (!P) throw new Error('L\'accesso con Apple funziona solo nell\'app per iPhone.');
+    if (!P) throw new Error('L\'accesso con Apple funziona solo nell\'app per iPhone. [diag: cap=' + (!!global.Capacitor) + ' native=' + isNativeApp() + ' plat=' + (global.Capacitor && global.Capacitor.getPlatform ? global.Capacitor.getPlatform() : '?') + ' reg=' + (!!(global.Capacitor && global.Capacitor.registerPlugin)) + ']');
     // "nonce": numero casuale usa-e-getta, Apple lo mette (cifrato) dentro il
     // token e Supabase controlla che corrisponda: un token rubato non serve.
     var rawNonce = null, hashedNonce = null;
