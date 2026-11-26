@@ -122,7 +122,10 @@
         return;
       }
       if (gate.action === 'block') {
-        window.location.replace('presentazione.html');
+        /* App nativa (iPhone/Android): niente landing del sito. Si va a
+           Accedi/Registrati; la prima volta script.js (SeevaOnboarding)
+           mostra prima la presentazione a slide. */
+        window.location.replace(SeevaData.isNativeApp() ? 'profilo.html' : 'presentazione.html');
         return;
       }
 

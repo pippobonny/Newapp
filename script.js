@@ -3441,10 +3441,16 @@
    ========================================================================== */
 (function () {
   var KEY = 'seeva:onboardingDone';
-  function done() { try { localStorage.setItem(KEY, '1'); } catch (e) { /* ignora */ } }
+  var KEY2 = 'seeva:onboardingVisto';
+  function done() { try { localStorage.setItem(KEY, '1'); localStorage.setItem(KEY2, '1'); } catch (e) { /* ignora */ } }
   function shouldShow() {
     if (!document.documentElement.classList.contains('seeva-native')) return false;
-    try { return !localStorage.getItem(KEY); } catch (e) { return false; }
+    try {
+      if (localStorage.getItem(KEY) || localStorage.getItem(KEY2)) return false;
+      // Già loggato (aggiornamento dell'app): niente presentazione.
+      if (window.SeevaData && SeevaData.hasAccount && SeevaData.hasAccount()) { done(); return false; }
+      return true;
+    } catch (e) { return false; }
   }
   var SLIDES = [
     { title: 'Proponi le date', text: 'Crei l\'evento e scegli i giorni possibili. Bastano pochi secondi.',
@@ -3460,6 +3466,7 @@
         + '<span class="onb-ok-txt"><b>Ven 14 novembre</b><em>Confermato · 6 ci sono</em></span></div>'
         + '<div class="onb-chips"><span>💶 Spese</span><span>🍕 Chi porta cosa</span><span>📊 Sondaggi</span></div>' }
   ];
+  function needLogin() { return !(window.SeevaData && SeevaData.hasAccount && SeevaData.hasAccount()); }
   function open() {
     var i = 0;
     var el = document.createElement('div');
@@ -3479,11 +3486,13 @@
       track.style.transform = 'translateX(' + (-100 * i) + '%)';
       slides.forEach(function (s, k) { s.classList.toggle('is-on', k === i); });
       dots.forEach(function (d, k) { d.classList.toggle('is-on', k === i); });
-      next.textContent = i === SLIDES.length - 1 ? 'Inizia' : 'Avanti';
+      next.textContent = i === SLIDES.length - 1 ? (needLogin() ? 'Accedi o registrati' : 'Inizia') : 'Avanti';
       next.classList.toggle('is-last', i === SLIDES.length - 1);
     }
     function close() {
       done();
+      // Finita la presentazione: chi non ha un account va ad Accedi/Registrati.
+      if (needLogin() && !/profilo\.html/.test(location.pathname)) { location.href = 'profilo.html'; return; }
       el.classList.add('is-out');
       setTimeout(function () { el.remove(); }, 380);
     }

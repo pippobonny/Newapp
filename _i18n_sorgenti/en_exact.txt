@@ -771,3 +771,10 @@ Utenti bloccati ⇒ Blocked users
 Segnalare questo commento? Lo leggeremo e, se è offensivo, lo rimuoveremo. ⇒ Report this comment? We'll read it and, if it's offensive, remove it.
 Grazie, segnalazione inviata. ⇒ Thank you, report sent.
 Sblocca utente ⇒ Unblock user
+Accedi o registrati ⇒ Log in or sign up
+Proponi le date ⇒ Suggest the dates
+Gli amici votano ⇒ Friends vote
+seeva conferma da solo ⇒ seeva confirms by itself
+Salta ⇒ Skip
+Avanti ⇒ Next
+Inizia ⇒ Start
