@@ -270,6 +270,10 @@
           <div>›</div>
         </div>
         </div>
+        <div class="settings-group" id="blockedGroup" style="display:none;">
+          <div class="settings-row" style="cursor:default;"><div class="left">Utenti bloccati</div></div>
+          <div id="blockedList"></div>
+        </div>
         <div class="settings-group">
         <!-- 2026-10-25: con la barra in basso la coccinella fluttuante copriva
              le schede; nelle pagine con la barra si apre da qui (vedi
@@ -317,6 +321,30 @@
       var nameInput = document.getElementById('profileNameInput');
       var profileSaveRow = document.getElementById('profileSaveRow');
       var myEventsList = document.getElementById('myEventsList');
+      // Utenti bloccati (Apple 1.2, 2026-11-26): elenco con "Sblocca".
+      async function renderBlockedList() {
+        var grp = document.getElementById('blockedGroup');
+        var box = document.getElementById('blockedList');
+        if (!grp || !box || !SeevaData.hasAccount()) return;
+        var list;
+        try { list = await SeevaData.getMyBlocks(); } catch (err) { return; }
+        grp.style.display = list.length ? '' : 'none';
+        box.innerHTML = list.map(function (b) {
+          return '<div class="settings-row" style="cursor:default;"><div class="left">' + SeevaData.escapeHTML(b.username || '?') + '</div>'
+            + '<div data-unblock-id="' + b.accountId + '" style="cursor:pointer; font-size:13px; color:var(--ink-soft);">Sblocca utente</div></div>';
+        }).join('');
+      }
+      document.getElementById('blockedList').addEventListener('click', async function (e) {
+        var el = e.target.closest && e.target.closest('[data-unblock-id]');
+        if (!el) return;
+        try { await SeevaData.unblockUser(el.getAttribute('data-unblock-id')); } catch (err) {
+          SeevaUI.alert('Non sono riuscito a sbloccare (' + SeevaData.friendlyErrorMessage(err) + ').');
+          return;
+        }
+        renderBlockedList();
+      });
+      renderBlockedList();
+
       var pushNotifRow = document.getElementById('pushNotifRow');
 
       /* ---------- Lingua (Fil, 2026-10-07) ---------- */

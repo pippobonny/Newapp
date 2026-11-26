@@ -765,3 +765,9 @@ Tocca i luoghi che ti vanno bene (puoi sceglierne più di uno). ⇒ Tap the plac
 Conferma luoghi ⇒ Confirm places
 Luoghi scelti: ora rispondi con Ci sono o Forse per salvarli ⇒ Places chosen: now answer with I'm in or Maybe to save them
 Salvato ✓ ⇒ Saved ✓
+Segnala ⇒ Report
+Blocca ⇒ Block
+Utenti bloccati ⇒ Blocked users
+Segnalare questo commento? Lo leggeremo e, se è offensivo, lo rimuoveremo. ⇒ Report this comment? We'll read it and, if it's offensive, remove it.
+Grazie, segnalazione inviata. ⇒ Thank you, report sent.
+Sblocca utente ⇒ Unblock user

@@ -122,3 +122,6 @@ Non sono riuscito a salvare il voto ( ⇒ Couldn't save your vote (
 Non sono riuscito ad aggiungerla ( ⇒ Couldn't add it (
 Non sono riuscito a eliminarlo ( ⇒ Couldn't delete it (
 Non sono riuscito a chiuderlo ( ⇒ Couldn't close it (
+Non sono riuscito a inviare la segnalazione ( ⇒ Couldn't send the report (
+Non sono riuscito a bloccare l'utente ( ⇒ Couldn't block the user (
+Non sono riuscito a sbloccare ( ⇒ Couldn't unblock (

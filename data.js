@@ -3580,6 +3580,43 @@
     return true;
   }
 
+  /* ---------- Segnala commento / Blocca utente (Apple 1.2, 2026-11-26) ----------
+     Segnalazioni: finiscono in problem_reports con prefisso [SEGNALA COMMENTO]
+     (le legge Filippo dal pannello Supabase). Blocchi: tabella user_blocks
+     (RLS: ognuno vede solo i propri); la copia locale (seeva:blocks) serve a
+     nascondere subito i commenti nell'evento. Nessun dato viene cancellato. */
+  var BLOCKS_KEY = 'seeva:blocks';
+  function getBlockedIds() {
+    try { var a = JSON.parse(localStorage.getItem(BLOCKS_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (err) { return []; }
+  }
+  function setBlockedIds(ids) { try { localStorage.setItem(BLOCKS_KEY, JSON.stringify(ids)); } catch (err) { /* ignora */ } }
+  async function getMyBlocks() {
+    if (!hasAccount()) return [];
+    var res = await supabase.rpc('get_my_blocks');
+    if (res.error) throwSupabaseError(res.error);
+    var list = res.data || [];
+    setBlockedIds(list.map(function (b) { return b.accountId; }));
+    return list;
+  }
+  async function blockUser(accountId) {
+    var res = await supabase.rpc('block_user', { p_account_id: accountId });
+    if (res.error) throwSupabaseError(res.error);
+    var ids = getBlockedIds();
+    if (ids.indexOf(accountId) < 0) ids.push(accountId);
+    setBlockedIds(ids);
+    return true;
+  }
+  async function unblockUser(accountId) {
+    var res = await supabase.rpc('unblock_user', { p_account_id: accountId });
+    if (res.error) throwSupabaseError(res.error);
+    setBlockedIds(getBlockedIds().filter(function (x) { return x !== accountId; }));
+    return true;
+  }
+  async function reportComment(eventId, comment) {
+    return reportProblem('[SEGNALA COMMENTO] evento=' + eventId + ' commento=' + comment.id
+      + ' autore=' + (comment.authorName || '?') + ' (account ' + (comment.accountId || 'ospite') + ') testo: ' + String(comment.message || '').slice(0, 500), null);
+  }
+
   /* Calcola stato, percentuale di risposta e "miglior data" di un evento.
      Fil, 2026-07-19: tolta la quota ("quante persone servono per
      confermare") — troppo complicata da spiegare. Ora un evento si conferma
@@ -4762,6 +4799,11 @@
     buildRemoveFromHomeConfirmMessage: buildRemoveFromHomeConfirmMessage,
     buildDeleteEventConfirmMessage: buildDeleteEventConfirmMessage,
     reportProblem: reportProblem,
+    getBlockedIds: getBlockedIds,
+    getMyBlocks: getMyBlocks,
+    blockUser: blockUser,
+    unblockUser: unblockUser,
+    reportComment: reportComment,
     buildNotifications: buildNotifications,
     getNotificationsSeenAt: getNotificationsSeenAt,
     markNotificationsSeen: markNotificationsSeen,

@@ -2010,7 +2010,9 @@
         // .signup-overlay/.signup-modal di "Chi viene", stesso trattamento
         // "fuori da contentEl" (vedi commentsModalWrap qui sotto e nell'HTML
         // statico) per lo stesso motivo del blur a schermo intero.
-        var allComments = event.comments || [];
+        var blockedIdsNow = SeevaData.getBlockedIds();
+        var allComments = (event.comments || []).filter(function (c) { return !(c.accountId && blockedIdsNow.indexOf(c.accountId) >= 0); });
+        if (SeevaData.hasAccount()) SeevaData.getMyBlocks().catch(function () { /* ignora */ });
         var commentsSeenKey = 'seeva:commentsSeen:' + event.id;
         var commentsSeenCount = 0;
         try { commentsSeenCount = parseInt(localStorage.getItem(commentsSeenKey), 10) || 0; } catch (err) { /* ignora */ }
@@ -2038,6 +2040,8 @@
         var commentRowsHTML = allComments.length
           ? allComments.map(function (c) {
               var canDelete = isOrganizer || (guestName && c.authorName && c.authorName.trim().toLowerCase() === guestName.trim().toLowerCase());
+              var myAccId = (SeevaData.getAccount() || {}).id || null;
+              var isMine = (myAccId && c.accountId === myAccId) || (!c.accountId && guestName && c.authorName && c.authorName.trim().toLowerCase() === guestName.trim().toLowerCase());
               var initial = (c.authorName || '?').trim().charAt(0).toUpperCase() || '?';
               var when;
               try { when = new Date(c.createdAt).toLocaleString(window.SeevaI18n ? SeevaI18n.locale() : 'it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).replace('.', ''); } catch (err) { when = ''; }
@@ -2048,7 +2052,11 @@
                 + '<div class="comment-head"><span class="comment-name">' + SeevaData.escapeHTML(c.authorName || '?') + '</span><span class="comment-time">' + SeevaData.escapeHTML(when) + '</span></div>'
                 + '<div class="comment-text" data-no-i18n>' + SeevaData.escapeHTML(c.message) + '</div>'
                 + (c.isFromResponse ? '<span class="comment-tag">Dalla risposta</span>' : '')
-                + (canDelete ? '<div class="comment-delete" data-delete-comment-id="' + c.id + '">Cancella</div>' : '')
+                + '<div class="comment-actions">'
+                + (canDelete ? '<span class="comment-delete" data-delete-comment-id="' + c.id + '">Cancella</span>' : '')
+                + (isMine ? '' : '<span class="comment-delete" data-report-comment-id="' + c.id + '">Segnala</span>')
+                + (!isMine && c.accountId && SeevaData.hasAccount() ? '<span class="comment-delete" data-block-account-id="' + c.accountId + '" data-block-name="' + SeevaData.escapeHTML(c.authorName || '') + '">Blocca</span>' : '')
+                + '</div>'
                 + '</div>'
                 + '</div>';
             }).join('')
@@ -3005,6 +3013,31 @@
         var commentListEl = document.getElementById('commentList');
         if (commentListEl) {
           commentListEl.addEventListener('click', async function (e) {
+            var repEl = e.target.closest && e.target.closest('[data-report-comment-id]');
+            if (repEl) {
+              var repC = (event.comments || []).filter(function (x) { return x.id === repEl.getAttribute('data-report-comment-id'); })[0];
+              if (!repC) return;
+              if (!await SeevaUI.ask('Segnalare questo commento? Lo leggeremo e, se è offensivo, lo rimuoveremo.')) return;
+              SeevaData.reportComment(event.id, repC).then(function () {
+                SeevaUI.alert('Grazie, segnalazione inviata.');
+              }).catch(function (err) {
+                SeevaUI.alert('Non sono riuscito a inviare la segnalazione (' + SeevaData.friendlyErrorMessage(err) + ').');
+              });
+              return;
+            }
+            var blkEl = e.target.closest && e.target.closest('[data-block-account-id]');
+            if (blkEl) {
+              var blkName = blkEl.getAttribute('data-block-name') || '';
+              if (!await SeevaUI.ask(t('Bloccare {n}? Non vedrai più i suoi commenti. Puoi sbloccarlo dal Profilo.', { n: blkName }))) return;
+              SeevaData.blockUser(blkEl.getAttribute('data-block-account-id')).then(function () {
+                render();
+                var reopenedB = document.getElementById('commentsModal');
+                if (reopenedB) reopenedB.style.display = '';
+              }).catch(function (err) {
+                SeevaUI.alert('Non sono riuscito a bloccare l\'utente (' + SeevaData.friendlyErrorMessage(err) + ').');
+              });
+              return;
+            }
             var delEl = e.target.closest && e.target.closest('[data-delete-comment-id]');
             if (!delEl) return;
             if (!await SeevaUI.ask('Cancellare questo commento?')) return;

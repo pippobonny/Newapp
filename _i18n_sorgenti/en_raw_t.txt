@@ -177,3 +177,4 @@ Nessuno ancora ⇒ Nobody yet
 {n} persone ⇒ {n} people
 Annullati e non ci vai: 1 evento › ⇒ Cancelled and not going: 1 event ›
 Annullati e non ci vai: {n} eventi › ⇒ Cancelled and not going: {n} events ›
+Bloccare {n}? Non vedrai più i suoi commenti. Puoi sbloccarlo dal Profilo. ⇒ Block {n}? You won't see their comments any more. You can unblock them from Profile.

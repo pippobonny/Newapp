@@ -1805,6 +1805,7 @@ label.event-photo-preview {
   padding: 2px 7px;
   border-radius: 999px;
 }
+.comment-actions { display: flex; gap: 14px; }
 .comment-delete {
   font-size: 11px;
   color: var(--ink-soft);
