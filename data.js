@@ -460,7 +460,8 @@
   function birthDateProblem(iso, isNew) {
     if (!iso) return 'Inserisci la tua data di nascita.';
     var d = new Date(String(iso) + 'T12:00:00');
-    if (isNaN(d.getTime()) || d.getFullYear() < 1900 || d > new Date()) return 'Controlla la data di nascita.';
+    var parts = String(iso).split('-').map(Number);
+    if (isNaN(d.getTime()) || d.getFullYear() < 1900 || d > new Date() || d.getMonth() + 1 !== parts[1] || d.getDate() !== parts[2]) return 'Controlla la data di nascita.';
     if (isNew) {
       var limit = new Date(); limit.setFullYear(limit.getFullYear() - 14);
       if (d > limit) return 'Per registrarti a seeva devi avere almeno 14 anni.';
