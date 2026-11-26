@@ -2397,8 +2397,12 @@
      è il meccanismo di invito stesso, non un privilegio in più. */
   async function getEventById(id) {
     if (!id) return null;
-    var res = await supabase.rpc('get_event_public', { p_id: id });
+    var params = { p_id: id };
+    var tok = guestTokenFor(id);
+    if (tok) params.p_share_token = tok;
+    var res = await supabase.rpc('get_event_public', params);
     if (res.error) throwSupabaseError(res.error);
+    if (res.data && res.data.shareToken && !hasAccount()) rememberGuestToken(res.data.id, res.data.shareToken);
     if (res.data) { sortEventDates(res.data); pruneCancelledEvents([res.data]); }
     if (res.data) writeEventCache(res.data); else dropEventCache(id);
     return res.data || null;
@@ -3296,7 +3300,27 @@
     if (!shareToken) return null;
     var res = await supabase.rpc('get_event_public', { p_share_token: shareToken });
     if (res.error) throwSupabaseError(res.error);
+    if (res.data && res.data.id) rememberGuestToken(res.data.id, shareToken);
     return res.data || null;
+  }
+
+  /* M1 (audit 26/11/2026): chi entra da un link d'invito senza account si
+     tiene il token dell'evento, cosi' l'evento si legge sempre col token e
+     non col solo id (dopo il rilascio il server rispondera' all'id da solo
+     solo a chi e' collegato e invitato). */
+  var GUEST_TOKENS_KEY = 'seeva:guestTokens';
+  function rememberGuestToken(eventId, token) {
+    try {
+      var m = JSON.parse(localStorage.getItem(GUEST_TOKENS_KEY) || '{}') || {};
+      if (m[eventId] === token) return;
+      m[eventId] = token;
+      var keys = Object.keys(m);
+      if (keys.length > 50) delete m[keys[0]];
+      localStorage.setItem(GUEST_TOKENS_KEY, JSON.stringify(m));
+    } catch (err) { /* ignora */ }
+  }
+  function guestTokenFor(eventId) {
+    try { return (JSON.parse(localStorage.getItem(GUEST_TOKENS_KEY) || '{}') || {})[eventId] || null; } catch (err) { return null; }
   }
 
   /* Conferma "sono io" su un invitato specifico di un evento (letto con

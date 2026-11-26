@@ -95,16 +95,33 @@ Deno.serve(async (req: Request) => {
       console.log("delete-account apple revoke:", JSON.stringify(apple));
     }
 
-    const steps = await Promise.all([
-      admin.from("event_expense_shares").update({ account_id: null }).eq("account_id", userId),
-      admin.from("event_expenses").update({ paid_by_account_id: null }).eq("paid_by_account_id", userId),
-      admin.from("event_expenses").update({ created_by_account_id: DELETED_USER_ACCOUNT_ID }).eq("created_by_account_id", userId),
-      admin.from("event_invitees").update({ account_id: null }).eq("account_id", userId),
-      admin.from("friend_lists").update({ owner_account_id: null }).eq("owner_account_id", userId)
-    ]);
-    for (const step of steps) {
-      if (step.error) return errRes("Non sono riuscito a preparare la cancellazione (" + step.error.message + ")", 500);
+    // M7 (audit 26/11/2026): tutto in UNA funzione SQL (tutto-o-niente): liste amici
+    // cancellate, eventi senza altre persone cancellati, gli altri restano con
+    // organizzatore "Utente eliminato", commenti anonimi. Se la funzione non c'e'
+    // ancora (SQL 2026-11-26_10 non applicato) si usa il vecchio metodo.
+    const { data: avatarRow } = await admin.from("accounts").select("avatar_url").eq("id", userId).maybeSingle();
+    const prep = await admin.rpc("prepare_account_deletion", { p_user: userId });
+    if (prep.error && /prepare_account_deletion|does not exist|PGRST202/i.test(prep.error.message + " " + (prep.error.code || ""))) {
+      const steps = await Promise.all([
+        admin.from("event_expense_shares").update({ account_id: null }).eq("account_id", userId),
+        admin.from("event_expenses").update({ paid_by_account_id: null }).eq("paid_by_account_id", userId),
+        admin.from("event_expenses").update({ created_by_account_id: DELETED_USER_ACCOUNT_ID }).eq("created_by_account_id", userId),
+        admin.from("event_invitees").update({ account_id: null }).eq("account_id", userId),
+        admin.from("friend_lists").update({ owner_account_id: null }).eq("owner_account_id", userId)
+      ]);
+      for (const step of steps) {
+        if (step.error) return errRes("Non sono riuscito a preparare la cancellazione (" + step.error.message + ")", 500);
+      }
+    } else if (prep.error) {
+      return errRes("Non sono riuscito a preparare la cancellazione (" + prep.error.message + ")", 500);
     }
+
+    // Foto profilo: si cancella il file (mai bloccante).
+    try {
+      const url = String((avatarRow && avatarRow.avatar_url) || "");
+      const m = url.match(/\/storage\/v1\/object\/public\/avatars\/([^?#]+)$/);
+      if (m) await admin.storage.from("avatars").remove([decodeURIComponent(m[1])]);
+    } catch (e) { console.log("delete-account: foto non cancellata", String(e)); }
 
     const { error: deleteErr } = await admin.auth.admin.deleteUser(userId);
     if (deleteErr) return errRes(deleteErr.message, 500);

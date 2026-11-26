@@ -120,7 +120,12 @@ Deno.serve(async (req: Request) => {
     const { data: sub } = await admin.from("push_subscriptions").select("auth").eq("endpoint", RELAY_BASE + token).limit(1).maybeSingle();
     if (!sub || !sub.auth) return new Response("gone", { status: 410 });
 
+    // B1 (audit 26/11/2026): una push vera pesa al massimo ~4 KB; oltre si rifiuta
+    // senza leggere tutto in memoria.
+    const declared = Number(req.headers.get("content-length") || "0");
+    if (declared > 8192) return new Response("too large", { status: 413 });
     const body = new Uint8Array(await req.arrayBuffer());
+    if (body.length > 8192) return new Response("too large", { status: 413 });
     const payload = JSON.parse(await decryptWebPush(body, JSON.parse(jwkRaw), RELAY_PUBLIC_KEY, sub.auth));
     if (isApnsToken(token)) return await sendApns(token, payload);
     const saRaw = Deno.env.get("FCM_SERVICE_ACCOUNT");

@@ -16,10 +16,24 @@ const corsHeaders = {
 };
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+// M6 (audit 26/11/2026): massimo 5 richieste ogni 15 minuti dallo stesso indirizzo IP
+// (in memoria, vale per l'istanza della funzione: basta a fermare chi ne manda centinaia).
+const ipHits = new Map<string, number[]>();
+function tooManyFromIp(req: Request, max = 5, windowMs = 15 * 60 * 1000): boolean {
+  const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "?";
+  const now = Date.now();
+  const list = (ipHits.get(ip) || []).filter((t) => now - t < windowMs);
+  list.push(now);
+  ipHits.set(ip, list);
+  if (ipHits.size > 5000) ipHits.clear();
+  return list.length > max;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const body = await req.json().catch(() => ({}));
+    if (tooManyFromIp(req)) return json({ ok: true }); // stessa risposta di sempre, ma niente email
     const email = (body.email || "").trim();
     if (!email) return json({ error: "email mancante" }, 400);
     const en = body.lang === "en";
@@ -45,11 +59,14 @@ Deno.serve(async (req: Request) => {
       + '<p style="font-size:12px; color:#8C7C91;">' + (en ? 'The link expires in an hour. If you didn\'t ask for this, just ignore this email.' : 'Il link scade tra un\'ora. Se non sei stato tu a chiederlo, ignora pure questa email.') + '</p>'
       + '</div>';
 
-    await fetch("https://api.resend.com/emails", {
+    const sent = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({ from: fromAddress, to: [result.email], subject: en ? "Reset your seeva password" : "Reimposta la tua password su seeva", html })
     });
+    // M6 (audit 26/11/2026): se Resend rifiuta, almeno resta scritto nei log.
+    // All'utente si risponde sempre "ok" (non si rivela se l'email esiste).
+    if (!sent.ok) console.error("request-password-reset: Resend ha risposto", sent.status, (await sent.text().catch(() => "")).slice(0, 300));
     return json({ ok: true });
   } catch (err) {
     return json({ error: String(err) }, 500);
