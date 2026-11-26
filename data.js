@@ -1662,8 +1662,31 @@
     // "funziona solo nell'app per iPhone" pur essendo nell'app).
     var iosClass = !!(global.document && global.document.documentElement && global.document.documentElement.classList.contains('seeva-ios'));
     var isIos = !!(C && typeof C.getPlatform === 'function' && C.getPlatform() === 'ios');
-    if (!C || typeof C.registerPlugin !== 'function' || !((isNativeApp() && isIos) || iosClass)) return null;
-    if (!appleSignInPluginRef) appleSignInPluginRef = C.registerPlugin('SeevaAppleSignIn');
+    if (!C || !((isNativeApp() && isIos) || iosClass)) return null;
+    // 2026-11-26: nell'app iPhone window.Capacitor NON ha registerPlugin (il core
+    // e' solo il native-bridge iniettato): si chiama il plugin con
+    // Capacitor.Plugins / nativePromise / webkit bridge, in quest'ordine.
+    if (!appleSignInPluginRef) {
+      appleSignInPluginRef = {
+        signIn: function (opts) {
+          opts = opts || {};
+          var CC = global.Capacitor;
+          if (CC && typeof CC.registerPlugin === 'function') return CC.registerPlugin('SeevaAppleSignIn').signIn(opts);
+          if (CC && CC.Plugins && CC.Plugins.SeevaAppleSignIn && typeof CC.Plugins.SeevaAppleSignIn.signIn === 'function') return CC.Plugins.SeevaAppleSignIn.signIn(opts);
+          if (CC && typeof CC.nativePromise === 'function') return CC.nativePromise('SeevaAppleSignIn', 'signIn', opts);
+          var wk = global.webkit && global.webkit.messageHandlers && global.webkit.messageHandlers.bridge;
+          if (wk) {
+            return new Promise(function (resolve, reject) {
+              var cb = 'seevaApple' + Date.now();
+              global[cb] = function (r) { delete global[cb]; resolve(r); };
+              global[cb + 'e'] = function (e) { delete global[cb + 'e']; reject(e); };
+              wk.postMessage({ type: 'message', callbackId: cb, pluginId: 'SeevaAppleSignIn', methodName: 'signIn', options: opts });
+            });
+          }
+          return Promise.reject(new Error('plugin Apple non raggiungibile'));
+        }
+      };
+    }
     return appleSignInPluginRef;
   }
   function isAppleSignInAvailable() {
