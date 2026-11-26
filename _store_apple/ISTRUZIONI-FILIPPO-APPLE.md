@@ -124,8 +124,8 @@ Già dichiarato nell'app ("usa solo crittografia esente"): non ti chiede niente.
 menzionati sopra"** / solo HTTPS standard → esente.
 
 ### Informazioni per la revisione (Accesso dell'app)
-- "Accesso richiesto" → **Sì**. Usa l'account di prova già esistente **testgoogle**:
-  nome utente/email = l'email con cui entra testgoogle, password = la sua password (scrivila TU direttamente in
+- "Accesso richiesto" → **Sì**. Usa l'account di prova dedicato **testgoogle**:
+  email = testgoogle@seeva.app, password = quella che ti ha dato Claude in chat (scrivila TU direttamente in
   App Store Connect, non metterla in nessun file). Prima controlla di riuscire a entrare con quelle credenziali.
 - Consiglio: rinomina l'evento demo "Cena di prova (demo per Google Play)" in "Cena di prova (demo)".
 - Contatto: Filippo Bonino, la tua email e il tuo telefono (li vede solo Apple).
