@@ -58,6 +58,34 @@
      noi, col badge, non lui per conto suo. Niente equivalente su iOS/Safari
      (l'evento non esiste): lì il tap sul badge apre sempre le istruzioni
      manuali, vedi openInstallInstructionsPopup. */
+  /* ---------- App Store (iPhone/iPad) ----------
+     Quando l'app iOS e' online sullo store, chi usa seeva dal browser
+     (Safari, Chrome iOS) o dalla web app aggiunta alla Home NON deve piu'
+     vedere le istruzioni "Aggiungi alla schermata Home": gli proponiamo di
+     scaricare l'app dall'App Store. Android resta com'e'.
+     DOPO L'APPROVAZIONE APPLE: metti APP_STORE_LIVE = true (unico punto).
+     Finche' e' false resta il comportamento di prima. */
+  var APP_STORE_LIVE = false;
+  var APP_STORE_URL = 'https://apps.apple.com/it/app/id6839325334';
+
+  function isIosDevice() {
+    var ua = navigator.userAgent || '';
+    if (/iphone|ipad|ipod/i.test(ua)) return true;
+    // iPad con "sito desktop" si presenta come Mac ma ha il touch.
+    return navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+  }
+  function isNativeApp() {
+    return !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+  }
+  // true = su questo dispositivo l'invito va all'App Store (mai nell'app nativa).
+  function useAppStoreInvite() {
+    return APP_STORE_LIVE && isIosDevice() && !isNativeApp();
+  }
+  // Su iOS con store attivo anche la web app in Home deve vedere l'invito.
+  function installInviteSuppressed() {
+    return useAppStoreInvite() ? false : isAppInstalled();
+  }
+
   var deferredInstallPrompt = null;
   window.addEventListener('beforeinstallprompt', function (e) {
     e.preventDefault();
@@ -1309,6 +1337,7 @@
      dentro l'app o dalla Home del browser normale. */
   function initOpenInAppBanner() {
     if (isAppInstalled()) return; // siamo già dentro l'app: nulla da proporre
+    if (useAppStoreInvite()) return; // iPhone/iPad: ora c'è l'app sullo store, non la web app in Home
 
     var page = currentFile();
     if (page !== 'evento.html' && page !== 'amico.html') return;
@@ -1826,7 +1855,7 @@
     var el = document.getElementById('attendanceBadge');
     if (!el) return; // non siamo in Home
 
-    if (isAppInstalled()) return;
+    if (installInviteSuppressed()) return;
 
     // Stesso motivo di sempre: su chi deve ancora registrarsi (passaggio
     // obbligatorio) non ha senso proporre di installare prima ancora che
@@ -1841,8 +1870,8 @@
       // Nei 2s potrebbe essere cambiata pagina (SPA) o essere appena stata
       // installata: ricontrolla, non fidarsi del riferimento chiuso sopra.
       var badge = document.getElementById('attendanceBadge');
-      if (!badge || isAppInstalled()) return;
-      badge.innerHTML = '📲 Installa l\'app: non occupa spazio sul telefono';
+      if (!badge || installInviteSuppressed()) return;
+      badge.innerHTML = useAppStoreInvite() ? '📲 Scarica l\'app dall\'App Store' : '📲 Installa l\'app: non occupa spazio sul telefono';
       badge.classList.add('attendance-badge--install');
       badge.addEventListener('click', onInstallBadgeTap);
     }, 2000);
@@ -1900,6 +1929,7 @@
   }
 
   function onInstallBadgeTap() {
+    if (useAppStoreInvite()) { window.location.href = APP_STORE_URL; return; }
     // Chrome/Android con l'evento disponibile (vedi beforeinstallprompt qui
     // sopra): il vero dialogo nativo di sistema, un tap e via — nessun
     // popup nostro di mezzo. Consumabile una sola volta (l'API lo impone),
@@ -1957,6 +1987,17 @@
     if (!body) return;
 
     var isIos = /iphone|ipad|ipod/i.test(navigator.userAgent || '');
+
+    // iPhone/iPad con app sullo store: niente istruzioni, solo il link.
+    if (useAppStoreInvite()) {
+      var storeTitle = document.querySelector('#installPromptOverlay .card-title');
+      if (storeTitle) storeTitle.textContent = 'Scarica seeva';
+      body.innerHTML = '<a class="primary-btn" href="' + APP_STORE_URL + '" style="display:block; text-align:center; text-decoration:none; margin-top:4px;">Scarica dall\'App Store</a>'
+        + '<div class="field-hint" style="text-align:left; margin-top:12px;">L\'app non occupa molto spazio e su iPhone è il modo migliore per ricevere le notifiche quando qualcuno risponde ai tuoi eventi.</div>';
+      return;
+    }
+    var storeTitle2 = document.querySelector('#installPromptOverlay .card-title');
+    if (storeTitle2) storeTitle2.textContent = 'Installa seeva';
 
     // Alberto, 2026-10-11: "prima un elenco puntato con istruzioni semplici
     // e corte, poi qualsiasi testo che chiarisce". Quindi: 3 passi brevi in
@@ -2044,7 +2085,7 @@
      davvero fastidioso invece che solo insistente. */
   function maybeAutoShowInstallPrompt() {
     if (!document.getElementById('attendanceBadge')) return; // non siamo in Home
-    if (isAppInstalled()) return;
+    if (installInviteSuppressed()) return;
     if (!window.SeevaData || typeof SeevaData.hasAccount !== 'function' || !SeevaData.hasAccount()) return;
 
     // 2026-10-14 (giro UX): si apriva a ogni apertura dal browser, appena
@@ -2062,7 +2103,7 @@
     } catch (err) { /* ignora, meglio mostrarlo che no */ }
 
     window.setTimeout(function () {
-      if (isAppInstalled()) return; // potrebbe essere cambiato nel frattempo
+      if (installInviteSuppressed()) return; // potrebbe essere cambiato nel frattempo
       try { sessionStorage.setItem('seeva:installPromptShownThisSession', '1'); } catch (err) { /* ignora */ }
       try { localStorage.setItem(INSTALL_LAST_SHOWN_KEY, String(Date.now())); } catch (err) { /* ignora */ }
       openInstallInstructionsPopup();
