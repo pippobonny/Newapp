@@ -812,7 +812,7 @@
             + '<div class="section-title">Ci sarai?</div>'
             + buildBusyNoteHTML(event.dateOptions[0].dateISO)
             + buildLocationChipGridHTML(preselectedLocations)
-            + '<div class="field"><input type="text" id="singleDateNoteInput" placeholder="Nota per gli altri, es. orario di arrivo (facoltativo)" value="' + SeevaData.escapeHTML(noteValue) + '"></div>'
+            + '<div class="field"><input type="text" id="singleDateNoteInput" maxlength="500" placeholder="Nota per gli altri, es. orario di arrivo (facoltativo)" value="' + SeevaData.escapeHTML(noteValue) + '"></div>'
             + '<div class="form-error" id="formError"></div>'
             + '<button type="button" class="primary-btn" id="singleDateYesBtn" data-option-id="' + event.dateOptions[0].id + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="15" height="15" style="vertical-align:-2px; margin-right:4px;"><circle cx="12" cy="12" r="9"></circle><path d="M8 12.5l2.5 2.5L16 9.5"></path></svg>Ci sono</button>'
             // "Forse" (Fil, 2026-10-03): solo a chi non ha ancora risposto
@@ -976,7 +976,7 @@
           var mine = guestName.toLowerCase();
           var iAmAttending = attendeeNames.some(function (n) { return n.toLowerCase() === mine; });
           var myParticipant = findExistingParticipant();
-          var noteFieldHTML = '<div class="field"><input type="text" id="confirmedNoteInput" placeholder="Nota per gli altri, es. orario di arrivo (facoltativo)"></div>';
+          var noteFieldHTML = '<div class="field"><input type="text" id="confirmedNoteInput" maxlength="500" placeholder="Nota per gli altri, es. orario di arrivo (facoltativo)"></div>';
           if (myParticipant || iAmAttending) {
             var confirmedKey = iAmAttending ? 'yes' : (myParticipant && myParticipant.maybe ? 'maybe' : 'no');
             withdrawActionHTML = ''
@@ -1846,6 +1846,8 @@
         if (menuDeleteBtnEl) menuDeleteBtnEl.style.display = isOrganizer ? '' : 'none';
         var menuRemoveFromHomeBtnEl = document.getElementById('menuRemoveFromHomeBtn');
         if (menuRemoveFromHomeBtnEl) menuRemoveFromHomeBtnEl.style.display = canRemoveFromHome ? '' : 'none';
+        var menuReportEventBtnEl = document.getElementById('menuReportEventBtn');
+        if (menuReportEventBtnEl) menuReportEventBtnEl.style.display = canRemoveFromHome ? '' : 'none';
 
         var menuToggleItemsBtnEl = document.getElementById('menuToggleItemsBtn');
         if (menuToggleItemsBtnEl) {
@@ -2010,8 +2012,21 @@
         // .signup-overlay/.signup-modal di "Chi viene", stesso trattamento
         // "fuori da contentEl" (vedi commentsModalWrap qui sotto e nell'HTML
         // statico) per lo stesso motivo del blur a schermo intero.
-        var blockedIdsNow = SeevaData.getBlockedIds();
-        var allComments = (event.comments || []).filter(function (c) { return !(c.accountId && blockedIdsNow.indexOf(c.accountId) >= 0); });
+        // Commenti visibili (audit 26/11/2026, B5): stessi filtri ovunque, anche
+        // per il contatore "N nuovi". Ora il server toglie gia' i bloccati;
+        // qui resta il filtro locale + "Nascondi" per i commenti degli ospiti
+        // (senza account non si possono bloccare: si nascondono su questo telefono).
+        var hiddenGuestsKey = 'seeva:hiddenGuests:' + event.id;
+        function hiddenGuestNames() { try { return JSON.parse(localStorage.getItem(hiddenGuestsKey) || '[]'); } catch (err) { return []; } }
+        function visibleComments(ev) {
+          var blocked = SeevaData.getBlockedIds();
+          var hidden = hiddenGuestNames();
+          return (ev.comments || []).filter(function (c) {
+            if (c.accountId) return blocked.indexOf(c.accountId) < 0;
+            return hidden.indexOf(String(c.authorName || '').trim().toLowerCase()) < 0;
+          });
+        }
+        var allComments = visibleComments(event);
         if (SeevaData.hasAccount()) SeevaData.getMyBlocks().catch(function () { /* ignora */ });
         var commentsSeenKey = 'seeva:commentsSeen:' + event.id;
         var commentsSeenCount = 0;
@@ -2056,6 +2071,7 @@
                 + (canDelete ? '<span class="comment-delete" data-delete-comment-id="' + c.id + '">Cancella</span>' : '')
                 + (isMine ? '' : '<span class="comment-delete" data-report-comment-id="' + c.id + '">Segnala</span>')
                 + (!isMine && c.accountId && SeevaData.hasAccount() ? '<span class="comment-delete" data-block-account-id="' + c.accountId + '" data-block-name="' + SeevaData.escapeHTML(c.authorName || '') + '">Blocca</span>' : '')
+                + (!isMine && !c.accountId && !c.isFromResponse ? '<span class="comment-delete" data-hide-guest-name="' + SeevaData.escapeHTML(c.authorName || '') + '">Nascondi</span>' : '')
                 + '</div>'
                 + '</div>'
                 + '</div>';
@@ -2975,6 +2991,7 @@
         // Invio: bottone o Invio da tastiera. Dopo l'invio si richiama
         // render() (stesso schema di saveAvailability) e si riapre subito
         // il popup, che altrimenti render() ricrea chiuso da capo.
+        var commentSending = false;
         function sendEventComment() {
           var inputEl = document.getElementById('commentInput');
           var errorEl = document.getElementById('commentError');
@@ -2983,16 +3000,21 @@
           var text = inputEl.value.trim();
           if (errorEl) errorEl.textContent = '';
           if (!text) return;
+          // M10: un secondo Invio mentre il primo e' ancora in viaggio non manda un doppione.
+          if (commentSending || (sendBtn && sendBtn.disabled)) return;
+          commentSending = true;
           if (sendBtn) sendBtn.disabled = true;
           SeevaData.postEventComment(event.id, guestName, text).then(function (updated) {
+            commentSending = false;
             event = updated;
-            try { localStorage.setItem(commentsSeenKey, String((event.comments || []).length)); } catch (err) { /* ignora */ }
+            try { localStorage.setItem(commentsSeenKey, String(visibleComments(event).length)); } catch (err) { /* ignora */ }
             render();
             var reopened = document.getElementById('commentsModal');
             if (reopened) reopened.style.display = '';
             var list = document.getElementById('commentList');
             if (list) list.scrollTop = list.scrollHeight;
           }).catch(function (err) {
+            commentSending = false;
             if (sendBtn) sendBtn.disabled = false;
             var errEl = document.getElementById('commentError');
             if (errEl) errEl.textContent = 'Non sono riuscito a inviare il commento (' + SeevaData.friendlyErrorMessage(err) + ').';
@@ -3025,6 +3047,19 @@
               });
               return;
             }
+            var hideEl = e.target.closest && e.target.closest('[data-hide-guest-name]');
+            if (hideEl) {
+              var hideName = String(hideEl.getAttribute('data-hide-guest-name') || '').trim().toLowerCase();
+              if (!hideName) return;
+              if (!await SeevaUI.ask('Nascondere i commenti di questo ospite su questo telefono? Se è offensivo, usa anche "Segnala".')) return;
+              var hiddenNow = hiddenGuestNames();
+              if (hiddenNow.indexOf(hideName) < 0) hiddenNow.push(hideName);
+              try { localStorage.setItem(hiddenGuestsKey, JSON.stringify(hiddenNow)); } catch (err) { /* ignora */ }
+              render();
+              var reopenedH = document.getElementById('commentsModal');
+              if (reopenedH) reopenedH.style.display = '';
+              return;
+            }
             var blkEl = e.target.closest && e.target.closest('[data-block-account-id]');
             if (blkEl) {
               var blkName = blkEl.getAttribute('data-block-name') || '';
@@ -3044,7 +3079,7 @@
             var commentId = delEl.getAttribute('data-delete-comment-id');
             SeevaData.deleteEventComment(event.id, commentId, guestName).then(function (updated) {
               event = updated;
-              try { localStorage.setItem(commentsSeenKey, String((event.comments || []).length)); } catch (err) { /* ignora */ }
+              try { localStorage.setItem(commentsSeenKey, String(visibleComments(event).length)); } catch (err) { /* ignora */ }
               render();
               var reopened = document.getElementById('commentsModal');
               if (reopened) reopened.style.display = '';
@@ -3520,7 +3555,7 @@
           + '<div class="signup-modal-title" style="text-align:center;">Aggiungi persone</div>'
           + '<div class="field" style="margin-bottom:6px;">'
           + '<div class="inline-add-row">'
-          + '<input type="text" id="addPeopleInput" placeholder="Nome" autocomplete="off">'
+          + '<input type="text" id="addPeopleInput" placeholder="Nome" autocomplete="off" maxlength="60">'
           + '<button type="button" id="addPeopleAddBtn" class="btn-reveal">+</button>'
           + '</div>'
           + '<div id="addPeopleList" style="max-height:34vh; overflow-y:auto;"></div>'
@@ -3892,6 +3927,21 @@
             }
             event = await SeevaData.getEventById(event.id);
             render();
+          });
+        }
+
+        var reportEventBtn = document.getElementById('menuReportEventBtn');
+        if (reportEventBtn) {
+          reportEventBtn.addEventListener('click', async function () {
+            dropdown.classList.remove('open');
+            var why = await SeevaUI.ask('Segnalare questo evento o chi lo organizza? Lo controlleremo entro 24 ore e, se viola le regole, lo rimuoveremo.');
+            if (!why) return;
+            try {
+              await SeevaData.reportEvent(event);
+              SeevaUI.alert('Grazie, segnalazione inviata.');
+            } catch (err) {
+              SeevaUI.alert('Non sono riuscito a inviare la segnalazione (' + SeevaData.friendlyErrorMessage(err) + ').');
+            }
           });
         }
 

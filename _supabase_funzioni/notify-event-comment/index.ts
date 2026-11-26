@@ -61,7 +61,16 @@ Deno.serve(async (req: Request) => {
     (invitees || []).forEach((i: any) => { if (i.account_id) all.add(i.account_id); });
     (parts || []).forEach((p: any) => { if (p.account_id) all.add(p.account_id); });
     if (event.created_by_account_id) all.add(event.created_by_account_id);
-    const recipients = Array.from(all).filter((id) => id !== c.account_id && !saidNo.has(id));
+    let recipients = Array.from(all).filter((id) => id !== c.account_id && !saidNo.has(id));
+    // Blocca utente (audit 26/11/2026): niente push a chi ha bloccato l'autore
+    // del commento, ne' a chi l'autore ha bloccato (in app non si vedono).
+    if (c.account_id && recipients.length) {
+      const { data: blocks } = await admin.from("user_blocks").select("blocker_id, blocked_id")
+        .or("blocker_id.eq." + c.account_id + ",blocked_id.eq." + c.account_id);
+      const skip = new Set<string>();
+      (blocks || []).forEach((b: any) => { skip.add(b.blocker_id === c.account_id ? b.blocked_id : b.blocker_id); });
+      recipients = recipients.filter((id) => !skip.has(id));
+    }
     if (!recipients.length) return jsonRes({ notified: 0 });
 
     const author = String(c.author_name || "").trim();

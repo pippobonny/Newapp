@@ -77,11 +77,11 @@
         <div class="cr-section-title"><span class="cr-num">1</span>Cosa</div>
         <div class="field">
           <label>Nome <svg id="eventNamePencil" class="field-pencil-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></label>
-          <input type="text" id="eventName" placeholder="Es. Pizza da Mario" autocomplete="off">
+          <input type="text" id="eventName" placeholder="Es. Pizza da Mario" autocomplete="off" maxlength="80">
         </div>
         <div class="field">
           <label>Dove <span class="cr-opt">facoltativo</span></label>
-          <input type="text" id="eventLocationInput" placeholder="Scrivi un indirizzo o un luogo">
+          <input type="text" id="eventLocationInput" placeholder="Scrivi un indirizzo o un luogo" maxlength="200">
           <div class="field-hint" id="locationHint" style="display:none;"></div>
           <!-- Righe in più per proporre più location tra cui far scegliere gli
                invitati (Fil, 2026-07-21): stesso meccanismo delle date "in
@@ -189,7 +189,7 @@
           <style>#manualNamesField > label, #manualNamesField > .inline-add-row, #totalInviteesHint, #manualNamesList { display: none; }</style>
           <label id="manualNamesLabel">Aggiungi qualcun altro</label>
           <div class="inline-add-row">
-            <input type="text" id="manualNameInput" placeholder="Nome">
+            <input type="text" id="manualNameInput" placeholder="Nome" maxlength="60">
             <button type="button" id="manualNameAddBtn" class="btn-reveal">+</button>
           </div>
           <div id="manualNamesList"></div>
@@ -229,7 +229,7 @@
             <div class="pill pill-icon" data-desc-mode="audio" title="Vocale" aria-label="Vocale"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><line x1="12" y1="18" x2="12" y2="22"></line><line x1="8" y1="22" x2="16" y2="22"></line></svg></div>
           </div>
           <div id="descriptionTextPanel">
-            <textarea id="eventDescription" placeholder="Qualche dettaglio in più..."></textarea>
+            <textarea id="eventDescription" placeholder="Qualche dettaglio in più..." maxlength="1000"></textarea>
           </div>
           <div id="descriptionAudioPanel" style="display:none;">
             <div id="audioRecorderIdle">
@@ -331,7 +331,7 @@
         <div class="field" id="stagedExpensesField" style="display:none;">
           <label>Segna già una spesa (facoltativo)</label>
           <div class="inline-add-row">
-            <input type="text" id="stagedExpenseDescInput" placeholder="Cosa, es. Carne" style="flex:2;">
+            <input type="text" id="stagedExpenseDescInput" maxlength="100" placeholder="Cosa, es. Carne" style="flex:2;">
             <input type="number" id="stagedExpenseAmountInput" inputmode="decimal" step="0.01" min="0" placeholder="€" style="flex:0 0 68px;">
             <button type="button" id="stagedExpenseAddBtn" class="btn-reveal">+</button>
           </div>
@@ -342,7 +342,7 @@
         <div class="field" id="stagedItemsField" style="display:none;">
           <label>Segna già cosa portare (facoltativo)</label>
           <div class="inline-add-row">
-            <input type="text" id="stagedItemInput" placeholder="Es. ghiaccio, altoparlante...">
+            <input type="text" id="stagedItemInput" placeholder="Es. ghiaccio, altoparlante..." maxlength="100">
             <button type="button" id="stagedItemAddBtn" class="btn-reveal">+</button>
           </div>
           <div id="stagedItemsList"></div>

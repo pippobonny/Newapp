@@ -113,15 +113,15 @@
 
           <div class="field">
             <label>Nome</label>
-            <input type="text" id="accFirstName" placeholder="Il tuo nome">
+            <input type="text" id="accFirstName" placeholder="Il tuo nome" maxlength="50">
           </div>
           <div class="field">
             <label>Cognome</label>
-            <input type="text" id="accLastName" placeholder="Il tuo cognome">
+            <input type="text" id="accLastName" placeholder="Il tuo cognome" maxlength="50">
           </div>
           <div class="field">
             <label>Nome utente (visibile a tutti)</label>
-            <input type="text" id="accUsername" placeholder="Come vuoi farti chiamare nell'app">
+            <input type="text" id="accUsername" placeholder="Come vuoi farti chiamare nell'app" maxlength="24" autocapitalize="off">
           </div>
           <div class="field">
             <label>Email</label>
@@ -129,11 +129,11 @@
           </div>
           <div class="field">
             <label>Password</label>
-            <input type="password" id="accPassword" placeholder="Almeno 8 caratteri">
+            <input type="password" id="accPassword" placeholder="Almeno 10 caratteri, lettere e numeri" autocomplete="new-password" maxlength="72">
           </div>
           <div class="field">
             <label>Data di nascita</label>
-            <input type="date" id="accBirthdate">
+            <input type="date" id="accBirthdate" min="1900-01-01">
           </div>
         </div>
 
@@ -176,11 +176,11 @@
         <div class="card-date" style="margin:0 2px 16px;" id="googleProfileGreeting">Ciao! Scegli un nome utente e la tua data di nascita per finire.</div>
         <div class="field">
           <label>Nome utente (visibile a tutti)</label>
-          <input type="text" id="googleUsername" placeholder="Come vuoi farti chiamare nell'app">
+          <input type="text" id="googleUsername" placeholder="Come vuoi farti chiamare nell'app" maxlength="24" autocapitalize="off">
         </div>
         <div class="field">
           <label>Data di nascita</label>
-          <input type="date" id="googleBirthdate">
+          <input type="date" id="googleBirthdate" min="1900-01-01">
         </div>
         <div class="form-error" id="googleProfileError"></div>
         <button type="button" class="primary-btn" id="googleProfileBtn">Fatto</button>
@@ -204,7 +204,7 @@
         <div class="card-date" style="margin:0 2px 16px;">Imposta la nuova password per il tuo profilo. Il link scade dopo un'ora e funziona una sola volta.</div>
         <div class="field">
           <label>Nuova password</label>
-          <input type="password" id="resetNewPassword" placeholder="Scegli una nuova password">
+          <input type="password" id="resetNewPassword" placeholder="Almeno 10 caratteri, lettere e numeri" autocomplete="new-password" maxlength="72">
         </div>
         <div class="field">
           <label>Ripeti la nuova password</label>
@@ -685,12 +685,18 @@
           // Il nome utente si sceglie una volta sola in fase di registrazione:
           // dopo, non è più modificabile da nessuna parte, nemmeno da qui.
           usernameInput.disabled = true;
+          // Audit 26/11/2026 (M5): l'email di accesso non si cambia da qui (prima
+          // cambiava solo quella del profilo e il login restava con la vecchia).
+          emailInput.disabled = true;
+          emailInput.title = 'Per cambiare email contatta il supporto';
         } else {
           setAuthMode(initialAuthMode || 'choice');
           usernameInput.disabled = false;
+          emailInput.disabled = false;
+          emailInput.title = '';
         }
 
-        if (!isEdit) passwordInput.placeholder = 'Scegli una password';
+        if (!isEdit) passwordInput.placeholder = 'Almeno 10 caratteri, lettere e numeri';
         if (!isEdit) {
           // profilo nuovo: nessuna foto ancora, riparti da zero
           pendingAvatarFile = null;
@@ -900,15 +906,18 @@
         if (!username) { createError.textContent = 'Scegli un nome utente.'; return; }
         if (!email) { createError.textContent = 'Scrivi la tua email.'; return; }
         if (!isEditMode && !password) { createError.textContent = 'Scegli una password.'; return; }
-        if (password && password.length < 8) { createError.textContent = 'La password deve avere almeno 8 caratteri.'; return; }
-        if (!birthDate) { createError.textContent = 'Inserisci la tua data di nascita.'; return; }
+        if (password) { var pwProblem = SeevaData.passwordProblem(password, { username: username, email: email }); if (pwProblem) { createError.textContent = pwProblem; return; } }
+        if (!isEditMode) { var unProblem = SeevaData.usernameProblem(username); if (unProblem) { createError.textContent = unProblem; return; } }
+        var bdProblem = SeevaData.birthDateProblem(birthDate, !isEditMode); if (bdProblem) { createError.textContent = bdProblem; return; }
 
         createBtn.disabled = true;
         createBtn.textContent = isEditMode ? 'Salvo...' : 'Creo il profilo...';
 
         try {
           var avatarUrl = currentAvatarUrl || undefined;
-          if (pendingAvatarFile) {
+          // Registrazione: la foto si carica DOPO aver creato l'account (A1,
+          // audit 26/11/2026: lo storage accettera' solo utenti collegati).
+          if (pendingAvatarFile && isEditMode) {
             createBtn.textContent = 'Carico la foto...';
             avatarUrl = await SeevaData.uploadAvatar(pendingAvatarFile);
             createBtn.textContent = isEditMode ? 'Salvo...' : 'Creo il profilo...';
@@ -933,7 +942,8 @@
               email: email,
               password: password,
               birthDate: birthDate,
-              avatarUrl: avatarUrl
+              avatarUrl: avatarUrl,
+              avatarFile: pendingAvatarFile || null
             });
           }
         } catch (err) {
@@ -1068,7 +1078,8 @@
         var birthDate = googleBirthdateInput.value;
         googleProfileError.textContent = '';
         if (!username) { googleProfileError.textContent = 'Scegli un nome utente.'; return; }
-        if (!birthDate) { googleProfileError.textContent = 'Inserisci la tua data di nascita.'; return; }
+        var gUnProblem = SeevaData.usernameProblem(username); if (gUnProblem) { googleProfileError.textContent = gUnProblem; return; }
+        var gBdProblem = SeevaData.birthDateProblem(birthDate, true); if (gBdProblem) { googleProfileError.textContent = gBdProblem; return; }
 
         googleProfileBtn.disabled = true;
         googleProfileBtn.textContent = 'Salvo...';
@@ -1095,7 +1106,7 @@
 
         resetPasswordError.textContent = '';
         if (!newPassword) { resetPasswordError.textContent = 'Scegli una nuova password.'; return; }
-        if (newPassword.length < 8) { resetPasswordError.textContent = 'La password deve avere almeno 8 caratteri.'; return; }
+        var resetPwProblem = SeevaData.passwordProblem(newPassword, {}); if (resetPwProblem) { resetPasswordError.textContent = resetPwProblem; return; }
         if (newPassword !== newPassword2) { resetPasswordError.textContent = 'Le due password non coincidono.'; return; }
 
         resetPasswordBtn.disabled = true;

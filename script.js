@@ -2505,7 +2505,7 @@
       + '<div class="list-delete" id="reportProblemCloseBtn">Chiudi ✕</div>'
       + '</div>'
       + '<div class="signup-modal-text" style="text-align:left; margin-bottom:10px;">Scrivi cosa è successo: pagina, dispositivo e (se ci sono stati) gli ultimi errori vengono allegati da soli.</div>'
-      + '<textarea class="report-problem-textarea" id="reportProblemText" placeholder="Es. ho premuto Conferma e non è successo niente..."></textarea>'
+      + '<textarea class="report-problem-textarea" id="reportProblemText" maxlength="2000" placeholder="Es. ho premuto Conferma e non è successo niente..."></textarea>'
       + '<div class="field-hint" id="reportProblemError" style="color:var(--cancel-ink); min-height:16px; margin-top:6px;"></div>'
       + '<button type="button" class="primary-btn" id="reportProblemSendBtn" style="margin-top:14px;">Invia segnalazione</button>'
       + '</div>';
@@ -3484,12 +3484,27 @@
   var KEY = 'seeva:onboardingDone';
   var KEY2 = 'seeva:onboardingVisto';
   function done() { try { localStorage.setItem(KEY, '1'); localStorage.setItem(KEY2, '1'); } catch (e) { /* ignora */ } }
+  /* Audit 26/11/2026 (A2): le slide solo sulla Home o su Profilo, mai su una
+     pagina d'invito (amico/evento/lista-invito/crea...) e mai se c'e' un invito
+     in corso (guest lock) o un link con token/id: chi arriva da un invito deve
+     restare sull'invito, non finire su Accedi/Registrati. */
+  function isEntryPage() {
+    var p = (location.pathname || '').toLowerCase();
+    var page = p.slice(p.lastIndexOf('/') + 1);
+    if (page !== '' && page !== 'index.html' && page !== 'index' && page !== 'profilo.html' && page !== 'profilo') return false;
+    if (/[?&](token|share|t|id|invito|list|lista)=/i.test(location.search || '')) return false;
+    return true;
+  }
+  function hasGuestInvite() {
+    try { return !!localStorage.getItem('seeva:guestLock'); } catch (e) { return false; }
+  }
   function shouldShow() {
     if (!document.documentElement.classList.contains('seeva-native')) return false;
     try {
       if (localStorage.getItem(KEY) || localStorage.getItem(KEY2)) return false;
       // Già loggato (aggiornamento dell'app): niente presentazione.
       if (window.SeevaData && SeevaData.hasAccount && SeevaData.hasAccount()) { done(); return false; }
+      if (!isEntryPage() || hasGuestInvite()) return false; // flag NON scritto: la vedra' alla prossima apertura normale
       return true;
     } catch (e) { return false; }
   }
@@ -3513,7 +3528,8 @@
     var el = document.createElement('div');
     el.className = 'onb';
     el.setAttribute('role', 'dialog');
-    el.setAttribute('aria-label', 'Benvenuto in seeva');
+    el.setAttribute('aria-modal', 'true');
+    el.setAttribute('aria-label', (window.SeevaI18n && SeevaI18n.lang === 'en') ? 'Welcome to seeva' : 'Benvenuto in seeva');
     el.innerHTML = '<button type="button" class="onb-skip">Salta</button>'
       + '<div class="onb-track">' + SLIDES.map(function (s) {
         return '<section class="onb-slide"><div class="onb-art">' + s.art + '</div><h2 class="onb-title">' + s.title + '</h2><p class="onb-text">' + s.text + '</p></section>';
@@ -3530,14 +3546,37 @@
       next.textContent = i === SLIDES.length - 1 ? (needLogin() ? 'Accedi o registrati' : 'Inizia') : 'Avanti';
       next.classList.toggle('is-last', i === SLIDES.length - 1);
     }
-    function close() {
+    var closed = false;
+    function close(fromBack) {
+      if (closed) return;
+      closed = true;
       done();
-      // Finita la presentazione: chi non ha un account va ad Accedi/Registrati.
-      if (needLogin() && !/profilo\.html/.test(location.pathname)) { location.href = 'profilo.html'; return; }
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('popstate', onPop);
+      // Finita la presentazione: chi non ha un account va ad Accedi/Registrati,
+      // ma solo dalla Home e mai se nel frattempo e' arrivato un invito.
+      var onProfile = /profilo(\.html)?$/i.test(location.pathname || '');
+      if (needLogin() && !onProfile && isEntryPage() && !hasGuestInvite()) { location.href = 'profilo.html'; return; }
+      if (!fromBack && history.state && history.state.seevaOnb) { try { history.back(); } catch (e) { /* ignora */ } }
       el.classList.add('is-out');
       setTimeout(function () { el.remove(); }, 380);
     }
-    el.querySelector('.onb-skip').addEventListener('click', close);
+    // Tasto Indietro di Android / Esc: chiude le slide invece di uscire dall'app.
+    function onPop() { close(true); }
+    function onKey(e) {
+      if (e.key === 'Escape') { close(); return; }
+      if (e.key === 'Tab') { // focus dentro la finestra
+        var f = el.querySelectorAll('button');
+        if (!f.length) return;
+        var first = f[0], last = f[f.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    }
+    try { history.pushState({ seevaOnb: 1 }, ''); } catch (e) { /* ignora */ }
+    window.addEventListener('popstate', onPop);
+    document.addEventListener('keydown', onKey);
+    el.querySelector('.onb-skip').addEventListener('click', function () { close(); });
     next.addEventListener('click', function () { if (i === SLIDES.length - 1) close(); else go(i + 1); });
     var x0 = null;
     el.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; }, { passive: true });
@@ -3546,7 +3585,7 @@
       var dx = e.changedTouches[0].clientX - x0; x0 = null;
       if (Math.abs(dx) > 50) go(i + (dx < 0 ? 1 : -1));
     }, { passive: true });
-    requestAnimationFrame(function () { el.classList.add('is-in'); go(0); });
+    requestAnimationFrame(function () { el.classList.add('is-in'); go(0); try { next.focus(); } catch (e) { /* ignora */ } });
   }
   function start() { if (shouldShow()) open(); }
   window.SeevaOnboarding = { open: open };

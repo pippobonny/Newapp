@@ -245,7 +245,7 @@
       function renderNameEntry() {
         contentEl.innerHTML = ''
           + '<div class="card-date" style="margin:0 2px 16px;">Come ti chiami?</div>'
-          + '<div class="field"><input type="text" id="selfNameInput" placeholder="Il tuo nome"></div>'
+          + '<div class="field"><input type="text" id="selfNameInput" placeholder="Il tuo nome" maxlength="60"></div>'
           + '<div class="form-error" id="selfNameError"></div>'
           + '<button type="button" class="primary-btn" id="selfNameContinueBtn">Continua →</button>'
           + '<div class="signup-skip-link" id="selfNameBackLink">← Torna alla lista</div>';
@@ -281,7 +281,7 @@
         if (!hasAcc && event.openInvite) {
           contentEl.innerHTML = ''
             + '<div class="card-date" style="margin:0 2px 16px;">Hai scelto <b>' + SeevaData.escapeHTML(friend.name) + '</b>.</div>'
-            + '<div class="field"><label>Come ti chiami?</label><input type="text" id="guestNameInput" placeholder="Il tuo nome" value="' + SeevaData.escapeHTML(friend.name) + '"></div>'
+            + '<div class="field"><label>Come ti chiami?</label><input type="text" id="guestNameInput" placeholder="Il tuo nome" maxlength="60" value="' + SeevaData.escapeHTML(friend.name) + '"></div>'
             + '<div class="form-error" id="inviteError"></div>'
             + '<button type="button" class="primary-btn" id="inviteConfirmBtn">Conferma →</button>'
             + '<div style="text-align:center; margin-top:4px;"><span class="signup-skip-link" id="hasAccountLink">Hai già un account? Accedi</span></div>'
@@ -350,15 +350,15 @@
           + '<label class="field-hint" for="regAvatarFile" style="cursor:pointer; color: var(--lavender-ink); font-weight:600; display:inline-block; margin-top:8px;">Carica una foto</label>'
           + '<input type="file" id="regAvatarFile" accept="image/*" style="display:none;">'
           + '</div>'
-          + '<div class="field"><label>Nome</label><input type="text" id="regFirstName" placeholder="Il tuo nome"></div>'
-          + '<div class="field"><label>Cognome</label><input type="text" id="regLastName" placeholder="Il tuo cognome"></div>'
-          + '<div class="field"><label>Nome utente (visibile a tutti)</label><input type="text" id="regUsername" placeholder="Come vuoi farti chiamare nell\'app"></div>'
+          + '<div class="field"><label>Nome</label><input type="text" id="regFirstName" placeholder="Il tuo nome" maxlength="50"></div>'
+          + '<div class="field"><label>Cognome</label><input type="text" id="regLastName" placeholder="Il tuo cognome" maxlength="50"></div>'
+          + '<div class="field"><label>Nome utente (visibile a tutti)</label><input type="text" id="regUsername" placeholder="Come vuoi farti chiamare nell\'app" maxlength="24" autocapitalize="off"></div>'
           + '<div class="field"><label>Email</label><input type="email" id="regEmail" placeholder="latua@email.it"></div>'
-          + '<div class="field"><label>Password</label><input type="password" id="regPassword" placeholder="Scegli una password"></div>'
-          + '<div class="field"><label>Data di nascita</label><input type="date" id="regBirthdate"></div>'
+          + '<div class="field"><label>Password</label><input type="password" id="regPassword" placeholder="Almeno 10 caratteri, lettere e numeri" autocomplete="new-password" maxlength="72"></div>'
+          + '<div class="field"><label>Data di nascita</label><input type="date" id="regBirthdate" min="1900-01-01"></div>'
           + '</div>'
           + '<div id="guestPanel" style="display:none;">'
-          + '<div class="field"><label>Come ti chiami?</label><input type="text" id="guestNameInput" placeholder="Il tuo nome" value="' + SeevaData.escapeHTML(friend.name) + '"></div>'
+          + '<div class="field"><label>Come ti chiami?</label><input type="text" id="guestNameInput" placeholder="Il tuo nome" maxlength="60" value="' + SeevaData.escapeHTML(friend.name) + '"></div>'
           + '</div>'
           + '<div class="form-error" id="inviteError"></div>'
           + '<button type="button" class="primary-btn" id="inviteConfirmBtn">Conferma →</button>'
@@ -512,19 +512,18 @@
             if (!regUsername) { errorEl.textContent = 'Scegli un nome utente.'; return; }
             if (!email) { errorEl.textContent = 'Scrivi la tua email.'; return; }
             if (!regPassword) { errorEl.textContent = 'Scegli una password.'; return; }
-            if (!birthDate) { errorEl.textContent = 'Inserisci la tua data di nascita.'; return; }
+            var regPwProblem = SeevaData.passwordProblem(regPassword, { username: regUsername, email: email });
+            if (regPwProblem) { errorEl.textContent = regPwProblem; return; }
+            var regUnProblem = SeevaData.usernameProblem(regUsername); if (regUnProblem) { errorEl.textContent = regUnProblem; return; }
+            var regBdProblem = SeevaData.birthDateProblem(birthDate, true); if (regBdProblem) { errorEl.textContent = regBdProblem; return; }
 
             btn.disabled = true;
             btn.textContent = 'Creo il profilo...';
 
             var newAccount;
             try {
+              // La foto si carica dopo aver creato l'account (A1, audit 26/11/2026).
               var avatarUrl;
-              if (pendingAvatarFile) {
-                btn.textContent = 'Carico la foto...';
-                avatarUrl = await SeevaData.uploadAvatar(pendingAvatarFile);
-                btn.textContent = 'Creo il profilo...';
-              }
               newAccount = await SeevaData.createAccount({
                 firstName: firstName,
                 lastName: lastName,
@@ -532,7 +531,8 @@
                 email: email,
                 password: regPassword,
                 birthDate: birthDate,
-                avatarUrl: avatarUrl
+                avatarUrl: avatarUrl,
+                avatarFile: pendingAvatarFile || null
               });
             } catch (err) {
               errorEl.textContent = SeevaData.friendlyErrorMessage(err);
@@ -741,7 +741,7 @@
           ? ''
             + '<div class="field" style="margin-top:' + (free.length ? '18px' : '0') + ';">'
             + (free.length ? '<label>Il mio nome non c\'è</label>' : '')
-            + '<input type="text" id="whoNameInput" placeholder="Il tuo nome" autocomplete="given-name"></div>'
+            + '<input type="text" id="whoNameInput" placeholder="Il tuo nome" autocomplete="given-name" maxlength="60"></div>'
             + '<button type="button" class="primary-btn" id="whoNameBtn">Conferma →</button>'
           : '';
 

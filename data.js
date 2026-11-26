@@ -416,6 +416,58 @@
     return raw;
   }
 
+  /* ---------- regole per le password NUOVE (audit 26/11/2026, A3) ----------
+     Valgono solo quando si sceglie una password (registrazione, cambio
+     password, reset): il login non controlla niente, quindi chi ha gia' un
+     account entra come prima. Stesse regole in create-account e nella
+     funzione SQL password_problem (supabase/2026-11-26_03_password.sql).
+     Restituisce '' se va bene, altrimenti il messaggio da mostrare. */
+  var PASSWORD_MIN = 10;
+  var PASSWORD_MAX = 72;
+  var COMMON_PASSWORDS = ('00000000 0000000000 0123456789 0987654321 11111111 1111111111 11223344 12121212 123123123 12341234 1234554321 12345678 123456789 1234567890 147258369 159753 1q2w3e4r 1q2w3e4r5t 1qaz2wsx 9876543210 a1b2c3d4 abc123 abcd1234 abcdefgh abcdefghi abcdefghij acmilan admin admin123 administrator agosto alessandra alessandro amore amore123 amoremio amoremio1 andrea andrea123 anna antonio aperitivo apple aprile asdfasdf asdfghjkl atalanta autunno baseball basket batman bella bellissima bellissimo birra bologna caffe caffe123 calcio calcio123 cane cane123 cena changeme charlie chiara chitarra ciao ciao123 ciao1234 ciaobella ciaobello ciaociao ciaociao1 ciaociao123 ciaomondo cioccolato cisiamo computer contrasena cucciola cucciolo davide dicembre domenica dragon elena estate eventi evento facebook farfalla febbraio federica federico ferrari ferrari123 festa festa123 filippo fiorentina football football1 forzainter forzaitalia forzajuve forzajuventus forzalazio forzamilan forzanapoli forzaroma forzatoro francesca francesco freedom fuffy gatto gatto123 gelato gennaio genoa giovanni girasole giugno giulia giulia123 giuseppe google guitar hello hello123 hello1234 helloworld iloveyou iloveyou1 instagram inter inter123 internazionale internet inverno iphone italia italia123 juve juve123 juventus juventus1 juventus1897 lamborghini laura lazio lazio123 letmein login login123 lorenzo luca luca123 lucky luglio luna luna123 lunedi maggio marco marco123 mare mario mario123 martina marzo master master123 matteo michela micia micio milan milan123 minnie monkey montagna motdepasse motogp music musica napoli napoli123 natale nduma netflix novembre nutella ottobre p4ssw0rd pallavolo pallone paola paperino pasqua passw0rd password password1 password12 password123 password1234 passwort pasta pippo pizza pizza123 pluto pokemon primavera princess principe principessa prova prova123 prova1234 qazwsx qazwsxedc qwerty qwerty123 qwerty1234 qwertyuiop roberto rocky roma roma123 root rossi46 sabato sampdoria samsung sara sara123 secret secret123 seeva seeva123 seeva2026 seevaapp settembre shadow silvia simone soccer sole sole123 spaghetti spiderman starwars stefano stella stellina sunshine superman tennis tesoro tesoro123 test test123 test1234 tiamo tiamo123 tiamotanto tiktok toor topolino torino torino123 trustno1 user user123 vale46 valentina valentino venerdi vespa vino virginia volley welcome welcome1 whatever whatsapp zxcvbnm zxcvbnm123').split(' ');
+  function passwordProblem(pw, ctx) {
+    pw = String(pw || '');
+    ctx = ctx || {};
+    if (pw.length < PASSWORD_MIN) return 'La password deve avere almeno 10 caratteri.';
+    if (pw.length > PASSWORD_MAX) return 'La password può avere al massimo 72 caratteri.';
+    if (!/[A-Za-zÀ-ÿ]/.test(pw) || !/[^A-Za-zÀ-ÿ]/.test(pw.replace(/\s/g, ''))) return 'Usa almeno una lettera e un numero.';
+    var low = pw.toLowerCase();
+    var base = low.replace(/^[^a-zà-ÿ]+/, '').replace(/[^a-zà-ÿ]+$/, '');
+    if (/^(.)\1+$/.test(low) || COMMON_PASSWORDS.indexOf(low) !== -1 || COMMON_PASSWORDS.indexOf(base) !== -1
+      || /^(0123456789|1234567890|abcdefghij|qwertyuiop)/.test(low)) {
+      return 'Questa password è troppo comune: scegline un\'altra.';
+    }
+    var user = String(ctx.username || '').trim().toLowerCase();
+    var mail = String(ctx.email || '').trim().toLowerCase().split('@')[0];
+    if ((user.length >= 3 && low.indexOf(user) !== -1) || (mail.length >= 3 && low.indexOf(mail) !== -1)) {
+      return 'La password non può contenere il tuo nome utente o la tua email.';
+    }
+    return '';
+  }
+
+  /* Nome utente e data di nascita (audit 26/11/2026, M9): solo per chi si
+     registra adesso, gli account esistenti restano come sono. Spazi ammessi
+     in mezzo (alcuni utenti li usano gia'), niente caratteri strani/emoji. */
+  var RESERVED_USERNAMES = ['admin', 'administrator', 'amministratore', 'seeva', 'supporto', 'support', 'staff', 'moderatore', 'moderator', 'root', 'sistema', 'system', 'ospite', 'guest'];
+  function usernameProblem(u) {
+    u = String(u || '');
+    if (u !== u.trim()) u = u.trim();
+    if (u.length < 3 || u.length > 24) return 'Il nome utente deve avere da 3 a 24 caratteri.';
+    if (!/^[A-Za-zÀ-ÖØ-öø-ÿ0-9._-]+( [A-Za-zÀ-ÖØ-öø-ÿ0-9._-]+)*$/.test(u)) return 'Nel nome utente usa solo lettere, numeri, spazi e . _ -';
+    if (RESERVED_USERNAMES.indexOf(u.toLowerCase().replace(/[\s._-]/g, '')) !== -1) return 'Questo nome utente non è disponibile: scegline un altro.';
+    return '';
+  }
+  function birthDateProblem(iso, isNew) {
+    if (!iso) return 'Inserisci la tua data di nascita.';
+    var d = new Date(String(iso) + 'T12:00:00');
+    if (isNaN(d.getTime()) || d.getFullYear() < 1900 || d > new Date()) return 'Controlla la data di nascita.';
+    if (isNew) {
+      var limit = new Date(); limit.setFullYear(limit.getFullYear() - 14);
+      if (d > limit) return 'Per registrarti a seeva devi avere almeno 14 anni.';
+    }
+    return '';
+  }
+
   /* ---------- profilo/account ----------
      Il dispositivo tiene in cache solo { id, username }: basta per sapere
      "chi sono su questo telefono" senza rifare query inutili. Tutto il resto
@@ -427,7 +479,16 @@
   }
 
   function saveAccountLocal(acc) {
+    var prev = getAccount();
     writeJSON(ACCOUNT_KEY, acc);
+    // Nuovo accesso su un telefono che aveva gia' le notifiche native: si
+    // ricollega il token a questo account (era stato scollegato all'uscita).
+    if (acc && acc.id && (!prev || prev.id !== acc.id)) {
+      try {
+        var tok = localStorage.getItem('seeva:nativePushToken');
+        if (tok && isNativeApp()) supabase.rpc('register_native_push', { p_token: tok, p_platform: nativePlatform() }).then(function () {}, function () {});
+      } catch (err) { /* ignora */ }
+    }
   }
 
   function hasAccount() {
@@ -582,7 +643,32 @@
     var sessionRes = await supabase.auth.getSession();
     var session = sessionRes.data && sessionRes.data.session;
     if (session && session.user && session.user.id === acc.id) return { ok: true };
+    // B9 (audit 26/11/2026): senza rete il rinnovo della sessione fallisce ma
+    // non vuol dire che l'accesso sia scaduto: niente invito a uscire.
+    var offline = (typeof navigator !== 'undefined' && navigator.onLine === false)
+      || /fetch|network|load failed|timeout/i.test(String((sessionRes.error && sessionRes.error.message) || ''));
+    if (offline && !session) return { ok: true, offline: true };
     return { ok: false };
+  }
+
+  /* M8 (audit 26/11/2026): prima di uscire si scollegano le notifiche di
+     questo telefono dall'account, altrimenti continuerebbero ad arrivare
+     (nomi eventi, risposte) a chi usa il telefono dopo. Mai bloccante: al
+     massimo 4 secondi, poi si esce lo stesso. Il token nativo resta in
+     memoria: al prossimo accesso viene ricollegato (vedi saveAccountLocal). */
+  async function unlinkPushForLogout() {
+    if (!hasAccount()) return;
+    var job;
+    if (isNativeApp()) {
+      var tok = null;
+      try { tok = localStorage.getItem(NATIVE_TOKEN_KEY); } catch (err) { /* ignora */ }
+      if (!tok) return;
+      job = supabase.rpc('unregister_native_push', { p_token: tok });
+    } else {
+      if (!isPushSupported()) return;
+      job = unsubscribeFromPush();
+    }
+    await Promise.race([job, new Promise(function (r) { global.setTimeout(r, 4000); })]);
   }
 
   /* Uscita vera: chiude la sessione Supabase (non solo la cache locale, che
@@ -591,10 +677,12 @@
      telefono. Usata sia dal pulsante "Esci" in Profilo sia dall'avviso di
      sessione scaduta qui sopra. */
   async function logOut() {
+    try { await unlinkPushForLogout(); } catch (err) { /* si esce comunque */ }
     try { await supabase.auth.signOut(); } catch (err) { /* usciamo comunque in locale */ }
     try {
       window.localStorage.removeItem(ACCOUNT_KEY);
       window.localStorage.removeItem(GUEST_KEY);
+      window.localStorage.removeItem(BLOCKS_KEY); // A4: i blocchi sono di questo account, non del prossimo
     } catch (err) { /* ignora */ }
     // Altrimenti chi fa login con un altro account sullo stesso dispositivo
     // vedrebbe per qualche secondo ancora la lista eventi di chi c'era prima
@@ -704,13 +792,39 @@
         avatarUrl: input.avatarUrl || null
       }
     });
-    if (res.error) throw new Error(await extractFunctionErrorMessage(res, 'Impossibile creare l\'account'));
+    var created = res.data;
+    if (res.error) {
+      var createMsg = await extractFunctionErrorMessage(res, 'Impossibile creare l\'account');
+      // B6 (audit 26/11/2026): se la risposta si e' persa per strada (rete),
+      // l'account potrebbe essere stato creato lo stesso: si prova ad accedere.
+      var errName = (res.error && res.error.name) || '';
+      if (errName !== 'FunctionsFetchError' && errName !== 'FunctionsRelayError') throw new Error(createMsg);
+      var retryLogin = await supabase.auth.signInWithPassword({ email: email, password: password });
+      if (retryLogin.error) throw new Error(createMsg);
+      var ownRes = await supabase.rpc('get_own_account');
+      if (ownRes.error || !ownRes.data || !ownRes.data.username) throw new Error(createMsg);
+      created = { id: ownRes.data.id || retryLogin.data.user.id, username: ownRes.data.username, avatarUrl: ownRes.data.avatarUrl || '' };
+    } else {
+      var signInRes = await supabase.auth.signInWithPassword({ email: email, password: password });
+      if (signInRes.error) throw new Error('Il tuo account è stato creato: accedi con la stessa email e password.');
+    }
 
-    var signInRes = await supabase.auth.signInWithPassword({ email: email, password: password });
-    if (signInRes.error) throwSupabaseError(signInRes.error);
-
-    var acc = { id: res.data.id, username: res.data.username, avatarUrl: res.data.avatarUrl || '' };
+    var acc = { id: created.id, username: created.username, avatarUrl: created.avatarUrl || '' };
     saveAccountLocal(acc);
+    // A1: la foto profilo si carica ora che si e' collegati (mai bloccante).
+    if (input.avatarFile) {
+      try {
+        var newAvatarUrl = await uploadAvatar(input.avatarFile);
+        var upd = await supabase.rpc('update_account', {
+          p_nome: (input.firstName || '').trim() || null,
+          p_cognome: (input.lastName || '').trim() || null,
+          p_email: email || null,
+          p_data_nascita: input.birthDate || null,
+          p_avatar_url: newAvatarUrl
+        });
+        if (!upd.error) { acc.avatarUrl = newAvatarUrl; saveAccountLocal(acc); }
+      } catch (err) { /* la foto si puo' rimettere dal Profilo */ }
+    }
     await adoptGuestAnswers();
     notifyAccountCreated(acc.id);
     return acc;
@@ -800,7 +914,8 @@
     var merged = {
       firstName: input.firstName !== undefined ? input.firstName : current.firstName,
       lastName: input.lastName !== undefined ? input.lastName : current.lastName,
-      email: input.email !== undefined ? input.email : current.email,
+      // M5 (audit 26/11/2026): l'email resta quella di accesso, non si cambia da qui.
+      email: current.email,
       birthDate: input.birthDate !== undefined ? input.birthDate : current.birthDate,
       avatarUrl: input.avatarUrl !== undefined ? input.avatarUrl : current.avatarUrl
     };
@@ -810,7 +925,8 @@
     // bisogna già essere loggati). Il nome utente non si può più cambiare
     // dopo la registrazione (invariato da prima), quindi non viene inviato.
     if (input.password) {
-      if (input.password.length < 8) throw new Error('La password deve avere almeno 8 caratteri.');
+      var pwProblem = passwordProblem(input.password, { username: current.username || acc.username, email: merged.email });
+      if (pwProblem) throw new Error(pwProblem);
       var pwRes = await supabase.auth.updateUser({ password: input.password });
       if (pwRes.error) throwSupabaseError(pwRes.error);
     }
@@ -3640,6 +3756,10 @@
     setBlockedIds(getBlockedIds().filter(function (x) { return x !== accountId; }));
     return true;
   }
+  async function reportEvent(ev) {
+    return reportProblem('[SEGNALA EVENTO] evento=' + ev.id + ' nome=' + String(ev.name || '').slice(0, 120)
+      + ' organizzatore=' + (ev.createdBy || '?') + ' (account ' + (ev.createdByAccountId || '?') + ')', null);
+  }
   async function reportComment(eventId, comment) {
     return reportProblem('[SEGNALA COMMENTO] evento=' + eventId + ' commento=' + comment.id
       + ' autore=' + (comment.authorName || '?') + ' (account ' + (comment.accountId || 'ospite') + ') testo: ' + String(comment.message || '').slice(0, 500), null);
@@ -4778,6 +4898,9 @@
     createAccount: createAccount,
     deleteOwnAccount: deleteOwnAccount,
     updateAccount: updateAccount,
+    passwordProblem: passwordProblem,
+    usernameProblem: usernameProblem,
+    birthDateProblem: birthDateProblem,
     fetchOwnAccount: fetchOwnAccount,
     getAdminDashboard: getAdminDashboard,
     uploadAvatar: uploadAvatar,
@@ -4831,6 +4954,7 @@
     getMyBlocks: getMyBlocks,
     blockUser: blockUser,
     unblockUser: unblockUser,
+    reportEvent: reportEvent,
     reportComment: reportComment,
     buildNotifications: buildNotifications,
     getNotificationsSeenAt: getNotificationsSeenAt,
