@@ -129,7 +129,7 @@
           </div>
           <div class="field">
             <label>Password</label>
-            <input type="password" id="accPassword" placeholder="Almeno 10 caratteri, lettere e numeri" autocomplete="new-password" maxlength="72">
+            <input type="password" id="accPassword" placeholder="Almeno 8 caratteri, lettere e numeri" autocomplete="new-password" maxlength="72">
           </div>
           <div class="field">
             <label>Data di nascita</label>
@@ -204,7 +204,7 @@
         <div class="card-date" style="margin:0 2px 16px;">Imposta la nuova password per il tuo profilo. Il link scade dopo un'ora e funziona una sola volta.</div>
         <div class="field">
           <label>Nuova password</label>
-          <input type="password" id="resetNewPassword" placeholder="Almeno 10 caratteri, lettere e numeri" autocomplete="new-password" maxlength="72">
+          <input type="password" id="resetNewPassword" placeholder="Almeno 8 caratteri, lettere e numeri" autocomplete="new-password" maxlength="72">
         </div>
         <div class="field">
           <label>Ripeti la nuova password</label>
@@ -696,7 +696,7 @@
           emailInput.title = '';
         }
 
-        if (!isEdit) passwordInput.placeholder = 'Almeno 10 caratteri, lettere e numeri';
+        if (!isEdit) passwordInput.placeholder = 'Almeno 8 caratteri, lettere e numeri';
         if (!isEdit) {
           // profilo nuovo: nessuna foto ancora, riparti da zero
           pendingAvatarFile = null;

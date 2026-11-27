@@ -792,8 +792,8 @@ Inizia ⇒ Start
 Scarica seeva ⇒ Get seeva
 Scarica dall'App Store ⇒ Download on the App Store
 L'app non occupa molto spazio e su iPhone è il modo migliore per ricevere le notifiche quando qualcuno risponde ai tuoi eventi. ⇒ The app doesn't take much space and on iPhone it's the best way to get notified when someone replies to your events.
-Almeno 10 caratteri, lettere e numeri ⇒ At least 10 characters, letters and numbers
-La password deve avere almeno 10 caratteri. ⇒ Your password must be at least 10 characters.
+Almeno 8 caratteri, lettere e numeri ⇒ At least 8 characters, letters and numbers
+La password deve avere almeno 8 caratteri. ⇒ Your password must be at least 8 characters.
 La password può avere al massimo 72 caratteri. ⇒ Your password can be at most 72 characters.
 Usa almeno una lettera e un numero. ⇒ Use at least one letter and one number.
 Questa password è troppo comune: scegline un'altra. ⇒ This password is too common: please choose another one.
