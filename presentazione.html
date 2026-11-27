@@ -33,15 +33,43 @@
   .land-wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
   .land-section { padding: 44px 20px; max-width: 1040px; margin: 0 auto; }
 
-  /* Appaiono scorrendo (solo se c'è JS; senza animazioni se l'utente le disattiva) */
-  html.land-js .land-reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; transition-delay: var(--d, 0s); }
-  html.land-js .land-reveal.in { opacity: 1; transform: none; }
+  /* Animazioni stile Apple: solo transform/opacity (+ blur sui titoli), curva morbida */
+  :root { --ease: cubic-bezier(.16, 1, .3, 1); }
+  html.land-js .land-reveal { opacity: 0; transform: translate3d(0, 28px, 0); will-change: opacity, transform;
+    transition: opacity .9s var(--ease), transform 1.1s var(--ease), filter .9s var(--ease); transition-delay: var(--d, 0s); }
+  html.land-js .land-reveal.in { opacity: 1; transform: none; will-change: auto; }
+  /* Titoli: fade + blur + salita */
+  html.land-js .land-title { filter: blur(10px); transform: translate3d(0, 34px, 0) scale(.985); }
+  html.land-js .land-title.in { filter: none; transform: none; }
+  /* Numeri e icone: compaiono dopo la scheda, in sequenza */
+  html.land-js .land-step-num, html.land-js .land-feature-icon { opacity: 0; transform: scale(.4);
+    transition: opacity .5s var(--ease), transform .8s cubic-bezier(.34, 1.56, .64, 1); transition-delay: calc(var(--d, 0s) + .28s); }
+  html.land-js .in .land-step-num, html.land-js .in .land-feature-icon { opacity: 1; transform: none; }
+  /* Telefoni: seguono lo scorrimento (--p / --e li imposta lo script) */
+  .land-hero .land-phone { --p: 0; will-change: transform;
+    transform: translate3d(0, calc(var(--p) * -36px), 0) rotate(calc(-3deg * (1 - var(--p)))) scale(calc(1 - var(--p) * .1)); }
+  html.land-js .land-step .land-phone { --e: 0; will-change: transform;
+    transform: translate3d(0, calc((1 - var(--e)) * 56px), 0) scale(calc(.92 + var(--e) * .08)); transform-origin: 50% 100%; }
+  /* Bottoni fluidi */
+  .land-store, .land-btn, .land-nav-login { transition: transform .45s var(--ease), box-shadow .45s var(--ease), background-color .3s ease; }
+  @media (hover: hover) {
+    .land-store:not(.is-soon):hover, .land-btn:hover, .land-nav-login:hover { transform: translate3d(0, -2px, 0) scale(1.03); }
+    .land-feature:hover .land-feature-icon { transform: scale(1.1) rotate(-4deg); }
+  }
+  .land-store:not(.is-soon):active, .land-btn:active, .land-nav-login:active { transform: scale(.96); transition-duration: .12s; }
   @media (prefers-reduced-motion: reduce) {
-    html.land-js .land-reveal { opacity: 1; transform: none; transition: none; }
+    html.land-js .land-reveal, html.land-js .land-title, html.land-js .land-step-num, html.land-js .land-feature-icon { opacity: 1; transform: none; filter: none; transition: none; }
+    .land-hero .land-phone { transform: rotate(-3deg); }
+    html.land-js .land-step .land-phone { transform: none; }
+    .land-store, .land-btn, .land-nav-login { transition: none; }
   }
 
   /* Nav */
-  .land-nav { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; max-width: 1040px; margin: 0 auto; }
+  .land-nav { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; padding: 14px max(20px, calc((100% - 1000px) / 2)); }
+  .land-nav::before { content: ""; position: absolute; inset: 0; z-index: -1; opacity: 0; transition: opacity .4s ease;
+    background: var(--bg); background: color-mix(in srgb, var(--bg) 82%, transparent);
+    -webkit-backdrop-filter: saturate(180%) blur(14px); backdrop-filter: saturate(180%) blur(14px); box-shadow: 0 1px 0 rgba(58,50,90,.08); }
+  .land-nav.scrolled::before { opacity: 1; }
   .land-logo { display: flex; align-items: center; gap: 10px; font-family: 'Fraunces', serif; font-weight: 700; font-size: 19px; color: var(--ink); }
   .land-logo-mark { width: 34px; height: 34px; border-radius: 11px; display: block; object-fit: cover; flex-shrink: 0; background: #fff; box-shadow: 0 4px 12px rgba(58,50,90,.15); }
   .land-nav-login { font-weight: 600; font-size: 14px; color: var(--ink); padding: 9px 16px; border-radius: 999px; background: var(--card); box-shadow: 0 2px 10px rgba(58,50,90,.08); }
@@ -69,7 +97,7 @@
   /* Telefono */
   .land-phone { width: 230px; margin: 0 auto; border-radius: 34px; border: 7px solid var(--surface-dark); background: var(--bg); overflow: hidden; box-shadow: 0 24px 50px rgba(58,50,90,.22); position: relative; }
   .land-phone img { display: block; width: 100%; height: auto; aspect-ratio: 420 / 747; }
-  .land-hero .land-phone { width: 248px; transform: rotate(-3deg); }
+  .land-hero .land-phone { width: 248px; }
 
   /* Titoli sezione */
   .land-head { text-align: center; max-width: 520px; margin: 0 auto 28px; }
@@ -156,7 +184,7 @@
 
   <header class="land-hero">
     <div>
-      <h1 class="land-reveal">Organizza le uscite, <em>senza il caos</em> dei gruppi.</h1>
+      <h1 class="land-reveal land-title">Organizza le uscite, <em>senza il caos</em> dei gruppi.</h1>
       <p class="land-sub land-reveal" style="--d:.08s">Proponi le date, gli amici rispondono, seeva sceglie quella giusta e tiene il conto delle spese.</p>
       <div class="land-stores land-reveal" style="--d:.16s">
         <span class="land-store is-soon" id="storeApple" role="link" aria-disabled="true">
@@ -176,7 +204,7 @@
   </header>
 
   <section class="land-section">
-    <div class="land-head land-reveal">
+    <div class="land-head land-reveal land-title">
       <h2>Tre passaggi, non venti messaggi</h2>
       <p>Dalla proposta alla serata organizzata.</p>
     </div>
@@ -203,7 +231,7 @@
   </section>
 
   <section class="land-section" style="padding-top:8px">
-    <div class="land-head land-reveal">
+    <div class="land-head land-reveal land-title">
       <h2>Tutto quello che serve</h2>
     </div>
     <div class="land-features">
@@ -241,7 +269,7 @@
   </section>
 
   <section class="land-section" style="padding-top:8px">
-    <div class="land-head land-reveal">
+    <div class="land-head land-reveal land-title">
       <h2>Perché non un gruppo WhatsApp</h2>
     </div>
     <div class="land-vs">
@@ -353,6 +381,28 @@
       list.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
     }, { threshold: 0.12, rootMargin: '0px 0px -30px 0px' });
     for (var j = 0; j < els.length; j++) io.observe(els[j]);
+
+    // Scorrimento: header che sfuma, telefono hero e telefoni dei passaggi (un solo rAF, solo transform).
+    var nav = document.querySelector('.land-nav');
+    var heroPhone = document.querySelector('.land-hero .land-phone');
+    var stepPhones = document.querySelectorAll('.land-step .land-phone');
+    var ticking = false;
+    var clamp = function (v) { return v < 0 ? 0 : v > 1 ? 1 : v; };
+    function frame() {
+      ticking = false;
+      var y = window.pageYOffset || 0, vh = window.innerHeight;
+      nav.classList.toggle('scrolled', y > 8);
+      if (heroPhone) heroPhone.style.setProperty('--p', clamp(y / (vh * 0.9)).toFixed(3));
+      for (var k = 0; k < stepPhones.length; k++) {
+        var r = stepPhones[k].getBoundingClientRect();
+        if (r.top > vh + 80 || r.bottom < -80) continue;
+        stepPhones[k].style.setProperty('--e', clamp((vh - r.top) / (vh * 0.55)).toFixed(3));
+      }
+    }
+    function onScroll() { if (!ticking) { ticking = true; requestAnimationFrame(frame); } }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    frame();
   }
 })();
 </script>
