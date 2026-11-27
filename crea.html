@@ -1327,6 +1327,15 @@
           known: crPeople.map(function (p) { return { name: p.name, accountId: p.accountId || null, avatarUrl: p.accountId ? (crAvatarStore[p.accountId] || null) : null, sub: '' }; }),
           selected: manualNames.map(function (m) { return { name: m.name, accountId: m.accountId || null, avatarUrl: m.avatarUrl || null }; }),
           allowFreeName: true,
+          // Chi non è su seeva: si usa il link a tutti (esiste dopo la creazione).
+          onShareLink: function () {
+            if (!openInviteCheckbox.checked) {
+              openInviteCheckbox.checked = true;
+              openInviteCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+              crSyncExtras();
+            }
+            if (window.SeevaUI && SeevaUI.toast) SeevaUI.toast(t('Link a tutti attivo: lo condividi appena crei l\'evento'));
+          },
           onDone: function (sel) {
             manualNames = sel.map(function (p) { return { name: p.name, accountId: p.accountId || null, avatarUrl: p.avatarUrl || null }; });
             sel.forEach(function (p) {

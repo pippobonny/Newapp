@@ -178,3 +178,4 @@ Nessuno ancora ⇒ Nobody yet
 Annullati e non ci vai: 1 evento › ⇒ Cancelled and not going: 1 event ›
 Annullati e non ci vai: {n} eventi › ⇒ Cancelled and not going: {n} events ›
 Bloccare {n}? Non vedrai più i suoi commenti. Puoi sbloccarlo dal Profilo. ⇒ Block {n}? You won't see their comments any more. You can unblock them from Profile.
+Link a tutti attivo: lo condividi appena crei l'evento ⇒ Link to everyone is on: you can share it as soon as you create the event

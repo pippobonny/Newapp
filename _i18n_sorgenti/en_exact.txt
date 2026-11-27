@@ -856,3 +856,7 @@ Schermata di un evento confermato ⇒ Screen of a confirmed event
 Organizza le uscite, ⇒ Plan your nights out,
 senza il caos ⇒ without the chaos
 dei gruppi. ⇒ of group chats.
+Chi non è su seeva non compare nella ricerca: usa il link a tutti. ⇒ People who aren't on seeva won't show up in search: use the link to everyone.
+Nessuno con questo nome su seeva ⇒ Nobody with this name on seeva
+Non è ancora iscritto/a? Condividi il link a tutti: chi lo apre entra nell'evento. ⇒ Not signed up yet? Share the link to everyone: whoever opens it joins the event.
+Usa il link a tutti ⇒ Use the link to everyone

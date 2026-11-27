@@ -2647,10 +2647,20 @@
     var order = [];
     (opts.selected || []).forEach(function (p) { var k = keyOf(p); if (!selected[k]) { selected[k] = p; order.push(k); } });
     var remote = [];
+    var remoteFor = '';
     var query = '';
     var searchTimer = null;
     var searchSeq = 0;
 
+    // Suggerimento sotto la barra (solo dove c'è il link a tutti): le prime 3 aperture.
+    var hintOn = false;
+    if (opts.onShareLink) {
+      try {
+        var hn = parseInt(localStorage.getItem('seeva_pp_hint') || '0', 10) || 0;
+        hintOn = hn < 3;
+        if (hintOn) localStorage.setItem('seeva_pp_hint', String(hn + 1));
+      } catch (e) { hintOn = true; }
+    }
     var ov = document.createElement('div');
     ov.className = 'pp-overlay';
     ov.innerHTML = ''
@@ -2661,6 +2671,7 @@
       + '</div>'
       + '<div class="pp-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="18" height="18"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>'
       + '<input type="search" class="pp-input" placeholder="Cerca per nome o nome utente" autocomplete="off" autocapitalize="words" enterkeyhint="search"></div>'
+      + (hintOn ? '<div class="pp-hint">Chi non è su seeva non compare nella ricerca: usa il link a tutti.</div>' : '')
       + '<div class="pp-selected"></div>'
       + '<div class="pp-list"></div>';
     host.appendChild(ov);
@@ -2701,6 +2712,11 @@
         html += '<div class="pp-sec">Altri su seeva</div>';
         others.forEach(function (p) { var k = keyOf(p); lookup[k] = p; html += rowHTML(p, k); });
       }
+      if (opts.onShareLink && q.length >= 2 && remoteFor === query.trim() && !knownShown.length && !others.length) {
+        html += '<div class="pp-nores"><div class="pp-nores-title">Nessuno con questo nome su seeva</div>'
+          + '<div class="pp-nores-text">Non è ancora iscritto/a? Condividi il link a tutti: chi lo apre entra nell\'evento.</div>'
+          + '<button type="button" class="pp-nores-btn" data-pp-sharelink>Usa il link a tutti</button></div>';
+      }
       if (opts.allowFreeName && query.trim().length >= 2) {
         var free = { name: query.trim().replace(/\s+/g, ' '), accountId: null, sub: 'Non ha seeva: riceverà il link' };
         var fk = keyOf(free);
@@ -2730,6 +2746,13 @@
     }
 
     listEl.addEventListener('click', function (e) {
+      if (e.target.closest('[data-pp-sharelink]')) {
+        var keep = order.map(function (k) { return selected[k]; });
+        close();
+        if (opts.onDone) opts.onDone(keep);
+        if (opts.onShareLink) opts.onShareLink();
+        return;
+      }
       var row = e.target.closest('[data-pp-key]');
       if (row) toggle(row.getAttribute('data-pp-key'));
     });
@@ -2742,11 +2765,12 @@
       render();
       window.clearTimeout(searchTimer);
       var q = query.trim();
-      if (q.length < 2 || !window.SeevaData || !SeevaData.searchPeople) { remote = []; render(); return; }
+      if (q.length < 2 || !window.SeevaData || !SeevaData.searchPeople) { remote = []; remoteFor = ''; render(); return; }
       var mySeq = ++searchSeq;
       searchTimer = window.setTimeout(function () {
         SeevaData.searchPeople(q).then(function (res) {
           if (mySeq !== searchSeq) return;
+          remoteFor = q;
           remote = (res || []).map(function (r) { return { name: r.username, accountId: r.id, avatarUrl: r.avatarUrl, sub: r.fullName || '' }; });
           render();
         });
