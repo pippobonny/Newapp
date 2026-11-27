@@ -1,5 +1,5 @@
 -- A4.6 (audit 26/11/2026) - Avviso email a Filippo per le segnalazioni (Apple: reazione entro 24 ore).
--- NON applicato. Ordine: 1) questo SQL (colonna), 2) pubblicare la funzione
+-- APPLICATO il 27/11/2026 (colonna, funzione send-report-alerts v1 verify_jwt, cron report-alerts-15min). Ordine: 1) questo SQL (colonna), 2) pubblicare la funzione
 -- _supabase_funzioni/send-report-alerts (NON ancora pubblicata) (verify_jwt = true), 3) il cron qui sotto.
 -- Compatibile con la 1.0 (aggiunge solo una colonna e un cron).
 alter table public.problem_reports add column if not exists alert_sent_at timestamptz;

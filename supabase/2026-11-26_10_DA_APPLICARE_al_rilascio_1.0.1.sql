@@ -159,7 +159,8 @@ begin
 end $do$;
 
 -- ---------- M7: eliminazione account tutta in una volta (la chiama delete-account v5) ----------
--- Scelta: eventi creati da chi si elimina SENZA altri account dentro = cancellati; con altre
+-- ATTENZIONE: scelta da far confermare a Filippo prima di applicare (cancellare o lasciare anonimi gli eventi).
+-- Scelta proposta: eventi creati da chi si elimina SENZA altri account dentro = cancellati; con altre
 -- persone = restano, organizzatore "Utente eliminato". Commenti: autore "Utente eliminato".
 -- Liste amici: cancellate (con i nomi dentro).
 create or replace function public.prepare_account_deletion(p_user uuid) returns json
@@ -248,6 +249,7 @@ grant execute on function public.update_account(text,text,text,date,text), publi
 -- funzioni dei trigger: nessuno deve chiamarle a mano (i trigger funzionano lo stesso)
 revoke execute on function public.refresh_event_last_date(), public.touch_event_vote_opened(), public.trg_events_confirmed_at(),
   public.trg_resync_shares_events(), public.trg_resync_shares_participants() from public, anon, authenticated;
+-- (search_path di expense_emoji_ok e trg_events_confirmed_at: gia' APPLICATO il 27/11/2026, ripeterlo non fa danni)
 alter function public.expense_emoji_ok(text) set search_path to 'public';
 alter function public.trg_events_confirmed_at() set search_path to 'public';
 

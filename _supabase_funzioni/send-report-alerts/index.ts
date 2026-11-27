@@ -7,7 +7,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
    Prende le righe di problem_reports che iniziano con "[SEGNALA" e non hanno
    ancora alert_sent_at, le segna (update atomico) e manda UNA email riassuntiva.
    Idempotente: se la chiama qualcun altro, al massimo arriva prima l'email a Filippo.
-   NON pubblicata: da pubblicare con verify_jwt = true. */
+   Pubblicata il 27/11/2026 (verify_jwt = true). */
 const TO = Deno.env.get("REPORT_ALERT_TO") || "pippo.bonino@gmail.com";
 const esc = (s: unknown) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
