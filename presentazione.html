@@ -2,15 +2,24 @@
 <html lang="it" translate="no">
 <head>
 <meta charset="UTF-8">
-<!-- Niente traduzione automatica di Chrome (Fil, 2026-10-10): l'app ha già italiano/inglese suoi; con l'app in inglese su un telefono italiano Chrome traduceva sopra, mischiando le lingue. -->
+<!-- Niente traduzione automatica di Chrome: l'app ha già italiano/inglese suoi. -->
 <meta name="google" content="notranslate">
 <script src="i18n.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>seeva — Organizza uscite con gli amici, senza il caos dei gruppi</title>
-<meta name="description" content="seeva propone le date, raccoglie le disponibilità, sceglie quella giusta e tiene il conto di chi viene e di chi deve cosa. Registrati gratis.">
+<meta name="description" content="Proponi le date, gli amici rispondono, seeva sceglie quella giusta e tiene il conto di chi viene e di chi deve cosa. Gratis.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="seeva">
+<meta property="og:url" content="https://seeva.it/">
+<meta property="og:title" content="seeva — Organizza uscite con gli amici, senza il caos dei gruppi">
+<meta property="og:description" content="Proponi le date, gli amici rispondono, seeva sceglie quella giusta e tiene il conto di chi viene e di chi deve cosa. Gratis.">
+<meta property="og:image" content="https://seeva.it/img/og.jpg">
+<meta property="og:locale" content="it_IT">
+<meta property="og:locale:alternate" content="en_GB">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <meta name="theme-color" content="#FF7A29">
 <meta name="color-scheme" content="light dark">
@@ -18,369 +27,120 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
 <style>
-  /* ============================================================
-     CSS della pagina di presentazione (seeva.it/presentazione).
-     Riusa style.css per token di colore, font e per il mockup
-     "vero" della Home (classi .phone/.screen/.header/.home-tile
-     invariate) — qui sotto solo il layout nuovo, con dati finti
-     nel mockup. Tutto sotto il prefisso .land- per non toccare
-     nessuna classe dell'app.
-     ============================================================ */
+  /* Pagina di presentazione (seeva.it): mobile first, minimal pastello.
+     Riusa i colori/font di style.css. Tutto sotto il prefisso .land-. */
+  body.land-body { display: block; padding: 0; background: var(--bg); align-items: initial; color: var(--ink); }
+  .land-wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
+  .land-section { padding: 44px 20px; max-width: 1040px; margin: 0 auto; }
 
-  body.land-body {
-    display: block;
-    padding: 0;
-    background: var(--bg);
-    align-items: initial;
+  /* Appaiono scorrendo (solo se c'è JS; senza animazioni se l'utente le disattiva) */
+  html.land-js .land-reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; transition-delay: var(--d, 0s); }
+  html.land-js .land-reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    html.land-js .land-reveal { opacity: 1; transform: none; transition: none; }
   }
 
-  .land-wrap {
-    max-width: 1080px;
-    margin: 0 auto;
-    padding: 0 24px;
-  }
+  /* Nav */
+  .land-nav { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; max-width: 1040px; margin: 0 auto; }
+  .land-logo { display: flex; align-items: center; gap: 10px; font-family: 'Fraunces', serif; font-weight: 700; font-size: 19px; color: var(--ink); }
+  .land-logo-mark { width: 34px; height: 34px; border-radius: 11px; display: block; object-fit: cover; flex-shrink: 0; background: #fff; box-shadow: 0 4px 12px rgba(58,50,90,.15); }
+  .land-nav-login { font-weight: 600; font-size: 14px; color: var(--ink); padding: 9px 16px; border-radius: 999px; background: var(--card); box-shadow: 0 2px 10px rgba(58,50,90,.08); }
 
-  /* --- Nav minimale in cima --- */
-  .land-nav {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 22px 24px;
-    max-width: 1080px;
-    margin: 0 auto;
-  }
-  .land-logo {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-family: 'Fraunces', serif;
-    font-weight: 700;
-    font-size: 19px;
-    color: var(--ink);
-  }
-  .land-logo-mark {
-    width: 34px;
-    height: 34px;
-    border-radius: 11px;
-    display: block;
-    object-fit: cover;
-    flex-shrink: 0;
-    box-shadow: 0 4px 12px rgba(58, 50, 90, 0.15);
-  }
-  .land-nav-login {
-    font-family: 'Inter', sans-serif;
-    font-weight: 600;
-    font-size: 14px;
-    color: var(--ink-soft);
-    padding: 9px 16px;
-    border-radius: 999px;
-  }
-  .land-nav-login:hover { color: var(--ink); }
+  /* Hero */
+  .land-hero { display: grid; grid-template-columns: 1fr; gap: 28px; padding: 18px 20px 36px; max-width: 1040px; margin: 0 auto; text-align: center; }
+  .land-hero h1 { font-family: 'Fraunces', serif; font-weight: 700; font-size: 36px; line-height: 1.1; letter-spacing: -.5px; margin: 0 0 14px; }
+  .land-hero h1 em { font-style: normal; color: var(--peach); }
+  .land-sub { font-size: 16.5px; line-height: 1.55; color: var(--ink-soft); max-width: 420px; margin: 0 auto 24px; }
+  .land-stores { display: flex; flex-direction: column; gap: 10px; max-width: 320px; margin: 0 auto; }
+  .land-store { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 12px 18px; border-radius: 16px; background: var(--card); color: var(--ink); box-shadow: 0 2px 10px rgba(58,50,90,.08); text-align: left; min-height: 56px; }
+  .land-store svg { width: 24px; height: 24px; flex-shrink: 0; }
+  .land-store small { display: block; font-size: 11px; font-weight: 500; color: var(--ink-soft); line-height: 1.2; }
+  .land-store b { display: block; font-size: 16px; font-weight: 700; line-height: 1.2; }
+  .land-store.is-soon { opacity: .75; cursor: default; }
+  .land-store.is-soon small { color: var(--accent-ink); font-weight: 700; }
+  /* Su iPhone evidenzia App Store, su Android Google Play */
+  .land-store.is-main { background: var(--peach); color: #fff; box-shadow: 0 10px 24px rgba(255,122,41,.32); opacity: 1; }
+  .land-store.is-main small { color: rgba(255,255,255,.9); }
+  .land-store.is-main.is-soon { opacity: .92; }
+  body.is-ios #storeApple, body.is-android #storePlay { order: -1; }
+  .land-browser { margin-top: 16px; font-size: 13.5px; color: var(--ink-soft); }
+  .land-browser a { color: var(--accent-ink); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
 
-  /* --- Hero (Fil, 2026-08-25: niente più mockup della Home qui — solo
-       benvenuto/testo, centrato, pagina più snella e leggera) --- */
-  .land-hero {
-    text-align: center;
-    padding: 44px 24px 56px;
-    max-width: 680px;
-    margin: 0 auto;
-  }
-  .land-hero .land-cta-row { justify-content: center; }
-  .land-hero p.land-sub { margin-left: auto; margin-right: auto; }
-  .land-eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    background: var(--lavender-soft);
-    color: var(--lavender);
-    font-family: 'Inter', sans-serif;
-    font-weight: 700;
-    font-size: 12.5px;
-    padding: 7px 14px;
-    border-radius: 999px;
-    margin-bottom: 18px;
-  }
-  .land-hero h1 {
-    font-family: 'Fraunces', serif;
-    font-weight: 700;
-    font-size: 42px;
-    line-height: 1.14;
-    color: var(--ink);
-    margin: 0 0 18px;
-    letter-spacing: -0.5px;
-  }
-  .land-hero h1 em {
-    font-style: normal;
-    color: var(--peach);
-  }
-  .land-hero p.land-sub {
-    font-family: 'Inter', sans-serif;
-    font-size: 16.5px;
-    line-height: 1.6;
-    color: var(--ink-soft);
-    max-width: 480px;
-    margin: 0 0 30px;
-  }
-  .land-cta-row {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-  .land-btn {
-    font-family: 'Inter', sans-serif;
-    font-weight: 600;
-    font-size: 14.5px;
-    padding: 15px 26px;
-    border-radius: 16px;
-    text-align: center;
-    cursor: pointer;
-    border: none;
-    display: inline-block;
-  }
-  .land-btn-primary {
-    background: var(--peach);
-    color: #FFF8F0;
-    box-shadow: 0 10px 24px rgba(255, 122, 41, 0.32);
-  }
-  .land-btn-secondary {
-    background: var(--card);
-    color: var(--ink);
-    box-shadow: 0 2px 10px rgba(58, 50, 90, 0.08);
-  }
-  .land-hint {
-    font-family: 'Inter', sans-serif;
-    font-size: 12.5px;
-    color: var(--ink-soft);
-    margin-top: 14px;
-  }
+  /* Telefono */
+  .land-phone { width: 230px; margin: 0 auto; border-radius: 34px; border: 7px solid var(--surface-dark); background: var(--bg); overflow: hidden; box-shadow: 0 24px 50px rgba(58,50,90,.22); position: relative; }
+  .land-phone img { display: block; width: 100%; height: auto; aspect-ratio: 420 / 747; }
+  .land-hero .land-phone { width: 248px; transform: rotate(-3deg); }
 
-  /* --- Sezioni generiche --- */
-  .land-section {
-    padding: 54px 24px;
-    max-width: 1080px;
-    margin: 0 auto;
-  }
-  .land-section-head {
-    text-align: center;
-    max-width: 560px;
-    margin: 0 auto 40px;
-  }
-  .land-section-head .land-eyebrow { margin-bottom: 14px; }
-  .land-section-head h2 {
-    font-family: 'Fraunces', serif;
-    font-weight: 700;
-    font-size: 30px;
-    color: var(--ink);
-    margin: 0 0 10px;
-  }
-  .land-section-head p {
-    font-family: 'Inter', sans-serif;
-    font-size: 15px;
-    color: var(--ink-soft);
-    line-height: 1.55;
-    margin: 0;
-  }
+  /* Titoli sezione */
+  .land-head { text-align: center; max-width: 520px; margin: 0 auto 28px; }
+  .land-head h2 { font-family: 'Fraunces', serif; font-weight: 700; font-size: 27px; line-height: 1.15; margin: 0 0 8px; }
+  .land-head p { font-size: 15px; color: var(--ink-soft); line-height: 1.5; margin: 0; }
 
-  /* --- Come funziona: 3 step --- */
-  .land-steps {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 18px;
-  }
-  .land-step {
-    background: var(--card);
-    border-radius: 22px;
-    padding: 26px 22px;
-    box-shadow: 0 2px 10px rgba(58, 50, 90, 0.06);
-  }
-  .land-step-num {
-    width: 34px;
-    height: 34px;
-    border-radius: 11px;
-    background: var(--surface-dark);
-    color: #fff;
-    font-family: 'Fraunces', serif;
-    font-weight: 700;
-    font-size: 15px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 16px;
-  }
-  .land-step h3 {
-    font-family: 'Fraunces', serif;
-    font-weight: 600;
-    font-size: 17px;
-    color: var(--ink);
-    margin: 0 0 8px;
-  }
-  .land-step p {
-    font-family: 'Inter', sans-serif;
-    font-size: 14px;
-    line-height: 1.55;
-    color: var(--ink-soft);
-    margin: 0;
-  }
+  /* 3 passaggi: scorrimento orizzontale su mobile */
+  .land-steps { display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 4px 20px 18px; margin: 0 -20px; scrollbar-width: none; }
+  .land-steps::-webkit-scrollbar { display: none; }
+  .land-step { flex: 0 0 74%; max-width: 300px; scroll-snap-align: center; background: var(--card); border-radius: 24px; padding: 22px 18px 0; box-shadow: 0 2px 10px rgba(58,50,90,.06); text-align: center; overflow: hidden; }
+  .land-step-num { width: 32px; height: 32px; border-radius: 11px; background: var(--peach); color: #fff; font-family: 'Fraunces', serif; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+  .land-step h3 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 18px; margin: 0 0 6px; }
+  .land-step p { font-size: 14px; line-height: 1.5; color: var(--ink-soft); margin: 0 0 18px; }
+  .land-step { display: flex; flex-direction: column; }
+  .land-step .land-phone { margin-top: auto; width: 82%; border-bottom: none; border-radius: 26px 26px 0 0; box-shadow: none; height: 230px; }
+  .land-step .land-phone img { aspect-ratio: auto; }
 
-  /* --- Funzioni: righe compatte affiancate, si aprono a fisarmonica
-       (<details>/<summary>, niente JS) invece di card grosse tutte aperte
-       (Fil, 2026-08-25: "più piccole, una affianco all'altra, chi vuole
-       saperne di più preme"). Due colonne, ogni riga È il bottone. --- */
-  .land-features {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-  }
-  .land-feature {
-    background: var(--card);
-    border-radius: 16px;
-    box-shadow: 0 2px 10px rgba(58, 50, 90, 0.06);
-    overflow: hidden;
-  }
-  .land-feature summary {
-    list-style: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 13px 16px;
-  }
-  .land-feature summary::-webkit-details-marker { display: none; }
-  .land-feature-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-    flex-shrink: 0;
-  }
-  .land-feature-icon svg { width: 16px; height: 16px; }
-  .land-feature summary h3 {
-    font-family: 'Inter', sans-serif;
-    font-weight: 600;
-    font-size: 14px;
-    color: var(--ink);
-    margin: 0;
-    flex: 1;
-  }
-  .land-feature-chevron {
-    color: var(--ink-soft);
-    flex-shrink: 0;
-    transition: transform 0.2s ease;
-  }
-  .land-feature[open] .land-feature-chevron { transform: rotate(180deg); }
-  .land-feature p {
-    font-family: 'Inter', sans-serif;
-    font-size: 13px;
-    line-height: 1.55;
-    color: var(--ink-soft);
-    margin: 0;
-    padding: 0 16px 16px 60px;
-  }
+  /* Funzioni */
+  .land-features { display: grid; grid-template-columns: 1fr; gap: 10px; max-width: 640px; margin: 0 auto; }
+  .land-feature { display: flex; align-items: center; gap: 14px; background: var(--card); border-radius: 18px; padding: 14px 16px; box-shadow: 0 2px 10px rgba(58,50,90,.06); }
+  .land-feature-icon { width: 40px; height: 40px; border-radius: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .land-feature-icon svg { width: 20px; height: 20px; }
+  .land-feature h3 { font-size: 15px; font-weight: 700; margin: 0 0 2px; }
+  .land-feature p { font-size: 13.5px; line-height: 1.4; color: var(--ink-soft); margin: 0; }
 
-  /* --- Perché seeva: card evidenziata --- */
-  .land-why {
-    background: linear-gradient(135deg, var(--lavender), #4A2A52);
-    border-radius: 28px;
-    padding: 44px 40px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 32px;
-    align-items: center;
-  }
-  .land-why h2 {
-    font-family: 'Fraunces', serif;
-    font-weight: 700;
-    font-size: 26px;
-    color: #fff;
-    margin: 0 0 14px;
-  }
-  .land-why p {
-    font-family: 'Inter', sans-serif;
-    font-size: 14.5px;
-    line-height: 1.65;
-    color: rgba(255,255,255,0.82);
-    margin: 0;
-  }
-  .land-why-list {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-  .land-why-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    background: rgba(255,255,255,0.08);
-    border-radius: 16px;
-    padding: 14px 16px;
-  }
-  .land-why-item svg { flex-shrink: 0; margin-top: 1px; color: var(--butter); }
-  .land-why-item span {
-    font-family: 'Inter', sans-serif;
-    font-size: 13.5px;
-    line-height: 1.5;
-    color: #fff;
-    font-weight: 500;
-  }
+  /* WhatsApp */
+  .land-vs { display: grid; grid-template-columns: 1fr; gap: 12px; max-width: 640px; margin: 0 auto; }
+  .land-vs-col { border-radius: 22px; padding: 20px 20px; }
+  .land-vs-col h3 { font-family: 'Fraunces', serif; font-size: 17px; margin: 0 0 10px; }
+  .land-vs-col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; font-size: 14px; line-height: 1.4; }
+  .land-vs-col li { padding-left: 22px; position: relative; }
+  .land-vs-col li::before { position: absolute; left: 0; top: 0; font-weight: 700; }
+  .land-vs-no { background: var(--past-soft); color: var(--ink); }
+  .land-vs-no li::before { content: "\2715"; color: var(--cancel-ink); }
+  .land-vs-yes { background: var(--peach-soft); color: #3D2244; }
+  .land-vs-yes li::before { content: "\2713"; color: var(--confirmed); }
 
-  /* --- CTA finale --- */
-  .land-final {
-    text-align: center;
-    padding: 70px 24px 50px;
-  }
-  .land-final h2 {
-    font-family: 'Fraunces', serif;
-    font-weight: 700;
-    font-size: 28px;
-    color: var(--ink);
-    margin: 0 0 12px;
-  }
-  .land-final p {
-    font-family: 'Inter', sans-serif;
-    font-size: 15px;
-    color: var(--ink-soft);
-    max-width: 440px;
-    margin: 0 auto 26px;
-    line-height: 1.55;
-  }
-  .land-final .land-cta-row { justify-content: center; }
+  /* Scrivici */
+  .land-contact { text-align: center; background: var(--lavender-soft); border-radius: 26px; padding: 34px 20px; max-width: 640px; margin: 0 auto; }
+  .land-contact h2 { font-family: 'Fraunces', serif; font-size: 24px; margin: 0 0 8px; color: #3D2244; }
+  .land-contact p { font-size: 14.5px; color: #5A4760; margin: 0 0 18px; line-height: 1.5; }
+  .land-btn { display: inline-block; font-weight: 600; font-size: 15px; padding: 14px 24px; border-radius: 16px; background: var(--peach); color: #fff; box-shadow: 0 10px 24px rgba(255,122,41,.28); word-break: break-all; }
+  .land-contact-sub { margin: 16px 0 0; font-size: 13.5px; }
+  .land-contact-sub a { color: #6B3F73; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
 
-  /* --- Footer --- */
-  .land-footer {
-    border-top: 1px solid rgba(58, 50, 90, 0.08);
-    padding: 26px 24px 40px;
-    max-width: 1080px;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-  .land-footer-note {
-    font-family: 'Inter', sans-serif;
-    font-size: 12.5px;
-    color: var(--ink-soft);
-  }
-  .land-footer-note a { text-decoration: underline; }
+  /* Footer */
+  .land-footer { padding: 26px 20px 40px; max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+  .land-footer-note { font-size: 12.5px; color: var(--ink-soft); line-height: 1.8; }
+  .land-footer-note a { text-decoration: underline; text-underline-offset: 2px; }
+  .land-footer-note button { background: none; border: none; font: inherit; color: inherit; text-decoration: underline; cursor: pointer; padding: 0; }
+  .land-footer-note button.on { font-weight: 700; color: var(--ink); text-decoration: none; }
 
-  /* --- Responsive --- */
-  @media (max-width: 860px) {
-    .land-hero h1 { font-size: 32px; }
-    .land-steps { grid-template-columns: 1fr; }
-    .land-features { grid-template-columns: repeat(2, 1fr); }
-    .land-why { grid-template-columns: 1fr; padding: 32px 24px; }
-    .land-section-head h2 { font-size: 25px; }
-  }
-  @media (max-width: 520px) {
-    .land-features { grid-template-columns: 1fr; }
-    .land-nav { padding: 18px 18px; }
-    .land-hero { padding-left: 18px; padding-right: 18px; }
-    .land-section { padding: 44px 18px; }
-    .land-why h2 { font-size: 22px; }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--butter); outline-offset: 2px; }
+
+  /* Desktop */
+  @media (min-width: 860px) {
+    .land-hero { grid-template-columns: 1.1fr .9fr; align-items: center; text-align: left; gap: 40px; padding: 40px 20px 56px; }
+    .land-hero h1 { font-size: 50px; }
+    .land-sub { margin-left: 0; margin-right: 0; font-size: 18px; }
+    .land-stores { flex-direction: row; max-width: none; margin: 0; }
+    .land-store { flex: 0 1 220px; }
+    .land-hero .land-phone { width: 290px; }
+    .land-section { padding: 64px 20px; }
+    .land-head h2 { font-size: 34px; }
+    .land-steps { overflow: visible; padding: 0; margin: 0; justify-content: center; gap: 20px; }
+    .land-step { flex: 1 1 0; max-width: 320px; }
+    .land-step .land-phone { height: 270px; }
+    .land-features { grid-template-columns: 1fr 1fr; max-width: 820px; }
+    .land-features .land-feature:last-child { grid-column: 1 / -1; }
+    .land-vs { grid-template-columns: 1fr 1fr; max-width: 820px; }
+    .land-footer { flex-direction: row; justify-content: space-between; }
   }
 </style>
 </head>
@@ -388,169 +148,213 @@
 
   <nav class="land-nav">
     <div class="land-logo">
-      <img class="land-logo-mark" src="icon-192.png" alt="seeva">
+      <img class="land-logo-mark" src="icon-192.png" width="34" height="34" alt="seeva">
       seeva
     </div>
     <a class="land-nav-login" href="profilo.html?mode=login">Accedi</a>
   </nav>
 
-  <div class="land-wrap">
-  <section class="land-hero">
-    <span class="land-eyebrow">Ciao, benvenuto 👋</span>
-    <h1>Basta gruppi WhatsApp per capire <em>quando uscite</em>.</h1>
-    <p class="land-sub">Proponi le date, i tuoi amici rispondono, seeva sceglie quella che va bene a più persone — e tiene il conto di chi viene e di chi deve cosa. Tutto in un posto solo, niente più scroll infinito.</p>
-    <div class="land-cta-row">
-      <a class="land-btn land-btn-primary" href="profilo.html">Registrati gratis</a>
-      <a class="land-btn land-btn-secondary" href="profilo.html?mode=login">Ho già un account</a>
+  <header class="land-hero">
+    <div>
+      <h1 class="land-reveal">Organizza le uscite, <em>senza il caos</em> dei gruppi.</h1>
+      <p class="land-sub land-reveal" style="--d:.08s">Proponi le date, gli amici rispondono, seeva sceglie quella giusta e tiene il conto delle spese.</p>
+      <div class="land-stores land-reveal" style="--d:.16s">
+        <span class="land-store is-soon" id="storeApple" role="link" aria-disabled="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"></path></svg>
+          <span><small>In arrivo su</small><b>App Store</b></span>
+        </span>
+        <span class="land-store is-soon" id="storePlay" role="link" aria-disabled="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"></path></svg>
+          <span><small>In arrivo su</small><b>Google Play</b></span>
+        </span>
+      </div>
+      <p class="land-browser land-reveal" style="--d:.22s">Nell'attesa, <a href="profilo.html">provala subito dal browser</a>. È gratis.</p>
     </div>
-    <div class="land-hint">Gratuita, ci mette due minuti — e non occupa spazio nel telefono: si apre dal browser come un sito, nessun download da store. Se hai già ricevuto un invito a un evento, aprilo pure dal link che ti hanno mandato.</div>
-  </section>
-  </div>
+    <div class="land-reveal" style="--d:.1s">
+      <div class="land-phone"><img data-it="img/land-home-it.webp" data-en="img/land-home-en.webp" width="420" height="747" alt="La Home di seeva con gli eventi della settimana" fetchpriority="high"></div>
+    </div>
+  </header>
 
   <section class="land-section">
-    <div class="land-section-head">
-      <span class="land-eyebrow">Come funziona</span>
+    <div class="land-head land-reveal">
       <h2>Tre passaggi, non venti messaggi</h2>
-      <p>Dalla proposta alla serata organizzata, senza ripetere le stesse domande a ogni amico.</p>
+      <p>Dalla proposta alla serata organizzata.</p>
     </div>
     <div class="land-steps">
-      <div class="land-step">
+      <div class="land-step land-reveal">
         <div class="land-step-num">1</div>
         <h3>Proponi</h3>
-        <p>Crei un evento e proponi una o più date possibili. Aggiungi chi vuoi invitare, o mandi un link a tutti.</p>
+        <p>Crei l'evento e proponi una o più date.</p>
+        <div class="land-phone"><img loading="lazy" data-it="img/land-proponi-it.webp" data-en="img/land-proponi-en.webp" width="420" height="747" alt="Schermata per creare un nuovo evento"></div>
       </div>
-      <div class="land-step">
+      <div class="land-step land-reveal" style="--d:.1s">
         <div class="land-step-num">2</div>
         <h3>Gli amici rispondono</h3>
-        <p>Ognuno dice per quali date c'è. Niente più "io ci sono ma dipende", tutto tracciato in un posto solo.</p>
+        <p>Ognuno vota le date in cui c'è, con un tocco.</p>
+        <div class="land-phone"><img loading="lazy" data-it="img/land-rispondi-it.webp" data-en="img/land-rispondi-en.webp" width="420" height="747" alt="Schermata con il voto delle date"></div>
       </div>
-      <div class="land-step">
+      <div class="land-step land-reveal" style="--d:.2s">
         <div class="land-step-num">3</div>
         <h3>Vi organizzate</h3>
-        <p>seeva calcola la data con più disponibilità. Da lì, chi viene è confermato e si possono dividere le spese.</p>
+        <p>Vince la data migliore: tutto è confermato.</p>
+        <div class="land-phone"><img loading="lazy" data-it="img/land-organizza-it.webp" data-en="img/land-organizza-en.webp" width="420" height="747" alt="Schermata di un evento confermato"></div>
       </div>
     </div>
   </section>
 
-  <section class="land-section">
-    <div class="land-section-head">
-      <span class="land-eyebrow">Cosa puoi fare</span>
-      <h2>Tutto quello che serve per organizzarsi</h2>
-      <p>Le funzioni pensate per il tipo di caos che si crea sempre quando si prova a mettere d'accordo un gruppo.</p>
+  <section class="land-section" style="padding-top:8px">
+    <div class="land-head land-reveal">
+      <h2>Tutto quello che serve</h2>
     </div>
     <div class="land-features">
-      <details class="land-feature">
-        <summary>
-          <div class="land-feature-icon" style="background:var(--peach);">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M3 10h18"></path><path d="M8 3v4M16 3v4"></path></svg>
-          </div>
-          <h3>Trova la data giusta</h3>
-          <svg class="land-feature-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M6 9l6 6 6-6"></path></svg>
-        </summary>
-        <p>Proponi più date, i tuoi amici votano quelle che vanno bene, vince quella con più disponibilità.</p>
-      </details>
-      <details class="land-feature">
-        <summary>
-          <div class="land-feature-icon" style="background:var(--confirmed);">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
-          </div>
-          <h3>Sai sempre chi viene</h3>
-          <svg class="land-feature-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M6 9l6 6 6-6"></path></svg>
-        </summary>
-        <p>Da confermare, confermati o annullati: lo stato di ogni evento a colpo d'occhio, sempre aggiornato.</p>
-      </details>
-      <details class="land-feature">
-        <summary>
-          <div class="land-feature-icon" style="background:var(--lavender);">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5M9 8l1.2 1M15 8l-1.2 1"></path><path d="M8.5 15.5c1-1 2.2-1.5 3.5-1.5s2.5.5 3.5 1.5"></path></svg>
-          </div>
-          <h3>Spese condivise</h3>
-          <svg class="land-feature-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M6 9l6 6 6-6"></path></svg>
-        </summary>
-        <p>Aggiungi chi ha pagato cosa, seeva calcola le quote di ciascuno. Niente più calcoli a mano.</p>
-      </details>
-      <details class="land-feature">
-        <summary>
-          <div class="land-feature-icon" style="background:var(--sky);">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3"></circle><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"></path><circle cx="17" cy="9" r="2.4"></circle><path d="M15.5 13.3c2.6 0.3 4.5 2.2 4.5 5.7"></path></svg>
-          </div>
-          <h3>Amici e liste</h3>
-          <svg class="land-feature-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M6 9l6 6 6-6"></path></svg>
-        </summary>
-        <p>Salva i gruppi che inviti spesso — la squadra, i compagni di viaggio — e invitali con un tocco.</p>
-      </details>
-      <details class="land-feature">
-        <summary>
-          <div class="land-feature-icon" style="background:var(--butter);">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-6 6v3.2c0 .87-.35 1.7-.97 2.32L4 15.5h16l-1.03-1.98A3.28 3.28 0 0 1 18 11.2V9a6 6 0 0 0-6-6z"></path><path d="M9.5 18.5a2.5 2.5 0 0 0 5 0"></path></svg>
-          </div>
-          <h3>Notifiche</h3>
-          <svg class="land-feature-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M6 9l6 6 6-6"></path></svg>
-        </summary>
-        <p>Sai subito quando qualcuno risponde o quando una data si sblocca, senza controllare a mano.</p>
-      </details>
-      <details class="land-feature">
-        <summary>
-          <div class="land-feature-icon" style="background:var(--cancel);">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"></path><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"></path></svg>
-          </div>
-          <h3>Link d'invito</h3>
-          <svg class="land-feature-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M6 9l6 6 6-6"></path></svg>
-        </summary>
-        <p>Mandi un link, chi lo apre entra direttamente nell'evento — non serve nemmeno registrarsi per rispondere.</p>
-      </details>
-      <details class="land-feature">
-        <summary>
-          <div class="land-feature-icon" style="background:var(--surface-dark);">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2.5"></rect><line x1="10" y1="19" x2="14" y2="19"></line></svg>
-          </div>
-          <h3>Zero spazio occupato</h3>
-          <svg class="land-feature-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M6 9l6 6 6-6"></path></svg>
-        </summary>
-        <p>Non è un'app da scaricare dallo store: si apre dal browser come un sito, non consuma memoria sul telefono. Se vuoi puoi comunque aggiungerla alla schermata home in un tocco, resta comunque leggerissima.</p>
-      </details>
-    </div>
-  </section>
-
-  <section class="land-section">
-    <div class="land-why">
-      <div>
-        <h2>Perché non un gruppo WhatsApp</h2>
-        <p>In un gruppo la data si perde tra gli sticker, nessuno ricorda chi aveva detto sì e le spese restano segnate a mente da qualcuno. seeva tiene una fonte sola per data, partecipanti e spese — sempre lì, senza dover risalire la chat.</p>
+      <div class="land-feature land-reveal">
+        <div class="land-feature-icon" style="background:var(--peach);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M3 10h18"></path><path d="M8 3v4M16 3v4"></path></svg>
+        </div>
+        <div><h3>Trova la data giusta</h3><p>Gli amici votano, vince la più comoda.</p></div>
       </div>
-      <div class="land-why-list">
-        <div class="land-why-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M20 6 9 17l-5-5"></path></svg>
-          <span>Una sola risposta per persona, non venti messaggi</span>
+      <div class="land-feature land-reveal" style="--d:.05s">
+        <div class="land-feature-icon" style="background:var(--confirmed);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
         </div>
-        <div class="land-why-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M20 6 9 17l-5-5"></path></svg>
-          <span>Chi viene si vede subito, non va dedotto dallo scroll</span>
+        <div><h3>Sai sempre chi viene</h3><p>Lo stato di ogni evento, a colpo d'occhio.</p></div>
+      </div>
+      <div class="land-feature land-reveal" style="--d:.1s">
+        <div class="land-feature-icon" style="background:var(--lavender);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M14.5 9.2c-.6-.7-1.5-1-2.5-1-1.4 0-2.4.7-2.4 1.8 0 2.5 5 1.1 5 3.8 0 1.1-1.1 1.9-2.6 1.9-1.1 0-2-.4-2.6-1.1M12 6.5v1.7M12 15.7v1.8"></path></svg>
         </div>
-        <div class="land-why-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M20 6 9 17l-5-5"></path></svg>
-          <span>Le spese restano scritte, non affidate alla memoria</span>
+        <div><h3>Spese condivise</h3><p>Chi ha pagato cosa: le quote le calcola seeva.</p></div>
+      </div>
+      <div class="land-feature land-reveal" style="--d:.15s">
+        <div class="land-feature-icon" style="background:var(--sky);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"></path><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"></path></svg>
         </div>
+        <div><h3>Invita con un link</h3><p>Chi lo apre risponde subito, anche senza registrarsi.</p></div>
+      </div>
+      <div class="land-feature land-reveal" style="--d:.2s">
+        <div class="land-feature-icon" style="background:var(--butter);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-6 6v3.2c0 .87-.35 1.7-.97 2.32L4 15.5h16l-1.03-1.98A3.28 3.28 0 0 1 18 11.2V9a6 6 0 0 0-6-6z"></path><path d="M9.5 18.5a2.5 2.5 0 0 0 5 0"></path></svg>
+        </div>
+        <div><h3>Notifiche</h3><p>Sai subito quando qualcuno risponde.</p></div>
       </div>
     </div>
   </section>
 
-  <section class="land-final">
-    <h2>Pronto a provarla?</h2>
-    <p>Ti bastano due minuti per registrarti. Il prossimo evento lo proponi tu.</p>
-    <div class="land-cta-row">
-      <a class="land-btn land-btn-primary" href="profilo.html">Registrati gratis</a>
-      <a class="land-btn land-btn-secondary" href="profilo.html?mode=login">Ho già un account</a>
+  <section class="land-section" style="padding-top:8px">
+    <div class="land-head land-reveal">
+      <h2>Perché non un gruppo WhatsApp</h2>
+    </div>
+    <div class="land-vs">
+      <div class="land-vs-col land-vs-no land-reveal">
+        <h3>Nel gruppo</h3>
+        <ul>
+          <li>La data si perde tra i messaggi</li>
+          <li>Chi viene? Lo deduci dallo scroll</li>
+          <li>Le spese le ricorda qualcuno a mente</li>
+        </ul>
+      </div>
+      <div class="land-vs-col land-vs-yes land-reveal" style="--d:.1s">
+        <h3>Con seeva</h3>
+        <ul>
+          <li>Una risposta a persona, in un tocco</li>
+          <li>Chi viene si vede subito</li>
+          <li>Le spese restano scritte</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="land-section" style="padding-top:8px">
+    <div class="land-contact land-reveal">
+      <h2>Scrivici</h2>
+      <p>Domande, idee o un problema? Rispondiamo volentieri.</p>
+      <a class="land-btn" href="mailto:seeva.app@gmail.com">seeva.app@gmail.com</a>
+      <p class="land-contact-sub">Oppure vai alla <a href="supporto.html">pagina di supporto</a>.</p>
     </div>
   </section>
 
   <footer class="land-footer">
     <div class="land-logo">
-      <img class="land-logo-mark" src="icon-192.png" alt="seeva">
+      <img class="land-logo-mark" src="icon-192.png" width="34" height="34" alt="seeva">
       seeva
     </div>
-    <div class="land-footer-note">Hai già un account? <a href="index.html">Vai alla tua Home →</a> · <a href="privacy">Privacy</a></div>
+    <div class="land-footer-note">
+      <a href="profilo.html?mode=login">Accedi</a> · <a href="supporto.html">Supporto</a> · <a href="privacy">Privacy</a><br>
+      <span data-no-i18n><button type="button" id="langIt">Italiano</button> · <button type="button" id="langEn">English</button></span>
+    </div>
   </footer>
 
+<script>
+(function () {
+  'use strict';
+  /* ===== DA CAMBIARE QUANDO I NEGOZI SONO ONLINE =====
+     App Store: metti APP_STORE_LIVE = true (stesso flag di script.js, riga ~68).
+     Google Play: incolla il link in GOOGLE_PLAY_URL (es. https://play.google.com/store/apps/details?id=it.seeva.app). */
+  var APP_STORE_LIVE = false;
+  var APP_STORE_URL = 'https://apps.apple.com/it/app/id6839325334';
+  var GOOGLE_PLAY_URL = '';
+
+  var ua = navigator.userAgent || '';
+  var ios = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var android = /android/i.test(ua);
+  document.body.classList.add(ios ? 'is-ios' : android ? 'is-android' : 'is-desktop');
+
+  var en = window.SeevaI18n && window.SeevaI18n.isEnglish;
+  var tr = function (s) { return window.SeevaI18n ? window.SeevaI18n.t(s) : s; };
+
+  // Bottoni negozi: link vero solo se esiste, altrimenti "In arrivo" (mai link morti).
+  function setStore(id, live, url, name) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var main = (id === 'storeApple' && ios) || (id === 'storePlay' && android);
+    if (live && url) {
+      var a = document.createElement('a');
+      a.id = id; a.href = url; a.rel = 'noopener';
+      a.className = 'land-store' + (main ? ' is-main' : '');
+      a.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"></path></svg><span><small></small><b></b></span>';
+      a.querySelector('small').textContent = tr('Scarica su');
+      a.querySelector('b').textContent = name;
+      el.parentNode.replaceChild(a, el);
+    } else if (main) {
+      el.classList.add('is-main');
+    }
+  }
+  setStore('storeApple', APP_STORE_LIVE, APP_STORE_URL, 'App Store');
+  setStore('storePlay', !!GOOGLE_PLAY_URL, GOOGLE_PLAY_URL, 'Google Play');
+
+  // Screenshot nella lingua giusta (un solo file scaricato per immagine).
+  var imgs = document.querySelectorAll('img[data-it]');
+  for (var i = 0; i < imgs.length; i++) {
+    imgs[i].src = en ? imgs[i].getAttribute('data-en') : imgs[i].getAttribute('data-it');
+  }
+
+  // Titolo e meta in inglese.
+  if (en) {
+    var T = tr('seeva — Organizza uscite con gli amici, senza il caos dei gruppi');
+    var D = tr('Proponi le date, gli amici rispondono, seeva sceglie quella giusta e tiene il conto di chi viene e di chi deve cosa. Gratis.');
+    document.title = T;
+    var set = function (sel, v) { var m = document.querySelector(sel); if (m) m.setAttribute('content', v); };
+    set('meta[name="description"]', D); set('meta[property="og:title"]', T); set('meta[property="og:description"]', D);
+    set('meta[property="og:locale"]', 'en_GB');
+  }
+
+  // Scelta manuale della lingua (stessa chiave del Profilo).
+  var bIt = document.getElementById('langIt'), bEn = document.getElementById('langEn');
+  (en ? bEn : bIt).className = 'on';
+  bIt.onclick = function () { if (en) window.SeevaI18n.setLang('it'); };
+  bEn.onclick = function () { if (!en) window.SeevaI18n.setLang('en'); };
+
+  // Elementi che compaiono scorrendo.
+  var els = document.querySelectorAll('.land-reveal');
+  var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!still && 'IntersectionObserver' in window) {
+    document.documentElement.classList.add('land-js');
+    var io = new IntersectionObserver(function (list) {
+      list.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { threshold: 0.12, rootMargin: '0px 0px -30px 0px' });
+    for (var j = 0; j < els.length; j++) io.observe(els[j]);
+  }
+})();
+</script>
 </body>
 </html>
