@@ -75,6 +75,11 @@
 	     questa frase iOS chiude l'app appena si tocca il microfono (2026-11-25) -->
 	<key>NSMicrophoneUsageDescription</key>
 	<string>seeva usa il microfono solo se vuoi dettare a voce la descrizione di un evento.</string>
+	<!-- "Aggiungi al calendario": l'editor di sistema (EventKitUI) salva solo l'evento scelto -->
+	<key>NSCalendarsUsageDescription</key>
+	<string>seeva aggiunge al tuo calendario solo gli eventi che scegli tu con "Aggiungi al calendario".</string>
+	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
+	<string>seeva aggiunge al tuo calendario solo gli eventi che scegli tu con "Aggiungi al calendario".</string>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 </dict>

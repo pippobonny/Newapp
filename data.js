@@ -285,7 +285,7 @@
   var calendarPluginRef = null;
   function nativeCalendarPlugin() {
     var C = global.Capacitor;
-    if (!isNativeApp() || !C || typeof C.getPlatform !== 'function' || C.getPlatform() !== 'android' || typeof C.registerPlugin !== 'function') return null;
+    if (!isNativeApp() || !C || typeof C.getPlatform !== 'function' || (C.getPlatform() !== 'android' && C.getPlatform() !== 'ios') || typeof C.registerPlugin !== 'function') return null;
     // 2026-11-25: niente controllo isPluginAvailable (non è chiaro perché desse
     // falso con il plugin dentro): si prova a chiamarlo, e solo se
     // risponde "non implementato" si passa al ripiego Google Calendar.
@@ -356,6 +356,8 @@
     } catch (err) {
       var msg = String((err && (err.code || err.message)) || err).toLowerCase();
       if (msg.indexOf('unimplemented') !== -1 || msg.indexOf('not implemented') !== -1 || msg.indexOf('not available') !== -1 || msg.indexOf('not found') !== -1) {
+        // iPhone: senza plugin si torna al vecchio metodo (.ics), non a Google Calendar.
+        if (global.Capacitor.getPlatform() === 'ios') return false;
         global.open(googleCalendarUrl(event, dateISO, timeLabel), '_blank');
         return true;
       }
